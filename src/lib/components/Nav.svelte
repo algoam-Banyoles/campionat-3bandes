@@ -2,11 +2,12 @@
   import { page } from '$app/stores';
   import { user, logout } from '$lib/authStore';
 
-  const links = [
+  // enllaços sempre visibles
+  const baseLinks = [
     { href: '/', label: 'Inici' },
     { href: '/classificacio', label: 'Classificació' },
     { href: '/reptes', label: 'Reptes' },
-   { href: '/reptes/me', label: 'Els meus reptes' },
+    { href: '/reptes/nou', label: 'Nou repte' },   // <- nou enllaç aquí
     { href: '/socis', label: 'Socis' },
     { href: '/admin', label: 'Admin' }
   ];
@@ -24,8 +25,9 @@
     <div class="flex h-14 items-center justify-between gap-3">
       <a href="/" class="font-semibold tracking-tight">Campionat 3B</a>
 
+      <!-- Desktop -->
       <ul class="hidden sm:flex gap-2">
-        {#each links as l}
+        {#each baseLinks as l}
           <li>
             <a
               href={l.href}
@@ -37,8 +39,22 @@
             </a>
           </li>
         {/each}
+
+        {#if $user}
+          <li>
+            <a
+              href="/reptes/me"
+              class="px-2 py-1 rounded hover:bg-slate-100"
+              class:bg-slate-900={isActive('/reptes/me')}
+              class:text-white={isActive('/reptes/me')}
+            >
+              Els meus reptes
+            </a>
+          </li>
+        {/if}
       </ul>
 
+      <!-- Dreta -->
       <div class="ml-auto flex items-center gap-2">
         {#if $user}
           <span class="text-sm text-slate-600 hidden sm:inline">{$user.email}</span>
@@ -56,9 +72,10 @@
       </div>
     </div>
 
+    <!-- Mòbil -->
     {#if open}
       <ul class="sm:hidden pb-3 space-y-1">
-        {#each links as l}
+        {#each baseLinks as l}
           <li>
             <a
               href={l.href}
@@ -66,9 +83,26 @@
               class:bg-slate-900={isActive(l.href)}
               class:text-white={isActive(l.href)}
               on:click={() => (open = false)}
-            >{l.label}</a>
+            >
+              {l.label}
+            </a>
           </li>
         {/each}
+
+        {#if $user}
+          <li>
+            <a
+              href="/reptes/me"
+              class="block px-2 py-2 rounded hover:bg-slate-100"
+              class:bg-slate-900={isActive('/reptes/me')}
+              class:text-white={isActive('/reptes/me')}
+              on:click={() => (open = false)}
+            >
+              Els meus reptes
+            </a>
+          </li>
+        {/if}
+
         <li class="pt-2 border-t">
           {#if $user}
             <button class="w-full text-left px-2 py-2 rounded hover:bg-slate-100" on:click={logout}>

@@ -19,6 +19,8 @@
     <a href="/" class="font-semibold">Campionat 3 Bandes</a>
     <a href="/calendari" class="hover:underline">Calendari</a>
     <a href="/classificacio" class="hover:underline">Classificació</a>
+<a href="/reptes" class="hover:underline">Reptes</a>
+        <a href="/reptes/me" class="hover:underline">Els meus reptes</a>
     <a href="/socis" class="hover:underline">Socis</a>
 
     {#if !$loadingAuth && $user && admin}

@@ -22,11 +22,13 @@
   let error: string | null = null;
   let rows: Challenge[] = [];
   let myPlayerId: string | null = null;
-  let actionBusy: string | null = null; // id del repte en acció
+  let actionBusy: string | null = null;
 
-  onMount(async () => {
-    await load();
-  });
+  // estat local per seleccionar una data proposada o fer contraproposta
+  let sel: Record<string, string | null> = {};
+  let counter: Record<string, string | null> = {};
+
+  onMount(load);
 
   async function load() {
     try {
@@ -36,7 +38,6 @@
       const u = $user;
       if (!u?.email) {
         error = 'Has d’iniciar sessió per veure els teus reptes.';
-        loading = false;
         return;
       }
 
@@ -48,35 +49,30 @@
         .select('id')
         .eq('email', u.email)
         .maybeSingle();
-
       if (e1) throw e1;
       if (!p) {
         error = 'El teu email no està vinculat a cap jugador.';
-        loading = false;
         return;
       }
       myPlayerId = p.id;
 
-      // 2) Reptes on hi sóc (com reptador o reptat)
+      // 2) Reptes on hi sóc
       const { data: ch, error: e2 } = await supabase
         .from('challenges')
         .select('id,event_id,tipus,reptador_id,reptat_id,estat,dates_proposades,data_proposta,data_acceptacio,pos_reptador,pos_reptat')
         .or(`reptador_id.eq.${myPlayerId},reptat_id.eq.${myPlayerId}`)
         .order('data_proposta', { ascending: false });
-
       if (e2) throw e2;
 
-      const ids = Array.from(
-        new Set([...(ch?.map(c => c.reptador_id) ?? []), ...(ch?.map(c => c.reptat_id) ?? [])])
-      );
+      const ids = Array.from(new Set([...(ch?.map(c => c.reptador_id) ?? []), ...(ch?.map(c => c.reptat_id) ?? [])]));
 
-      // 3) Diccionari id->nom per mostrar noms
+      // 3) Diccionari id -> nom
       const { data: players, error: e3 } = await supabase
         .from('players')
         .select('id,nom')
         .in('id', ids);
-
       if (e3) throw e3;
+
       const nameById = new Map<string, string>(players?.map(p => [p.id, p.nom]) ?? []);
 
       rows = (ch ?? []).map(c => ({
@@ -108,9 +104,80 @@
         .update({ estat: accept ? 'acceptat' : 'refusat' })
         .eq('id', r.id);
       if (err) throw err;
-      await load(); // refresca
+      await load();
     } catch (e: any) {
       alert(e?.message ?? 'No s’ha pogut actualitzar el repte');
+    } finally {
+      actionBusy = null;
+    }
+  }
+
+  async function accept(r: Challenge) {
+    try {
+      actionBusy = r.id;
+      const { supabase } = await import('$lib/supabaseClient');
+
+      const selected = sel[r.id] ?? null;     // una de les dates proposades
+      const proposed = counter[r.id] ?? null; // contraproposta ISO
+
+      if (proposed) {
+        // accepto i afegeixo una nova data com a contraproposta (pendent d’acord)
+        const { error } = await supabase
+          .from('challenges')
+          .update({
+            estat: 'acceptat',
+            data_acceptacio: new Date().toISOString(),
+            dates_proposades: [...(r.dates_proposades ?? []), proposed]
+          })
+          .eq('id', r.id);
+        if (error) throw error;
+      } else if (selected) {
+        // accepto i queda programat per la data triada (si tens estat 'programat', canvia-ho)
+        const { error } = await supabase
+          .from('challenges')
+          .update({
+            estat: 'acceptat',
+            data_acceptacio: selected
+          })
+          .eq('id', r.id);
+        if (error) throw error;
+      } else {
+        // accepto sense data: pendent de programar
+        const { error } = await supabase
+          .from('challenges')
+          .update({
+            estat: 'acceptat',
+            data_acceptacio: new Date().toISOString()
+          })
+          .eq('id', r.id);
+        if (error) throw error;
+      }
+
+      await load();
+    } catch (e: any) {
+      alert(e?.message ?? 'No s’ha pogut acceptar el repte');
+    } finally {
+      actionBusy = null;
+    }
+  }
+
+  async function counterPropose(r: Challenge) {
+    try {
+      if (!counter[r.id]) return;
+      actionBusy = r.id;
+      const { supabase } = await import('$lib/supabaseClient');
+
+      const { error } = await supabase
+        .from('challenges')
+        .update({
+          dates_proposades: [...(r.dates_proposades ?? []), counter[r.id]]
+        })
+        .eq('id', r.id);
+      if (error) throw error;
+
+      await load();
+    } catch (e: any) {
+      alert(e?.message ?? 'No s’ha pogut enviar la contraproposta');
     } finally {
       actionBusy = null;
     }
@@ -148,20 +215,60 @@
           <div class="mt-2 text-sm">
             <strong>Dates proposades:</strong>
             <ul class="list-disc ml-6">
-              {#each r.dates_proposades as d}<li>{fmt(d)}</li>{/each}
+              {#each r.dates_proposades as d}
+                <li>
+                  <label class="inline-flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name={"date-" + r.id}
+                      value={d}
+                      on:change={() => { sel[r.id] = d; counter[r.id] = null; }}
+                    />
+                    <span>{fmt(d)}</span>
+                  </label>
+                </li>
+              {/each}
             </ul>
           </div>
         {/if}
 
         {#if canRespond(r)}
-          <div class="mt-3 flex gap-2">
+          <div class="mt-3 text-sm">
+            <strong>O bé contrapropón una data:</strong>
+            <div class="mt-1 flex items-center gap-2">
+              <input
+                type="datetime-local"
+                class="rounded border px-2 py-1"
+                on:change={(e:any) => {
+                  const iso = e.currentTarget.value ? new Date(e.currentTarget.value).toISOString() : null;
+                  counter[r.id] = iso; sel[r.id] = null;
+                }}
+              />
+              {#if counter[r.id]}
+                <span class="text-xs text-slate-500">Proposta: {fmt(counter[r.id]!)}</span>
+              {/if}
+            </div>
+          </div>
+
+          <div class="mt-3 flex flex-wrap gap-2">
             <button
               class="rounded bg-green-600 text-white px-3 py-1 disabled:opacity-60"
-              on:click={() => respond(r, true)}
+              on:click={() => accept(r)}
               disabled={actionBusy === r.id}
+              title="Acceptar (amb o sense data seleccionada)"
             >
               {actionBusy === r.id ? 'Processant…' : 'Accepta'}
             </button>
+
+            <button
+              class="rounded bg-amber-600 text-white px-3 py-1 disabled:opacity-60"
+              on:click={() => counterPropose(r)}
+              disabled={actionBusy === r.id || !counter[r.id]}
+              title="Enviar contraproposta (requereix data)"
+            >
+              {actionBusy === r.id ? 'Processant…' : 'Contraproposta'}
+            </button>
+
             <button
               class="rounded bg-red-600 text-white px-3 py-1 disabled:opacity-60"
               on:click={() => respond(r, false)}
