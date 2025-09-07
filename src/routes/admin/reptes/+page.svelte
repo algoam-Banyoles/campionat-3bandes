@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { user } from '$lib/authStore';
-  import { isAdmin } from '$lib/isAdmin';
 
   type Challenge = {
     id: string;
@@ -20,180 +19,297 @@
     reptat_nom?: string;
   };
 
+  const ALL_STATES = ['proposat','acceptat','refusat','caducat','jugat','anullat'] as const;
+
   let loading = true;
   let error: string | null = null;
+
+  let isAdmin = false;
+  let eventActiuId: string | null = null;
+
+  // dades i filtres
   let rows: Challenge[] = [];
-  let busy: string | null = null;
+  let q = '';                               // filtre text (nom reptador/reptat)
+  let stateFilter: Challenge['estat'] | 'tots' = 'proposat';
+  let fromDate = '';                        // yyyy-mm-dd
+  let toDate = '';
+
+  // accions ràpides
+  let busyId: string | null = null;
+  let planDate: Record<string, string> = {};   // challengeId -> datetime-local
 
   onMount(async () => {
-    // només admins
-    if (!$user) { goto('/login'); return; }
-    const ok = await isAdmin();
-    if (!ok) { goto('/'); return; }
-    await load();
-  });
-
-  async function load() {
     try {
-      loading = true;
-      error = null;
+      loading = true; error = null;
+
+      const u = $user;
+      if (!u?.email) { goto('/login'); return; }
+
       const { supabase } = await import('$lib/supabaseClient');
 
-      const { data: ch, error: e1 } = await supabase
-        .from('challenges')
-        .select('id,event_id,tipus,reptador_id,reptat_id,estat,dates_proposades,data_proposta,data_acceptacio,pos_reptador,pos_reptat')
-        .order('data_proposta', { ascending: false });
+      // admin?
+      const { data: adm, error: eAdm } = await supabase
+        .from('admins')
+        .select('email')
+        .eq('email', u.email)
+        .maybeSingle();
+      if (eAdm) throw eAdm;
+      if (!adm) { error = 'Només els administradors poden accedir a aquesta pàgina.'; return; }
+      isAdmin = true;
 
-      if (e1) throw e1;
+      // event actiu
+      const { data: ev, error: eEv } = await supabase
+        .from('events')
+        .select('id')
+        .eq('actiu', true)
+        .limit(1)
+        .maybeSingle();
+      if (eEv) throw eEv;
+      if (!ev) { error = 'No s’ha trobat cap event actiu.'; return; }
+      eventActiuId = ev.id;
 
-      const ids = Array.from(
-        new Set([...(ch?.map(c => c.reptador_id) ?? []), ...(ch?.map(c => c.reptat_id) ?? [])])
-      );
-
-      const { data: players, error: e2 } = await supabase
-        .from('players')
-        .select('id,nom')
-        .in('id', ids);
-
-      if (e2) throw e2;
-      const nameById = new Map<string, string>(players?.map(p => [p.id, p.nom]) ?? []);
-
-      rows = (ch ?? []).map(c => ({
-        ...c,
-        reptador_nom: nameById.get(c.reptador_id) ?? '—',
-        reptat_nom: nameById.get(c.reptat_id) ?? '—'
-      }));
-    } catch (e: any) {
+      await load();
+    } catch (e:any) {
       error = e?.message ?? 'Error desconegut';
     } finally {
       loading = false;
     }
+  });
+
+  async function load() {
+    try {
+      if (!eventActiuId) return;
+      const { supabase } = await import('$lib/supabaseClient');
+
+      // llegim reptes de l’event actiu
+      let query = supabase
+        .from('challenges')
+        .select('id,event_id,tipus,reptador_id,reptat_id,estat,dates_proposades,data_proposta,data_acceptacio,pos_reptador,pos_reptat')
+        .eq('event_id', eventActiuId)
+        .order('data_proposta', { ascending: false });
+
+      // filtres de dates (sobre data_proposta)
+      if (fromDate) query = query.gte('data_proposta', new Date(fromDate).toISOString());
+      if (toDate) {
+        const dt = new Date(toDate);
+        dt.setHours(23,59,59,999);
+        query = query.lte('data_proposta', dt.toISOString());
+      }
+
+      // filtre d’estat (si no és 'tots')
+      if (stateFilter !== 'tots') {
+        query = query.eq('estat', stateFilter);
+      }
+
+      const { data: ch, error: e1 } = await query;
+      if (e1) throw e1;
+
+      // agafem noms dels jugadors
+      const ids = Array.from(new Set([
+        ...(ch?.map(c => c.reptador_id) ?? []),
+        ...(ch?.map(c => c.reptat_id) ?? [])
+      ]));
+      const { data: players, error: e2 } = await (await import('$lib/supabaseClient')).supabase
+        .from('players')
+        .select('id,nom')
+        .in('id', ids);
+      if (e2) throw e2;
+
+      const dict = new Map(players?.map(p => [p.id, p.nom]) ?? []);
+
+      rows = (ch ?? []).map(c => ({
+        ...c,
+        reptador_nom: dict.get(c.reptador_id) ?? '—',
+        reptat_nom: dict.get(c.reptat_id) ?? '—'
+      }));
+    } catch (e:any) {
+      error = e?.message ?? 'No s’ha pogut carregar la llista';
+    }
   }
 
-  function fmt(d?: string | null) {
+  function fmt(d: string | null) {
     if (!d) return '—';
     try { return new Date(d).toLocaleString(); } catch { return d; }
   }
 
-  async function adminSetState(id: string, state: 'acceptat'|'refusat'|'anullat'|'caducat') {
+  function matchesQuery(r: Challenge) {
+    const t = q.trim().toLowerCase();
+    if (!t) return true;
+    return (r.reptador_nom ?? '').toLowerCase().includes(t)
+        || (r.reptat_nom ?? '').toLowerCase().includes(t);
+  }
+
+  async function setEstat(r: Challenge, estat: Challenge['estat']) {
     try {
-      busy = id;
+      busyId = r.id;
       const { supabase } = await import('$lib/supabaseClient');
-      const { error: err } = await supabase.rpc('admin_update_challenge_state', {
-        p_challenge: id, p_new_state: state
-      });
-      if (err) throw err;
+      const { error: e } = await supabase
+        .from('challenges')
+        .update({ estat })
+        .eq('id', r.id);
+      if (e) throw e;
       await load();
-    } catch (e: any) {
+    } catch (e:any) {
       alert(e?.message ?? 'No s’ha pogut actualitzar l’estat');
     } finally {
-      busy = null;
+      busyId = null;
     }
   }
 
-  async function adminNoShow(id: string, noShowPlayerId: string) {
+  async function programar(r: Challenge) {
     try {
-      busy = id;
-      const { supabase } = await import('$lib/supabaseClient');
-      const { error: err } = await supabase.rpc('admin_apply_no_show', {
-        p_challenge: id, p_no_show_player: noShowPlayerId
-      });
-      if (err) throw err;
-      await load();
-    } catch (e: any) {
-      alert(e?.message ?? 'No s’ha pogut aplicar la incompareixença');
-    } finally {
-      busy = null;
-    }
-  }
+      const val = planDate[r.id];
+      if (!val) { alert('Indica una data per programar.'); return; }
+      const iso = new Date(val).toISOString();
 
-  async function adminDisagreement(eventId: string, a: string, b: string) {
-    try {
-      busy = `${a}-${b}`;
+      busyId = r.id;
       const { supabase } = await import('$lib/supabaseClient');
-      const { error: err } = await supabase.rpc('admin_apply_disagreement', {
-        p_event: eventId, p_player_a: a, p_player_b: b
-      });
-      if (err) throw err;
+      const { error: e } = await supabase
+        .from('challenges')
+        .update({
+          estat: 'acceptat',          // si prefereixes un estat 'programat', canvia-ho aquí i a l’ENUM
+          data_acceptacio: iso
+        })
+        .eq('id', r.id);
+      if (e) throw e;
       await load();
-    } catch (e: any) {
-      alert(e?.message ?? 'No s’ha pogut aplicar el desacord de dates');
+    } catch (e:any) {
+      alert(e?.message ?? 'No s’ha pogut programar el repte');
     } finally {
-      busy = null;
+      busyId = null;
     }
   }
 </script>
 
-<svelte:head><title>Admin · Reptes</title></svelte:head>
+<svelte:head>
+  <title>Admin · Reptes</title>
+</svelte:head>
 
-<h1 class="text-2xl font-semibold mb-4">Reptes (Administració)</h1>
+<h1 class="text-2xl font-semibold mb-4">Administració — Reptes</h1>
 
 {#if loading}
   <p class="text-slate-500">Carregant…</p>
 {:else if error}
-  <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3">{error}</div>
-{:else if rows.length === 0}
-  <p class="text-slate-600">No hi ha reptes.</p>
-{:else}
-  <div class="space-y-3">
-    {#each rows as r}
-      <div class="rounded border p-3">
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-xs rounded bg-slate-800 text-white px-2 py-0.5">{r.tipus}</span>
-          <span class="text-xs rounded bg-slate-100 px-2 py-0.5 capitalize">{r.estat.replace('_',' ')}</span>
-          <span class="text-xs text-slate-500 ml-auto">Proposat: {fmt(r.data_proposta)}</span>
-          {#if r.data_acceptacio}<span class="text-xs text-slate-500">Acceptat: {fmt(r.data_acceptacio)}</span>{/if}
-        </div>
+  <div class="rounded border border-red-300 bg-red-50 p-3 text-red-700">{error}</div>
+{:else if isAdmin}
+  <!-- Filtres -->
+  <div class="mb-4 grid gap-2 sm:grid-cols-5">
+    <div class="sm:col-span-2">
+      <label class="block text-sm mb-1">Cerca per nom</label>
+      <input class="w-full rounded border px-3 py-2" placeholder="Reptador o reptat…" bind:value={q} on:input={load} />
+    </div>
 
-        <div class="mt-2 text-sm">
-          <div><strong>Reptador:</strong> #{r.pos_reptador ?? '—'} — {r.reptador_nom}</div>
-          <div><strong>Reptat:</strong> #{r.pos_reptat ?? '—'} — {r.reptat_nom}</div>
-          {#if r.dates_proposades?.length}
-            <div class="mt-2"><strong>Dates:</strong> {r.dates_proposades.map(fmt).join(' · ')}</div>
-          {/if}
-        </div>
+    <div>
+      <label class="block text-sm mb-1">Estat</label>
+      <select class="w-full rounded border px-3 py-2" bind:value={stateFilter} on:change={load}>
+        <option value="tots">Tots</option>
+        {#each ALL_STATES as s}
+          <option value={s}>{s}</option>
+        {/each}
+      </select>
+    </div>
 
-        <div class="mt-3 flex flex-wrap gap-2">
-          <!-- canvis d'estat -->
-          <button class="rounded bg-green-600 text-white px-3 py-1 disabled:opacity-60"
-            on:click={() => adminSetState(r.id, 'acceptat')}
-            disabled={busy === r.id}>
-            {busy === r.id ? '…' : 'Accepta'}
-          </button>
-          <button class="rounded bg-yellow-600 text-white px-3 py-1 disabled:opacity-60"
-            on:click={() => adminSetState(r.id, 'caducat')}
-            disabled={busy === r.id}>
-            {busy === r.id ? '…' : 'Caduca'}
-          </button>
-          <button class="rounded bg-red-600 text-white px-3 py-1 disabled:opacity-60"
-            on:click={() => adminSetState(r.id, 'refusat')}
-            disabled={busy === r.id}>
-            {busy === r.id ? '…' : 'Refusa'}
-          </button>
-          <button class="rounded bg-slate-600 text-white px-3 py-1 disabled:opacity-60"
-            on:click={() => adminSetState(r.id, 'anullat')}
-            disabled={busy === r.id}>
-            {busy === r.id ? '…' : 'Anul·la'}
-          </button>
+    <div>
+      <label class="block text-sm mb-1">Des de</label>
+      <input type="date" class="w-full rounded border px-3 py-2" bind:value={fromDate} on:change={load} />
+    </div>
 
-          <!-- penalitzacions -->
-          <button class="rounded bg-fuchsia-700 text-white px-3 py-1 disabled:opacity-60"
-            on:click={() => adminNoShow(r.id, r.reptat_id)}
-            disabled={busy === r.id}>
-            {busy === r.id ? '…' : 'No-show reptat'}
-          </button>
-          <button class="rounded bg-fuchsia-700 text-white px-3 py-1 disabled:opacity-60"
-            on:click={() => adminNoShow(r.id, r.reptador_id)}
-            disabled={busy === r.id}>
-            {busy === r.id ? '…' : 'No-show reptador'}
-          </button>
-          <button class="rounded bg-orange-700 text-white px-3 py-1 disabled:opacity-60"
-            on:click={() => adminDisagreement(r.event_id, r.reptador_id, r.reptat_id)}
-            disabled={busy === `${r.reptador_id}-${r.reptat_id}`}>
-            {busy === `${r.reptador_id}-${r.reptat_id}` ? '…' : 'Desacord dates (-1 cadascú)'}
-          </button>
-        </div>
-      </div>
-    {/each}
+    <div>
+      <label class="block text-sm mb-1">Fins a</label>
+      <input type="date" class="w-full rounded border px-3 py-2" bind:value={toDate} on:change={load} />
+    </div>
   </div>
+
+  <!-- Taula -->
+  {#if rows.length === 0}
+    <p class="text-slate-600">No hi ha reptes amb aquests filtres.</p>
+  {:else}
+    <div class="overflow-x-auto border rounded">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100">
+          <tr>
+            <th class="px-3 py-2 text-left">Data proposta</th>
+            <th class="px-3 py-2 text-left">Reptador</th>
+            <th class="px-3 py-2 text-left">Reptat</th>
+            <th class="px-3 py-2 text-left">Estat</th>
+            <th class="px-3 py-2 text-left">Programat</th>
+            <th class="px-3 py-2 text-left">Accions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each rows.filter(matchesQuery) as r}
+            <tr class="border-t align-top">
+              <td class="px-3 py-2">{fmt(r.data_proposta)}</td>
+              <td class="px-3 py-2">#{r.pos_reptador ?? '—'} — {r.reptador_nom}</td>
+              <td class="px-3 py-2">#{r.pos_reptat ?? '—'} — {r.reptat_nom}</td>
+              <td class="px-3 py-2 capitalize">{r.estat.replace('_',' ')}</td>
+              <td class="px-3 py-2">{fmt(r.data_acceptacio)}</td>
+              <td class="px-3 py-2">
+                <div class="flex flex-wrap items-center gap-2">
+                  <!-- programar -->
+                  <div class="flex items-center gap-1">
+                    <input
+                      type="datetime-local"
+                      class="rounded border px-2 py-1"
+                      bind:value={planDate[r.id]}
+                    />
+                    <button
+                      class="rounded bg-slate-900 text-white px-2 py-1 disabled:opacity-60"
+                      on:click={() => programar(r)}
+                      disabled={busyId === r.id}
+                      title="Programar / reprogramar"
+                    >
+                      {busyId === r.id ? '...' : 'Programar'}
+                    </button>
+                  </div>
+
+                  <!-- acceptar sense data -->
+                  <button
+                    class="rounded border px-2 py-1 disabled:opacity-60"
+                    on:click={() => setEstat(r, 'acceptat')}
+                    disabled={busyId === r.id}
+                    title="Marcar acceptat (sense data)"
+                  >
+                    Acceptar
+                  </button>
+
+                  <!-- refusar -->
+                  <button
+                    class="rounded border px-2 py-1 disabled:opacity-60"
+                    on:click={() => setEstat(r, 'refusat')}
+                    disabled={busyId === r.id}
+                  >
+                    Refusar
+                  </button>
+
+                  <!-- anul·lar -->
+                  <button
+                    class="rounded border px-2 py-1 disabled:opacity-60"
+                    on:click={() => setEstat(r, 'anullat')}
+                    disabled={busyId === r.id}
+                  >
+                    Anul·lar
+                  </button>
+
+                  <!-- (properament) marcar com jugat amb resultat -->
+                  <a class="underline text-slate-700" href={`/admin/reptes/${r.id}`}>
+                    Detall
+                  </a>
+                </div>
+
+                {#if r.dates_proposades?.length}
+                  <div class="text-xs text-slate-500 mt-2">
+                    Dates proposades:
+                    <ul class="list-disc ml-5">
+                      {#each r.dates_proposades as d}<li>{fmt(d)}</li>{/each}
+                    </ul>
+                  </div>
+                {/if}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+  {/if}
 {/if}

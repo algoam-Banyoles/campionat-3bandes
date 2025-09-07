@@ -1,67 +1,81 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { user, loadingAuth } from '$lib/authStore';
-  import { get } from 'svelte/store';
-  import { isAdmin } from '$lib/isAdmin';
   import { goto } from '$app/navigation';
+  import { user } from '$lib/authStore';
 
-  let allowed = false;
-  let checking = true;
+  let loading = true;
   let error: string | null = null;
+  let isAdmin = false;
 
   onMount(async () => {
     try {
-      // si no hi ha usuari, cap al login
-      if (!get(user)) {
+      loading = true; error = null;
+
+      const u = $user;
+      if (!u?.email) {
+        // si no hi ha sessió, cap a login
         goto('/login');
         return;
       }
-      // comprova si és admin
-      allowed = await isAdmin();
-      if (!allowed) {
-        error = 'No tens permisos per accedir a aquesta secció.';
+
+      const { supabase } = await import('$lib/supabaseClient');
+
+      // comprovar que l'usuari és administrador
+      const { data: adm, error: eAdm } = await supabase
+        .from('admins')
+        .select('email')
+        .eq('email', u.email)
+        .maybeSingle();
+
+      if (eAdm) throw eAdm;
+      if (!adm) {
+        error = 'Només els administradors poden accedir a aquesta pàgina.';
+        return;
       }
+
+      isAdmin = true;
     } catch (e: any) {
-      error = e?.message ?? 'Error desconegut';
+      error = e?.message ?? 'Error en validar permisos';
     } finally {
-      checking = false;
+      loading = false;
     }
   });
 </script>
 
 <svelte:head>
-  <title>Panell d’Administració</title>
+  <title>Administració</title>
 </svelte:head>
 
-{#if $loadingAuth || checking}
-  <p class="text-slate-500">Comprovant permisos…</p>
+<h1 class="text-2xl font-semibold mb-4">Administració</h1>
+
+{#if loading}
+  <p class="text-slate-500">Carregant…</p>
 {:else if error}
-  <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3">{error}</div>
-{:else if allowed}
-  <div class="space-y-4">
-    <h1 class="text-2xl font-semibold">Panell d’Administració</h1>
-    <p class="text-slate-600">Eines de gestió del rànquing, reptes i resultats.</p>
+  <div class="rounded border border-red-300 bg-red-50 p-3 text-red-700">{error}</div>
+{:else if isAdmin}
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <!-- Targeta: crear repte -->
+    <a href="/admin/reptes/nou" class="block rounded-2xl border p-4 hover:shadow-sm">
+      <h2 class="font-semibold">➕ Crear repte</h2>
+      <p class="text-sm text-slate-600 mt-1">
+        Dona d’alta un repte entre dos jugadors. Pots forçar excepcions i programar-lo directament.
+      </p>
+    </a>
 
-    <div class="grid gap-4 md:grid-cols-2">
-      <a href="/admin/ranking" class="block rounded border p-4 hover:bg-slate-50">
-        <h2 class="font-semibold mb-1">Rànquing</h2>
-        <p class="text-slate-600 text-sm">Veure/editar posicions, moure jugadors (intercanvi), historial.</p>
-      </a>
+    <!-- Targeta: gestió de reptes (llistat i filtres) -->
+    <a href="/admin/reptes" class="block rounded-2xl border p-4 hover:shadow-sm">
+      <h2 class="font-semibold">🗂️ Reptes — Gestió</h2>
+      <p class="text-sm text-slate-600 mt-1">
+        Visualitza, filtra i actualitza l’estat dels reptes (proposats, acceptats, programats, jugats…).
+      </p>
+    </a>
 
-      <a href="/admin/reptes" class="block rounded border p-4 hover:bg-slate-50">
-        <h2 class="font-semibold mb-1">Reptes</h2>
-        <p class="text-slate-600 text-sm">Crear, acceptar/refusar, control de terminis i penalitzacions.</p>
-      </a>
-
-      <a href="/admin/partides" class="block rounded border p-4 hover:bg-slate-50">
-        <h2 class="font-semibold mb-1">Partides</h2>
-        <p class="text-slate-600 text-sm">Acta digital i registre de resultats, tie-break.</p>
-      </a>
-
-      <a href="/admin/llista-espera" class="block rounded border p-4 hover:bg-slate-50">
-        <h2 class="font-semibold mb-1">Llista d’espera</h2>
-        <p class="text-slate-600 text-sm">Gestió d’accessos (repte al 20è), altes/baixes.</p>
-      </a>
+    <!-- (espai per futures seccions d’admin) -->
+    <div class="rounded-2xl border p-4 opacity-70">
+      <h2 class="font-semibold">📈 Rànquing / Penes (properament)</h2>
+      <p class="text-sm text-slate-600 mt-1">
+        Històric de moviments, aplicació de penes i ajustos de posició segons normativa.
+      </p>
     </div>
   </div>
 {/if}
