@@ -1,0 +1,84 @@
+<script lang="ts">
+  import { page } from '$app/stores';
+  import { user, logout } from '$lib/authStore';
+
+  const links = [
+    { href: '/', label: 'Inici' },
+    { href: '/classificacio', label: 'Classificació' },
+    { href: '/reptes', label: 'Reptes' },
+   { href: '/reptes/me', label: 'Els meus reptes' },
+    { href: '/socis', label: 'Socis' },
+    { href: '/admin', label: 'Admin' }
+  ];
+
+  let open = false;
+
+  function isActive(href: string) {
+    const p = $page.url.pathname;
+    return p === href || (href !== '/' && p.startsWith(href));
+  }
+</script>
+
+<nav class="sticky top-0 z-50 border-b bg-white/80 backdrop-blur">
+  <div class="mx-auto max-w-6xl px-4">
+    <div class="flex h-14 items-center justify-between gap-3">
+      <a href="/" class="font-semibold tracking-tight">Campionat 3B</a>
+
+      <ul class="hidden sm:flex gap-2">
+        {#each links as l}
+          <li>
+            <a
+              href={l.href}
+              class="px-2 py-1 rounded hover:bg-slate-100"
+              class:bg-slate-900={isActive(l.href)}
+              class:text-white={isActive(l.href)}
+            >
+              {l.label}
+            </a>
+          </li>
+        {/each}
+      </ul>
+
+      <div class="ml-auto flex items-center gap-2">
+        {#if $user}
+          <span class="text-sm text-slate-600 hidden sm:inline">{$user.email}</span>
+          <button class="rounded bg-slate-900 text-white px-3 py-1" on:click={logout}>
+            Sortir
+          </button>
+        {:else}
+          <a href="/login" class="rounded bg-slate-900 text-white px-3 py-1">Entrar</a>
+        {/if}
+
+        <button
+          class="sm:hidden rounded p-2 hover:bg-slate-100"
+          on:click={() => (open = !open)}
+          aria-label="Obre/ tanca menú">☰</button>
+      </div>
+    </div>
+
+    {#if open}
+      <ul class="sm:hidden pb-3 space-y-1">
+        {#each links as l}
+          <li>
+            <a
+              href={l.href}
+              class="block px-2 py-2 rounded hover:bg-slate-100"
+              class:bg-slate-900={isActive(l.href)}
+              class:text-white={isActive(l.href)}
+              on:click={() => (open = false)}
+            >{l.label}</a>
+          </li>
+        {/each}
+        <li class="pt-2 border-t">
+          {#if $user}
+            <button class="w-full text-left px-2 py-2 rounded hover:bg-slate-100" on:click={logout}>
+              Sortir ({$user.email})
+            </button>
+          {:else}
+            <a href="/login" class="block px-2 py-2 rounded hover:bg-slate-100">Entrar</a>
+          {/if}
+        </li>
+      </ul>
+    {/if}
+  </div>
+</nav>
