@@ -8,7 +8,13 @@
     nom: string;
     mitjana: number | null;
     estat: string;
-    assignat_el: string;
+    assignat_el: string | null;
+  };
+
+  const fmtSafe = (iso: string | null): string => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
   };
 
   let loading = true;
@@ -61,7 +67,7 @@
             <td class="px-3 py-2">{r.nom}</td>
             <td class="px-3 py-2">{r.mitjana ?? '-'}</td>
             <td class="px-3 py-2 capitalize">{r.estat.replace('_', ' ')}</td>
-            <td class="px-3 py-2">{new Date(r.assignat_el).toLocaleDateString()}</td>
+            <td class="px-3 py-2">{fmtSafe(r.assignat_el)}</td>
           </tr>
         {/each}
       </tbody>
