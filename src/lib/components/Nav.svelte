@@ -1,15 +1,14 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { user, logout } from '$lib/authStore';
+  import { user, isAdmin, logout } from '$lib/authStore';
 
   // enllaços sempre visibles
   const baseLinks = [
     { href: '/', label: 'Inici' },
+    { href: '/calendari', label: 'Calendari' },
     { href: '/classificacio', label: 'Classificació' },
     { href: '/reptes', label: 'Reptes' },
-    { href: '/reptes/nou', label: 'Nou repte' },   // <- nou enllaç aquí
-    { href: '/socis', label: 'Socis' },
-    { href: '/admin', label: 'Admin' }
+    { href: '/socis', label: 'Socis' }
   ];
 
   let open = false;
@@ -51,6 +50,29 @@
               Els meus reptes
             </a>
           </li>
+          <li>
+            <a
+              href="/reptes/nou"
+              class="px-2 py-1 rounded hover:bg-slate-100"
+              class:bg-slate-900={isActive('/reptes/nou')}
+              class:text-white={isActive('/reptes/nou')}
+            >
+              Nou repte
+            </a>
+          </li>
+        {/if}
+
+        {#if $user && $isAdmin}
+          <li>
+            <a
+              href="/admin"
+              class="px-2 py-1 rounded hover:bg-slate-100"
+              class:bg-slate-900={isActive('/admin')}
+              class:text-white={isActive('/admin')}
+            >
+              Admin
+            </a>
+          </li>
         {/if}
       </ul>
 
@@ -59,10 +81,10 @@
         {#if $user}
           <span class="text-sm text-slate-600 hidden sm:inline">{$user.email}</span>
           <button class="rounded bg-slate-900 text-white px-3 py-1" on:click={logout}>
-            Sortir
+            Surt
           </button>
         {:else}
-          <a href="/login" class="rounded bg-slate-900 text-white px-3 py-1">Entrar</a>
+          <a href="/login" class="rounded bg-slate-900 text-white px-3 py-1">Entra</a>
         {/if}
 
         <button
@@ -101,15 +123,40 @@
               Els meus reptes
             </a>
           </li>
+          <li>
+            <a
+              href="/reptes/nou"
+              class="block px-2 py-2 rounded hover:bg-slate-100"
+              class:bg-slate-900={isActive('/reptes/nou')}
+              class:text-white={isActive('/reptes/nou')}
+              on:click={() => (open = false)}
+            >
+              Nou repte
+            </a>
+          </li>
+        {/if}
+
+        {#if $user && $isAdmin}
+          <li>
+            <a
+              href="/admin"
+              class="block px-2 py-2 rounded hover:bg-slate-100"
+              class:bg-slate-900={isActive('/admin')}
+              class:text-white={isActive('/admin')}
+              on:click={() => (open = false)}
+            >
+              Admin
+            </a>
+          </li>
         {/if}
 
         <li class="pt-2 border-t">
           {#if $user}
             <button class="w-full text-left px-2 py-2 rounded hover:bg-slate-100" on:click={logout}>
-              Sortir ({$user.email})
+              Surt ({$user.email})
             </button>
           {:else}
-            <a href="/login" class="block px-2 py-2 rounded hover:bg-slate-100">Entrar</a>
+            <a href="/login" class="block px-2 py-2 rounded hover:bg-slate-100">Entra</a>
           {/if}
         </li>
       </ul>
