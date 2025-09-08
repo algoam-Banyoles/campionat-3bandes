@@ -19,8 +19,7 @@
   };
 
   let loading = true;
-  let error: string | null = null;     // error de càrrega
-  let uiError: string | null = null;   // errors d’acció (acceptar/refusar)
+  let error: string | null = null;     // missatge d'error
   let okMsg: string | null = null;     // missatge d’èxit
   let rows: Challenge[] = [];
   let myPlayerId: string | null = null;
@@ -34,7 +33,6 @@
     try {
       loading = true;
       error = null;
-      uiError = null;
       okMsg = null;
 
       const u = $user;
@@ -105,7 +103,7 @@
   }
 
   async function respond(r: Challenge, accept: boolean) {
-    uiError = null;
+    error = null;
     okMsg = null;
     try {
       actionBusy = r.id;
@@ -119,7 +117,7 @@
       okMsg = accept ? 'Repte acceptat correctament.' : 'Repte refusat correctament.';
       await load(); // refresca llista
     } catch (e: any) {
-      uiError = e?.message ?? 'No s’ha pogut actualitzar el repte';
+      error = e?.message ?? 'No s’ha pogut actualitzar el repte';
     } finally {
       actionBusy = null;
     }
@@ -139,10 +137,6 @@
     <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3 mb-3">{error}</div>
   {/if}
 
-  {#if uiError}
-    <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3 mb-3">{uiError}</div>
-  {/if}
-
   {#if okMsg}
     <div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-3">{okMsg}</div>
   {/if}
@@ -151,7 +145,7 @@
     <p class="text-slate-600">No tens reptes registrats.</p>
   {/if}
 
-  {#if !error && rows.length > 0}
+  {#if rows.length > 0}
     <div class="space-y-3">
       {#each rows as r}
         <div class="rounded border p-3">
