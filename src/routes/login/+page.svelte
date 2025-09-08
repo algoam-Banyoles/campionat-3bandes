@@ -1,77 +1,124 @@
 <script lang="ts">
-  import { supabase } from '$lib/supabaseClient';
   import { goto } from '$app/navigation';
-  import { loadingAuth, user } from '$lib/authStore';
-  import { get } from 'svelte/store';
+  import { supabase } from '$lib/supabaseClient';
+  import { authReady, user } from '$lib/authStore';
 
+  let mode: 'login' | 'signup' = 'login';
   let email = '';
   let password = '';
   let loading = false;
-  let error: string | null = null;
-  let mode: 'signin' | 'signup' = 'signin';
 
-  async function submit() {
-    error = null;
-    loading = true;
+  let uiError: string | null = null;
+  let okMsg: string | null = null;
+
+  async function onSubmit() {
+    uiError = null; okMsg = null;
+    if (!email || !password) {
+      uiError = 'Cal email i contrasenya.';
+      return;
+    }
     try {
-      if (mode === 'signin') {
-        const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-        if (err) throw err;
+      loading = true;
+      if (mode === 'login') {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        okMsg = 'Sessió iniciada correctament.';
+        await goto('/');   // redirigeix on vulguis
       } else {
-        const { error: err } = await supabase.auth.signUp({ email, password });
-        if (err) throw err;
+        // Crear compte
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        okMsg = 'Compte creat. Si requereix confirmació, revisa el correu.';
+        mode = 'login';
       }
-      // si ha anat bé, cap a l'inici
-      await goto('/');
     } catch (e: any) {
-      error = e?.message ?? 'Error desconegut';
+      uiError = e?.message ?? 'Error d’autenticació';
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function sendReset() {
+    uiError = null; okMsg = null;
+    if (!email) { uiError = 'Escriu el teu email per rebre l’enllaç de reset.'; return; }
+    try {
+      loading = true;
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+      if (error) throw error;
+      okMsg = 'T’hem enviat un correu per restablir la contrasenya.';
+    } catch (e:any) {
+      uiError = e?.message ?? 'No s’ha pogut enviar el correu de reset';
     } finally {
       loading = false;
     }
   }
 </script>
 
-<svelte:head>
-  <title>Inicia sessió</title>
-</svelte:head>
+<svelte:head><title>{mode === 'login' ? 'Inicia sessió' : 'Crea un compte'}</title></svelte:head>
 
-<div class="mx-auto max-w-md space-y-4">
-  <h1 class="text-2xl font-semibold">{mode === 'signin' ? 'Inicia sessió' : 'Crea compte'}</h1>
+<h1 class="text-2xl font-semibold mb-4">
+  {mode === 'login' ? 'Inicia sessió' : 'Crea un compte'}
+</h1>
 
-  {#if $loadingAuth && !$user}
-    <p class="text-slate-500">Carregant…</p>
-  {:else if $user}
-    <div class="rounded border p-3 bg-green-50">
-      Ja has iniciat sessió com <strong>{$user.email}</strong>.
+{#if uiError}
+  <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3 mb-3">{uiError}</div>
+{/if}
+{#if okMsg}
+  <div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-3">{okMsg}</div>
+{/if}
+
+{#if $authReady && $user}
+  <p class="text-slate-600">Ja has iniciat sessió com <strong>{$user.email}</strong>.</p>
+{:else}
+  <form class="max-w-sm space-y-3" on:submit|preventDefault={onSubmit}>
+    <div>
+      <label for="email" class="block text-sm mb-1">Email</label>
+      <input
+        id="email"
+        type="email"
+        class="w-full rounded border px-3 py-2"
+        placeholder="tu@exemple.cat"
+        bind:value={email}
+        autocomplete="email"
+      />
     </div>
-  {:else}
-    {#if error}
-      <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3">{error}</div>
-    {/if}
 
-    <form class="space-y-3" on:submit|preventDefault={submit}>
-      <div>
-        <label class="block text-sm font-medium mb-1">Email</label>
-        <input class="w-full border rounded px-3 py-2" type="email" bind:value={email} required />
-      </div>
-      <div>
-        <label class="block text-sm font-medium mb-1">Contrasenya</label>
-        <input class="w-full border rounded px-3 py-2" type="password" bind:value={password} required minlength="6" />
-      </div>
+    <div>
+      <label for="password" class="block text-sm mb-1">Contrasenya</label>
+      <input
+        id="password"
+        type="password"
+        class="w-full rounded border px-3 py-2"
+        placeholder="••••••••"
+        bind:value={password}
+        autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
+      />
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button
+        type="submit"
+        class="rounded bg-slate-900 text-white px-3 py-2 disabled:opacity-60"
+        disabled={loading}
+      >
+        {loading ? 'Processant…' : (mode === 'login' ? 'Entrar' : 'Crear compte')}
+      </button>
 
       <button
-        class="w-full rounded bg-slate-900 text-white py-2 font-medium disabled:opacity-60"
-        disabled={loading}
-        type="submit">
-        {loading ? 'Processant…' : mode === 'signin' ? 'Entrar' : 'Registrar'}
+        type="button"
+        class="text-sm underline"
+        on:click={() => (mode = mode === 'login' ? 'signup' : 'login')}
+      >
+        {mode === 'login' ? 'No tens compte? Crea’n un' : 'Ja tens compte? Inicia sessió'}
       </button>
-    </form>
+    </div>
 
-    <p class="text-sm text-slate-600">
-      {mode === 'signin' ? "No tens compte?" : "Ja tens compte?"}
-      <button class="underline" on:click={() => (mode = mode === 'signin' ? 'signup' : 'signin')}>
-        {mode === 'signin' ? 'Registra’t' : 'Entra'}
+    <div class="pt-2">
+      <button type="button" class="text-sm underline" on:click={sendReset} disabled={loading}>
+        He oblidat la contrasenya
       </button>
-    </p>
-  {/if}
-</div>
+    </div>
+  </form>
+{/if}
