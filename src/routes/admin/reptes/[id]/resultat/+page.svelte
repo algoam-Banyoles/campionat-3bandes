@@ -23,6 +23,7 @@
   let saving = false;
   let error: string | null = null;
   let okMsg: string | null = null;
+  let rpcMsg: string | null = null;
 
   let chal: Challenge | null = null;
   let reptadorNom = '—';
@@ -42,7 +43,7 @@
   let tbR: number | '' = '';
   let tbT: number | '' = '';
 
-  // Valor inicial vàlid per evitar validació prematura
+  // Valor inicial vàlid
   let data_joc_local = toLocalInput(new Date().toISOString());
 
   const id = $page.params.id;
@@ -51,7 +52,7 @@
 
   async function load() {
     try {
-      loading = true; error = null; okMsg = null;
+      loading = true; error = null; okMsg = null; rpcMsg = null;
 
       if (!$user?.email) { error = 'Has d’iniciar sessió.'; return; }
       if (!$isAdmin) { error = 'Només administradors poden registrar resultats.'; return; }
@@ -95,7 +96,6 @@
     }
   }
 
-  // ISO → valor <input type="datetime-local">
   function toLocalInput(iso: string | null) {
     if (!iso) return '';
     const d = new Date(iso);
@@ -104,7 +104,6 @@
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
-  // Parser robust LOCAL → ISO
   function parseLocalToIso(local: string | null): string | null {
     if (!local) return null;
     let s = local.trim().replace(' ', 'T');
@@ -127,13 +126,11 @@
   const toNum = (v: number | '' ) => (v === '' ? NaN : Number(v));
   const isInt = (v: number | '' ) => Number.isInteger(toNum(v));
 
-  // Reactives
   let parsedIso: string | null = null;
   $: parsedIso = parseLocalToIso(data_joc_local);
 
   function validate(parsed: string | null): string | null {
     if (!parsed) return 'Cal indicar la data de joc.';
-
     const _carR = toNum(carR), _carT = toNum(carT), _entr = toNum(entrades);
     if (!isInt(carR) || _carR < 0) return 'Caràmboles (reptador) ha de ser un enter ≥ 0.';
     if (!isInt(carT) || _carT < 0) return 'Caràmboles (reptat) ha de ser un enter ≥ 0.';
@@ -142,60 +139,34 @@
       return `Caràmboles màximes: ${settings.caramboles_objectiu}.`;
     }
     if (_entr > settings.max_entrades) return `Entrades màximes: ${settings.max_entrades}.`;
-
-    // Si hi ha empat de caràmboles, cal tie-break
     if (_carR === _carT && !tiebreak) {
       return settings.allow_tiebreak
         ? 'Empat de caràmboles: activa tie-break i informa el resultat.'
         : 'Empat de caràmboles i el tie-break està desactivat a Configuració.';
     }
-
-    // Si hi ha tie-break, valors enters i no empat
     if (tiebreak) {
       const _tbR = toNum(tbR), _tbT = toNum(tbT);
       if (!isInt(tbR) || !isInt(tbT)) return 'Resultat de tie-break ha de ser enter.';
       if (_tbR < 0 || _tbT < 0) return 'Els resultats del tie-break no poden ser negatius.';
       if (_tbR === _tbT) return 'El tie-break no pot acabar en empat.';
     }
-
     return null;
   }
 
-  // Retorna EXACTAMENT un dels valors de l’enum match_result
   function resultEnum():
     'guanya_reptador' | 'guanya_reptat' | 'empat_tiebreak_reptador' | 'empat_tiebreak_reptat' {
-
     const _carR = toNum(carR), _carT = toNum(carT);
-
     if (tiebreak) {
       const _tbR = Number(tbR), _tbT = Number(tbT);
       return _tbR > _tbT ? 'empat_tiebreak_reptador' : 'empat_tiebreak_reptat';
     }
-
-    // Sense tie-break: algú guanya per caràmboles
     return _carR > _carT ? 'guanya_reptador' : 'guanya_reptat';
   }
 
   $: valMsg = validate(parsedIso);
-  $: guanyadorText = (() => {
-    if (tiebreak) {
-      const _tbR = toNum(tbR), _tbT = toNum(tbT);
-      if (Number.isFinite(_tbR) && Number.isFinite(_tbT)) {
-        return _tbR > _tbT ? `Reptador (${reptadorNom})` : `Reptat (${reptatNom})`;
-      }
-      return '—';
-    }
-    const _carR = toNum(carR), _carT = toNum(carT);
-    if (Number.isFinite(_carR) && Number.isFinite(_carT)) {
-      if (_carR > _carT) return `Reptador (${reptadorNom})`;
-      if (_carT > _carR) return `Reptat (${reptatNom})`;
-      return 'Empat (cal tie-break)';
-    }
-    return '—';
-  })();
 
   async function save() {
-    error = null; okMsg = null;
+    error = null; okMsg = null; rpcMsg = null;
     if (valMsg) { error = valMsg; return; }
     if (!parsedIso) { error = 'Data invàlida.'; return; }
 
@@ -216,8 +187,7 @@
         entrades: _entr,
         resultat
       };
-
-      // Si la teva taula `matches` té aquests camps, els incloem; si no, ignora’ls
+      // Camps opcionals si existeixen a la teva taula `matches`
       insertRow.tiebreak = tiebreak;
       insertRow.tiebreak_reptador = _tbR;
       insertRow.tiebreak_reptat = _tbT;
@@ -230,6 +200,16 @@
         .update({ estat: 'jugat' })
         .eq('id', id);
       if (e2) throw e2;
+
+      // Aplicar resultat al rànquing (si tens la RPC creada)
+      const { data: d3, error: e3 } = await supabase.rpc('apply_match_result', { p_challenge: id });
+      if (e3) {
+        rpcMsg = `Rànquing NO actualitzat (RPC): ${e3.message}`;
+      } else {
+        const r = Array.isArray(d3) && d3[0] ? d3[0] : null;
+        if (r?.swapped) rpcMsg = 'Rànquing actualitzat: intercanvi de posicions fet.';
+        else rpcMsg = `Rànquing sense canvis${r?.reason ? ' (' + r.reason + ')' : ''}.`;
+      }
 
       okMsg = 'Resultat desat correctament. Repte marcat com a "jugat".';
     } catch (e:any) {
@@ -251,7 +231,10 @@
     <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3 mb-4">{error}</div>
   {/if}
   {#if okMsg}
-    <div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-4">{okMsg}</div>
+    <div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-2">{okMsg}</div>
+  {/if}
+  {#if rpcMsg}
+    <div class="rounded border border-blue-300 bg-blue-50 text-blue-900 p-3 mb-4">{rpcMsg}</div>
   {/if}
 
   {#if !error && chal}
@@ -259,9 +242,6 @@
       <div class="flex flex-wrap items-center gap-2">
         <span class="text-xs rounded-full bg-slate-900 text-white px-2 py-0.5">Repte</span>
         <span class="text-xs rounded-full bg-slate-100 px-2 py-0.5">ID: {chal.id}</span>
-        <span class="text-xs text-slate-500 ml-auto">
-          Objectiu: {settings.caramboles_objectiu} · Entrades màx: {settings.max_entrades} · Tie-break: {settings.allow_tiebreak ? 'Permès' : 'No'}
-        </span>
       </div>
 
       <div class="mt-3 grid gap-2 text-sm">
@@ -340,14 +320,6 @@
               </label>
             </div>
           {/if}
-        </div>
-      </div>
-
-      <div class="rounded-2xl border bg-slate-50 p-4">
-        <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Previsualització</div>
-        <div class="flex items-center gap-2 text-sm">
-          <span class="text-slate-600">Guanyador estimat:</span>
-          <span class="rounded-full bg-slate-700 text-white px-2 py-0.5">{guanyadorText}</span>
         </div>
       </div>
 
