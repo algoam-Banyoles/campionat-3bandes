@@ -17,6 +17,11 @@
     caramboles_objectiu: number;
     max_entrades: number;
     allow_tiebreak: boolean;
+    cooldown_min_dies: number;
+    cooldown_max_dies: number;
+    dies_acceptar_repte: number;
+    dies_jugar_despres_acceptar: number;
+    ranking_max_jugadors: number;
   };
 
   let loading = true;
@@ -30,9 +35,14 @@
   let reptatNom = '—';
 
   let settings: Settings = {
-    caramboles_objectiu: 2,
+    caramboles_objectiu: 20,
     max_entrades: 50,
-    allow_tiebreak: true
+    allow_tiebreak: true,
+    cooldown_min_dies: 3,
+    cooldown_max_dies: 7,
+    dies_acceptar_repte: 7,
+    dies_jugar_despres_acceptar: 7,
+    ranking_max_jugadors: 20
   };
 
   // Formulari
@@ -79,7 +89,7 @@
 
       const { data: cfg } = await supabase
         .from('app_settings')
-        .select('caramboles_objectiu,max_entrades,allow_tiebreak')
+        .select('*')
         .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -143,10 +153,9 @@
       return `Caràmboles màximes: ${settings.caramboles_objectiu}.`;
     }
     if (_entr > settings.max_entrades) return `Entrades màximes: ${settings.max_entrades}.`;
-    if (_carR === _carT && !tiebreak) {
-      return settings.allow_tiebreak
-        ? 'Empat de caràmboles: activa tie-break i informa el resultat.'
-        : 'Empat de caràmboles i el tie-break està desactivat a Configuració.';
+    if (_carR === _carT) {
+      if (!settings.allow_tiebreak) return 'Empat de caràmboles i el tie-break està desactivat a Configuració.';
+      if (!tiebreak) return 'Empat de caràmboles: activa tie-break i informa el resultat.';
     }
     if (tiebreak) {
       const _tbR = toNum(tbR), _tbT = toNum(tbT);
