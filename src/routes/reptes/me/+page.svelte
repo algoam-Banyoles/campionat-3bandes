@@ -26,6 +26,11 @@
   let actionBusy: string | null = null; // id del repte en acció
 
   onMount(async () => {
+    try {
+      await fetch('/reptes/penalitzacions', { method: 'POST' });
+    } catch {
+      // ignore errors
+    }
     await load();
   });
 
