@@ -19,6 +19,17 @@ type Challenge = {
   reptat_nom?: string;
 };
 
+type Settings = {
+  caramboles_objectiu: number;
+  max_entrades: number;
+  allow_tiebreak: boolean;
+  cooldown_min_dies: number;
+  cooldown_max_dies: number;
+  dies_acceptar_repte: number;
+  dies_jugar_despres_acceptar: number;
+  ranking_max_jugadors: number;
+};
+
 let loading = true;
 let error: string | null = null;
 let okMsg: string | null = null;
@@ -26,6 +37,16 @@ let rows: Challenge[] = [];
 let myPlayerId: string | null = null;
 let busy: string | null = null;
 let scheduleLocal: Map<string, string> = new Map();
+let settings: Settings = {
+  caramboles_objectiu: 20,
+  max_entrades: 50,
+  allow_tiebreak: true,
+  cooldown_min_dies: 3,
+  cooldown_max_dies: 7,
+  dies_acceptar_repte: 7,
+  dies_jugar_despres_acceptar: 7,
+  ranking_max_jugadors: 20
+};
 
 onMount(async () => {
   try {
@@ -49,6 +70,14 @@ async function load() {
     }
 
     const { supabase } = await import('$lib/supabaseClient');
+
+    const { data: cfg } = await supabase
+      .from('app_settings')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (cfg) settings = cfg;
 
     const { data: p, error: e1 } = await supabase
       .from('players')
@@ -120,6 +149,15 @@ function parseLocalToIso(local: string | null) {
   const d = new Date(local);
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
+
+function addDays(date: Date, days: number) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+let maxScheduleLocal = '';
+$: maxScheduleLocal = toLocalInput(addDays(new Date(), settings.dies_jugar_despres_acceptar).toISOString());
 
 function isMeReptat(r: Challenge) {
   return myPlayerId === r.reptat_id;
@@ -196,6 +234,11 @@ async function saveSchedule(r: Challenge) {
   const parsedIso = parseLocalToIso(local);
   if (!parsedIso) {
     error = 'Cal indicar una data v\u00e0lida.';
+    return;
+  }
+  const maxDate = addDays(new Date(), settings.dies_jugar_despres_acceptar);
+  if (new Date(parsedIso) > maxDate) {
+    error = `La data ha d'estar dins de ${settings.dies_jugar_despres_acceptar} dies.`;
     return;
   }
   try {
@@ -298,6 +341,7 @@ async function saveSchedule(r: Challenge) {
                   class="block border rounded px-2 py-1 mt-1"
                   type="datetime-local"
                   step="60"
+                  max={maxScheduleLocal}
                   id={`schedule-${r.id}`}
                   value={scheduleLocal.get(r.id) ?? ''}
                   on:input={(e) => scheduleLocal.set(r.id, (e.target as HTMLInputElement).value)}
