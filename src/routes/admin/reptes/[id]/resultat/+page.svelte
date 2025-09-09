@@ -85,9 +85,7 @@
         .maybeSingle();
       if (cfg) settings = cfg;
 
-      data_joc_local =
-        toLocalInput(c.data_acceptacio) ||
-        toLocalInput(new Date().toISOString());
+      data_joc_local = toLocalInput(c.data_acceptacio || new Date().toISOString());
     } catch (e:any) {
       error = e?.message ?? 'Error carregant el repte';
     } finally {
@@ -183,6 +181,7 @@
     if (!parsedIso) { error = 'Data invàlida.'; return; }
 
     const isWalkover = tipusResultat !== 'normal';
+    const hasTB = !isWalkover && !!tiebreak;
 
     try {
       saving = true;
@@ -195,10 +194,10 @@
         caramboles_reptat:   isWalkover ? 0 : Number(carT),
         entrades:            isWalkover ? 0 : Number(entrades),
         resultat: isWalkover ? tipusResultat : resultEnum(),
-        tiebreak: isWalkover ? false : !!tiebreak
+        tiebreak: hasTB
       };
 
-      if (!isWalkover && tiebreak) {
+      if (hasTB) {
         insertRow.tiebreak_reptador = Number(tbR);
         insertRow.tiebreak_reptat   = Number(tbT);
       } else {
