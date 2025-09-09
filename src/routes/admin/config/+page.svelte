@@ -1,110 +1,90 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { user, isAdmin } from '$lib/authStore';
+  import type { PageData } from './$types';
+
+  export let data: PageData;
 
   type Settings = {
-    id?: string;
+    id: string;
     caramboles_objectiu: number;
     max_entrades: number;
     allow_tiebreak: boolean;
+    cooldown_min_dies: number;
+    cooldown_max_dies: number;
+    dies_acceptar_repte: number;
+    dies_jugar_despres_acceptar: number;
+    ranking_max_jugadors: number;
   };
 
-  let loading = true;
   let saving = false;
-  let error: string | null = null;
+  let error: string | null = data.loadError;
   let okMsg: string | null = null;
 
-  let form: Settings = {
-    caramboles_objectiu: 2,
-    max_entrades: 50,
-    allow_tiebreak: true
-  };
-
-  onMount(load);
-
-  async function load() {
-    try {
-      loading = true; error = null; okMsg = null;
-
-      if (!$user?.email) {
-        error = 'Has d’iniciar sessió.';
-        return;
-      }
-      if (!$isAdmin) {
-        error = 'Només administradors.';
-        return;
-      }
-
-      const { supabase } = await import('$lib/supabaseClient');
-
-      // agafa l’últim registre d’app_settings (o valors per defecte si no hi ha res)
-      const { data, error: e1 } = await supabase
-        .from('app_settings')
-        .select('id, caramboles_objectiu, max_entrades, allow_tiebreak')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (e1) throw e1;
-
-      if (data) {
-        form = {
-          id: data.id,
-          caramboles_objectiu: data.caramboles_objectiu ?? 2,
-          max_entrades: data.max_entrades ?? 50,
-          allow_tiebreak: data.allow_tiebreak ?? true
-        };
-      }
-    } catch (e:any) {
-      error = e?.message ?? 'No s’ha pogut carregar la configuració';
-    } finally {
-      loading = false;
-    }
-  }
+  let form: Settings = data.settings
+    ? { ...data.settings }
+    : {
+        id: '',
+        caramboles_objectiu: 20,
+        max_entrades: 50,
+        allow_tiebreak: true,
+        cooldown_min_dies: 0,
+        cooldown_max_dies: 0,
+        dies_acceptar_repte: 1,
+        dies_jugar_despres_acceptar: 1,
+        ranking_max_jugadors: 10
+      };
 
   function validate(): string | null {
     if (form.caramboles_objectiu < 1) return 'Caràmboles objectiu ha de ser ≥ 1';
     if (form.max_entrades < 1) return 'Entrades màximes han de ser ≥ 1';
+    if (form.cooldown_min_dies < 0) return 'Cooldown mínim ha de ser ≥ 0';
+    if (form.cooldown_max_dies < form.cooldown_min_dies)
+      return 'Cooldown màxim ha de ser ≥ mínim';
+    if (form.dies_acceptar_repte < 1)
+      return 'Dies per acceptar repte ha de ser ≥ 1';
+    if (form.dies_jugar_despres_acceptar < 1)
+      return 'Dies per jugar després d’acceptar ha de ser ≥ 1';
+    if (form.ranking_max_jugadors < 1)
+      return 'Rànquing: màxim de jugadors ha de ser ≥ 1';
     return null;
   }
 
   async function save() {
     const v = validate();
-    if (v) { error = v; okMsg = null; return; }
+    if (v) {
+      error = v;
+      okMsg = null;
+      return;
+    }
 
     try {
-      saving = true; error = null; okMsg = null;
+      saving = true;
+      error = null;
+      okMsg = null;
       const { supabase } = await import('$lib/supabaseClient');
-
-      if (form.id) {
-        // update existent
-        const { error: eU } = await supabase
-          .from('app_settings')
-          .update({
-            caramboles_objectiu: form.caramboles_objectiu,
-            max_entrades: form.max_entrades,
-            allow_tiebreak: form.allow_tiebreak,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', form.id);
-        if (eU) throw eU;
-      } else {
-        // crea un nou registre
-        const { data, error: eI } = await supabase
-          .from('app_settings')
-          .insert({
-            caramboles_objectiu: form.caramboles_objectiu,
-            max_entrades: form.max_entrades,
-            allow_tiebreak: form.allow_tiebreak
-          })
-          .select('id')
-          .single();
-        if (eI) throw eI;
-        form.id = data?.id;
+      if (!form.id) {
+        error = 'Configuració no trobada';
+        return;
       }
+      const { id, ...fields } = form;
+      const { error: e } = await supabase
+        .from('app_settings')
+        .update({ ...fields, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (e) throw e;
 
-      okMsg = 'Configuració desada correctament.';
-    } catch (e:any) {
+      const { data: fresh, error: e2 } = await supabase
+        .from('app_settings')
+        .select(
+          'id, caramboles_objectiu, max_entrades, allow_tiebreak, cooldown_min_dies, cooldown_max_dies, dies_acceptar_repte, dies_jugar_despres_acceptar, ranking_max_jugadors'
+        )
+        .eq('id', id)
+        .maybeSingle();
+      if (e2) throw e2;
+      if (fresh) form = fresh as Settings;
+
+      okMsg = 'Configuració desada';
+    } catch (e: any) {
       error = e?.message ?? 'No s’ha pogut desar la configuració';
     } finally {
       saving = false;
@@ -116,8 +96,8 @@
 
 <h1 class="text-2xl font-semibold mb-4">Administració — Configuració</h1>
 
-{#if loading}
-  <p class="text-slate-500">Carregant…</p>
+{#if !$user?.email || !$isAdmin}
+  <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3">No autoritzat</div>
 {:else}
   {#if error}
     <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3 mb-3">{error}</div>
@@ -126,40 +106,104 @@
     <div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-3">{okMsg}</div>
   {/if}
 
-  {#if !error}
-    <form class="max-w-lg space-y-4" on:submit|preventDefault={save}>
-      <div>
-        <label for="caramb" class="block text-sm mb-1">Caràmboles objectiu</label>
+  <form class="max-w-lg space-y-4" on:submit|preventDefault={save}>
+    <div>
+      <label for="caramb" class="block text-sm mb-1">Caràmboles objectiu</label>
+      <input
+        id="caramb"
+        type="number"
+        min="1"
+        class="w-full rounded border px-3 py-2"
+        bind:value={form.caramboles_objectiu}
+      />
+    </div>
+
+    <div>
+      <label for="maxent" class="block text-sm mb-1">Entrades màximes</label>
+      <input
+        id="maxent"
+        type="number"
+        min="1"
+        class="w-full rounded border px-3 py-2"
+        bind:value={form.max_entrades}
+      />
+    </div>
+
+    <div class="flex items-center gap-2">
+      <input
+        id="tb"
+        type="checkbox"
+        class="rounded border"
+        bind:checked={form.allow_tiebreak}
+      />
+      <label for="tb">Permet tie-break</label>
+    </div>
+
+    <div class="flex gap-4">
+      <div class="flex-1">
+        <label for="cooldown-min" class="block text-sm mb-1">Cooldown mínim (dies)</label>
         <input
-          id="caramb"
+          id="cooldown-min"
           type="number"
-          min="1"
+          min="0"
           class="w-full rounded border px-3 py-2"
-          bind:value={form.caramboles_objectiu}
+          bind:value={form.cooldown_min_dies}
         />
       </div>
-
-      <div>
-        <label for="maxent" class="block text-sm mb-1">Entrades màximes</label>
+      <div class="flex-1">
+        <label for="cooldown-max" class="block text-sm mb-1">Cooldown màxim (dies)</label>
         <input
-          id="maxent"
+          id="cooldown-max"
           type="number"
-          min="1"
+          min="0"
           class="w-full rounded border px-3 py-2"
-          bind:value={form.max_entrades}
+          bind:value={form.cooldown_max_dies}
         />
       </div>
+    </div>
 
-      <div class="flex items-center gap-2">
-        <input id="tb" type="checkbox" class="rounded border" bind:checked={form.allow_tiebreak} />
-        <label for="tb">Permet tie-break</label>
-      </div>
+    <div>
+      <label for="dies-acceptar" class="block text-sm mb-1">Dies per acceptar repte</label>
+      <input
+        id="dies-acceptar"
+        type="number"
+        min="1"
+        class="w-full rounded border px-3 py-2"
+        bind:value={form.dies_acceptar_repte}
+      />
+    </div>
 
-      <div class="pt-2">
-        <button class="rounded bg-slate-900 text-white px-4 py-2 disabled:opacity-60" disabled={saving} type="submit">
-          {saving ? 'Desant…' : 'Desa configuració'}
-        </button>
-      </div>
-    </form>
-  {/if}
+    <div>
+      <label for="dies-jugar" class="block text-sm mb-1">Dies per jugar després d’acceptar</label>
+      <input
+        id="dies-jugar"
+        type="number"
+        min="1"
+        class="w-full rounded border px-3 py-2"
+        bind:value={form.dies_jugar_despres_acceptar}
+      />
+    </div>
+
+    <div>
+      <label for="ranking-max" class="block text-sm mb-1">Rànquing: màxim jugadors</label>
+      <input
+        id="ranking-max"
+        type="number"
+        min="1"
+        class="w-full rounded border px-3 py-2"
+        bind:value={form.ranking_max_jugadors}
+      />
+    </div>
+
+    <div class="pt-2">
+      <button
+        class="rounded bg-slate-900 text-white px-4 py-2 disabled:opacity-60"
+        disabled={saving}
+        type="submit"
+      >
+        {saving ? 'Desant…' : 'Desa configuració'}
+      </button>
+    </div>
+  </form>
 {/if}
+
