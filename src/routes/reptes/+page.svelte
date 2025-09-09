@@ -1,5 +1,14 @@
-<script>
+<script lang="ts">
+  import { onMount } from 'svelte';
   import { user } from '$lib/authStore';
+
+  onMount(async () => {
+    try {
+      await fetch('/reptes/penalitzacions', { method: 'POST' });
+    } catch {
+      // ignore errors applying penalties
+    }
+  });
 </script>
 
 <h1 class="text-2xl font-semibold mb-4">Reptes</h1>
