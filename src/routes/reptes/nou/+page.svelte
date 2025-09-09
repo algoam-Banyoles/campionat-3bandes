@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { user } from '$lib/authStore';
+  import { canCreateChallenge } from '$lib/domain/challenges';
 
   type Player = { id: string; nom: string; posicio: number | null };
 
@@ -66,24 +67,29 @@
         return;
       }
 
-      // rànquing per obtenir posicions
-      const { data: rp, error: eRank } = await supabase
+      // posició del jugador actual
+      const { data: pos, error: ePos } = await supabase
         .from('ranking_positions')
-        .select('player_id, posicio, players(id, nom)')
+        .select('posicio')
         .eq('event_id', ev.id)
-        .order('posicio', { ascending: true });
-      if (eRank) throw eRank;
+        .eq('player_id', me.id)
+        .maybeSingle();
+      if (ePos) throw ePos;
 
-      const posById = new Map(rp?.map(r => [r.player_id, r.posicio]));
+      jo = { id: me.id, nom: me.nom, posicio: pos?.posicio ?? null };
 
-      jo = { id: me.id, nom: me.nom, posicio: posById.get(me.id) ?? null };
-      reptables = (rp ?? [])
-        .map(r => ({
-          id: r.player_id,
-          nom: (r as any).players?.nom ?? '—',
-          posicio: r.posicio
-        }))
-        .filter(p => p.id !== me.id);
+      // oponents elegibles via RPC
+      const { data: eligibles, error: eOpp } = await supabase.rpc(
+        'list_eligible_opponents',
+        { p_player: me.id }
+      );
+      if (eOpp) throw eOpp;
+
+      reptables = (eligibles ?? []).map((r: any) => ({
+        id: r.id,
+        nom: r.nom,
+        posicio: r.posicio ?? null
+      }));
     } catch (e: any) {
       error = e?.message ?? 'Error carregant la pàgina';
     } finally {
@@ -100,7 +106,18 @@
       if (!reptat_id) throw new Error('Has de seleccionar un jugador reptat.');
       if (reptat_id === jo.id) throw new Error('No et pots reptar a tu mateix.');
 
+      const opponent = reptables.find(p => p.id === reptat_id);
+      if (!opponent) throw new Error('Jugador reptat no és elegible.');
+
       const { supabase } = await import('$lib/supabaseClient');
+
+      const { ok, reason } = await canCreateChallenge(
+        supabase,
+        eventActiuId,
+        jo.id,
+        reptat_id
+      );
+      if (!ok) throw new Error(reason || 'No es pot crear el repte.');
 
       const dates = [d1, d2, d3].map(toISO).filter(Boolean) as string[];
 
@@ -109,14 +126,13 @@
         tipus: 'normal',
         reptador_id: jo.id,
         reptat_id,
-        estat: 'proposat',
         dates_proposades: dates,
+        observacions: observacions || null,
+        estat: 'proposat',
         data_proposta: new Date().toISOString(),
         data_acceptacio: null,
-        observacions: observacions || null,
         pos_reptador: jo.posicio,
-        pos_reptat:
-          reptables.find(p => p.id === reptat_id)?.posicio ?? null
+        pos_reptat: opponent.posicio ?? null
       };
 
       busy = true;
@@ -156,6 +172,11 @@
   {/if}
 
   {#if jo}
+    {#if reptables.length === 0}
+      <div class="mb-3 rounded border border-blue-300 bg-blue-50 p-3 text-blue-700">
+        No hi ha oponents disponibles per reptar ara mateix.
+      </div>
+    {/if}
     <form class="space-y-4 max-w-xl" on:submit|preventDefault={createChallenge}>
       <div>
         <label for="reptador" class="block text-sm mb-1">Reptador</label>
@@ -174,6 +195,7 @@
           class="w-full rounded border px-3 py-2"
           bind:value={reptat_id}
           required
+          disabled={reptables.length === 0}
         >
           <option value="" disabled selected>— Selecciona —</option>
           {#each reptables as r}
@@ -234,7 +256,7 @@
         <button
           class="rounded bg-slate-900 text-white px-4 py-2 disabled:opacity-60"
           type="submit"
-          disabled={busy}
+          disabled={busy || reptables.length === 0}
         >
           {busy ? 'Creant…' : 'Crear repte'}
         </button>
