@@ -183,9 +183,6 @@
     if (!parsedIso) { error = 'Data invàlida.'; return; }
 
     const isWalkover = tipusResultat !== 'normal';
-    const resultat = isWalkover ? tipusResultat : resultEnum();
-    const _carR = Number(carR), _carT = Number(carT), _entr = Number(entrades);
-    const _tbR = Number(tbR), _tbT = Number(tbT);
 
     try {
       saving = true;
@@ -194,21 +191,20 @@
       const insertRow: any = {
         challenge_id: id,
         data_joc: parsedIso,
-        resultat,
+        caramboles_reptador: isWalkover ? 0 : Number(carR),
+        caramboles_reptat:   isWalkover ? 0 : Number(carT),
+        entrades:            isWalkover ? 0 : Number(entrades),
+        resultat: isWalkover ? tipusResultat : resultEnum(),
         tiebreak: isWalkover ? false : !!tiebreak
       };
-      if (isWalkover) {
-        insertRow.caramboles_reptador = 0;
-        insertRow.caramboles_reptat = 0;
-        insertRow.entrades = 0;
-        insertRow.tiebreak_reptador = 0;
-        insertRow.tiebreak_reptat = 0;
+
+      if (!isWalkover && tiebreak) {
+        insertRow.tiebreak_reptador = Number(tbR);
+        insertRow.tiebreak_reptat   = Number(tbT);
       } else {
-        insertRow.caramboles_reptador = _carR;
-        insertRow.caramboles_reptat = _carT;
-        insertRow.entrades = _entr;
-        insertRow.tiebreak_reptador = tiebreak ? _tbR : 0;
-        insertRow.tiebreak_reptat = tiebreak ? _tbT : 0;
+        // Respectar el CHECK: sense tiebreak, aquests camps han de ser NULL
+        insertRow.tiebreak_reptador = null;
+        insertRow.tiebreak_reptat   = null;
       }
 
       const { error: e1 } = await supabase.from('matches').insert(insertRow);
