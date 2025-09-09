@@ -28,7 +28,6 @@
   let reptadorNom = '—';
   let reptatNom = '—';
 
-  // Paràmetres (sobreescrits per app_settings)
   let settings: Settings = {
     caramboles_objectiu: 2,
     max_entrades: 50,
@@ -42,7 +41,9 @@
   let tiebreak = false;
   let tbR: number | '' = '';
   let tbT: number | '' = '';
-  let data_joc_local = ''; // 'YYYY-MM-DDTHH:MM'
+
+  // Valor inicial vàlid per evitar validació prematura
+  let data_joc_local = toLocalInput(new Date().toISOString());
 
   const id = $page.params.id;
 
@@ -57,7 +58,6 @@
 
       const { supabase } = await import('$lib/supabaseClient');
 
-      // 1) Repte
       const { data: c, error: e1 } = await supabase
         .from('challenges')
         .select('id,event_id,reptador_id,reptat_id,pos_reptador,pos_reptat,data_acceptacio')
@@ -67,7 +67,6 @@
       if (!c) { error = 'Repte no trobat.'; return; }
       chal = c;
 
-      // 2) Jugadors
       const { data: players, error: e2 } = await supabase
         .from('players')
         .select('id,nom')
@@ -77,7 +76,6 @@
       reptadorNom = dict.get(c.reptador_id) ?? '—';
       reptatNom = dict.get(c.reptat_id) ?? '—';
 
-      // 3) Paràmetres
       const { data: cfg } = await supabase
         .from('app_settings')
         .select('caramboles_objectiu,max_entrades,allow_tiebreak')
@@ -86,11 +84,10 @@
         .maybeSingle();
       if (cfg) settings = cfg;
 
-      // Data per defecte (acceptació o ara)
       data_joc_local =
         toLocalInput(c.data_acceptacio) ||
         toLocalInput(new Date().toISOString()) ||
-        ''; // darrer recurs
+        data_joc_local;
     } catch (e:any) {
       error = e?.message ?? 'Error carregant el repte';
     } finally {
@@ -98,8 +95,7 @@
     }
   }
 
-  // Helpers dates
-  // Converteix ISO → valor per <input datetime-local>
+  // ISO → valor <input type="datetime-local">
   function toLocalInput(iso: string | null) {
     if (!iso) return '';
     const d = new Date(iso);
@@ -108,49 +104,36 @@
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
-// Accepta:
-  // - 'YYYY-MM-DDTHH:MM'
-  // - 'YYYY-MM-DD HH:MM'
-  // - amb segons opcionals ':SS' i mil·lisegons '.mmm'
-  // Construeix el Date en zona LOCAL i retorna ISO.
+  // Parser robust LOCAL → ISO
   function parseLocalToIso(local: string | null): string | null {
     if (!local) return null;
-    let s = local.trim();
-
-    // Normalitza separador data/hora (espai → 'T')
-    s = s.replace(' ', 'T');
-
-    // Regex amb segons i ms opcionals
+    let s = local.trim().replace(' ', 'T');
     const m = s.match(
       /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/
     );
-    if (!m) return null;
-
+    if (!m) {
+      const dt2 = new Date(s);
+      return isNaN(dt2.getTime()) ? null : dt2.toISOString();
+    }
     const [, y, mo, d, h, mi, ss = '0', ms = '0'] = m;
     const Y = Number(y), M = Number(mo) - 1, D = Number(d);
     const H = Number(h), I = Number(mi), S = Number(ss), MS = Number(ms.padEnd(3, '0'));
-
     const dt = new Date(Y, M, D, H, I, S, MS);
     if (isNaN(dt.getTime())) return null;
-
-    // (Opcional) Validació de desbordaments: comprova que el Date result respeca els components
-    if (
-      dt.getFullYear() !== Y ||
-      dt.getMonth() !== M ||
-      dt.getDate() !== D ||
-      dt.getHours() !== H ||
-      dt.getMinutes() !== I
-    ) return null;
-
+    if (dt.getFullYear() !== Y || dt.getMonth() !== M || dt.getDate() !== D || dt.getHours() !== H || dt.getMinutes() !== I) return null;
     return dt.toISOString();
   }
 
   const toNum = (v: number | '' ) => (v === '' ? NaN : Number(v));
   const isInt = (v: number | '' ) => Number.isInteger(toNum(v));
 
-  function validate(): string | null {
-    // validem la data amb el parseig manual
-    if (!parseLocalToIso(data_joc_local)) return 'Cal indicar la data de joc.';
+  // Reactives
+  let parsedIso: string | null = null;
+  $: parsedIso = parseLocalToIso(data_joc_local);
+
+  function validate(parsed: string | null): string | null {
+    if (!parsed) return 'Cal indicar la data de joc.';
+
     const _carR = toNum(carR), _carT = toNum(carT), _entr = toNum(entrades);
     if (!isInt(carR) || _carR < 0) return 'Caràmboles (reptador) ha de ser un enter ≥ 0.';
     if (!isInt(carT) || _carT < 0) return 'Caràmboles (reptat) ha de ser un enter ≥ 0.';
@@ -159,41 +142,64 @@
       return `Caràmboles màximes: ${settings.caramboles_objectiu}.`;
     }
     if (_entr > settings.max_entrades) return `Entrades màximes: ${settings.max_entrades}.`;
-    if (tiebreak && !settings.allow_tiebreak) return 'El tie-break no està permès.';
+
+    // Si hi ha empat de caràmboles, cal tie-break
+    if (_carR === _carT && !tiebreak) {
+      return settings.allow_tiebreak
+        ? 'Empat de caràmboles: activa tie-break i informa el resultat.'
+        : 'Empat de caràmboles i el tie-break està desactivat a Configuració.';
+    }
+
+    // Si hi ha tie-break, valors enters i no empat
     if (tiebreak) {
       const _tbR = toNum(tbR), _tbT = toNum(tbT);
       if (!isInt(tbR) || !isInt(tbT)) return 'Resultat de tie-break ha de ser enter.';
       if (_tbR < 0 || _tbT < 0) return 'Els resultats del tie-break no poden ser negatius.';
       if (_tbR === _tbT) return 'El tie-break no pot acabar en empat.';
     }
+
     return null;
   }
 
-  function decideWinner(): 'reptador' | 'reptat' | 'empat' {
-    const _carR = toNum(carR), _carT = toNum(carT);
-    const _tbR  = toNum(tbR),  _tbT  = toNum(tbT);
+  // Retorna EXACTAMENT un dels valors de l’enum match_result
+  function resultEnum():
+    'guanya_reptador' | 'guanya_reptat' | 'empat_tiebreak_reptador' | 'empat_tiebreak_reptat' {
 
-    if (tiebreak && Number.isFinite(_tbR) && Number.isFinite(_tbT)) {
-      return _tbR > _tbT ? 'reptador' : 'reptat';
+    const _carR = toNum(carR), _carT = toNum(carT);
+
+    if (tiebreak) {
+      const _tbR = Number(tbR), _tbT = Number(tbT);
+      return _tbR > _tbT ? 'empat_tiebreak_reptador' : 'empat_tiebreak_reptat';
     }
-    if (_carR === settings.caramboles_objectiu && _carT < settings.caramboles_objectiu) return 'reptador';
-    if (_carT === settings.caramboles_objectiu && _carR < settings.caramboles_objectiu) return 'reptat';
-    if (_carR > _carT) return 'reptador';
-    if (_carT > _carR) return 'reptat';
-    return 'empat';
+
+    // Sense tie-break: algú guanya per caràmboles
+    return _carR > _carT ? 'guanya_reptador' : 'guanya_reptat';
   }
 
-  $: valMsg = validate();
-  $: guanyador = decideWinner();
+  $: valMsg = validate(parsedIso);
+  $: guanyadorText = (() => {
+    if (tiebreak) {
+      const _tbR = toNum(tbR), _tbT = toNum(tbT);
+      if (Number.isFinite(_tbR) && Number.isFinite(_tbT)) {
+        return _tbR > _tbT ? `Reptador (${reptadorNom})` : `Reptat (${reptatNom})`;
+      }
+      return '—';
+    }
+    const _carR = toNum(carR), _carT = toNum(carT);
+    if (Number.isFinite(_carR) && Number.isFinite(_carT)) {
+      if (_carR > _carT) return `Reptador (${reptadorNom})`;
+      if (_carT > _carR) return `Reptat (${reptatNom})`;
+      return 'Empat (cal tie-break)';
+    }
+    return '—';
+  })();
 
   async function save() {
     error = null; okMsg = null;
     if (valMsg) { error = valMsg; return; }
+    if (!parsedIso) { error = 'Data invàlida.'; return; }
 
-    const data_iso = parseLocalToIso(data_joc_local);
-    if (!data_iso) { error = 'Data invàlida.'; return; }
-
-    const resultat = decideWinner();
+    const resultat = resultEnum();
     const _carR = Number(carR), _carT = Number(carT), _entr = Number(entrades);
     const _tbR  = tiebreak ? Number(tbR) : null;
     const _tbT  = tiebreak ? Number(tbT) : null;
@@ -202,21 +208,23 @@
       saving = true;
       const { supabase } = await import('$lib/supabaseClient');
 
-      // 1) Inserir match
-      const { error: e1 } = await supabase.from('matches').insert({
+      const insertRow: any = {
         challenge_id: id,
-        data_joc: data_iso,
+        data_joc: parsedIso,
         caramboles_reptador: _carR,
         caramboles_reptat: _carT,
         entrades: _entr,
-        resultat,
-        tiebreak,
-        tiebreak_reptador: _tbR,
-        tiebreak_reptat: _tbT
-      });
+        resultat
+      };
+
+      // Si la teva taula `matches` té aquests camps, els incloem; si no, ignora’ls
+      insertRow.tiebreak = tiebreak;
+      insertRow.tiebreak_reptador = _tbR;
+      insertRow.tiebreak_reptat = _tbT;
+
+      const { error: e1 } = await supabase.from('matches').insert(insertRow);
       if (e1) throw e1;
 
-      // 2) Marcar repte com jugat
       const { error: e2 } = await supabase
         .from('challenges')
         .update({ estat: 'jugat' })
@@ -247,7 +255,6 @@
   {/if}
 
   {#if !error && chal}
-    <!-- Targeta resum -->
     <div class="rounded-2xl border bg-white p-4 shadow-sm mb-6">
       <div class="flex flex-wrap items-center gap-2">
         <span class="text-xs rounded-full bg-slate-900 text-white px-2 py-0.5">Repte</span>
@@ -273,13 +280,20 @@
       </div>
     </div>
 
-    <!-- Formulari -->
     <form class="grid gap-5 max-w-2xl" on:submit|preventDefault={save}>
       <div class="grid gap-2">
         <label for="data_joc" class="text-sm text-slate-700">Data del joc</label>
-        <input id="data_joc" type="datetime-local" step="60"
-               class="w-full rounded-xl border px-3 py-2"
-               bind:value={data_joc_local} />
+        <input
+          id="data_joc"
+          type="datetime-local"
+          step="60"
+          class="w-full rounded-xl border px-3 py-2"
+          bind:value={data_joc_local}
+          required
+        />
+        <p class="text-xs text-slate-500 mt-1">
+          Debug data: <code>{data_joc_local}</code> → <code>{parsedIso ?? 'INVALID'}</code>
+        </p>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -329,22 +343,14 @@
         </div>
       </div>
 
-      <!-- Previsualització de guanyador -->
       <div class="rounded-2xl border bg-slate-50 p-4">
         <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Previsualització</div>
         <div class="flex items-center gap-2 text-sm">
           <span class="text-slate-600">Guanyador estimat:</span>
-          {#if guanyador === 'reptador'}
-            <span class="rounded-full bg-blue-600 text-white px-2 py-0.5">Reptador ({reptadorNom})</span>
-          {:else if guanyador === 'reptat'}
-            <span class="rounded-full bg-emerald-600 text-white px-2 py-0.5">Reptat ({reptatNom})</span>
-          {:else}
-            <span class="rounded-full bg-slate-700 text-white px-2 py-0.5">Empat</span>
-          {/if}
+          <span class="rounded-full bg-slate-700 text-white px-2 py-0.5">{guanyadorText}</span>
         </div>
       </div>
 
-      <!-- Missatge de validació en viu -->
       {#if valMsg}
         <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 p-2 text-sm">
           {valMsg}
