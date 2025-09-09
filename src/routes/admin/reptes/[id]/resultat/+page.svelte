@@ -42,9 +42,9 @@
   let tiebreak = false;
   let tbR: number | '' = '';
   let tbT: number | '' = '';
+  let tipusResultat: 'normal' | 'walkover_reptador' | 'walkover_reptat' = 'normal';
 
-  // Valor inicial vàlid
-  let data_joc_local = toLocalInput(new Date().toISOString());
+  let data_joc_local = '';
 
   const id = $page.params.id;
 
@@ -87,8 +87,7 @@
 
       data_joc_local =
         toLocalInput(c.data_acceptacio) ||
-        toLocalInput(new Date().toISOString()) ||
-        data_joc_local;
+        toLocalInput(new Date().toISOString());
     } catch (e:any) {
       error = e?.message ?? 'Error carregant el repte';
     } finally {
@@ -106,20 +105,25 @@
 
   function parseLocalToIso(local: string | null): string | null {
     if (!local) return null;
-    let s = local.trim().replace(' ', 'T');
-    const m = s.match(
-      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/
-    );
+    const s = local.trim();
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
     if (!m) {
       const dt2 = new Date(s);
       return isNaN(dt2.getTime()) ? null : dt2.toISOString();
     }
-    const [, y, mo, d, h, mi, ss = '0', ms = '0'] = m;
+    const [, y, mo, d, h, mi] = m;
     const Y = Number(y), M = Number(mo) - 1, D = Number(d);
-    const H = Number(h), I = Number(mi), S = Number(ss), MS = Number(ms.padEnd(3, '0'));
-    const dt = new Date(Y, M, D, H, I, S, MS);
+    const H = Number(h), I = Number(mi);
+    const dt = new Date(Y, M, D, H, I);
     if (isNaN(dt.getTime())) return null;
-    if (dt.getFullYear() !== Y || dt.getMonth() !== M || dt.getDate() !== D || dt.getHours() !== H || dt.getMinutes() !== I) return null;
+    if (
+      dt.getFullYear() !== Y ||
+      dt.getMonth() !== M ||
+      dt.getDate() !== D ||
+      dt.getHours() !== H ||
+      dt.getMinutes() !== I
+    )
+      return null;
     return dt.toISOString();
   }
 
@@ -128,9 +132,11 @@
 
   let parsedIso: string | null = null;
   $: parsedIso = parseLocalToIso(data_joc_local);
+  $: if (tipusResultat !== 'normal') tiebreak = false;
 
-  function validate(parsed: string | null): string | null {
+  function validate(parsed: string | null, tipus: 'normal' | 'walkover_reptador' | 'walkover_reptat'): string | null {
     if (!parsed) return 'Cal indicar la data de joc.';
+    if (tipus !== 'normal') return null;
     const _carR = toNum(carR), _carT = toNum(carT), _entr = toNum(entrades);
     if (!isInt(carR) || _carR < 0) return 'Caràmboles (reptador) ha de ser un enter ≥ 0.';
     if (!isInt(carT) || _carT < 0) return 'Caràmboles (reptat) ha de ser un enter ≥ 0.';
@@ -154,7 +160,13 @@
   }
 
   function resultEnum():
-    'guanya_reptador' | 'guanya_reptat' | 'empat_tiebreak_reptador' | 'empat_tiebreak_reptat' {
+    | 'guanya_reptador'
+    | 'guanya_reptat'
+    | 'empat_tiebreak_reptador'
+    | 'empat_tiebreak_reptat'
+    | 'walkover_reptador'
+    | 'walkover_reptat' {
+    if (tipusResultat !== 'normal') return tipusResultat;
     const _carR = toNum(carR), _carT = toNum(carT);
     if (tiebreak) {
       const _tbR = Number(tbR), _tbT = Number(tbT);
@@ -163,7 +175,7 @@
     return _carR > _carT ? 'guanya_reptador' : 'guanya_reptat';
   }
 
-  $: valMsg = validate(parsedIso);
+  $: valMsg = loading ? null : validate(parsedIso, tipusResultat);
 
   async function save() {
     error = null; okMsg = null; rpcMsg = null;
@@ -171,6 +183,7 @@
     if (!parsedIso) { error = 'Data invàlida.'; return; }
 
     const resultat = resultEnum();
+    const isWalkover = tipusResultat !== 'normal';
     const _carR = Number(carR), _carT = Number(carT), _entr = Number(entrades);
     const _tbR  = tiebreak ? Number(tbR) : null;
     const _tbT  = tiebreak ? Number(tbT) : null;
@@ -182,15 +195,23 @@
       const insertRow: any = {
         challenge_id: id,
         data_joc: parsedIso,
-        caramboles_reptador: _carR,
-        caramboles_reptat: _carT,
-        entrades: _entr,
         resultat
       };
-      // Camps opcionals si existeixen a la teva taula `matches`
-      insertRow.tiebreak = tiebreak;
-      insertRow.tiebreak_reptador = _tbR;
-      insertRow.tiebreak_reptat = _tbT;
+      if (!isWalkover) {
+        insertRow.caramboles_reptador = _carR;
+        insertRow.caramboles_reptat = _carT;
+        insertRow.entrades = _entr;
+        insertRow.tiebreak = tiebreak;
+        insertRow.tiebreak_reptador = _tbR;
+        insertRow.tiebreak_reptat = _tbT;
+      } else {
+        insertRow.caramboles_reptador = null;
+        insertRow.caramboles_reptat = null;
+        insertRow.entrades = null;
+        insertRow.tiebreak = null;
+        insertRow.tiebreak_reptador = null;
+        insertRow.tiebreak_reptat = null;
+      }
 
       const { error: e1 } = await supabase.from('matches').insert(insertRow);
       if (e1) throw e1;
@@ -262,6 +283,15 @@
 
     <form class="grid gap-5 max-w-2xl" on:submit|preventDefault={save}>
       <div class="grid gap-2">
+        <label for="tipus" class="text-sm text-slate-700">Tipus de resultat</label>
+        <select id="tipus" class="rounded-xl border px-3 py-2" bind:value={tipusResultat}>
+          <option value="normal">Partida normal</option>
+          <option value="walkover_reptador">Incompareixença (guanya reptador)</option>
+          <option value="walkover_reptat">Incompareixença (guanya reptat)</option>
+        </select>
+      </div>
+
+      <div class="grid gap-2">
         <label for="data_joc" class="text-sm text-slate-700">Data del joc</label>
         <input
           id="data_joc"
@@ -276,52 +306,54 @@
         </p>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div class="rounded-2xl border bg-white p-4 shadow-sm">
-          <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Caràmboles</div>
-          <div class="grid grid-cols-1 gap-3">
-            <label class="grid gap-1">
-              <span class="text-sm text-slate-700">Reptador</span>
-              <input type="number" min="0" max={settings.caramboles_objectiu}
-                     class="rounded-xl border px-3 py-2"
-                     bind:value={carR}/>
-            </label>
-            <label class="grid gap-1">
-              <span class="text-sm text-slate-700">Reptat</span>
-              <input type="number" min="0" max={settings.caramboles_objectiu}
-                     class="rounded-xl border px-3 py-2"
-                     bind:value={carT}/>
-            </label>
-          </div>
-        </div>
-
-        <div class="rounded-2xl border bg-white p-4 shadow-sm">
-          <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Entrades i Tie-break</div>
-          <label class="grid gap-1">
-            <span class="text-sm text-slate-700">Entrades (total)</span>
-            <input type="number" min="0" max={settings.max_entrades}
-                   class="rounded-xl border px-3 py-2"
-                   bind:value={entrades}/>
-          </label>
-          <div class="mt-4 flex items-center gap-2">
-            <input id="tiebreak" type="checkbox" class="rounded border" bind:checked={tiebreak} disabled={!settings.allow_tiebreak} />
-            <label for="tiebreak" class="text-sm">Hi ha hagut tie-break</label>
-          </div>
-
-          {#if tiebreak}
-            <div class="mt-3 grid grid-cols-2 gap-3">
+      {#if tipusResultat === 'normal'}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="rounded-2xl border bg-white p-4 shadow-sm">
+            <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Caràmboles</div>
+            <div class="grid grid-cols-1 gap-3">
               <label class="grid gap-1">
-                <span class="text-sm text-slate-700">Tie-break (reptador)</span>
-                <input type="number" min="0" class="rounded-xl border px-3 py-2" bind:value={tbR} />
+                <span class="text-sm text-slate-700">Reptador</span>
+                <input type="number" min="0" max={settings.caramboles_objectiu}
+                       class="rounded-xl border px-3 py-2"
+                       bind:value={carR}/>
               </label>
               <label class="grid gap-1">
-                <span class="text-sm text-slate-700">Tie-break (reptat)</span>
-                <input type="number" min="0" class="rounded-xl border px-3 py-2" bind:value={tbT} />
+                <span class="text-sm text-slate-700">Reptat</span>
+                <input type="number" min="0" max={settings.caramboles_objectiu}
+                       class="rounded-xl border px-3 py-2"
+                       bind:value={carT}/>
               </label>
             </div>
-          {/if}
+          </div>
+
+          <div class="rounded-2xl border bg-white p-4 shadow-sm">
+            <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Entrades i Tie-break</div>
+            <label class="grid gap-1">
+              <span class="text-sm text-slate-700">Entrades (total)</span>
+              <input type="number" min="0" max={settings.max_entrades}
+                     class="rounded-xl border px-3 py-2"
+                     bind:value={entrades}/>
+            </label>
+            <div class="mt-4 flex items-center gap-2">
+              <input id="tiebreak" type="checkbox" class="rounded border" bind:checked={tiebreak} disabled={!settings.allow_tiebreak} />
+              <label for="tiebreak" class="text-sm">Hi ha hagut tie-break</label>
+            </div>
+
+            {#if tiebreak}
+              <div class="mt-3 grid grid-cols-2 gap-3">
+                <label class="grid gap-1">
+                  <span class="text-sm text-slate-700">Tie-break (reptador)</span>
+                  <input type="number" min="0" class="rounded-xl border px-3 py-2" bind:value={tbR} />
+                </label>
+                <label class="grid gap-1">
+                  <span class="text-sm text-slate-700">Tie-break (reptat)</span>
+                  <input type="number" min="0" class="rounded-xl border px-3 py-2" bind:value={tbT} />
+                </label>
+              </div>
+            {/if}
+          </div>
         </div>
-      </div>
+      {/if}
 
       {#if valMsg}
         <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 p-2 text-sm">
