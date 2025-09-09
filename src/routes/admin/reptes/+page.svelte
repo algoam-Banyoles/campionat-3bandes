@@ -83,7 +83,7 @@
     return r.estat === 'proposat';
   }
   function canProgram(r: ChallengeRow) {
-    return r.estat === 'proposat' || r.estat === 'acceptat' || r.estat === 'programat';
+    return r.estat === 'proposat' || r.estat === 'acceptat';
   }
   function canRefuse(r: ChallengeRow) {
     return r.estat === 'proposat';
@@ -91,7 +91,8 @@
   function canCancel(r: ChallengeRow) {
     // Segons indicacions: un repte ACCEPTAT ja NO es pot anul·lar.
     // Permetem anul·lar si és 'proposat' (i opcionalment 'programat' si ho vols).
-    return r.estat === 'proposat'; // canvia-ho a (r.estat === 'proposat' || r.estat === 'programat') si vols permetre cancel·lar programats
+    return r.estat === 'proposat'; // canvia-ho a (r.estat === 'proposat' || r.estat === 'programat')
+                               // si vols permetre cancel·lar programats
   }
   function canSetResult(r: ChallengeRow) {
     // Pots posar resultat si està 'acceptat' (si s'ha jugat sense data Acceptació?) o 'programat'
@@ -107,6 +108,8 @@
   async function updateState(id: string, newState: ChallengeRow['estat'], also?: Record<string, any>) {
     try {
       busy = id;
+      error = null;
+      okMsg = null;
       const { supabase } = await import('$lib/supabaseClient');
       const payload: any = { estat: newState, ...(also ?? {}) };
       const { error: e } = await supabase.from('challenges').update(payload).eq('id', id);
@@ -187,14 +190,18 @@
 
                   {#if canProgram(r)}
                     <a
-                      class="inline-block rounded bg-indigo-700 text-white px-3 py-1 text-xs disabled:opacity-60"
+                      class="inline-block rounded bg-indigo-700 text-white px-3 py-1 text-xs"
+                      class:pointer-events-none={busy === r.id}
+                      class:opacity-60={busy === r.id}
                       href={`/admin/reptes/${r.id}/programar`}
-                    >{r.estat === 'programat' ? 'Reprogramar' : 'Programar'}</a>
+                    >Programar</a>
                   {/if}
 
                   {#if canSetResult(r)}
                     <a
-                      class="inline-block rounded bg-slate-900 text-white px-3 py-1 text-xs disabled:opacity-60"
+                      class="inline-block rounded bg-slate-900 text-white px-3 py-1 text-xs"
+                      class:pointer-events-none={busy === r.id}
+                      class:opacity-60={busy === r.id}
                       href={`/admin/reptes/${r.id}/resultat`}
                     >Posar resultat</a>
                   {/if}
