@@ -12,6 +12,7 @@ type Challenge = {
   dates_proposades: string[];
   data_proposta: string;
   data_acceptacio: string | null;
+  reprogram_count: number;
   pos_reptador: number | null;
   pos_reptat: number | null;
   reptador_nom?: string;
@@ -63,7 +64,7 @@ async function load() {
 
     const { data: ch, error: e2 } = await supabase
       .from('challenges')
-      .select('id,event_id,tipus,reptador_id,reptat_id,estat,dates_proposades,data_proposta,data_acceptacio,pos_reptador,pos_reptat')
+      .select('id,event_id,tipus,reptador_id,reptat_id,estat,dates_proposades,data_proposta,data_acceptacio,reprogram_count,pos_reptador,pos_reptat')
       .or(`reptador_id.eq.${myPlayerId},reptat_id.eq.${myPlayerId}`)
       .order('data_proposta', { ascending: false });
     if (e2) throw e2;
@@ -192,20 +193,25 @@ async function saveSchedule(r: Challenge) {
   error = null;
   okMsg = null;
   const local = scheduleLocal.get(r.id) ?? '';
-  const iso = parseLocalToIso(local);
-  if (!iso) {
+  const parsedIso = parseLocalToIso(local);
+  if (!parsedIso) {
     error = 'Cal indicar una data v\u00e0lida.';
     return;
   }
   try {
     busy = r.id;
     const { supabase } = await import('$lib/supabaseClient');
-    const { error: e } = await supabase
-      .from('challenges')
-      .update({ data_acceptacio: iso, estat: 'programat' })
-      .eq('id', r.id)
-      .in('estat', ['proposat', 'acceptat', 'programat']);
+    const { data, error: e } = await supabase.rpc('program_challenge', { p_challenge: r.id, p_when: parsedIso });
     if (e) throw e;
+    if (data?.[0]?.ok === false) {
+      const reason = data?.[0]?.reason;
+      if (reason === 'reprogram_limit_reached') {
+        error = 'Aquest repte ja s\u2019ha reprogramat una vegada. Si cal canviar-ho de nou, contacta amb un administrador.';
+      } else {
+        error = reason ?? 'No s\u2019ha pogut desar la data';
+      }
+      return;
+    }
     okMsg = 'Data desada correctament.';
     await load();
   } catch (e: any) {
@@ -297,6 +303,11 @@ async function saveSchedule(r: Challenge) {
                   on:input={(e) => scheduleLocal.set(r.id, (e.target as HTMLInputElement).value)}
                   disabled={busy === r.id}
                 />
+                {#if r.estat === 'programat' && r.reprogram_count >= 1}
+                  <p class="text-xs text-slate-500 mt-1">
+                    Has arribat al límit de reprogramacions. Només un administrador pot canviar-la de nou.
+                  </p>
+                {/if}
               </div>
               <button
                 class="rounded bg-blue-600 text-white px-3 py-1 h-9 disabled:opacity-60"
