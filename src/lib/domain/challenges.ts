@@ -13,5 +13,5 @@ export async function canCreateChallenge(
   });
   if (error) return { ok: false, reason: error.message };
   if (!data || data.length === 0) return { ok: false, reason: 'No result' };
-  return data[0] as CanCreateResult;
+  return data[0];
 }
