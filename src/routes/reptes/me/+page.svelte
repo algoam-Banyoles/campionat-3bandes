@@ -1,6 +1,6 @@
 <script lang="ts">
 import { onMount } from 'svelte';
-import { user } from '$lib/authStore';
+import { user, isAdmin } from '$lib/authStore';
 import { getSettings, type AppSettings } from '$lib/settings';
 
 type Challenge = {
@@ -151,7 +151,10 @@ function canRefuse(r: Challenge) {
 
 function canProgram(r: Challenge) {
   if (r.estat === 'proposat') return isMeReptat(r);
-  if (['acceptat', 'programat'].includes(r.estat)) return isMeReptat(r) || isMeReptador(r);
+  if (['acceptat', 'programat'].includes(r.estat)) {
+    if (!$isAdmin && r.estat === 'programat' && r.reprogram_count >= 1) return false;
+    return isMeReptat(r) || isMeReptador(r);
+  }
   return false;
 }
 
@@ -204,6 +207,10 @@ async function refuse(r: Challenge) {
 async function saveSchedule(r: Challenge) {
   error = null;
   okMsg = null;
+  if (!$isAdmin && r.estat === 'programat' && r.reprogram_count >= 1) {
+    error = 'Només un canvi de data; contacta un administrador';
+    return;
+  }
   const local = scheduleLocal.get(r.id) ?? '';
   const parsedIso = parseLocalToIso(local);
   if (!parsedIso) {
@@ -218,15 +225,13 @@ async function saveSchedule(r: Challenge) {
   try {
     busy = r.id;
     const { supabase } = await import('$lib/supabaseClient');
-    const { data, error: e } = await supabase.rpc('program_challenge', { p_challenge: r.id, p_when: parsedIso });
+    const { data, error: e } = await supabase.rpc('program_challenge', {
+      p_challenge: r.id,
+      p_when: parsedIso
+    });
     if (e) throw e;
     if (data?.[0]?.ok === false) {
-      const reason = data?.[0]?.reason;
-      if (reason === 'reprogram_limit_reached') {
-        error = 'Aquest repte ja s\u2019ha reprogramat una vegada. Si cal canviar-ho de nou, contacta amb un administrador.';
-      } else {
-        error = reason ?? 'No s\u2019ha pogut desar la data';
-      }
+      error = data?.[0]?.reason ?? 'No s\u2019ha pogut desar la data';
       return;
     }
     okMsg = 'Data desada correctament.';
@@ -327,11 +332,6 @@ async function saveSchedule(r: Challenge) {
                 <p class="text-xs text-slate-500 mt-1">
                   La data ha d'estar dins de {settings.dies_jugar_despres_acceptar} dies.
                 </p>
-                {#if r.estat === 'programat' && r.reprogram_count >= 1}
-                  <p class="text-xs text-slate-500 mt-1">
-                    Has arribat al límit de reprogramacions. Només un administrador pot canviar-la de nou.
-                  </p>
-                {/if}
               </div>
               <button
                 class="rounded bg-blue-600 text-white px-3 py-1 h-9 disabled:opacity-60"
@@ -341,6 +341,10 @@ async function saveSchedule(r: Challenge) {
                 {busy === r.id ? 'Desant…' : 'Desa data'}
               </button>
             </div>
+          {:else if r.estat === 'programat' && r.reprogram_count >= 1}
+            <p class="text-xs text-slate-500 mt-1">
+              Has arribat al límit de reprogramacions. Només un administrador pot canviar-la de nou.
+            </p>
           {:else if isFrozen(r)}
             <div class="text-sm text-slate-500">Sense accions.</div>
           {/if}

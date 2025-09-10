@@ -11,6 +11,7 @@
     pos_reptat: number | null;
     estat: 'proposat' | 'acceptat' | 'programat' | 'refusat' | 'caducat' | 'jugat' | 'anullat';
     data_acceptacio: string | null;
+    reprogram_count: number;
   };
 
   let loading = true;
@@ -46,7 +47,7 @@
 
       const { data: c, error: e1 } = await supabase
         .from('challenges')
-        .select('id,reptador_id,reptat_id,pos_reptador,pos_reptat,estat,data_acceptacio')
+        .select('id,reptador_id,reptat_id,pos_reptador,pos_reptat,estat,data_acceptacio,reprogram_count')
         .eq('id', id)
         .maybeSingle();
       if (e1) throw e1;
@@ -106,15 +107,22 @@
     try {
       saving = true;
       const { supabase } = await import('$lib/supabaseClient');
+      const updates: any = { data_acceptacio: iso, estat: 'programat' };
+      if (chal && chal.estat === 'programat' && chal.data_acceptacio !== iso) {
+        updates.reprogram_count = (chal.reprogram_count ?? 0) + 1;
+      }
       const { error: e } = await supabase
         .from('challenges')
-        .update({ data_acceptacio: iso, estat: 'programat' })
+        .update(updates)
         .eq('id', id);
       if (e) throw e;
       okMsg = 'Data programada correctament.';
       if (chal) {
         chal.estat = 'programat';
         chal.data_acceptacio = iso;
+        if (updates.reprogram_count) {
+          chal.reprogram_count = updates.reprogram_count;
+        }
       }
     } catch (e: any) {
       error = e?.message ?? 'No s\u2019ha pogut programar el repte';
