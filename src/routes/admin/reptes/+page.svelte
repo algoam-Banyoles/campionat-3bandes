@@ -11,6 +11,7 @@
     estat: 'proposat' | 'acceptat' | 'programat' | 'refusat' | 'caducat' | 'jugat' | 'anullat';
     data_proposta: string;
     data_acceptacio: string | null;
+    reprogram_count: number;
     pos_reptador: number | null;
     pos_reptat: number | null;
     reptador_nom?: string;
@@ -44,7 +45,7 @@
 
       const { data: ch, error: e1 } = await supabase
         .from('challenges')
-        .select(`id,event_id,tipus,reptador_id,reptat_id,estat,data_proposta,data_acceptacio,pos_reptador,pos_reptat`)
+        .select(`id,event_id,tipus,reptador_id,reptat_id,estat,data_proposta,data_acceptacio,reprogram_count,pos_reptador,pos_reptat`)
         .order('data_proposta', { ascending: false });
       if (e1) throw e1;
 
@@ -83,7 +84,12 @@
     return r.estat === 'proposat';
   }
   function canProgram(r: ChallengeRow) {
-    return r.estat === 'proposat' || r.estat === 'acceptat';
+    if (r.estat === 'proposat') return true;
+    if (['acceptat', 'programat'].includes(r.estat)) {
+      if (!$isAdmin && r.estat === 'programat' && r.reprogram_count >= 1) return false;
+      return true;
+    }
+    return false;
   }
   function canRefuse(r: ChallengeRow) {
     return r.estat === 'proposat';
