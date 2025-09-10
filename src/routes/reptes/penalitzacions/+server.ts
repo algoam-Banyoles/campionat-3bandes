@@ -43,9 +43,19 @@ export const GET: RequestHandler = async () => {
 
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const body = (await request.json()) as PenalitzacioPayload;
-    if (!body?.event_id || !body?.player_id || !body?.tipus) {
-      return json({ ok: false, error: 'Falten camps obligatoris (event_id, player_id, tipus)' }, { status: 400 });
+    let body: PenalitzacioPayload | null = null;
+    try {
+      body = (await request.json()) as PenalitzacioPayload;
+    } catch {
+      // body missing or invalid JSON
+      return json({ ok: false, error: 'Cos JSON requerit' }, { status: 400 });
+    }
+
+    if (!body || !body.event_id || !body.player_id || !body.tipus) {
+      return json(
+        { ok: false, error: 'Falten camps obligatoris (event_id, player_id, tipus)' },
+        { status: 400 }
+      );
     }
 
     const supabase = serverSupabase();
@@ -73,7 +83,7 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     return json({ ok: true }, { status: 201 });
-  } catch (e:any) {
+  } catch (e: any) {
     return json({ ok: false, error: e?.message ?? 'Error intern' }, { status: 500 });
   }
 };
