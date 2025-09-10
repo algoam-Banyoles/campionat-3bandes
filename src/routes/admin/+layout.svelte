@@ -1,16 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { isAdmin } from '$lib/authStore';
+  import { get } from 'svelte/store';
 
   let admin = false;
   let checked = false;
 
   onMount(() => {
-    const unsub = isAdmin.subscribe((v) => {
-      admin = v;
-      checked = true;
-    });
-    return unsub;
+    admin = get(isAdmin);
+    checked = true;
   });
 </script>
 
@@ -21,4 +19,3 @@
     No autoritzat — <a href="/" class="underline">Inici</a>
   </div>
 {/if}
-
