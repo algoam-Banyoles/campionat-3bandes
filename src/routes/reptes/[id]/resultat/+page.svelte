@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { user, isAdmin } from '$lib/authStore';
+  import { toLocalInput, parseLocalToIso } from '$lib/dates';
 
   type Challenge = {
     id: string;
@@ -86,7 +87,7 @@
         .maybeSingle();
       if (cfg) settings = cfg;
 
-      data_joc_local = toLocalInput(c.data_acceptacio) || toLocalInput(new Date().toISOString());
+      data_joc_local = toLocalInput(c.data_acceptacio || '') || toLocalInput(new Date().toISOString());
     } catch (e:any) {
       error = e?.message ?? 'Error carregant el repte';
     } finally {
@@ -94,18 +95,6 @@
     }
   }
 
-  function toLocalInput(iso: string | null) {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
-    const pad = (n:number)=>String(n).padStart(2,'0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
-
-  function parseLocalToIso(local: string) {
-    const d = new Date(local);
-    return isNaN(d.getTime()) ? null : d.toISOString();
-  }
 
   function decideWinner(): 'reptador' | 'reptat' | 'empat' {
     if (tiebreak && tbR != null && tbT != null) return tbR > tbT ? 'reptador' : 'reptat';

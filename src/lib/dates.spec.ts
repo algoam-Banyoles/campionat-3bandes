@@ -1,52 +1,45 @@
 import { describe, it, expect } from 'vitest';
+import { toLocalInput, parseLocalToIso, sameIsoMinute } from './dates';
 
-function parseLocalToIso(local: string | null): string | null {
-  if (!local) return null;
-  let s = local.trim().replace(' ', 'T');
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/);
-  if (!m) {
-    const dt2 = new Date(s);
-    return isNaN(dt2.getTime()) ? null : dt2.toISOString();
-  }
-  const [, y, mo, d, h, mi, ss = '0', ms = '0'] = m;
-  const Y = Number(y), M = Number(mo) - 1, D = Number(d);
-  const H = Number(h), I = Number(mi), S = Number(ss), MS = Number(ms.padEnd(3, '0'));
-  const dt = new Date(Y, M, D, H, I, S, MS);
-  if (isNaN(dt.getTime())) return null;
-  if (dt.getFullYear() !== Y || dt.getMonth() !== M || dt.getDate() !== D || dt.getHours() !== H || dt.getMinutes() !== I) return null;
-  return dt.toISOString();
-}
+describe('toLocalInput', () => {
+  it('converteix ISO vàlid a format local', () => {
+    const iso = new Date(2024, 4, 12, 14, 30).toISOString();
+    const local = toLocalInput(iso);
+    expect(local).not.toBe('');
+    expect(parseLocalToIso(local)).toBe(iso);
+  });
 
-function validateDates(inputs: (string | null)[]): string | null {
-  const parsed = inputs.map(v => parseLocalToIso(v)).filter(Boolean) as string[];
-  if (parsed.length === 0) return 'Cal almenys una data';
-  if (parsed.length > 3) return 'No pots proposar més de tres dates';
-  return null;
-}
+  it('retorna buit per ISO invàlid', () => {
+    expect(toLocalInput('foo')).toBe('');
+  });
+});
 
 describe('parseLocalToIso', () => {
-  it('converteix un format local vàlid a ISO', () => {
-    expect(parseLocalToIso('2024-05-12T14:30')).toBe('2024-05-12T14:30:00.000Z');
+  it('accepta format sense segons', () => {
+    const expected = new Date(2024, 4, 12, 14, 30).toISOString();
+    expect(parseLocalToIso('2024-05-12T14:30')).toBe(expected);
   });
-
-  it('retorna null per format invàlid', () => {
+  it('accepta format amb segons', () => {
+    const expected = new Date(2024, 4, 12, 14, 30, 15).toISOString();
+    expect(parseLocalToIso('2024-05-12T14:30:15')).toBe(expected);
+  });
+  it('detecta format invàlid', () => {
     expect(parseLocalToIso('2024-13-40T25:61')).toBeNull();
   });
-});
-
-describe('validació de dates', () => {
-  it('requereix mínim 1 i màxim 3 dates', () => {
-    expect(validateDates([])).toBeTruthy();
-    expect(validateDates(['2024-05-12T14:30'])).toBeNull();
-    const many = ['2024-05-12T14:30', '2024-05-13T10:00', '2024-05-14T11:00', '2024-05-15T09:00'];
-    expect(validateDates(many)).toBeTruthy();
+  it('detecta data impossible', () => {
+    expect(parseLocalToIso('2024-02-30T10:00')).toBeNull();
   });
 });
 
-describe('comparació exacta ISO', () => {
-  it('compara ISO proposades amb acceptada', () => {
-    const proposed = ['2024-05-12T14:30:00.000Z', '2024-05-13T10:00:00.000Z'];
-    expect(proposed.includes('2024-05-12T14:30:00.000Z')).toBe(true);
-    expect(proposed.includes('2024-05-12T14:30:00Z')).toBe(false);
+describe('sameIsoMinute', () => {
+  it('retorna true per ISO al mateix minut', () => {
+    const a = '2024-05-12T14:30:00.000Z';
+    const b = '2024-05-12T14:30:59.999Z';
+    expect(sameIsoMinute(a, b)).toBe(true);
+  });
+  it('retorna false per minuts diferents', () => {
+    const a = '2024-05-12T14:30:00.000Z';
+    const b = '2024-05-12T14:31:00.000Z';
+    expect(sameIsoMinute(a, b)).toBe(false);
   });
 });

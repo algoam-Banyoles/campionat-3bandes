@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { user, isAdmin } from '$lib/authStore';
+  import { toLocalInput, parseLocalToIso } from '$lib/dates';
 
   type Challenge = {
     id: string;
@@ -56,7 +57,7 @@
         return;
       }
       chal = c;
-      data_local = toLocalInput(c.data_acceptacio);
+      data_local = toLocalInput(c.data_acceptacio || '');
 
       const { data: players, error: e2 } = await supabase
         .from('players')
@@ -73,19 +74,6 @@
     }
   }
 
-  function toLocalInput(iso: string | null) {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
-
-  function parseLocalToIso(local: string | null): string | null {
-    if (!local) return null;
-    const d = new Date(local);
-    return isNaN(d.getTime()) ? null : d.toISOString();
-  }
 
   function fmt(iso: string | null) {
     if (!iso) return '—';

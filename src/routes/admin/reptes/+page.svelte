@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { user, isAdmin } from '$lib/authStore';
+  import { toLocalInput } from '$lib/dates';
 
   type ChallengeRow = {
     id: string;
@@ -32,13 +33,6 @@
 
   onMount(load);
 
-  function toLocalInput(iso: string | null) {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
 
   function setChoice(id: string, val: string) {
     dateChoice.set(id, val);
@@ -98,7 +92,7 @@
       reprogLocal = new Map();
       for (const r of rows) {
         dateChoice.set(r.id, '');
-        reprogLocal.set(r.id, toLocalInput(r.data_programada));
+        reprogLocal.set(r.id, toLocalInput(r.data_programada || ''));
       }
       dateChoice = new Map(dateChoice);
       reprogLocal = new Map(reprogLocal);

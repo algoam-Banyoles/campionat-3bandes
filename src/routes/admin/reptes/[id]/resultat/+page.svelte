@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { user, isAdmin } from '$lib/authStore';
+  import { toLocalInput, parseLocalToIso } from '$lib/dates';
   import type { AppSettings } from '$lib/settings';
 
   type Challenge = {
@@ -77,37 +78,6 @@
     }
   }
 
-  function toLocalInput(iso: string | null) {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
-    const pad = (n:number)=>String(n).padStart(2,'0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
-
-  function parseLocalToIso(local: string | null): string | null {
-    if (!local) return null;
-    const s = local.trim();
-    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
-    if (!m) {
-      const dt2 = new Date(s);
-      return isNaN(dt2.getTime()) ? null : dt2.toISOString();
-    }
-    const [, y, mo, d, h, mi] = m;
-    const Y = Number(y), M = Number(mo) - 1, D = Number(d);
-    const H = Number(h), I = Number(mi);
-    const dt = new Date(Y, M, D, H, I);
-    if (isNaN(dt.getTime())) return null;
-    if (
-      dt.getFullYear() !== Y ||
-      dt.getMonth() !== M ||
-      dt.getDate() !== D ||
-      dt.getHours() !== H ||
-      dt.getMinutes() !== I
-    )
-      return null;
-    return dt.toISOString();
-  }
 
   const toNum = (v: number | '' ) => (v === '' ? NaN : Number(v));
   const isInt = (v: number | '' ) => Number.isInteger(toNum(v));

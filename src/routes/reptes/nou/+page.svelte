@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { getSettings } from '$lib/settings';
+  import { toLocalInput, parseLocalToIso } from '$lib/dates';
 
   type RankedPlayer = { posicio: number; player_id: string; nom: string };
   type NotReptable = RankedPlayer & { motiu: string };
@@ -105,31 +106,6 @@
     }
   });
 
-  function toLocalInput(iso: string) {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
-    const pad = (n:number)=>String(n).padStart(2,'0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
-
-  function parseLocalToIso(local: string | null): string | null {
-    if (!local) return null;
-    let s = local.trim().replace(' ', 'T');
-    const m = s.match(
-      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/
-    );
-    if (!m) {
-      const dt2 = new Date(s);
-      return isNaN(dt2.getTime()) ? null : dt2.toISOString();
-    }
-    const [, y, mo, d, h, mi, ss = '0', ms = '0'] = m;
-    const Y = Number(y), M = Number(mo) - 1, D = Number(d);
-    const H = Number(h), I = Number(mi), S = Number(ss), MS = Number(ms.padEnd(3, '0'));
-    const dt = new Date(Y, M, D, H, I, S, MS);
-    if (isNaN(dt.getTime())) return null;
-    if (dt.getFullYear() !== Y || dt.getMonth() !== M || dt.getDate() !== D || dt.getHours() !== H || dt.getMinutes() !== I) return null;
-    return dt.toISOString();
-  }
 
   function addDateInput() {
     if (dateInputs.length >= 3) return;
