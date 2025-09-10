@@ -1,4 +1,4 @@
-export type CanCreateResult = { ok: boolean; reason: string | null };
+export type CanCreateResult = { ok: boolean; reason: string | null; warning: string | null };
 
 export async function canCreateChallenge(
   supabase: any,
@@ -11,7 +11,7 @@ export async function canCreateChallenge(
     p_reptador: reptadorId,
     p_reptat: reptatId
   });
-  if (error) return { ok: false, reason: error.message };
-  if (!data || data.length === 0) return { ok: false, reason: 'No result' };
-  return data[0];
+  if (error) return { ok: false, reason: error.message, warning: null };
+  if (!data || data.length === 0) return { ok: false, reason: 'No result', warning: null };
+  return data[0] as CanCreateResult;
 }
