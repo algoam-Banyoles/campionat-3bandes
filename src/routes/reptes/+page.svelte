@@ -9,6 +9,7 @@
       // ignore errors applying penalties
     }
   });
+  
 </script>
 
 <h1 class="text-2xl font-semibold mb-4">Reptes</h1>

@@ -66,11 +66,21 @@
           <li>
             <a
               href="/admin"
-              class="px-2 py-1 rounded hover:bg-slate-100"
-              class:bg-slate-900={isActive('/admin')}
-              class:text-white={isActive('/admin')}
+              class="px-2 py-1 rounded hover:bg-slate-100 hover:underline"
+              class:bg-slate-900={isActive('/admin') && !$page.url.pathname.startsWith('/admin/config')}
+              class:text-white={isActive('/admin') && !$page.url.pathname.startsWith('/admin/config')}
             >
               Admin
+            </a>
+          </li>
+          <li>
+            <a
+              href="/admin/config"
+              class="px-2 py-1 rounded hover:bg-slate-100 hover:underline"
+              class:bg-slate-900={isActive('/admin/config')}
+              class:text-white={isActive('/admin/config')}
+            >
+              Configuració
             </a>
           </li>
         {/if}
@@ -140,12 +150,23 @@
           <li>
             <a
               href="/admin"
-              class="block px-2 py-2 rounded hover:bg-slate-100"
-              class:bg-slate-900={isActive('/admin')}
-              class:text-white={isActive('/admin')}
+              class="block px-2 py-2 rounded hover:bg-slate-100 hover:underline"
+              class:bg-slate-900={isActive('/admin') && !$page.url.pathname.startsWith('/admin/config')}
+              class:text-white={isActive('/admin') && !$page.url.pathname.startsWith('/admin/config')}
               on:click={() => (open = false)}
             >
               Admin
+            </a>
+          </li>
+          <li>
+            <a
+              href="/admin/config"
+              class="block px-2 py-2 rounded hover:bg-slate-100 hover:underline"
+              class:bg-slate-900={isActive('/admin/config')}
+              class:text-white={isActive('/admin/config')}
+              on:click={() => (open = false)}
+            >
+              Configuració
             </a>
           </li>
         {/if}

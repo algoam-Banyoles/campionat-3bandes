@@ -1,6 +1,7 @@
 <script lang="ts">
 import { onMount } from 'svelte';
 import { user } from '$lib/authStore';
+import { getSettings, type AppSettings } from '$lib/settings';
 
 type Challenge = {
   id: string;
@@ -26,6 +27,8 @@ let rows: Challenge[] = [];
 let myPlayerId: string | null = null;
 let busy: string | null = null;
 let scheduleLocal: Map<string, string> = new Map();
+export let data: { settings: AppSettings };
+let settings: AppSettings = data.settings;
 
 onMount(async () => {
   try {
@@ -121,6 +124,15 @@ function parseLocalToIso(local: string | null) {
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
+function addDays(date: Date, days: number) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+let maxScheduleLocal = '';
+$: maxScheduleLocal = toLocalInput(addDays(new Date(), settings.dies_jugar_despres_acceptar).toISOString());
+
 function isMeReptat(r: Challenge) {
   return myPlayerId === r.reptat_id;
 }
@@ -198,6 +210,11 @@ async function saveSchedule(r: Challenge) {
     error = 'Cal indicar una data v\u00e0lida.';
     return;
   }
+  const maxDate = addDays(new Date(), settings.dies_jugar_despres_acceptar);
+  if (new Date(parsedIso) > maxDate) {
+    error = `La data ha d'estar dins de ${settings.dies_jugar_despres_acceptar} dies.`;
+    return;
+  }
   try {
     busy = r.id;
     const { supabase } = await import('$lib/supabaseClient');
@@ -227,6 +244,9 @@ async function saveSchedule(r: Challenge) {
 </svelte:head>
 
 <h1 class="text-2xl font-semibold mb-4">Els meus reptes</h1>
+<div class="rounded border border-blue-300 bg-blue-50 text-blue-900 p-3 mb-4 text-sm">
+  Tens {settings.dies_acceptar_repte} dies per acceptar un repte i {settings.dies_jugar_despres_acceptar} dies per jugar-lo un cop acceptat.
+</div>
 
 {#if loading}
   <p class="text-slate-500">Carregant…</p>
@@ -298,11 +318,15 @@ async function saveSchedule(r: Challenge) {
                   class="block border rounded px-2 py-1 mt-1"
                   type="datetime-local"
                   step="60"
+                  max={maxScheduleLocal}
                   id={`schedule-${r.id}`}
                   value={scheduleLocal.get(r.id) ?? ''}
                   on:input={(e) => scheduleLocal.set(r.id, (e.target as HTMLInputElement).value)}
                   disabled={busy === r.id}
                 />
+                <p class="text-xs text-slate-500 mt-1">
+                  La data ha d'estar dins de {settings.dies_jugar_despres_acceptar} dies.
+                </p>
                 {#if r.estat === 'programat' && r.reprogram_count >= 1}
                   <p class="text-xs text-slate-500 mt-1">
                     Has arribat al límit de reprogramacions. Només un administrador pot canviar-la de nou.

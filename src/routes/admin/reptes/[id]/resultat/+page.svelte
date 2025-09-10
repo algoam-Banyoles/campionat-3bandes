@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { user, isAdmin } from '$lib/authStore';
+  import type { AppSettings } from '$lib/settings';
 
   type Challenge = {
     id: string;
@@ -11,12 +12,6 @@
     pos_reptador: number | null;
     pos_reptat: number | null;
     data_acceptacio: string | null;
-  };
-
-  type Settings = {
-    caramboles_objectiu: number;
-    max_entrades: number;
-    allow_tiebreak: boolean;
   };
 
   let loading = true;
@@ -29,11 +24,8 @@
   let reptadorNom = '—';
   let reptatNom = '—';
 
-  let settings: Settings = {
-    caramboles_objectiu: 2,
-    max_entrades: 50,
-    allow_tiebreak: true
-  };
+  export let data: { settings: AppSettings };
+  let settings: AppSettings = data.settings;
 
   // Formulari
   let carR: number | '' = 0;
@@ -76,14 +68,6 @@
       const dict = new Map((players ?? []).map((p:any)=>[p.id, p.nom]));
       reptadorNom = dict.get(c.reptador_id) ?? '—';
       reptatNom = dict.get(c.reptat_id) ?? '—';
-
-      const { data: cfg } = await supabase
-        .from('app_settings')
-        .select('caramboles_objectiu,max_entrades,allow_tiebreak')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (cfg) settings = cfg;
 
       data_joc_local = toLocalInput(c.data_acceptacio || new Date().toISOString());
     } catch (e:any) {
@@ -143,10 +127,9 @@
       return `Caràmboles màximes: ${settings.caramboles_objectiu}.`;
     }
     if (_entr > settings.max_entrades) return `Entrades màximes: ${settings.max_entrades}.`;
-    if (_carR === _carT && !tiebreak) {
-      return settings.allow_tiebreak
-        ? 'Empat de caràmboles: activa tie-break i informa el resultat.'
-        : 'Empat de caràmboles i el tie-break està desactivat a Configuració.';
+    if (_carR === _carT) {
+      if (!settings.allow_tiebreak) return 'Empat de caràmboles i el tie-break està desactivat a Configuració.';
+      if (!tiebreak) return 'Empat de caràmboles: activa tie-break i informa el resultat.';
     }
     if (tiebreak) {
       const _tbR = toNum(tbR), _tbT = toNum(tbT);
@@ -365,3 +348,4 @@
     </form>
   {/if}
 {/if}
+
