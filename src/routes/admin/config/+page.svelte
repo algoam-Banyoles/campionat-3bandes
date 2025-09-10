@@ -1,6 +1,7 @@
 <script lang="ts">
   import { user, authReady as loadingAuth } from '$lib/authStore';
   import { isAdmin as checkAdmin } from '$lib/isAdmin';
+  import Loader from '$lib/components/Loader.svelte';
 
   type Settings = {
     id?: string;
@@ -159,7 +160,7 @@
 <h1 class="text-2xl font-semibold mb-4">Administració — Configuració</h1>
 
 {#if !$loadingAuth || loading}
-  <p class="text-slate-500">Carregant…</p>
+  <Loader />
 {:else if !$user?.email}
   <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3">Has d’iniciar sessió</div>
 {:else if !admin}

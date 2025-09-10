@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { getSettings } from '$lib/settings';
+  import Loader from '$lib/components/Loader.svelte';
 
   type RankedPlayer = { posicio: number; player_id: string; nom: string };
   type NotReptable = RankedPlayer & { motiu: string };
@@ -199,7 +200,7 @@
 <h1 class="text-2xl font-semibold mb-4">Nou repte</h1>
 
 {#if loading}
-  <div class="rounded border p-3 animate-pulse text-slate-600">Carregant…</div>
+  <Loader />
 {:else}
   {#if err}<div class="rounded border border-red-300 bg-red-50 text-red-800 p-3 mb-3">{err}</div>{/if}
   {#if ok}<div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-3">{ok}</div>{/if}

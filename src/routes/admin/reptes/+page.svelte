@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { user, isAdmin } from '$lib/authStore';
+  import Loader from '$lib/components/Loader.svelte';
 
   type ChallengeRow = {
     id: string;
@@ -290,7 +291,7 @@
 <h1 class="text-2xl font-semibold mb-4">Reptes (administració)</h1>
 
 {#if loading}
-  <div class="animate-pulse rounded border p-4 text-slate-500">Carregant…</div>
+  <Loader />
 {:else}
   {#if error}
     <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3 mb-3">{error}</div>
