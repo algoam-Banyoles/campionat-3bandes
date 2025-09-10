@@ -19,10 +19,15 @@
   let selectedOpponent: string | null = null;
   let notes: string = '';
 
+  // Dates proposades (en format local del <input>)
+  let dateInputs: string[] = [
+    toLocalInput(new Date().toISOString())
+  ];
+
   onMount(async () => {
     try {
       loading = true; err = null; ok = null;
-      const settings = await getSettings();
+      await getSettings(); // guardem per si més endavant fem més validacions
 
       // 1) Sessió i player_id
       const { data: s } = await supabase.auth.getSession();
@@ -57,8 +62,6 @@
 
       // 4) Filtre bàsic: només fins a 2 posicions per sobre
       reptables = allRank.filter(r => r.posicio < myPos! && r.posicio >= myPos! - 2);
-
-      // (Pròxims passos: filtrar també per cooldown i si tenen ja un repte actiu)
     } catch (e: any) {
       err = e?.message ?? 'Error carregant dades';
     } finally {
@@ -66,22 +69,82 @@
     }
   });
 
+  function toLocalInput(iso: string) {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n:number)=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function parseLocalToIso(local: string | null): string | null {
+    if (!local) return null;
+    let s = local.trim().replace(' ', 'T');
+    const m = s.match(
+      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/
+    );
+    if (!m) {
+      const dt2 = new Date(s);
+      return isNaN(dt2.getTime()) ? null : dt2.toISOString();
+    }
+    const [, y, mo, d, h, mi, ss = '0', ms = '0'] = m;
+    const Y = Number(y), M = Number(mo) - 1, D = Number(d);
+    const H = Number(h), I = Number(mi), S = Number(ss), MS = Number(ms.padEnd(3, '0'));
+    const dt = new Date(Y, M, D, H, I, S, MS);
+    if (isNaN(dt.getTime())) return null;
+    if (dt.getFullYear() !== Y || dt.getMonth() !== M || dt.getDate() !== D || dt.getHours() !== H || dt.getMinutes() !== I) return null;
+    return dt.toISOString();
+  }
+
+  function addDateInput() {
+    if (dateInputs.length >= 3) return;
+    dateInputs = [...dateInputs, ''];
+  }
+  function removeDateInput(idx: number) {
+    dateInputs = dateInputs.filter((_, i) => i !== idx);
+    if (dateInputs.length === 0) {
+      dateInputs = [''];
+    }
+  }
+
+  function validate(): string | null {
+    if (!eventId || !myPlayerId) return 'Error d’estat intern: falta event o jugador.';
+    if (!selectedOpponent) return 'Cal triar oponent.';
+    const parsed = dateInputs
+      .map(v => parseLocalToIso(v || null))
+      .filter(Boolean) as string[];
+    if (parsed.length === 0) return 'Has de proposar almenys una data.';
+    return null;
+  }
+
+  let valMsg: string | null = null;
+  $: valMsg = validate();
+
   async function creaRepte() {
     try {
       err = null; ok = null;
-      if (!eventId || !myPlayerId || !selectedOpponent) { err = 'Cal triar oponent.'; return; }
+      const v = validate();
+      if (v) { err = v; return; }
 
-      // Simplificat: creem repte proposat (estat per defecte al backend)
+      // Converteix totes les dates vàlides a ISO
+      const datesIso = dateInputs
+        .map(v => parseLocalToIso(v || null))
+        .filter(Boolean) as string[];
+
       const { error } = await supabase.from('challenges').insert({
         event_id: eventId,
         reptador_id: myPlayerId,
         reptat_id: selectedOpponent,
         tipus: 'normal',
+        estat: 'proposat',
+        dates_proposades: datesIso,
         observacions: notes || null
       });
       if (error) throw error;
-      ok = 'Repte creat correctament.';
+
+      ok = 'Repte creat correctament. S’han enviat les teves propostes de data.';
+      // Reseteja el formulari
       selectedOpponent = null; notes = '';
+      dateInputs = [toLocalInput(new Date().toISOString())];
     } catch (e:any) {
       const msg = String(e?.message || '').toLowerCase();
       if (msg.includes('policy') || msg.includes('row-level security') || msg.includes('permission')) {
@@ -110,7 +173,7 @@
   {/if}
 
   <div class="rounded-2xl border bg-white p-4 shadow-sm max-w-xl">
-    <div class="grid gap-3">
+    <div class="grid gap-4">
       <label class="grid gap-1">
         <span class="text-sm text-slate-700">Tria oponent (posicions permeses)</span>
         <select class="rounded-xl border px-3 py-2" bind:value={selectedOpponent}>
@@ -121,15 +184,52 @@
         </select>
       </label>
 
+      <div class="grid gap-2">
+        <span class="text-sm text-slate-700">Proposa dates (mínim 1, màxim 3)</span>
+
+        {#each dateInputs as v, i}
+          <div class="flex gap-2 items-center">
+            <input
+              type="datetime-local"
+              step="60"
+              class="flex-1 rounded-xl border px-3 py-2"
+              bind:value={dateInputs[i]}
+              placeholder="AAAA-MM-DDThh:mm"
+            />
+            <button type="button"
+              class="rounded border px-3 py-2 text-sm"
+              on:click={() => removeDateInput(i)}
+              disabled={dateInputs.length <= 1}>
+              Elimina
+            </button>
+          </div>
+        {/each}
+
+        <div>
+          <button type="button"
+            class="rounded-2xl border px-3 py-1 text-sm"
+            on:click={addDateInput}
+            disabled={dateInputs.length >= 3}>
+            + Afegeix una altra data
+          </button>
+        </div>
+      </div>
+
       <label class="grid gap-1">
         <span class="text-sm text-slate-700">Observacions (opcional)</span>
-        <textarea class="rounded-xl border px-3 py-2" rows="3" bind:value={notes}></textarea>
+        <textarea class="rounded-xl border px-3 py-2" rows="3" bind:value={notes} />
       </label>
+
+      {#if valMsg}
+        <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 p-2 text-sm">
+          {valMsg}
+        </div>
+      {/if}
 
       <div class="flex items-center gap-3 pt-1">
         <button class="rounded-2xl bg-slate-900 text-white px-4 py-2 disabled:opacity-60"
                 on:click|preventDefault={creaRepte}
-                disabled={!selectedOpponent}>
+                disabled={!!valMsg}>
           Crear repte
         </button>
         <a href="/reptes" class="text-sm underline text-slate-600">Torna</a>
@@ -137,5 +237,3 @@
     </div>
   </div>
 {/if}
-
-<!-- Nota: més endavant afegirem el filtratge per cooldown i repte actiu; de moment limitem per posició. -->
