@@ -17,7 +17,7 @@
   let reptables: RankedPlayer[] = [];
 
   let selectedOpponent: string | null = null;
-  let notes: string = '';
+  let notes = '';
 
   // Dates proposades (en format local del <input>)
   let dateInputs: string[] = [
@@ -26,13 +26,15 @@
 
   onMount(async () => {
     try {
-      loading = true; err = null; ok = null;
-      await getSettings(); // guardem per si més endavant fem més validacions
+      loading = true;
+      err = null;
+      ok = null;
+      await getSettings();
 
       // 1) Sessió i player_id
       const { data: s } = await supabase.auth.getSession();
       const email = s?.session?.user?.email ?? null;
-      if (!email) { err = 'Has d’iniciar sessió.'; return; }
+      if (!email) { err = "Has d’iniciar sessió."; return; }
 
       const qPlayer = await supabase.from('players').select('id').eq('email', email).maybeSingle();
       if (qPlayer.error) throw qPlayer.error;
@@ -63,7 +65,12 @@
       // 4) Filtre bàsic: només fins a 2 posicions per sobre
       reptables = allRank.filter(r => r.posicio < myPos! && r.posicio >= myPos! - 2);
     } catch (e: any) {
-      err = e?.message ?? 'Error carregant dades';
+      const msg = String(e?.message || '').toLowerCase();
+      if (msg.includes('policy') || msg.includes('row-level security') || msg.includes('permission')) {
+        err = 'No tens permisos per carregar les dades.';
+      } else {
+        err = e?.message ?? 'Error carregant dades';
+      }
     } finally {
       loading = false;
     }
@@ -121,7 +128,8 @@
 
   async function creaRepte() {
     try {
-      err = null; ok = null;
+      err = null;
+      ok = null;
       const v = validate();
       if (v) { err = v; return; }
 
@@ -143,7 +151,8 @@
 
       ok = 'Repte creat correctament. S’han enviat les teves propostes de data.';
       // Reseteja el formulari
-      selectedOpponent = null; notes = '';
+      selectedOpponent = null;
+      notes = '';
       dateInputs = [toLocalInput(new Date().toISOString())];
     } catch (e:any) {
       const msg = String(e?.message || '').toLowerCase();
@@ -217,7 +226,7 @@
 
       <label class="grid gap-1">
         <span class="text-sm text-slate-700">Observacions (opcional)</span>
-        <textarea class="rounded-xl border px-3 py-2" rows="3" bind:value={notes} />
+        <textarea class="rounded-xl border px-3 py-2" rows="3" bind:value={notes}></textarea>
       </label>
 
       {#if valMsg}
