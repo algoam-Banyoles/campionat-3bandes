@@ -4,23 +4,12 @@
 
   onMount(async () => {
     try {
-      const { supabase } = await import('$lib/supabaseClient');
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (token) {
-        await fetch('/reptes/penalitzacions', {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({})
-        });
-      }
+      await fetch('/reptes/penalitzacions', { method: 'POST' });
     } catch {
       // ignore errors applying penalties
     }
   });
+  
 </script>
 
 <h1 class="text-2xl font-semibold mb-4">Reptes</h1>

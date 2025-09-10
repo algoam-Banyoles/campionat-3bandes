@@ -1,10 +1,7 @@
 <script lang="ts">
 import { onMount } from 'svelte';
 import { user } from '$lib/authStore';
-import type { AppSettings } from '$lib/settings';
-
-export let data: { settings: AppSettings };
-let settings: AppSettings = data.settings;
+import { getSettings, type AppSettings } from '$lib/settings';
 
 type Challenge = {
   id: string;
@@ -30,22 +27,12 @@ let rows: Challenge[] = [];
 let myPlayerId: string | null = null;
 let busy: string | null = null;
 let scheduleLocal: Map<string, string> = new Map();
+export let data: { settings: AppSettings };
+let settings: AppSettings = data.settings;
 
 onMount(async () => {
   try {
-    const { supabase } = await import('$lib/supabaseClient');
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData?.session?.access_token;
-    if (token) {
-      await fetch('/reptes/penalitzacions', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({})
-      });
-    }
+    await fetch('/reptes/penalitzacions', { method: 'POST' });
   } catch {
     /* ignore */
   }
