@@ -1,7 +1,10 @@
 <script lang="ts">
 import { onMount } from 'svelte';
 import { user } from '$lib/authStore';
-import { getSettings, type AppSettings } from '$lib/settings';
+import type { AppSettings } from '$lib/settings';
+
+export let data: { settings: AppSettings };
+let settings: AppSettings = data.settings;
 
 type Challenge = {
   id: string;
@@ -27,7 +30,6 @@ let rows: Challenge[] = [];
 let myPlayerId: string | null = null;
 let busy: string | null = null;
 let scheduleLocal: Map<string, string> = new Map();
-let settings: AppSettings = await getSettings();
 
 onMount(async () => {
   try {
