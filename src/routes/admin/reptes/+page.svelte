@@ -79,17 +79,38 @@
     return isNaN(t.getTime()) ? d : t.toLocaleString();
   }
 
+  function estatClass(e: ChallengeRow['estat']) {
+    switch (e) {
+      case 'proposat':
+        return 'bg-gray-200 text-gray-800';
+      case 'acceptat':
+        return 'bg-yellow-200 text-yellow-800';
+      case 'programat':
+        return 'bg-blue-200 text-blue-800';
+      case 'jugat':
+        return 'bg-green-200 text-green-800';
+      case 'anullat':
+        return 'bg-red-200 text-red-800';
+      case 'refusat':
+        return 'bg-orange-200 text-orange-800';
+      default:
+        return 'bg-slate-200 text-slate-800';
+    }
+  }
+
   // --- Lògica de permisos d'acció segons l'estat ---
   function canAccept(r: ChallengeRow) {
     return r.estat === 'proposat';
   }
-  function canProgram(r: ChallengeRow) {
-    if (r.estat === 'proposat') return true;
+  function programInfo(r: ChallengeRow) {
+    if (r.estat === 'proposat') return { allowed: true };
     if (['acceptat', 'programat'].includes(r.estat)) {
-      if (!$isAdmin && r.estat === 'programat' && r.reprogram_count >= 1) return false;
-      return true;
+      if (!$isAdmin && r.estat === 'programat' && r.reprogram_count >= 1) {
+        return { allowed: false, reason: 'límit de reprogramació assolit' };
+      }
+      return { allowed: true };
     }
-    return false;
+    return { allowed: false, reason: 'estat no permet programar' };
   }
   function canRefuse(r: ChallengeRow) {
     return r.estat === 'proposat';
@@ -180,12 +201,15 @@
             </td>
             <td class="px-3 py-2">#{r.pos_reptador ?? '—'} — {r.reptador_nom}</td>
             <td class="px-3 py-2">#{r.pos_reptat ?? '—'} — {r.reptat_nom}</td>
-            <td class="px-3 py-2 capitalize">{r.estat.replace('_',' ')}</td>
+            <td class="px-3 py-2">
+              <span class={`text-xs rounded px-2 py-0.5 capitalize ${estatClass(r.estat)}`}>{r.estat.replace('_',' ')}</span>
+            </td>
             <td class="px-3 py-2">
               {#if isFrozen(r)}
                 <span class="text-slate-500 text-xs">Sense accions</span>
               {:else}
-                <div class="flex flex-wrap gap-2">
+                {@const p = programInfo(r)}
+                <div class="flex flex-wrap items-center gap-2">
                   {#if canAccept(r)}
                     <button
                       class="rounded bg-emerald-700 text-white px-3 py-1 text-xs disabled:opacity-60"
@@ -194,13 +218,15 @@
                     >Accepta</button>
                   {/if}
 
-                  {#if canProgram(r)}
-                    <a
-                      class="inline-block rounded bg-indigo-700 text-white px-3 py-1 text-xs"
-                      class:pointer-events-none={busy === r.id}
-                      class:opacity-60={busy === r.id}
-                      href={`/admin/reptes/${r.id}/programar`}
-                    >Programar</a>
+                  <a
+                    class="inline-block rounded bg-indigo-700 text-white px-3 py-1 text-xs"
+                    class:pointer-events-none={busy === r.id || !p.allowed}
+                    class:opacity-60={busy === r.id || !p.allowed}
+                    href={p.allowed ? `/admin/reptes/${r.id}/programar` : undefined}
+                    title={!p.allowed ? p.reason : undefined}
+                  >Programar</a>
+                  {#if !p.allowed && p.reason}
+                    <span class="text-xs text-slate-500">{p.reason}</span>
                   {/if}
 
                   {#if canSetResult(r)}

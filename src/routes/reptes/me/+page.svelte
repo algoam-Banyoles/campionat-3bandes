@@ -101,6 +101,25 @@ function fmt(iso: string | null) {
   return isNaN(d.getTime()) ? iso : d.toLocaleString();
 }
 
+function estatClass(e: Challenge['estat']) {
+  switch (e) {
+    case 'proposat':
+      return 'bg-gray-200 text-gray-800';
+    case 'acceptat':
+      return 'bg-yellow-200 text-yellow-800';
+    case 'programat':
+      return 'bg-blue-200 text-blue-800';
+    case 'jugat':
+      return 'bg-green-200 text-green-800';
+    case 'anullat':
+      return 'bg-red-200 text-red-800';
+    case 'refusat':
+      return 'bg-orange-200 text-orange-800';
+    default:
+      return 'bg-slate-200 text-slate-800';
+  }
+}
+
 function canAct(r: Challenge) {
   return r.estat === 'proposat' && r.reptat_id === myPlayerId && !['anullat', 'jugat'].includes(r.estat);
 }
@@ -203,7 +222,7 @@ async function refuse(r: Challenge) {
         <div class="rounded border p-3 space-y-2">
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-xs rounded bg-slate-800 text-white px-2 py-0.5">{r.tipus}</span>
-            <span class="text-xs rounded bg-slate-100 px-2 py-0.5 capitalize">{r.estat}</span>
+            <span class={`text-xs rounded px-2 py-0.5 capitalize ${estatClass(r.estat)}`}>{r.estat}</span>
             <span class="text-xs text-slate-500 ml-auto">Proposat: {fmt(r.data_proposta)}</span>
           </div>
 
@@ -241,6 +260,7 @@ async function refuse(r: Challenge) {
                 class="rounded bg-green-600 text-white px-3 py-1 disabled:opacity-60"
                 on:click={() => acceptWithDate(r)}
                 disabled={actionBusy === r.id || !selectedDates.get(r.id)}
+                title={!selectedDates.get(r.id) ? 'Cal seleccionar una data' : undefined}
               >
                 {actionBusy === r.id ? 'Processant…' : 'Accepta amb data'}
               </button>
@@ -259,6 +279,9 @@ async function refuse(r: Challenge) {
                 {actionBusy === r.id ? 'Processant…' : 'Refusa'}
               </button>
             </div>
+            {#if !selectedDates.get(r.id)}
+              <div class="text-xs text-slate-500">Cal seleccionar una data.</div>
+            {/if}
           {:else if ['anullat', 'jugat'].includes(r.estat)}
             <div class="text-sm text-slate-500">Sense accions.</div>
           {/if}
