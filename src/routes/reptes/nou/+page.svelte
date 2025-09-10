@@ -1,14 +1,16 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { supabase } from '$lib/supabaseClient';
-  import { getSettings } from '$lib/settings';
+    import { onMount } from 'svelte';
+    import { supabase } from '$lib/supabaseClient';
+    import { getSettings } from '$lib/settings';
+    import Banner from '$lib/components/Banner.svelte';
+    import { formatSupabaseError, ok as okMsg, err as errMsg } from '$lib/ui/alerts';
 
   type RankedPlayer = { posicio: number; player_id: string; nom: string };
   type NotReptable = RankedPlayer & { motiu: string };
 
-  let loading = true;
-  let err: string | null = null;
-  let ok: string | null = null;
+    let loading = true;
+    let err: string | null = null;
+    let ok: string | null = null;
 
   let myPlayerId: string | null = null;
   let myPos: number | null = null;
@@ -36,17 +38,17 @@
       // 1) Sessió i player_id
       const { data: s } = await supabase.auth.getSession();
       const email = s?.session?.user?.email ?? null;
-      if (!email) { err = "Has d’iniciar sessió."; return; }
+        if (!email) { err = errMsg("Has d’iniciar sessió."); return; }
 
       const qPlayer = await supabase.from('players').select('id').eq('email', email).maybeSingle();
       if (qPlayer.error) throw qPlayer.error;
-      if (!qPlayer.data) { err = 'El teu email no està vinculat a cap jugador.'; return; }
+        if (!qPlayer.data) { err = errMsg('El teu email no està vinculat a cap jugador.'); return; }
       myPlayerId = qPlayer.data.id;
 
       // 2) Event actiu
       const qEvent = await supabase.from('events').select('id').eq('actiu', true).order('creat_el', { ascending: false }).limit(1).maybeSingle();
       if (qEvent.error) throw qEvent.error;
-      if (!qEvent.data) { err = 'No hi ha cap esdeveniment actiu.'; return; }
+        if (!qEvent.data) { err = errMsg('No hi ha cap esdeveniment actiu.'); return; }
       eventId = qEvent.data.id;
 
       // 3) Rànquing complet i meva posició
@@ -61,7 +63,7 @@
       }));
 
       const mine = allRank.find(r => r.player_id === myPlayerId) ?? null;
-      if (!mine) { err = 'No formes part del rànquing actual.'; return; }
+        if (!mine) { err = errMsg('No formes part del rànquing actual.'); return; }
       myPos = mine.posicio;
 
       // 4) Determinar reptables i no disponibles
@@ -93,16 +95,11 @@
           noReptables.push({ ...r, motiu });
         }
       }
-    } catch (e: any) {
-      const msg = String(e?.message || '').toLowerCase();
-      if (msg.includes('policy') || msg.includes('row-level security') || msg.includes('permission')) {
-        err = 'No tens permisos per carregar les dades.';
-      } else {
-        err = e?.message ?? 'Error carregant dades';
+      } catch (e) {
+        err = formatSupabaseError(e);
+      } finally {
+        loading = false;
       }
-    } finally {
-      loading = false;
-    }
   });
 
   function toLocalInput(iso: string) {
@@ -178,21 +175,16 @@
       });
       if (error) throw error;
 
-      ok = 'Repte creat correctament. S’han enviat les teves propostes de data.';
+        ok = okMsg('Repte creat correctament. S’han enviat les teves propostes de data.');
       // Reseteja el formulari
       selectedOpponent = null;
       notes = '';
       dateInputs = [toLocalInput(new Date().toISOString())];
-    } catch (e:any) {
-      const msg = String(e?.message || '').toLowerCase();
-      if (msg.includes('policy') || msg.includes('row-level security') || msg.includes('permission')) {
-        err = 'No tens permisos per crear el repte.';
-      } else {
-        err = e?.message ?? 'No s’ha pogut crear el repte';
+      } catch (e) {
+        err = formatSupabaseError(e);
       }
     }
-  }
-</script>
+  </script>
 
 <svelte:head><title>Nou repte</title></svelte:head>
 
@@ -201,8 +193,8 @@
 {#if loading}
   <div class="rounded border p-3 animate-pulse text-slate-600">Carregant…</div>
 {:else}
-  {#if err}<div class="rounded border border-red-300 bg-red-50 text-red-800 p-3 mb-3">{err}</div>{/if}
-  {#if ok}<div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-3">{ok}</div>{/if}
+    {#if err}<Banner type="error" message={err} class="mb-3" />{/if}
+    {#if ok}<Banner type="success" message={ok} class="mb-3" />{/if}
 
   {#if myPos}
     <div class="rounded-2xl border bg-white p-4 shadow-sm mb-4">
@@ -269,11 +261,9 @@
         <textarea class="rounded-xl border px-3 py-2" rows="3" bind:value={notes}></textarea>
       </label>
 
-      {#if valMsg}
-        <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 p-2 text-sm">
-          {valMsg}
-        </div>
-      {/if}
+        {#if valMsg}
+          <Banner type="warn" message={valMsg} class="p-2 text-sm" />
+        {/if}
 
       <div class="flex items-center gap-3 pt-1">
         <button class="rounded-2xl bg-slate-900 text-white px-4 py-2 disabled:opacity-60"

@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { page } from '$app/stores';
-  import { user, isAdmin } from '$lib/authStore';
-  import type { AppSettings } from '$lib/settings';
+    import { onMount } from 'svelte';
+    import { page } from '$app/stores';
+    import { user, isAdmin } from '$lib/authStore';
+    import type { AppSettings } from '$lib/settings';
+    import Banner from '$lib/components/Banner.svelte';
+    import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
 
   type Challenge = {
     id: string;
@@ -46,8 +48,8 @@
     try {
       loading = true; error = null; okMsg = null; rpcMsg = null;
 
-      if (!$user?.email) { error = 'Has d’iniciar sessió.'; return; }
-      if (!$isAdmin) { error = 'Només administradors poden registrar resultats.'; return; }
+        if (!$user?.email) { error = errText('Has d’iniciar sessió.'); return; }
+        if (!$isAdmin) { error = errText('Només administradors poden registrar resultats.'); return; }
 
       const { supabase } = await import('$lib/supabaseClient');
 
@@ -57,7 +59,7 @@
         .eq('id', id)
         .maybeSingle();
       if (e1) throw e1;
-      if (!c) { error = 'Repte no trobat.'; return; }
+        if (!c) { error = errText('Repte no trobat.'); return; }
       chal = c;
 
       const { data: players, error: e2 } = await supabase
@@ -70,9 +72,9 @@
       reptatNom = dict.get(c.reptat_id) ?? '—';
 
       data_joc_local = toLocalInput(c.data_acceptacio || new Date().toISOString());
-    } catch (e:any) {
-      error = e?.message ?? 'Error carregant el repte';
-    } finally {
+      } catch (e) {
+        error = formatSupabaseError(e);
+      } finally {
       loading = false;
     }
   }
@@ -160,8 +162,8 @@
 
   async function save() {
     error = null; okMsg = null; rpcMsg = null;
-    if (valMsg) { error = valMsg; return; }
-    if (!parsedIso) { error = 'Data invàlida.'; return; }
+    if (valMsg) { error = errText(valMsg); return; }
+    if (!parsedIso) { error = errText('Data invàlida.'); return; }
 
     const isWalkover = tipusResultat !== 'normal';
     const hasTB = !isWalkover && !!tiebreak;
@@ -208,9 +210,9 @@
         else rpcMsg = `Rànquing sense canvis${r?.reason ? ' (' + r.reason + ')' : ''}.`;
       }
 
-      okMsg = 'Resultat desat correctament. Repte marcat com a "jugat".';
-    } catch (e:any) {
-      error = e?.message ?? 'No s’ha pogut desar el resultat';
+      okMsg = okText('Resultat desat correctament. Repte marcat com a "jugat".');
+    } catch (e) {
+      error = formatSupabaseError(e);
     } finally {
       saving = false;
     }
@@ -225,13 +227,13 @@
   <div class="animate-pulse rounded border p-4 text-slate-500">Carregant…</div>
 {:else}
   {#if error}
-    <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3 mb-4">{error}</div>
+    <Banner type="error" message={error} class="mb-4" />
   {/if}
   {#if okMsg}
-    <div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-2">{okMsg}</div>
+    <Banner type="success" message={okMsg} class="mb-2" />
   {/if}
   {#if rpcMsg}
-    <div class="rounded border border-blue-300 bg-blue-50 text-blue-900 p-3 mb-4">{rpcMsg}</div>
+    <Banner type="info" message={rpcMsg} class="mb-4" />
   {/if}
 
   {#if !error && chal}
@@ -331,11 +333,9 @@
         </div>
       {/if}
 
-      {#if valMsg}
-        <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 p-2 text-sm">
-          {valMsg}
-        </div>
-      {/if}
+        {#if valMsg}
+          <Banner type="warn" message={valMsg} class="p-2 text-sm" />
+        {/if}
 
       <div class="flex items-center gap-3 pt-1">
         <button type="submit"

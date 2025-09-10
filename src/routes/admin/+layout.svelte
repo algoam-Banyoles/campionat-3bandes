@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { supabase } from '$lib/supabaseClient';
-  import { isAdmin } from '$lib/isAdmin';
+    import { supabase } from '$lib/supabaseClient';
+    import { isAdmin } from '$lib/isAdmin';
+    import Banner from '$lib/components/Banner.svelte';
 
   let ready = false;
   let admin = false;
@@ -17,11 +18,9 @@
 
 {#if !ready}
   <div class="rounded border p-3">Comprovant permisos…</div>
-{:else if !admin}
-  <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3">
-    No autoritzat. {email ? `Sessió: ${email}` : 'No hi ha sessió activa.'}
+  {:else if !admin}
+    <Banner type="error" message={email ? `No autoritzat. Sessió: ${email}` : 'No autoritzat. No hi ha sessió activa.'} />
     <div class="mt-2 text-sm"><a href="/login" class="underline">Inicia sessió</a></div>
-  </div>
-{:else}
-  <slot />
-{/if}
+  {:else}
+    <slot />
+  {/if}
