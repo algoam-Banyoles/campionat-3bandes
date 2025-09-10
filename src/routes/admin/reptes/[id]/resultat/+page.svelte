@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { user, isAdmin } from '$lib/authStore';
+  import { getSettings, type AppSettings } from '$lib/settings';
 
   type Challenge = {
     id: string;
@@ -11,17 +12,6 @@
     pos_reptador: number | null;
     pos_reptat: number | null;
     data_acceptacio: string | null;
-  };
-
-  type Settings = {
-    caramboles_objectiu: number;
-    max_entrades: number;
-    allow_tiebreak: boolean;
-    cooldown_min_dies: number;
-    cooldown_max_dies: number;
-    dies_acceptar_repte: number;
-    dies_jugar_despres_acceptar: number;
-    ranking_max_jugadors: number;
   };
 
   let loading = true;
@@ -34,16 +24,7 @@
   let reptadorNom = '—';
   let reptatNom = '—';
 
-  let settings: Settings = {
-    caramboles_objectiu: 20,
-    max_entrades: 50,
-    allow_tiebreak: true,
-    cooldown_min_dies: 3,
-    cooldown_max_dies: 7,
-    dies_acceptar_repte: 7,
-    dies_jugar_despres_acceptar: 7,
-    ranking_max_jugadors: 20
-  };
+  let settings: AppSettings = await getSettings();
 
   // Formulari
   let carR: number | '' = 0;
@@ -86,14 +67,6 @@
       const dict = new Map((players ?? []).map((p:any)=>[p.id, p.nom]));
       reptadorNom = dict.get(c.reptador_id) ?? '—';
       reptatNom = dict.get(c.reptat_id) ?? '—';
-
-      const { data: cfg } = await supabase
-        .from('app_settings')
-        .select('*')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (cfg) settings = cfg;
 
       data_joc_local = toLocalInput(c.data_acceptacio || new Date().toISOString());
     } catch (e:any) {
@@ -374,3 +347,4 @@
     </form>
   {/if}
 {/if}
+
