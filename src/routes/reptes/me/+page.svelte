@@ -1,6 +1,7 @@
 <script lang="ts">
 import { onMount } from 'svelte';
 import { user } from '$lib/authStore';
+import { getSettings, type AppSettings } from '$lib/settings';
 
 type Challenge = {
   id: string;
@@ -19,17 +20,6 @@ type Challenge = {
   reptat_nom?: string;
 };
 
-type Settings = {
-  caramboles_objectiu: number;
-  max_entrades: number;
-  allow_tiebreak: boolean;
-  cooldown_min_dies: number;
-  cooldown_max_dies: number;
-  dies_acceptar_repte: number;
-  dies_jugar_despres_acceptar: number;
-  ranking_max_jugadors: number;
-};
-
 let loading = true;
 let error: string | null = null;
 let okMsg: string | null = null;
@@ -37,16 +27,7 @@ let rows: Challenge[] = [];
 let myPlayerId: string | null = null;
 let busy: string | null = null;
 let scheduleLocal: Map<string, string> = new Map();
-let settings: Settings = {
-  caramboles_objectiu: 20,
-  max_entrades: 50,
-  allow_tiebreak: true,
-  cooldown_min_dies: 3,
-  cooldown_max_dies: 7,
-  dies_acceptar_repte: 7,
-  dies_jugar_despres_acceptar: 7,
-  ranking_max_jugadors: 20
-};
+let settings: AppSettings = await getSettings();
 
 onMount(async () => {
   try {
@@ -70,14 +51,6 @@ async function load() {
     }
 
     const { supabase } = await import('$lib/supabaseClient');
-
-    const { data: cfg } = await supabase
-      .from('app_settings')
-      .select('*')
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (cfg) settings = cfg;
 
     const { data: p, error: e1 } = await supabase
       .from('players')
@@ -270,6 +243,9 @@ async function saveSchedule(r: Challenge) {
 </svelte:head>
 
 <h1 class="text-2xl font-semibold mb-4">Els meus reptes</h1>
+<div class="rounded border border-blue-300 bg-blue-50 text-blue-900 p-3 mb-4 text-sm">
+  Tens {settings.dies_acceptar_repte} dies per acceptar un repte i {settings.dies_jugar_despres_acceptar} dies per jugar-lo un cop acceptat.
+</div>
 
 {#if loading}
   <p class="text-slate-500">Carregant…</p>
@@ -347,6 +323,9 @@ async function saveSchedule(r: Challenge) {
                   on:input={(e) => scheduleLocal.set(r.id, (e.target as HTMLInputElement).value)}
                   disabled={busy === r.id}
                 />
+                <p class="text-xs text-slate-500 mt-1">
+                  La data ha d'estar dins de {settings.dies_jugar_despres_acceptar} dies.
+                </p>
                 {#if r.estat === 'programat' && r.reprogram_count >= 1}
                   <p class="text-xs text-slate-500 mt-1">
                     Has arribat al límit de reprogramacions. Només un administrador pot canviar-la de nou.
