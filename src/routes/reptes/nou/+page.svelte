@@ -4,6 +4,7 @@
   import { getSettings } from '$lib/settings';
 
   type RankedPlayer = { posicio: number; player_id: string; nom: string };
+  type NotReptable = RankedPlayer & { motiu: string };
 
   let loading = true;
   let err: string | null = null;
@@ -15,6 +16,7 @@
 
   let allRank: RankedPlayer[] = [];
   let reptables: RankedPlayer[] = [];
+  let noReptables: NotReptable[] = [];
 
   let selectedOpponent: string | null = null;
   let notes = '';
@@ -62,8 +64,35 @@
       if (!mine) { err = 'No formes part del rànquing actual.'; return; }
       myPos = mine.posicio;
 
-      // 4) Filtre bàsic: només fins a 2 posicions per sobre
-      reptables = allRank.filter(r => r.posicio < myPos! && r.posicio >= myPos! - 2);
+      // 4) Determinar reptables i no disponibles
+      reptables = [];
+      noReptables = [];
+      for (const r of allRank) {
+        if (r.player_id === myPlayerId) continue;
+        if (r.posicio >= myPos! || r.posicio < myPos! - 2) {
+          noReptables.push({ ...r, motiu: 'fora del marge de posicions' });
+          continue;
+        }
+        const { data: chk, error: eChk } = await supabase.rpc('can_create_challenge', {
+          p_event: eventId,
+          p_reptador: myPlayerId,
+          p_reptat: r.player_id
+        });
+        if (eChk) {
+          noReptables.push({ ...r, motiu: 'no disponible' });
+          continue;
+        }
+        const res = (chk as any)?.[0];
+        if (res?.ok) {
+          reptables.push(r);
+        } else {
+          let motiu = res?.reason ?? 'no disponible';
+          if (motiu.toLowerCase().includes('repte actiu')) motiu = 'té un repte actiu';
+          else if (motiu.toLowerCase().includes('temps mínim')) motiu = 'cooldown no complert';
+          else if (motiu.toLowerCase().includes('diferència de posicions')) motiu = 'fora del marge de posicions';
+          noReptables.push({ ...r, motiu });
+        }
+      }
     } catch (e: any) {
       const msg = String(e?.message || '').toLowerCase();
       if (msg.includes('policy') || msg.includes('row-level security') || msg.includes('permission')) {
@@ -192,6 +221,17 @@
           {/each}
         </select>
       </label>
+
+      {#if noReptables.length}
+        <details class="text-sm text-slate-700">
+          <summary class="cursor-pointer select-none">Oponents no disponibles</summary>
+          <ul class="mt-2 list-disc pl-6 text-slate-600">
+            {#each noReptables as nr}
+              <li>#{nr.posicio} — {nr.nom} ({nr.motiu})</li>
+            {/each}
+          </ul>
+        </details>
+      {/if}
 
       <div class="grid gap-2">
         <span class="text-sm text-slate-700">Proposa dates (mínim 1, màxim 3)</span>
