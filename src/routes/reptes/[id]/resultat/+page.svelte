@@ -174,34 +174,35 @@
   </div>
 
   <form class="space-y-3" on:submit|preventDefault={save}>
-    <label>
-      Data joc:
-      <input type="datetime-local" bind:value={data_joc_local} class="border rounded px-2 py-1" />
-    </label>
-    <label>
-      Caràmboles reptador:
-      <input type="number" bind:value={carR} min="0" max={settings.caramboles_objectiu} />
-    </label>
-    <label>
-      Caràmboles reptat:
-      <input type="number" bind:value={carT} min="0" max={settings.caramboles_objectiu} />
-    </label>
-    <label>
-      Entrades:
-      <input type="number" bind:value={entrades} min="0" max={settings.max_entrades} />
-    </label>
-    <label>
-      <input type="checkbox" bind:checked={tiebreak} /> Hi ha hagut tie-break
-    </label>
+    <div>
+      <label for="data_joc" class="mr-2">Data joc:</label>
+      <input id="data_joc" type="datetime-local" bind:value={data_joc_local} class="border rounded px-2 py-1" />
+    </div>
+    <div>
+      <label for="carR" class="mr-2">Caràmboles reptador:</label>
+      <input id="carR" type="number" bind:value={carR} min="0" max={settings.caramboles_objectiu} />
+    </div>
+    <div>
+      <label for="carT" class="mr-2">Caràmboles reptat:</label>
+      <input id="carT" type="number" bind:value={carT} min="0" max={settings.caramboles_objectiu} />
+    </div>
+    <div>
+      <label for="entrades" class="mr-2">Entrades:</label>
+      <input id="entrades" type="number" bind:value={entrades} min="0" max={settings.max_entrades} />
+    </div>
+    <div class="flex items-center gap-2">
+      <input id="tiebreak" type="checkbox" bind:checked={tiebreak} />
+      <label for="tiebreak">Hi ha hagut tie-break</label>
+    </div>
     {#if tiebreak}
-      <label>
-        Tie-break reptador:
-        <input type="number" bind:value={tbR} min="0" />
-      </label>
-      <label>
-        Tie-break reptat:
-        <input type="number" bind:value={tbT} min="0" />
-      </label>
+      <div>
+        <label for="tbR" class="mr-2">Tie-break reptador:</label>
+        <input id="tbR" type="number" bind:value={tbR} min="0" />
+      </div>
+      <div>
+        <label for="tbT" class="mr-2">Tie-break reptat:</label>
+        <input id="tbT" type="number" bind:value={tbT} min="0" />
+      </div>
     {/if}
     <button class="bg-slate-900 text-white px-4 py-2 rounded" disabled={saving}>
       {saving ? 'Desant…' : 'Desa resultat'}
