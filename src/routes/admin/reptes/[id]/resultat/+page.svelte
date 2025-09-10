@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { user, isAdmin } from '$lib/authStore';
-  import { getSettings, type AppSettings } from '$lib/settings';
+  import type { AppSettings } from '$lib/settings';
 
   type Challenge = {
     id: string;
@@ -24,7 +24,8 @@
   let reptadorNom = '—';
   let reptatNom = '—';
 
-  let settings: AppSettings = await getSettings();
+  export let data: { settings: AppSettings };
+  let settings: AppSettings = data.settings;
 
   // Formulari
   let carR: number | '' = 0;
