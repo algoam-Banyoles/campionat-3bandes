@@ -32,7 +32,7 @@ let settings: AppSettings = data.settings;
 
 onMount(async () => {
   try {
-    await fetch('/reptes/penalitzacions', { method: 'POST' });
+    await fetch('/reptes/penalitzacions');
   } catch {
     /* ignore */
   }
