@@ -212,13 +212,13 @@
     <form class="space-y-4 max-w-2xl" on:submit={createChallenge}>
       <div class="grid sm:grid-cols-2 gap-3">
         <div>
-          <label class="block text-sm mb-1">Event actiu</label>
-          <input class="w-full rounded border px-3 py-2 bg-slate-50" value={eventActiuId} disabled />
+          <label for="event_actiu" class="block text-sm mb-1">Event actiu</label>
+          <input id="event_actiu" class="w-full rounded border px-3 py-2 bg-slate-50" value={eventActiuId} disabled />
         </div>
 
         <div>
-          <label class="block text-sm mb-1">Tipus</label>
-          <select class="w-full rounded border px-3 py-2" bind:value={tipus}>
+          <label for="tipus" class="block text-sm mb-1">Tipus</label>
+          <select id="tipus" class="w-full rounded border px-3 py-2" bind:value={tipus}>
             <option value="normal">Normal</option>
             <option value="access">Accés</option>
           </select>
@@ -227,8 +227,8 @@
 
       <div class="grid sm:grid-cols-2 gap-3">
         <div>
-          <label class="block text-sm mb-1">Reptador</label>
-          <select class="w-full rounded border px-3 py-2" bind:value={reptador_id} required>
+          <label for="reptador" class="block text-sm mb-1">Reptador</label>
+          <select id="reptador" class="w-full rounded border px-3 py-2" bind:value={reptador_id} required>
             <option value="" disabled selected>— Selecciona —</option>
             {#each ranked as r}
               <option value={r.player_id}>#{r.posicio} — {r.nom}</option>
@@ -236,8 +236,8 @@
           </select>
         </div>
         <div>
-          <label class="block text-sm mb-1">Reptat</label>
-          <select class="w-full rounded border px-3 py-2" bind:value={reptat_id} required>
+          <label for="reptat" class="block text-sm mb-1">Reptat</label>
+          <select id="reptat" class="w-full rounded border px-3 py-2" bind:value={reptat_id} required>
             <option value="" disabled selected>— Selecciona —</option>
             {#each ranked as r}
               <option value={r.player_id}>#{r.posicio} — {r.nom}</option>
@@ -248,8 +248,8 @@
 
       <div class="grid sm:grid-cols-2 gap-3">
         <div>
-          <label class="block text-sm mb-1">Estat inicial</label>
-          <select class="w-full rounded border px-3 py-2" bind:value={estat}>
+          <label for="estat" class="block text-sm mb-1">Estat inicial</label>
+          <select id="estat" class="w-full rounded border px-3 py-2" bind:value={estat}>
             <option value="proposat">Proposat</option>
             <option value="acceptat">Acceptat (programat)</option>
             <option value="refusat">Refusat</option>

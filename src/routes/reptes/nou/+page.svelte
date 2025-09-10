@@ -212,15 +212,15 @@
 
   <div class="rounded-2xl border bg-white p-4 shadow-sm max-w-xl">
     <div class="grid gap-4">
-      <label class="grid gap-1">
-        <span class="text-sm text-slate-700">Tria oponent (posicions permeses)</span>
-        <select class="rounded-xl border px-3 py-2" bind:value={selectedOpponent}>
+      <div class="grid gap-1">
+        <label for="opponent" class="text-sm text-slate-700">Tria oponent (posicions permeses)</label>
+        <select id="opponent" class="rounded-xl border px-3 py-2" bind:value={selectedOpponent}>
           <option value="" disabled selected>— Selecciona jugador —</option>
           {#each reptables as r}
             <option value={r.player_id}>#{r.posicio} — {r.nom}</option>
           {/each}
         </select>
-      </label>
+      </div>
 
       {#if noReptables.length}
         <details class="text-sm text-slate-700">
@@ -234,7 +234,7 @@
       {/if}
 
       <div class="grid gap-2">
-        <span class="text-sm text-slate-700">Proposa dates (mínim 1, màxim 3)</span>
+        <span id="dates-label" class="text-sm text-slate-700">Proposa dates (mínim 1, màxim 3)</span>
 
         {#each dateInputs as v, i}
           <div class="flex gap-2 items-center">
@@ -244,6 +244,7 @@
               class="flex-1 rounded-xl border px-3 py-2"
               bind:value={dateInputs[i]}
               placeholder="AAAA-MM-DDThh:mm"
+              aria-describedby="dates-label"
             />
             <button type="button"
               class="rounded border px-3 py-2 text-sm"
@@ -264,10 +265,10 @@
         </div>
       </div>
 
-      <label class="grid gap-1">
-        <span class="text-sm text-slate-700">Observacions (opcional)</span>
-        <textarea class="rounded-xl border px-3 py-2" rows="3" bind:value={notes}></textarea>
-      </label>
+      <div class="grid gap-1">
+        <label for="notes" class="text-sm text-slate-700">Observacions (opcional)</label>
+        <textarea id="notes" class="rounded-xl border px-3 py-2" rows="3" bind:value={notes}></textarea>
+      </div>
 
       {#if valMsg}
         <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 p-2 text-sm">

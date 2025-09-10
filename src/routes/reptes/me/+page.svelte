@@ -235,9 +235,10 @@ async function refuse(r: Challenge) {
             <div class="text-sm">
               <strong>Dates proposades:</strong>
               <ul class="mt-1 space-y-1">
-                {#each r.dates_proposades as d}
+                {#each r.dates_proposades as d, i}
                   <li class="flex items-center gap-2">
                     <input
+                      id={`date-${r.id}-${i}`}
                       type="radio"
                       name={`dates-${r.id}`}
                       value={d}
@@ -247,7 +248,7 @@ async function refuse(r: Challenge) {
                         selectedDates = new Map(selectedDates);
                       }}
                     />
-                    <span>{fmt(d)}</span>
+                    <label for={`date-${r.id}-${i}`}>{fmt(d)}</label>
                   </li>
                 {/each}
               </ul>
