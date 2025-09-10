@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { user, isAdmin } from '$lib/authStore';
+  import { user, authReady as loadingAuth } from '$lib/authStore';
+  import { isAdmin as checkAdmin } from '$lib/isAdmin';
 
   type Settings = {
     id?: string;
@@ -19,7 +20,9 @@
   let warning: string | null = null;
   let error: string | null = null;
   let ok: string | null = null;
-  let loaded = false;
+  let loading = true;
+  let admin = false;
+  let started = false;
 
   async function loadSettings() {
     const { supabase } = await import('$lib/supabaseClient');
@@ -48,9 +51,23 @@
     }
   }
 
-  $: if ($user?.email && $isAdmin && !loaded) {
-    loaded = true;
-    loadSettings();
+  async function init() {
+    try {
+      loading = true;
+      admin = await checkAdmin();
+      if (admin) {
+        await loadSettings();
+      }
+    } catch (e: any) {
+      error = e?.message ?? 'No s’ha pogut carregar la configuració';
+    } finally {
+      loading = false;
+    }
+  }
+
+  $: if ($loadingAuth && $user?.email && !started) {
+    started = true;
+    init();
   }
 
   function validate(): string | null {
@@ -100,7 +117,7 @@
           .eq('id', id);
         if (e) {
           if (e.code === '42501' || e.message?.toLowerCase().includes('permission')) {
-            throw new Error('Només administradors poden desar configuració');
+            throw new Error('Només administradors…');
           }
           throw e;
         }
@@ -121,7 +138,7 @@
           .single();
         if (e) {
           if (e.code === '42501' || e.message?.toLowerCase().includes('permission')) {
-            throw new Error('Només administradors poden desar configuració');
+            throw new Error('Només administradors…');
           }
           throw e;
         }
@@ -141,8 +158,12 @@
 
 <h1 class="text-2xl font-semibold mb-4">Administració — Configuració</h1>
 
-{#if !$user?.email || !$isAdmin}
-  <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3">No autoritzat</div>
+{#if !$loadingAuth || loading}
+  <p class="text-slate-500">Carregant…</p>
+{:else if !$user?.email}
+  <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3">Has d’iniciar sessió</div>
+{:else if !admin}
+  <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3">Només administradors…</div>
 {:else}
   {#if warning}
     <div class="mb-3 rounded border border-amber-300 bg-amber-50 text-amber-900 p-3">{warning}</div>
