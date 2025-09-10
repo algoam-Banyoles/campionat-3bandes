@@ -23,15 +23,11 @@
 
   onMount(async () => {
     try {
-      // importem el client només al navegador
       const { supabase } = await import('$lib/supabaseClient');
-      const { data, error: err } = await supabase
-        .from('v_ranking')
-        .select('event_id,posicio,player_id,nom,mitjana,estat,assignat_el')
-        .order('posicio', { ascending: true });
+      const { data, error: err } = await supabase.rpc('get_ranking');
 
       if (err) error = err.message;
-      else rows = data ?? [];
+      else rows = (data as Row[]) ?? [];
     } catch (e: any) {
       error = e?.message ?? 'Error desconegut';
     } finally {
@@ -45,7 +41,9 @@
 {#if loading}
   <p class="text-slate-500">Carregant rànquing…</p>
 {:else if error}
-  <p class="text-red-600">Error: {error}</p>
+  <div class="mb-4 rounded border border-red-200 bg-red-50 p-3 text-red-700">
+    Error: {error}
+  </div>
 {:else if rows.length === 0}
   <p class="text-slate-500">Encara no hi ha posicions al rànquing.</p>
 {:else}
@@ -74,3 +72,4 @@
     </table>
   </div>
 {/if}
+
