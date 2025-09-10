@@ -2,7 +2,7 @@ create or replace function public.can_create_challenge(
   p_event uuid,
   p_reptador uuid,
   p_reptat uuid
-) returns table(ok boolean, reason text)
+) returns table(ok boolean, reason text, warning text)
 language plpgsql
 security definer
 as $$
@@ -12,13 +12,16 @@ declare
   v_cd_max integer;
   v_pos_reptador integer;
   v_pos_reptat integer;
-  v_last timestamp with time zone;
-  v_days integer;
+  v_last_r timestamp with time zone;
+  v_last_t timestamp with time zone;
+  v_days_r integer;
+  v_days_t integer;
+  v_warn text;
 begin
   -- Load configuration with defaults
   select coalesce(max_rank_gap, 2),
-         coalesce(cooldown_days_min, 7),
-         cooldown_days_max
+         coalesce(cooldown_min_dies, 7),
+         cooldown_max_dies
     into v_max_gap, v_cd_min, v_cd_max
     from app_settings
     order by updated_at desc
@@ -81,31 +84,48 @@ begin
         and estat in ('proposat','acceptat','programat')
         and (reptador_id in (p_reptador, p_reptat) or reptat_id in (p_reptador, p_reptat))
   ) then
-    return query select false, 'El reptador o el reptat ja té un repte actiu';
+    return query select false, 'El reptador o el reptat ja té un repte actiu', null::text;
     return;
   end if;
 
-  -- Cooldown between the same players
-  select max(coalesce(data_joc, data_acceptacio, data_proposta))
-    into v_last
-    from challenges
-    where event_id = p_event
-      and ((reptador_id = p_reptador and reptat_id = p_reptat)
-           or (reptador_id = p_reptat and reptat_id = p_reptador))
-      and estat not in ('proposat','acceptat','programat');
-  if v_last is not null then
-    v_days := (now()::date - v_last::date);
-    if v_days < v_cd_min then
-      return query select false, 'No s''ha respectat el temps mínim entre reptes';
-      return;
-    end if;
-    if v_cd_max is not null and v_days > v_cd_max then
-      return query select false, 'S''ha excedit el temps màxim entre reptes';
+  -- Individual cooldown for reptador
+  select max(m.data_joc)
+    into v_last_r
+    from matches m
+    join challenges c on c.id = m.challenge_id
+   where c.event_id = p_event
+     and (c.reptador_id = p_reptador or c.reptat_id = p_reptador);
+  if v_last_r is not null then
+    v_days_r := (now()::date - v_last_r::date);
+    if v_days_r < v_cd_min then
+      return query select false, 'Has d''esperar ' || (v_cd_min - v_days_r) || ' dies més', null::text;
       return;
     end if;
   end if;
 
-  return query select true, null::text;
+  -- Individual cooldown for reptat
+  select max(m.data_joc)
+    into v_last_t
+    from matches m
+    join challenges c on c.id = m.challenge_id
+   where c.event_id = p_event
+     and (c.reptador_id = p_reptat or c.reptat_id = p_reptat);
+  if v_last_t is not null then
+    v_days_t := (now()::date - v_last_t::date);
+    if v_days_t < v_cd_min then
+      return query select false, 'Has d''esperar ' || (v_cd_min - v_days_t) || ' dies més', null::text;
+      return;
+    end if;
+  end if;
+
+  -- Prepare warning if cooldown max exceeded
+  if v_cd_max is not null then
+    if (v_days_r is not null and v_days_r > v_cd_max) or (v_days_t is not null and v_days_t > v_cd_max) then
+      v_warn := 'S''ha excedit el temps màxim entre reptes jugats';
+    end if;
+  end if;
+
+  return query select true, null::text, v_warn;
 end;
 $$;
 
