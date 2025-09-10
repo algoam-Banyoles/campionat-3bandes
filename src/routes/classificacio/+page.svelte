@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Loader from '$lib/components/Loader.svelte';
 
   type Row = {
     event_id: string;
@@ -39,7 +40,7 @@
 <h1 class="text-xl font-semibold mb-4">Classificació</h1>
 
 {#if loading}
-  <p class="text-slate-500">Carregant rànquing…</p>
+  <Loader text="Carregant rànquing…" />
 {:else if error}
   <div class="mb-4 rounded border border-red-200 bg-red-50 p-3 text-red-700">
     Error: {error}

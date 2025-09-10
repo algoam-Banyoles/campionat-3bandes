@@ -3,6 +3,7 @@
   import { page } from '$app/stores';
   import { user, isAdmin } from '$lib/authStore';
   import type { AppSettings } from '$lib/settings';
+  import Loader from '$lib/components/Loader.svelte';
 
   type Challenge = {
     id: string;
@@ -222,7 +223,7 @@
 <h1 class="text-2xl font-semibold mb-4">Posar resultat</h1>
 
 {#if loading}
-  <div class="animate-pulse rounded border p-4 text-slate-500">Carregant…</div>
+  <Loader />
 {:else}
   {#if error}
     <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3 mb-4">{error}</div>

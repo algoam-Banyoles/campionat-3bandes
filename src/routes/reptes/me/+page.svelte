@@ -2,6 +2,7 @@
 import { onMount } from 'svelte';
 import { user } from '$lib/authStore';
 import type { AppSettings } from '$lib/settings';
+import Loader from '$lib/components/Loader.svelte';
 
 type Challenge = {
   id: string;
@@ -203,7 +204,7 @@ async function refuse(r: Challenge) {
 </div>
 
 {#if loading}
-  <p class="text-slate-500">Carregant…</p>
+  <Loader />
 {:else}
   {#if error}
     <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3 mb-3">{error}</div>
