@@ -2,7 +2,7 @@
 
       import { onMount } from 'svelte';
       import { user } from '$lib/authStore';
-      import { adminStore as isAdmin } from '$lib/roles';
+      import { checkIsAdmin } from '$lib/roles';
       import Banner from '$lib/components/Banner.svelte';
       import Loader from '$lib/components/Loader.svelte';
     import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
@@ -30,6 +30,7 @@
   let okMsg: string | null = null;
   let rows: ChallengeRow[] = [];
   let busy: string | null = null; // id en acció
+  let isAdmin = false;
 
   // selecció de dates proposades
   let dateChoice: Map<string, string> = new Map();
@@ -67,10 +68,12 @@
           return;
         }
         // aquesta pàgina està pensada per a administradors
-        if (!$isAdmin) {
+        const adm = await checkIsAdmin();
+        if (!adm) {
           error = errText('Només administradors poden veure aquesta pàgina.');
           return;
         }
+        isAdmin = true;
 
       const { supabase } = await import('$lib/supabaseClient');
 
@@ -147,7 +150,7 @@
   function programInfo(r: ChallengeRow) {
     if (r.estat === 'proposat') return { allowed: true };
     if (['acceptat', 'programat'].includes(r.estat)) {
-      if (!$isAdmin && r.estat === 'programat' && r.reprogram_count >= 1) {
+      if (!isAdmin && r.estat === 'programat' && r.reprogram_count >= 1) {
         return { allowed: false, reason: 'límit de reprogramació assolit' };
       }
       return { allowed: true };
@@ -169,7 +172,7 @@
   }
   function canReprogram(r: ChallengeRow) {
     if (r.estat !== 'programat') return false;
-    if ($isAdmin) return true;
+    if (isAdmin) return true;
     return r.reprogram_count < 1;
   }
 

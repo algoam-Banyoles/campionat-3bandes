@@ -3,7 +3,7 @@
       import { onMount } from 'svelte';
       import { page } from '$app/stores';
       import { user } from '$lib/authStore';
-      import { adminStore as isAdmin } from '$lib/roles';
+      import { checkIsAdmin } from '$lib/roles';
       import type { AppSettings } from '$lib/settings';
       import Banner from '$lib/components/Banner.svelte';
       import Loader from '$lib/components/Loader.svelte';
@@ -52,7 +52,8 @@
       loading = true; error = null; okMsg = null; rpcMsg = null;
 
         if (!$user?.email) { error = errText('Has d’iniciar sessió.'); return; }
-        if (!$isAdmin) { error = errText('Només administradors poden registrar resultats.'); return; }
+        const isAdmin = await checkIsAdmin();
+        if (!isAdmin) { error = errText('Només administradors poden registrar resultats.'); return; }
 
       const { supabase } = await import('$lib/supabaseClient');
 
