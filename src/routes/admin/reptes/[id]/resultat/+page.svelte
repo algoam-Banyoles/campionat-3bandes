@@ -1,10 +1,12 @@
 <script lang="ts">
 
-    import { onMount } from 'svelte';
-    import { page } from '$app/stores';
-    import { user, isAdmin } from '$lib/authStore';
-    import type { AppSettings } from '$lib/settings';
-    import Banner from '$lib/components/Banner.svelte';
+      import { onMount } from 'svelte';
+      import { page } from '$app/stores';
+      import { user } from '$lib/authStore';
+      import { adminStore as isAdmin } from '$lib/roles';
+      import type { AppSettings } from '$lib/settings';
+      import Banner from '$lib/components/Banner.svelte';
+      import Loader from '$lib/components/Loader.svelte';
     import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
 
   type Challenge = {

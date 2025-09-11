@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { supabase } from '$lib/supabaseClient';
-  import { isAdmin } from '$lib/isAdmin';
+    import { supabase } from '$lib/supabaseClient';
+    import { checkIsAdmin } from '$lib/roles';
   import Banner from '$lib/components/Banner.svelte';
 
   let ready = false;
@@ -11,7 +11,7 @@
   onMount(async () => {
     const { data } = await supabase.auth.getSession();
     email = data.session?.user?.email ?? null;
-    admin = await isAdmin(); // consulta amb RLS
+      admin = await checkIsAdmin(); // consulta amb RLS
     ready = true;
   });
 </script>

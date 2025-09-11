@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
-  import { user } from '$lib/authStore';
+    import { goto } from '$app/navigation';
+    import { user } from '$lib/authStore';
+    import { checkIsAdmin } from '$lib/roles';
   import Banner from '$lib/components/Banner.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
 
@@ -21,22 +22,13 @@
         return;
       }
 
-      const { supabase } = await import('$lib/supabaseClient');
+        const adm = await checkIsAdmin();
+        if (!adm) {
+          error = errText('Només els administradors poden accedir a aquesta pàgina.');
+          return;
+        }
 
-      // comprovar que l'usuari és administrador
-      const { data: adm, error: eAdm } = await supabase
-        .from('admins')
-        .select('email')
-        .eq('email', u.email)
-        .maybeSingle();
-
-      if (eAdm) throw eAdm;
-      if (!adm) {
-        error = errText('Només els administradors poden accedir a aquesta pàgina.');
-        return;
-      }
-
-      isAdmin = true;
+        isAdmin = true;
     } catch (e) {
       error = formatSupabaseError(e);
     } finally {

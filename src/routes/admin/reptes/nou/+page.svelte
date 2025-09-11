@@ -2,6 +2,7 @@
     import { onMount } from 'svelte';
     import { user } from '$lib/authStore';
     import { goto } from '$app/navigation';
+    import { checkIsAdmin } from '$lib/roles';
     import Banner from '$lib/components/Banner.svelte';
     import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
 
@@ -58,20 +59,14 @@
         return;
       }
 
-      const { supabase } = await import('$lib/supabaseClient');
-
-      // 1) Comprovar que l’usuari és admin
-      const { data: adm, error: eAdm } = await supabase
-        .from('admins')
-        .select('email')
-        .eq('email', u.email)
-        .maybeSingle();
-      if (eAdm) throw eAdm;
-        if (!adm) {
-          error = errText('Només els administradors poden accedir a aquesta pàgina.');
-          return;
-        }
+      const adm = await checkIsAdmin();
+      if (!adm) {
+        error = errText('Només els administradors poden accedir a aquesta pàgina.');
+        return;
+      }
       isAdmin = true;
+
+      const { supabase } = await import('$lib/supabaseClient');
 
       // 2) Event actiu
       const { data: ev, error: eEvent } = await supabase

@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { page } from '$app/stores';
-  import { user, isAdmin, logout } from '$lib/authStore';
+    import { page } from '$app/stores';
+    import { user, logout } from '$lib/authStore';
+    import { adminStore as isAdmin } from '$lib/roles';
 
   // enllaços sempre visibles
   const baseLinks = [

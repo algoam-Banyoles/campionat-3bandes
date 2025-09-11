@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { user } from '$lib/authStore';
-    import { isAdmin as checkAdmin } from '$lib/isAdmin';
+      import { user } from '$lib/authStore';
+      import { checkIsAdmin } from '$lib/roles';
     import Banner from '$lib/components/Banner.svelte';
     import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
 
@@ -28,7 +28,7 @@
       loading = false;
       return;
     }
-    const adm = await checkAdmin();
+      const adm = await checkIsAdmin();
     if (!adm) {
       unauthorized = true;
       loading = false;

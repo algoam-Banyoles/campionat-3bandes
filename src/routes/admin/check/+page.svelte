@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { supabase } from '$lib/supabaseClient';
-  import { isAdmin } from '$lib/isAdmin';
+    import { supabase } from '$lib/supabaseClient';
+    import { checkIsAdmin } from '$lib/roles';
   import Banner from '$lib/components/Banner.svelte';
   import { formatSupabaseError } from '$lib/ui/alerts';
 
@@ -16,8 +16,8 @@
         if (error) throw error;
         email = data.session?.user?.email ?? null;
 
-        // comprova admin amb la RLS de la taula public.admins
-        admin = await isAdmin();
+          // comprova admin amb la RLS de la taula public.admins
+          admin = await checkIsAdmin();
       } catch (e) {
         err = formatSupabaseError(e);
       } finally {
