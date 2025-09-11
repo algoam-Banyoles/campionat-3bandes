@@ -81,7 +81,9 @@
       preOk = null;
       preErr = null;
       const { supabase } = await import('$lib/supabaseClient');
-      const { error } = await supabase.rpc('run_pre_inactivity');
+      const { error } = await supabase.rpc('apply_pre_inactivity', {
+        p_event_id: null
+      });
       if (error) throw error;
       preOk = 'Pre-inactivitat executada';
     } catch (e) {
@@ -97,7 +99,9 @@
       inactOk = null;
       inactErr = null;
       const { supabase } = await import('$lib/supabaseClient');
-      const { error } = await supabase.rpc('run_inactivity');
+      const { error } = await supabase.rpc('apply_inactivity', {
+        p_event_id: null
+      });
       if (error) throw error;
       inactOk = 'Inactivitat executada';
     } catch (e) {
@@ -165,40 +169,39 @@
       </form>
     </div>
 
-    <!-- Targeta: pre-inactivitat -->
-    <div class="rounded-2xl border p-4">
-      <h2 class="font-semibold">⏳ Executa pre-inactivitat</h2>
-      {#if preOk}
-        <Banner type="success" message={preOk} class="mb-2" />
-      {/if}
-      {#if preErr}
-        <Banner type="error" message={preErr} class="mb-2" />
-      {/if}
-      <button
-        class="mt-2 rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
-        on:click={execPreInactivity}
-        disabled={preBusy}
-      >
-        {#if preBusy}Executant…{:else}Executa{/if}
-      </button>
-    </div>
-
     <!-- Targeta: inactivitat -->
     <div class="rounded-2xl border p-4">
-      <h2 class="font-semibold">😴 Executa inactivitat</h2>
-      {#if inactOk}
-        <Banner type="success" message={inactOk} class="mb-2" />
-      {/if}
-      {#if inactErr}
-        <Banner type="error" message={inactErr} class="mb-2" />
-      {/if}
-      <button
-        class="mt-2 rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
-        on:click={execInactivity}
-        disabled={inactBusy}
-      >
-        {#if inactBusy}Executant…{:else}Executa{/if}
-      </button>
+      <h2 class="font-semibold">😴 Inactivitat</h2>
+      <div class="mt-2">
+        {#if preOk}
+          <Banner type="success" message={preOk} class="mb-2" />
+        {/if}
+        {#if preErr}
+          <Banner type="error" message={preErr} class="mb-2" />
+        {/if}
+        <button
+          class="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
+          on:click={execPreInactivity}
+          disabled={preBusy}
+        >
+          {#if preBusy}Executant…{:else}Executa pre-inactivitat (21 dies){/if}
+        </button>
+      </div>
+      <div class="mt-4">
+        {#if inactOk}
+          <Banner type="success" message={inactOk} class="mb-2" />
+        {/if}
+        {#if inactErr}
+          <Banner type="error" message={inactErr} class="mb-2" />
+        {/if}
+        <button
+          class="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
+          on:click={execInactivity}
+          disabled={inactBusy}
+        >
+          {#if inactBusy}Executant…{:else}Executa inactivitat (42 dies){/if}
+        </button>
+      </div>
     </div>
 
     <!-- (espai per futures seccions d’admin) -->
