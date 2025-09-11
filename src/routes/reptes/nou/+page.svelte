@@ -4,6 +4,7 @@
     import { supabase } from '$lib/supabaseClient';
     import { getSettings } from '$lib/settings';
     import Banner from '$lib/components/Banner.svelte';
+    import Loader from '$lib/components/Loader.svelte';
     import { formatSupabaseError, ok as okMsg, err as errMsg } from '$lib/ui/alerts';
 
 

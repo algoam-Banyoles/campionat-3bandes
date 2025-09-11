@@ -3,8 +3,9 @@
  import { onMount } from 'svelte';
  import { user } from '$lib/authStore';
  import type { AppSettings } from '$lib/settings';
- import Banner from '$lib/components/Banner.svelte';
- import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
+import Banner from '$lib/components/Banner.svelte';
+import Loader from '$lib/components/Loader.svelte';
+import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
 
 
 type Challenge = {

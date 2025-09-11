@@ -1,8 +1,10 @@
 <script lang="ts">
 
-    import { onMount } from 'svelte';
-    import { user, isAdmin } from '$lib/authStore';
-    import Banner from '$lib/components/Banner.svelte';
+      import { onMount } from 'svelte';
+      import { user } from '$lib/authStore';
+      import { adminStore as isAdmin } from '$lib/roles';
+      import Banner from '$lib/components/Banner.svelte';
+      import Loader from '$lib/components/Loader.svelte';
     import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
 
 

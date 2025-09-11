@@ -1,7 +1,8 @@
 <script lang="ts">
     import { user, authReady as loadingAuth } from '$lib/authStore';
-    import { isAdmin as checkAdmin } from '$lib/isAdmin';
+    import { checkIsAdmin } from '$lib/roles';
     import Banner from '$lib/components/Banner.svelte';
+    import Loader from '$lib/components/Loader.svelte';
     import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
 
 
@@ -57,7 +58,7 @@
   async function init() {
     try {
       loading = true;
-      admin = await checkAdmin();
+        admin = await checkIsAdmin();
       if (admin) {
         await loadSettings();
       }

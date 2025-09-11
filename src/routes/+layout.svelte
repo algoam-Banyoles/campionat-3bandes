@@ -1,7 +1,8 @@
 <script lang="ts">
   import "../app.css";
   import { onMount } from "svelte";
-  import { user, isAdmin, authReady, initAuth, logout } from "$lib/authStore";
+    import { user, authReady, initAuth, logout } from "$lib/authStore";
+    import { adminStore as isAdmin } from '$lib/roles';
 
   onMount(() => {
     // Inicialitza sessió + rol admin en muntar el layout
