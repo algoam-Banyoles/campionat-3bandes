@@ -1,10 +1,11 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import { user } from '$lib/authStore';
-    import { goto } from '$app/navigation';
-    import { checkIsAdmin } from '$lib/roles';
-    import Banner from '$lib/components/Banner.svelte';
-    import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
+import { onMount } from 'svelte';
+import { user } from '$lib/authStore';
+import { goto } from '$app/navigation';
+import { checkIsAdmin } from '$lib/roles';
+import Banner from '$lib/components/Banner.svelte';
+import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
   // Configurable al gust: quins estats considerem “actius”
   const ACTIVE_STATES = ['proposat', 'acceptat'] as const;
@@ -103,7 +104,7 @@
     }
   }
 
-  async function hasActiveChallenge(supabase: any, playerId: string) {
+async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
     const { data: act, error: eAct } = await supabase
       .from('challenges')
       .select('id, estat')
