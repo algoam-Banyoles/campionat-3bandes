@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { isAdmin } from '$lib/isAdmin';
+  import Banner from '$lib/components/Banner.svelte';
 
   let ready = false;
   let admin = false;
@@ -10,7 +11,7 @@
   onMount(async () => {
     const { data } = await supabase.auth.getSession();
     email = data.session?.user?.email ?? null;
-    admin = await isAdmin();  // consulta amb RLS
+    admin = await isAdmin(); // consulta amb RLS
     ready = true;
   });
 </script>
@@ -18,10 +19,11 @@
 {#if !ready}
   <div class="rounded border p-3">Comprovant permisos…</div>
 {:else if !admin}
-  <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3">
-    No autoritzat. {email ? `Sessió: ${email}` : 'No hi ha sessió activa.'}
-    <div class="mt-2 text-sm"><a href="/login" class="underline">Inicia sessió</a></div>
-  </div>
+  <Banner
+    type="error"
+    message={email ? `No autoritzat. Sessió: ${email}` : 'No autoritzat. No hi ha sessió activa.'}
+  />
+  <div class="mt-2 text-sm"><a href="/login" class="underline">Inicia sessió</a></div>
 {:else}
   <slot />
 {/if}

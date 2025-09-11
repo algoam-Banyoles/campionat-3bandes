@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { user } from '$lib/authStore';
-  import { goto } from '$app/navigation';
+    import { onMount } from 'svelte';
+    import { user } from '$lib/authStore';
+    import { goto } from '$app/navigation';
+    import Banner from '$lib/components/Banner.svelte';
+    import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
 
   // Configurable al gust: quins estats considerem “actius”
   const ACTIVE_STATES = ['proposat', 'acceptat'] as const;
@@ -65,10 +67,10 @@
         .eq('email', u.email)
         .maybeSingle();
       if (eAdm) throw eAdm;
-      if (!adm) {
-        error = 'Només els administradors poden accedir a aquesta pàgina.';
-        return;
-      }
+        if (!adm) {
+          error = errText('Només els administradors poden accedir a aquesta pàgina.');
+          return;
+        }
       isAdmin = true;
 
       // 2) Event actiu
@@ -79,7 +81,7 @@
         .limit(1)
         .maybeSingle();
       if (eEvent) throw eEvent;
-      if (!ev) { error = 'No s’ha trobat cap event actiu.'; return; }
+        if (!ev) { error = errText('No s’ha trobat cap event actiu.'); return; }
       eventActiuId = ev.id;
 
       // 3) Rànquing de l’event actiu (ranking_positions + players)
@@ -99,9 +101,9 @@
 
       // diccionari auxiliar
       playersById = new Map(ranked.map(r => [r.player_id, { id: r.player_id, nom: r.nom, email: r.email }]));
-    } catch (e: any) {
-      error = e?.message ?? 'Error carregant la pàgina';
-    } finally {
+      } catch (e) {
+        error = formatSupabaseError(e);
+      } finally {
       loading = false;
     }
   }
@@ -180,12 +182,12 @@
       const { error: eIns } = await supabase.from('challenges').insert(payload);
       if (eIns) throw eIns;
 
-      okMsg = 'Repte creat correctament.';
+      okMsg = okText('Repte creat correctament.');
       reptador_id = reptat_id = null;
       d1 = d2 = d3 = ''; data_programada = '';
       tipus = 'normal'; estat = 'proposat';
-    } catch (e: any) {
-      error = e?.message ?? 'No s’ha pogut crear el repte';
+    } catch (e) {
+      error = formatSupabaseError(e);
     } finally {
       busy = false;
     }
@@ -201,12 +203,12 @@
 {#if loading}
   <p class="text-slate-500">Carregant…</p>
 {:else}
-  {#if error}
-    <div class="mb-3 rounded border border-red-300 bg-red-50 p-3 text-red-700">{error}</div>
-  {/if}
-  {#if okMsg}
-    <div class="mb-3 rounded border border-green-300 bg-green-50 p-3 text-green-700">{okMsg}</div>
-  {/if}
+    {#if error}
+      <Banner type="error" message={error} class="mb-3" />
+    {/if}
+    {#if okMsg}
+      <Banner type="success" message={okMsg} class="mb-3" />
+    {/if}
 
   {#if isAdmin && eventActiuId}
     <form class="space-y-4 max-w-2xl" on:submit={createChallenge}>

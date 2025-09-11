@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { user, authReady as loadingAuth } from '$lib/authStore';
-  import { isAdmin as checkAdmin } from '$lib/isAdmin';
-  import Loader from '$lib/components/Loader.svelte';
+    import { user, authReady as loadingAuth } from '$lib/authStore';
+    import { isAdmin as checkAdmin } from '$lib/isAdmin';
+    import Banner from '$lib/components/Banner.svelte';
+    import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
+
 
   type Settings = {
     id?: string;
@@ -59,9 +61,9 @@
       if (admin) {
         await loadSettings();
       }
-    } catch (e: any) {
-      error = e?.message ?? 'No s’ha pogut carregar la configuració';
-    } finally {
+      } catch (e) {
+        error = formatSupabaseError(e);
+      } finally {
       loading = false;
     }
   }
@@ -116,12 +118,7 @@
           .from('app_settings')
           .update({ ...fields, updated_at: new Date().toISOString() })
           .eq('id', id);
-        if (e) {
-          if (e.code === '42501' || e.message?.toLowerCase().includes('permission')) {
-            throw new Error('Només administradors…');
-          }
-          throw e;
-        }
+        if (e) throw e;
       } else {
         const { data: inserted, error: e } = await supabase
           .from('app_settings')
@@ -137,18 +134,13 @@
           })
           .select('id')
           .single();
-        if (e) {
-          if (e.code === '42501' || e.message?.toLowerCase().includes('permission')) {
-            throw new Error('Només administradors…');
-          }
-          throw e;
-        }
+        if (e) throw e;
         form.id = inserted.id;
       }
       await loadSettings();
-      ok = 'Configuració desada';
-    } catch (err: any) {
-      error = err?.message ?? 'No s’ha pogut desar la configuració';
+      ok = okText('Configuració desada');
+    } catch (e) {
+      error = formatSupabaseError(e);
     } finally {
       saving = false;
     }
@@ -162,18 +154,18 @@
 {#if !$loadingAuth || loading}
   <Loader />
 {:else if !$user?.email}
-  <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3">Has d’iniciar sessió</div>
+  <Banner type="error" message="Has d’iniciar sessió" />
 {:else if !admin}
-  <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3">Només administradors…</div>
+  <Banner type="error" message="Només administradors…" />
 {:else}
   {#if warning}
-    <div class="mb-3 rounded border border-amber-300 bg-amber-50 text-amber-900 p-3">{warning}</div>
+    <Banner type="warn" message={warning} class="mb-3" />
   {/if}
   {#if error}
-    <div class="mb-3 rounded border border-red-300 bg-red-50 text-red-800 p-3">{error}</div>
+    <Banner type="error" message={error} class="mb-3" />
   {/if}
   {#if ok}
-    <div class="mb-3 rounded border border-green-300 bg-green-50 text-green-800 p-3">{ok}</div>
+    <Banner type="success" message={ok} class="mb-3" />
   {/if}
 
   {#if form}

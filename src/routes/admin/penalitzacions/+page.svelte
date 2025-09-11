@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { user } from '$lib/authStore';
-  import { isAdmin as checkAdmin } from '$lib/isAdmin';
+    import { onMount } from 'svelte';
+    import { user } from '$lib/authStore';
+    import { isAdmin as checkAdmin } from '$lib/isAdmin';
+    import Banner from '$lib/components/Banner.svelte';
+    import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
 
   type Event = { id: string; nom: string };
   type Player = { id: string; nom: string };
@@ -50,9 +52,9 @@
       if (ePl) throw ePl;
       players = pl ?? [];
       if (players.length > 0) player_id = players[0].id;
-    } catch (e: any) {
-      error = e?.message ?? 'Error carregant dades';
-    } finally {
+      } catch (e) {
+        error = formatSupabaseError(e);
+      } finally {
       loading = false;
     }
   });
@@ -75,12 +77,12 @@
       });
       const js = await res.json();
       if (!res.ok) throw new Error(js.error || 'Error creant penalització');
-      okMsg = 'Penalització creada';
+        okMsg = okText('Penalització creada');
       tipus = 'incompareixenca';
       detalls = '';
-    } catch (e: any) {
-      error = e?.message ?? 'Error creant penalització';
-    } finally {
+      } catch (e) {
+        error = formatSupabaseError(e);
+      } finally {
       busy = false;
     }
   }
@@ -93,17 +95,17 @@
 <div class="max-w-2xl mx-auto">
   <h1 class="text-2xl font-semibold mb-4">Penalitzacions</h1>
 
-  {#if unauthorized}
-    <div class="rounded border border-red-300 bg-red-50 p-3 text-red-700">No autoritzat</div>
-  {:else if loading}
-    <p class="text-slate-500">Carregant…</p>
-  {:else}
-    {#if error}
-      <div class="mb-4 rounded border border-red-300 bg-red-50 p-3 text-red-700">{error}</div>
-    {/if}
-    {#if okMsg}
-      <div class="mb-4 rounded border border-green-300 bg-green-50 p-3 text-green-700">{okMsg}</div>
-    {/if}
+    {#if unauthorized}
+      <Banner type="error" message="No autoritzat" />
+    {:else if loading}
+      <p class="text-slate-500">Carregant…</p>
+    {:else}
+      {#if error}
+        <Banner type="error" message={error} class="mb-4" />
+      {/if}
+      {#if okMsg}
+        <Banner type="success" message={okMsg} class="mb-4" />
+      {/if}
 
     <div class="rounded-2xl border bg-white p-6 shadow-sm">
       <form class="space-y-4" on:submit|preventDefault={save}>

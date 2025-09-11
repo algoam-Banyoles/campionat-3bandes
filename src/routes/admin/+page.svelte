@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { user } from '$lib/authStore';
+  import Banner from '$lib/components/Banner.svelte';
+  import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
 
   let loading = true;
   let error: string | null = null;
@@ -9,7 +11,8 @@
 
   onMount(async () => {
     try {
-      loading = true; error = null;
+      loading = true;
+      error = null;
 
       const u = $user;
       if (!u?.email) {
@@ -29,13 +32,13 @@
 
       if (eAdm) throw eAdm;
       if (!adm) {
-        error = 'Només els administradors poden accedir a aquesta pàgina.';
+        error = errText('Només els administradors poden accedir a aquesta pàgina.');
         return;
       }
 
       isAdmin = true;
-    } catch (e: any) {
-      error = e?.message ?? 'Error en validar permisos';
+    } catch (e) {
+      error = formatSupabaseError(e);
     } finally {
       loading = false;
     }
@@ -51,7 +54,7 @@
 {#if loading}
   <p class="text-slate-500">Carregant…</p>
 {:else if error}
-  <div class="rounded border border-red-300 bg-red-50 p-3 text-red-700">{error}</div>
+  <Banner type="error" message={error} />
 {:else if isAdmin}
   <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     <!-- Targeta: crear repte -->

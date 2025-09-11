@@ -1,7 +1,10 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { user, isAdmin } from '$lib/authStore';
-  import Loader from '$lib/components/Loader.svelte';
+
+    import { onMount } from 'svelte';
+    import { user, isAdmin } from '$lib/authStore';
+    import Banner from '$lib/components/Banner.svelte';
+    import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
+
 
   type ChallengeRow = {
     id: string;
@@ -57,15 +60,15 @@
       error = null;
       okMsg = null;
 
-      if (!$user?.email) {
-        error = 'Has d\u2019iniciar sessi\u00f3.';
-        return;
-      }
-      // aquesta pàgina està pensada per a administradors
-      if (!$isAdmin) {
-        error = 'Només administradors poden veure aquesta pàgina.';
-        return;
-      }
+        if (!$user?.email) {
+          error = errText('Has d’iniciar sessió.');
+          return;
+        }
+        // aquesta pàgina està pensada per a administradors
+        if (!$isAdmin) {
+          error = errText('Només administradors poden veure aquesta pàgina.');
+          return;
+        }
 
       const { supabase } = await import('$lib/supabaseClient');
 
@@ -103,9 +106,9 @@
       }
       dateChoice = new Map(dateChoice);
       reprogLocal = new Map(reprogLocal);
-    } catch (e: any) {
-      error = e?.message ?? 'No s\u2019ha pogut carregar la llista de reptes';
-    } finally {
+      } catch (e) {
+        error = formatSupabaseError(e);
+      } finally {
       loading = false;
     }
   }
@@ -171,7 +174,7 @@
   async function acceptWithDate(r: ChallengeRow) {
     const iso = dateChoice.get(r.id);
     if (!iso) {
-      error = 'Cal seleccionar una data.';
+      error = errText('Cal seleccionar una data.');
       return;
     }
     try {
@@ -185,10 +188,10 @@
       });
       const out = await res.json();
       if (!out.ok) throw new Error(out.error || 'No s\u2019ha pogut programar');
-      okMsg = 'Repte programat correctament.';
+      okMsg = okText('Repte programat correctament.');
       await load();
-    } catch (e: any) {
-      error = e?.message ?? 'No s\u2019ha pogut programar el repte';
+    } catch (e) {
+      error = formatSupabaseError(e);
     } finally {
       busy = null;
     }
@@ -206,10 +209,10 @@
       });
       const out = await res.json();
       if (!out.ok) throw new Error(out.error || 'No s\u2019ha pogut acceptar');
-      okMsg = 'Repte acceptat.';
+      okMsg = okText('Repte acceptat.');
       await load();
-    } catch (e: any) {
-      error = e?.message ?? 'No s\u2019ha pogut acceptar el repte';
+    } catch (e) {
+      error = formatSupabaseError(e);
     } finally {
       busy = null;
     }
@@ -219,11 +222,11 @@
     const local = reprogLocal.get(r.id) ?? '';
     const iso = new Date(local).toISOString();
     if (!local || isNaN(new Date(local).getTime())) {
-      error = 'Cal indicar una data v\u00e0lida.';
+      error = errText('Cal indicar una data vàlida.');
       return;
     }
     if (new Date(iso) < new Date()) {
-      error = 'La nova data ha de ser futura.';
+      error = errText('La nova data ha de ser futura.');
       return;
     }
     try {
@@ -240,10 +243,10 @@
         })
         .eq('id', r.id);
       if (e) throw e;
-      okMsg = 'Data reprogramada correctament.';
+      okMsg = okText('Data reprogramada correctament.');
       await load();
-    } catch (e: any) {
-      error = e?.message ?? 'No s\u2019ha pogut reprogramar';
+    } catch (e) {
+      error = formatSupabaseError(e);
     } finally {
       busy = null;
     }
@@ -276,11 +279,11 @@
       const payload: any = { estat: newState, ...(also ?? {}) };
       const { error: e } = await supabase.from('challenges').update(payload).eq('id', id);
       if (e) throw e;
-      okMsg = `Repte actualitzat a \"${newState}\".`;
+        okMsg = okText(`Repte actualitzat a "${newState}".`);
       await load();
-    } catch (e: any) {
-      error = e?.message ?? 'No s\u2019ha pogut actualitzar el repte';
-    } finally {
+      } catch (e) {
+        error = formatSupabaseError(e);
+      } finally {
       busy = null;
     }
   }
@@ -293,12 +296,12 @@
 {#if loading}
   <Loader />
 {:else}
-  {#if error}
-    <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3 mb-3">{error}</div>
-  {/if}
-  {#if okMsg}
-    <div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-3">{okMsg}</div>
-  {/if}
+    {#if error}
+      <Banner type="error" message={error} class="mb-3" />
+    {/if}
+    {#if okMsg}
+      <Banner type="success" message={okMsg} class="mb-3" />
+    {/if}
 
   <div class="overflow-auto rounded border">
     <table class="min-w-full text-sm">
