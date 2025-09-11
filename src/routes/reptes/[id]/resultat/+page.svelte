@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { page } from '$app/stores';
-  import { user, isAdmin } from '$lib/authStore';
+    import { onMount } from 'svelte';
+    import { page } from '$app/stores';
+    import { user, isAdmin } from '$lib/authStore';
+    import Banner from '$lib/components/Banner.svelte';
+    import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
 
   type Challenge = {
     id: string;
@@ -21,8 +23,8 @@
 
   let loading = true;
   let saving = false;
-  let error: string | null = null;
-  let okMsg: string | null = null;
+    let error: string | null = null;
+    let okMsg: string | null = null;
 
   let chal: Challenge | null = null;
   let reptadorNom = '—';
@@ -52,8 +54,8 @@
     try {
       loading = true; error = null;
 
-      if (!$user?.email) { error = 'Has d’iniciar sessió.'; return; }
-      if (!$isAdmin) { error = 'Només admins poden posar resultats.'; return; }
+        if (!$user?.email) { error = errText('Has d’iniciar sessió.'); return; }
+        if (!$isAdmin) { error = errText('Només admins poden posar resultats.'); return; }
 
       const { supabase } = await import('$lib/supabaseClient');
 
@@ -64,7 +66,7 @@
         .eq('id', id)
         .maybeSingle();
       if (e1) throw e1;
-      if (!c) { error = 'Repte no trobat.'; return; }
+      if (!c) { error = errText('Repte no trobat.'); return; }
       chal = c;
 
       // 2) Noms jugadors
@@ -87,9 +89,9 @@
       if (cfg) settings = cfg;
 
       data_joc_local = toLocalInput(c.data_acceptacio) || toLocalInput(new Date().toISOString());
-    } catch (e:any) {
-      error = e?.message ?? 'Error carregant el repte';
-    } finally {
+      } catch (e) {
+        error = formatSupabaseError(e);
+      } finally {
       loading = false;
     }
   }
@@ -119,7 +121,7 @@
   async function save() {
     error = null; okMsg = null;
     const data_iso = parseLocalToIso(data_joc_local);
-    if (!data_iso) { error = 'Data invàlida.'; return; }
+    if (!data_iso) { error = errText('Data invàlida.'); return; }
 
     const resultat = decideWinner();
 
@@ -148,9 +150,9 @@
         .eq('id', id);
       if (e2) throw e2;
 
-      okMsg = 'Resultat desat correctament. Repte marcat com a jugat.';
-    } catch (e:any) {
-      error = e?.message ?? 'No s’ha pogut desar el resultat';
+      okMsg = okText('Resultat desat correctament. Repte marcat com a jugat.');
+    } catch (e) {
+      error = formatSupabaseError(e);
     } finally {
       saving = false;
     }
@@ -161,12 +163,12 @@
 
 {#if loading}
   <p>Carregant…</p>
-{:else if error}
-  <div class="bg-red-100 text-red-800 p-2 rounded">{error}</div>
-{:else if chal}
-  {#if okMsg}
-    <div class="bg-green-100 text-green-800 p-2 rounded mb-2">{okMsg}</div>
-  {/if}
+  {:else if error}
+    <Banner type="error" message={error} />
+  {:else if chal}
+    {#if okMsg}
+      <Banner type="success" message={okMsg} class="mb-2" />
+    {/if}
 
   <div class="mb-4">
     <p><strong>Reptador:</strong> #{chal.pos_reptador ?? '—'} — {reptadorNom}</p>

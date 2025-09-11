@@ -1,7 +1,9 @@
 <script lang="ts">
-import { onMount } from 'svelte';
-import { user } from '$lib/authStore';
-import type { AppSettings } from '$lib/settings';
+ import { onMount } from 'svelte';
+ import { user } from '$lib/authStore';
+ import type { AppSettings } from '$lib/settings';
+ import Banner from '$lib/components/Banner.svelte';
+ import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
 
 type Challenge = {
   id: string;
@@ -19,8 +21,8 @@ type Challenge = {
 };
 
 let loading = true;
-let error: string | null = null;
-let okMsg: string | null = null;
+  let error: string | null = null;
+  let okMsg: string | null = null;
 let rows: Challenge[] = [];
 let myPlayerId: string | null = null;
 let actionBusy: string | null = null;
@@ -44,10 +46,10 @@ async function load() {
     okMsg = null;
 
     const u = $user;
-    if (!u?.email) {
-      error = 'Has d\u2019iniciar sessi\u00f3.';
-      return;
-    }
+      if (!u?.email) {
+        error = errText('Has d’iniciar sessió.');
+        return;
+      }
 
     const { supabase } = await import('$lib/supabaseClient');
 
@@ -57,10 +59,10 @@ async function load() {
       .eq('email', u.email)
       .maybeSingle();
     if (e1) throw e1;
-    if (!p) {
-      error = 'El teu email no est\u00e0 vinculat a cap jugador.';
-      return;
-    }
+      if (!p) {
+        error = errText('El teu email no està vinculat a cap jugador.');
+        return;
+      }
     myPlayerId = p.id;
 
     const { data: ch, error: e2 } = await supabase
@@ -88,12 +90,12 @@ async function load() {
     }));
 
     selectedDates = new Map();
-  } catch (e: any) {
-    error = e?.message ?? 'Error desconegut carregant reptes';
-  } finally {
-    loading = false;
+    } catch (e) {
+      error = formatSupabaseError(e);
+    } finally {
+      loading = false;
+    }
   }
-}
 
 function fmt(iso: string | null) {
   if (!iso) return '—';
@@ -129,7 +131,7 @@ async function acceptWithDate(r: Challenge) {
   okMsg = null;
   const d = selectedDates.get(r.id);
   if (!d) {
-    error = 'Cal seleccionar una data.';
+    error = errText('Cal seleccionar una data.');
     return;
   }
   try {
@@ -141,10 +143,10 @@ async function acceptWithDate(r: Challenge) {
     });
     const j = await res.json();
     if (!j.ok) throw new Error(j.error || 'Error');
-    okMsg = 'Repte acceptat correctament.';
+    okMsg = okText('Repte acceptat correctament.');
     await load();
-  } catch (e: any) {
-    error = e?.message ?? 'No s\u2019ha pogut acceptar el repte';
+  } catch (e) {
+    error = formatSupabaseError(e);
   } finally {
     actionBusy = null;
   }
@@ -162,10 +164,10 @@ async function acceptWithoutDate(r: Challenge) {
     });
     const j = await res.json();
     if (!j.ok) throw new Error(j.error || 'Error');
-    okMsg = 'Repte acceptat correctament.';
+    okMsg = okText('Repte acceptat correctament.');
     await load();
-  } catch (e: any) {
-    error = e?.message ?? 'No s\u2019ha pogut acceptar el repte';
+  } catch (e) {
+    error = formatSupabaseError(e);
   } finally {
     actionBusy = null;
   }
@@ -183,10 +185,10 @@ async function refuse(r: Challenge) {
       .eq('id', r.id)
       .eq('estat', 'proposat');
     if (e) throw e;
-    okMsg = 'Repte refusat correctament.';
+    okMsg = okText('Repte refusat correctament.');
     await load();
-  } catch (e: any) {
-    error = e?.message ?? 'No s\u2019ha pogut refusar el repte';
+  } catch (e) {
+      error = formatSupabaseError(e);
   } finally {
     actionBusy = null;
   }
@@ -198,19 +200,21 @@ async function refuse(r: Challenge) {
 </svelte:head>
 
 <h1 class="text-2xl font-semibold mb-4">Els meus reptes</h1>
-<div class="rounded border border-blue-300 bg-blue-50 text-blue-900 p-3 mb-4 text-sm">
-  Tens {settings.dies_acceptar_repte} dies per acceptar un repte i {settings.dies_jugar_despres_acceptar} dies per jugar-lo un cop acceptat.
-</div>
+<Banner
+  type="info"
+  class="mb-4"
+  message={`Tens ${settings.dies_acceptar_repte} dies per acceptar un repte i ${settings.dies_jugar_despres_acceptar} dies per jugar-lo un cop acceptat.`}
+/>
 
 {#if loading}
   <p class="text-slate-500">Carregant…</p>
 {:else}
-  {#if error}
-    <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3 mb-3">{error}</div>
-  {/if}
-  {#if okMsg}
-    <div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-3">{okMsg}</div>
-  {/if}
+    {#if error}
+      <Banner type="error" message={error} class="mb-3" />
+    {/if}
+    {#if okMsg}
+      <Banner type="success" message={okMsg} class="mb-3" />
+    {/if}
 
   {#if !error && rows.length === 0}
     <p class="text-slate-600">No tens reptes registrats.</p>
