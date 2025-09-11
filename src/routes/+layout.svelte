@@ -2,7 +2,7 @@
   import "../app.css";
   import { onMount } from "svelte";
     import { user, authReady, initAuth, logout } from "$lib/authStore";
-    import { adminStore as isAdmin } from '$lib/roles';
+    import { adminStore } from '$lib/roles';
 
   onMount(() => {
     // Inicialitza sessió + rol admin en muntar el layout
@@ -27,7 +27,7 @@
       <a href="/reptes/nou" class={isActive("/reptes/nou", $page.url.pathname)}>Crear repte</a>
     {/if}
 
-    {#if $authReady && $isAdmin}
+    {#if $authReady && $adminStore}
       <a href="/admin" class={isActive("/admin", $page.url.pathname)}>Admin</a>
     {/if}
 
@@ -56,6 +56,6 @@
 <!-- DEBUG opcional: treu-ho quan vulguis -->
 {#if $authReady}
   <div class="fixed bottom-2 right-2 text-xs bg-slate-800 text-white px-2 py-1 rounded">
-    {$user?.email ?? "anònim"} | admin: {$isAdmin ? "sí" : "no"}
+    {$user?.email ?? "anònim"} | admin: {$adminStore ? "sí" : "no"}
   </div>
 {/if}
