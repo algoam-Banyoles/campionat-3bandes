@@ -1,8 +1,10 @@
 <script lang="ts">
+
     import { onMount } from 'svelte';
     import { user, isAdmin } from '$lib/authStore';
     import Banner from '$lib/components/Banner.svelte';
     import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
+
 
   type ChallengeRow = {
     id: string;
@@ -292,7 +294,7 @@
 <h1 class="text-2xl font-semibold mb-4">Reptes (administració)</h1>
 
 {#if loading}
-  <div class="animate-pulse rounded border p-4 text-slate-500">Carregant…</div>
+  <Loader />
 {:else}
     {#if error}
       <Banner type="error" message={error} class="mb-3" />

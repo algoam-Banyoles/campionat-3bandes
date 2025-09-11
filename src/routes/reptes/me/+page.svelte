@@ -1,9 +1,11 @@
 <script lang="ts">
+
  import { onMount } from 'svelte';
  import { user } from '$lib/authStore';
  import type { AppSettings } from '$lib/settings';
  import Banner from '$lib/components/Banner.svelte';
  import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
+
 
 type Challenge = {
   id: string;
@@ -207,7 +209,7 @@ async function refuse(r: Challenge) {
 />
 
 {#if loading}
-  <p class="text-slate-500">Carregant…</p>
+  <Loader />
 {:else}
     {#if error}
       <Banner type="error" message={error} class="mb-3" />
@@ -239,9 +241,10 @@ async function refuse(r: Challenge) {
             <div class="text-sm">
               <strong>Dates proposades:</strong>
               <ul class="mt-1 space-y-1">
-                {#each r.dates_proposades as d}
+                {#each r.dates_proposades as d, i}
                   <li class="flex items-center gap-2">
                     <input
+                      id={`date-${r.id}-${i}`}
                       type="radio"
                       name={`dates-${r.id}`}
                       value={d}
@@ -251,7 +254,7 @@ async function refuse(r: Challenge) {
                         selectedDates = new Map(selectedDates);
                       }}
                     />
-                    <span>{fmt(d)}</span>
+                    <label for={`date-${r.id}-${i}`}>{fmt(d)}</label>
                   </li>
                 {/each}
               </ul>

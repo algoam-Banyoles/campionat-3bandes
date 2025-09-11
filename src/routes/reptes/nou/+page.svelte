@@ -1,9 +1,11 @@
 <script lang="ts">
+
     import { onMount } from 'svelte';
     import { supabase } from '$lib/supabaseClient';
     import { getSettings } from '$lib/settings';
     import Banner from '$lib/components/Banner.svelte';
     import { formatSupabaseError, ok as okMsg, err as errMsg } from '$lib/ui/alerts';
+
 
   type RankedPlayer = { posicio: number; player_id: string; nom: string };
   type NotReptable = RankedPlayer & { motiu: string };
@@ -191,7 +193,7 @@
 <h1 class="text-2xl font-semibold mb-4">Nou repte</h1>
 
 {#if loading}
-  <div class="rounded border p-3 animate-pulse text-slate-600">Carregant…</div>
+  <Loader />
 {:else}
     {#if err}<Banner type="error" message={err} class="mb-3" />{/if}
     {#if ok}<Banner type="success" message={ok} class="mb-3" />{/if}
@@ -204,15 +206,15 @@
 
   <div class="rounded-2xl border bg-white p-4 shadow-sm max-w-xl">
     <div class="grid gap-4">
-      <label class="grid gap-1">
-        <span class="text-sm text-slate-700">Tria oponent (posicions permeses)</span>
-        <select class="rounded-xl border px-3 py-2" bind:value={selectedOpponent}>
+      <div class="grid gap-1">
+        <label for="opponent" class="text-sm text-slate-700">Tria oponent (posicions permeses)</label>
+        <select id="opponent" class="rounded-xl border px-3 py-2" bind:value={selectedOpponent}>
           <option value="" disabled selected>— Selecciona jugador —</option>
           {#each reptables as r}
             <option value={r.player_id}>#{r.posicio} — {r.nom}</option>
           {/each}
         </select>
-      </label>
+      </div>
 
       {#if noReptables.length}
         <details class="text-sm text-slate-700">
@@ -226,7 +228,7 @@
       {/if}
 
       <div class="grid gap-2">
-        <span class="text-sm text-slate-700">Proposa dates (mínim 1, màxim 3)</span>
+        <span id="dates-label" class="text-sm text-slate-700">Proposa dates (mínim 1, màxim 3)</span>
 
         {#each dateInputs as v, i}
           <div class="flex gap-2 items-center">
@@ -236,6 +238,7 @@
               class="flex-1 rounded-xl border px-3 py-2"
               bind:value={dateInputs[i]}
               placeholder="AAAA-MM-DDThh:mm"
+              aria-describedby="dates-label"
             />
             <button type="button"
               class="rounded border px-3 py-2 text-sm"
@@ -256,10 +259,10 @@
         </div>
       </div>
 
-      <label class="grid gap-1">
-        <span class="text-sm text-slate-700">Observacions (opcional)</span>
-        <textarea class="rounded-xl border px-3 py-2" rows="3" bind:value={notes}></textarea>
-      </label>
+      <div class="grid gap-1">
+        <label for="notes" class="text-sm text-slate-700">Observacions (opcional)</label>
+        <textarea id="notes" class="rounded-xl border px-3 py-2" rows="3" bind:value={notes}></textarea>
+      </div>
 
         {#if valMsg}
           <Banner type="warn" message={valMsg} class="p-2 text-sm" />

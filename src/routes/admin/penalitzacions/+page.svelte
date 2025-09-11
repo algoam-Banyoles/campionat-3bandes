@@ -110,8 +110,8 @@
     <div class="rounded-2xl border bg-white p-6 shadow-sm">
       <form class="space-y-4" on:submit|preventDefault={save}>
         <div>
-          <label class="block mb-1 text-sm">Event</label>
-          <select bind:value={event_id} class="w-full rounded-xl border px-3 py-2">
+          <label for="event" class="block mb-1 text-sm">Event</label>
+          <select id="event" bind:value={event_id} class="w-full rounded-xl border px-3 py-2">
             {#each events as e}
               <option value={e.id}>{e.nom}</option>
             {/each}
@@ -119,8 +119,8 @@
         </div>
 
         <div>
-          <label class="block mb-1 text-sm">Jugador</label>
-          <select bind:value={player_id} class="w-full rounded-xl border px-3 py-2">
+          <label for="player" class="block mb-1 text-sm">Jugador</label>
+          <select id="player" bind:value={player_id} class="w-full rounded-xl border px-3 py-2">
             {#each players as p}
               <option value={p.id}>{p.nom}</option>
             {/each}
@@ -128,8 +128,8 @@
         </div>
 
         <div>
-          <label class="block mb-1 text-sm">Tipus</label>
-          <select bind:value={tipus} class="w-full rounded-xl border px-3 py-2">
+          <label for="tipus" class="block mb-1 text-sm">Tipus</label>
+          <select id="tipus" bind:value={tipus} class="w-full rounded-xl border px-3 py-2">
             <option value="incompareixenca">incompareixenca</option>
             <option value="no_acord_dates">no_acord_dates</option>
             <option value="altres">altres</option>
@@ -137,8 +137,8 @@
         </div>
 
         <div>
-          <label class="block mb-1 text-sm">Detalls (opcional)</label>
-          <textarea bind:value={detalls} class="w-full rounded-xl border px-3 py-2" rows="3"></textarea>
+          <label for="detalls" class="block mb-1 text-sm">Detalls (opcional)</label>
+          <textarea id="detalls" bind:value={detalls} class="w-full rounded-xl border px-3 py-2" rows="3"></textarea>
         </div>
 
         <button

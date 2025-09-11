@@ -4,6 +4,7 @@
     import Banner from '$lib/components/Banner.svelte';
     import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
 
+
   type Settings = {
     id?: string;
     caramboles_objectiu: number;
@@ -151,7 +152,7 @@
 <h1 class="text-2xl font-semibold mb-4">Administració — Configuració</h1>
 
 {#if !$loadingAuth || loading}
-  <p class="text-slate-500">Carregant…</p>
+  <Loader />
 {:else if !$user?.email}
   <Banner type="error" message="Has d’iniciar sessió" />
 {:else if !admin}

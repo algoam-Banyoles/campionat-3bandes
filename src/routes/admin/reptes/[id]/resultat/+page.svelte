@@ -1,4 +1,5 @@
 <script lang="ts">
+
     import { onMount } from 'svelte';
     import { page } from '$app/stores';
     import { user, isAdmin } from '$lib/authStore';
@@ -224,7 +225,7 @@
 <h1 class="text-2xl font-semibold mb-4">Posar resultat</h1>
 
 {#if loading}
-  <div class="animate-pulse rounded border p-4 text-slate-500">Carregant…</div>
+  <Loader />
 {:else}
   {#if error}
     <Banner type="error" message={error} class="mb-4" />
@@ -289,29 +290,29 @@
           <div class="rounded-2xl border bg-white p-4 shadow-sm">
             <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Caràmboles</div>
             <div class="grid grid-cols-1 gap-3">
-              <label class="grid gap-1">
-                <span class="text-sm text-slate-700">Reptador</span>
-                <input type="number" min="0" max={settings.caramboles_objectiu}
+              <div class="grid gap-1">
+                <label for="carR" class="text-sm text-slate-700">Reptador</label>
+                <input id="carR" type="number" min="0" max={settings.caramboles_objectiu}
                        class="rounded-xl border px-3 py-2"
                        bind:value={carR}/>
-              </label>
-              <label class="grid gap-1">
-                <span class="text-sm text-slate-700">Reptat</span>
-                <input type="number" min="0" max={settings.caramboles_objectiu}
+              </div>
+              <div class="grid gap-1">
+                <label for="carT" class="text-sm text-slate-700">Reptat</label>
+                <input id="carT" type="number" min="0" max={settings.caramboles_objectiu}
                        class="rounded-xl border px-3 py-2"
                        bind:value={carT}/>
-              </label>
+              </div>
             </div>
           </div>
 
           <div class="rounded-2xl border bg-white p-4 shadow-sm">
             <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Entrades i Tie-break</div>
-            <label class="grid gap-1">
-              <span class="text-sm text-slate-700">Entrades (total)</span>
-              <input type="number" min="0" max={settings.max_entrades}
+            <div class="grid gap-1">
+              <label for="entrades" class="text-sm text-slate-700">Entrades (total)</label>
+              <input id="entrades" type="number" min="0" max={settings.max_entrades}
                      class="rounded-xl border px-3 py-2"
                      bind:value={entrades}/>
-            </label>
+            </div>
             <div class="mt-4 flex items-center gap-2">
               <input id="tiebreak" type="checkbox" class="rounded border" bind:checked={tiebreak} disabled={!settings.allow_tiebreak} />
               <label for="tiebreak" class="text-sm">Hi ha hagut tie-break</label>
@@ -319,14 +320,14 @@
 
             {#if tiebreak}
               <div class="mt-3 grid grid-cols-2 gap-3">
-                <label class="grid gap-1">
-                  <span class="text-sm text-slate-700">Tie-break (reptador)</span>
-                  <input type="number" min="0" class="rounded-xl border px-3 py-2" bind:value={tbR} />
-                </label>
-                <label class="grid gap-1">
-                  <span class="text-sm text-slate-700">Tie-break (reptat)</span>
-                  <input type="number" min="0" class="rounded-xl border px-3 py-2" bind:value={tbT} />
-                </label>
+                <div class="grid gap-1">
+                  <label for="tbR" class="text-sm text-slate-700">Tie-break (reptador)</label>
+                  <input id="tbR" type="number" min="0" class="rounded-xl border px-3 py-2" bind:value={tbR} />
+                </div>
+                <div class="grid gap-1">
+                  <label for="tbT" class="text-sm text-slate-700">Tie-break (reptat)</label>
+                  <input id="tbT" type="number" min="0" class="rounded-xl border px-3 py-2" bind:value={tbT} />
+                </div>
               </div>
             {/if}
           </div>
