@@ -9,7 +9,6 @@
   let loading = true;
   let error: string | null = null;
 
-  let penaltyForm = false;
   let challenge_id = '';
   let tipus: 'incompareixenca' | 'desacord_dates' = 'incompareixenca';
   let penaltyBusy = false;
@@ -69,7 +68,6 @@
       penaltyOk = 'Penalització aplicada';
       challenge_id = '';
       tipus = 'incompareixenca';
-      penaltyForm = false;
     } catch (e) {
       penaltyErr = formatSupabaseError(e);
     } finally {
@@ -138,52 +136,33 @@
       </p>
     </a>
 
-    <!-- Targeta: aplicar penalització -->
+    <!-- Targeta: penalitzacions -->
     <div class="rounded-2xl border p-4">
-      <h2 class="font-semibold">⚖️ Aplica penalització</h2>
+      <h2 class="font-semibold">⚖️ Penalitzacions</h2>
       {#if penaltyOk}
         <Banner type="success" message={penaltyOk} class="mb-2" />
       {/if}
       {#if penaltyErr}
         <Banner type="error" message={penaltyErr} class="mb-2" />
       {/if}
-      {#if penaltyForm}
-        <form class="space-y-2" on:submit|preventDefault={applyPenalty}>
-          <input
-            class="w-full rounded-xl border px-3 py-2"
-            placeholder="ID repte"
-            bind:value={challenge_id}
-          />
-          <select class="w-full rounded-xl border px-3 py-2" bind:value={tipus}>
-            <option value="incompareixenca">incompareixenca</option>
-            <option value="desacord_dates">desacord_dates</option>
-          </select>
-          <div class="flex gap-2">
-            <button
-              type="submit"
-              class="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
-              disabled={penaltyBusy}
-            >
-              {#if penaltyBusy}Aplicant…{:else}Aplica{/if}
-            </button>
-            <button
-              type="button"
-              class="rounded-xl border px-4 py-2"
-              on:click={() => (penaltyForm = false)}
-              disabled={penaltyBusy}
-            >
-              Cancel·la
-            </button>
-          </div>
-        </form>
-      {:else}
+      <form class="space-y-2" on:submit|preventDefault={applyPenalty}>
+        <input
+          class="w-full rounded-xl border px-3 py-2"
+          placeholder="ID repte"
+          bind:value={challenge_id}
+        />
+        <select class="w-full rounded-xl border px-3 py-2" bind:value={tipus}>
+          <option value="incompareixenca">incompareixenca</option>
+          <option value="desacord_dates">desacord_dates</option>
+        </select>
         <button
-          class="mt-2 rounded-xl bg-slate-900 px-4 py-2 text-white"
-          on:click={() => (penaltyForm = true)}
+          type="submit"
+          class="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
+          disabled={penaltyBusy}
         >
-          Obre formulari
+          {#if penaltyBusy}Aplicant…{:else}Aplica{/if}
         </button>
-      {/if}
+      </form>
     </div>
 
     <!-- Targeta: pre-inactivitat -->
