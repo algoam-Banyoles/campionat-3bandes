@@ -19,10 +19,11 @@ export async function initAuth() {
     user.set(sessUser ? { email: sessUser.email ?? null } : null);
 
     // 2) escolta canvis d'autenticació
-    supabase.auth.onAuthStateChange(async (_event, session) => {
+    supabase.auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null;
       user.set(u ? { email: u.email ?? null } : null);
-      await refreshAdmin();
+      invalidateAdminCache();
+      void refreshAdmin();
     });
 
     // 3) calcula admin un cop carregada la sessió
