@@ -1,5 +1,6 @@
 <script lang="ts">
-    import { user, authReady as loadingAuth } from '$lib/authStore';
+    import { onMount } from 'svelte';
+    import { user } from '$lib/authStore';
     import { checkIsAdmin } from '$lib/roles';
     import Banner from '$lib/components/Banner.svelte';
     import Loader from '$lib/components/Loader.svelte';
@@ -26,7 +27,6 @@
   let ok: string | null = null;
   let loading = true;
   let admin = false;
-  let started = false;
 
   async function loadSettings() {
     const { supabase } = await import('$lib/supabaseClient');
@@ -69,10 +69,7 @@
     }
   }
 
-  $: if ($loadingAuth && $user?.email && !started) {
-    started = true;
-    init();
-  }
+  onMount(init);
 
   function validate(): string | null {
     if (!form) return null;
@@ -152,7 +149,7 @@
 
 <h1 class="text-2xl font-semibold mb-4">Administració — Configuració</h1>
 
-{#if !$loadingAuth || loading}
+{#if loading}
   <Loader />
 {:else if !$user?.email}
   <Banner type="error" message="Has d’iniciar sessió" />

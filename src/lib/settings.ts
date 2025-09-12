@@ -39,7 +39,7 @@ export async function getSettings(): Promise<AppSettings> {
   } catch {
     cache = DEFAULT_SETTINGS;
   }
-  return cache;
+    return cache as AppSettings;
 }
 
 export function invalidate() {

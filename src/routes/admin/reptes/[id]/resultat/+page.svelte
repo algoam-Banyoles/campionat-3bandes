@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { user, isAdmin } from '$lib/authStore';
+  import { user } from '$lib/authStore';
+  import { checkIsAdmin } from '$lib/roles';
   import { getSettings, type AppSettings } from '$lib/settings';
 
   type Challenge = {
@@ -24,7 +25,7 @@
   let reptadorNom = '—';
   let reptatNom = '—';
 
-  let settings: AppSettings = await getSettings();
+  let settings: AppSettings;
 
   // Formulari
   let carR: number | '' = 0;
@@ -46,7 +47,10 @@
       loading = true; error = null; okMsg = null; rpcMsg = null;
 
       if (!$user?.email) { error = 'Has d’iniciar sessió.'; return; }
-      if (!$isAdmin) { error = 'Només administradors poden registrar resultats.'; return; }
+      const adm = await checkIsAdmin();
+      if (!adm) { error = 'Només administradors poden registrar resultats.'; return; }
+
+      settings = await getSettings();
 
       const { supabase } = await import('$lib/supabaseClient');
 
