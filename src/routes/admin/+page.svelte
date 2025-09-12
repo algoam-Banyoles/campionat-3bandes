@@ -162,15 +162,10 @@
       resetBusy = true;
       resetOk = null;
       resetErr = null;
-      const { supabase } = await import('$lib/supabaseClient');
-      const { data } = await supabase.auth.getSession();
-      const token = data?.session?.access_token;
       const res = await fetch('/admin/reset', {
         method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: 'Bearer ' + token
-        },
+        headers: { 'content-type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ clearWaiting })
       });
       const js = await res.json();

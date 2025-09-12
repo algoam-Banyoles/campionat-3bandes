@@ -1,18 +1,18 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { serverSupabase } from '$lib/server/supabaseAdmin';
-import { checkIsAdmin } from '$lib/roles';
+import { requireAdmin } from '$lib/server/adminGuard';
+import { createClient } from '@supabase/supabase-js';
 
 function isRlsError(e: any): boolean {
   const msg = String(e?.message || '').toLowerCase();
   return msg.includes('row level security') || msg.includes('permission') || msg.includes('policy');
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
   try {
     let body: { challenge_id?: string; tipus?: string } | null = null;
     try {
-      body = await request.json();
+      body = await event.request.json();
     } catch {
       return json({ ok: false, error: 'Cos JSON requerit' }, { status: 400 });
     }
@@ -26,12 +26,18 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'Tipus no suportat' }, { status: 400 });
     }
 
-    const isAdmin = await checkIsAdmin();
-    if (!isAdmin) {
-      return json({ ok: false, error: 'Només admins' }, { status: 403 });
-    }
+    await requireAdmin(event);
 
-    const supabase = serverSupabase(request);
+    const token =
+      event.cookies.get('sb-access-token') ??
+      event.request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
+      '';
+    const supabase = createClient(
+      import.meta.env.PUBLIC_SUPABASE_URL,
+      import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+
     const { error } = await supabase.rpc('apply_challenge_penalty', {
       p_challenge: challenge_id,
       p_tipus: tipus

@@ -1,17 +1,26 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { checkIsAdmin } from '$lib/roles';
-import { serverSupabase } from '$lib/server/supabaseAdmin';
+import { requireAdmin } from '$lib/server/adminGuard';
+import { createClient } from '@supabase/supabase-js';
 
-export const GET: RequestHandler = async ({ request }) => {
+function serverClient(event: Parameters<RequestHandler>[0]) {
+  const token =
+    event.cookies.get('sb-access-token') ??
+    event.request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
+    '';
+  return createClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+    { global: { headers: { Authorization: `Bearer ${token}` } } }
+  );
+}
+
+export const GET: RequestHandler = async (event) => {
   try {
-    const isAdmin = await checkIsAdmin();
-    if (!isAdmin) {
-      return json({ ok: false, error: 'Només admins' }, { status: 403 });
-    }
+    await requireAdmin(event);
 
-    const supabase = serverSupabase(request);
-    const { data: event, error: eErr } = await supabase
+    const supabase = serverClient(event);
+    const { data: eventRow, error: eErr } = await supabase
       .from('events')
       .select('id')
       .eq('actiu', true)
@@ -20,14 +29,14 @@ export const GET: RequestHandler = async ({ request }) => {
     if (eErr) {
       return json({ ok: false, error: 'Error obtenint event actiu' }, { status: 400 });
     }
-    if (!event) {
+    if (!eventRow) {
       return json({ ok: false, error: 'No hi ha cap event actiu' }, { status: 400 });
     }
 
     const { data, error } = await supabase
       .from('waiting_list')
       .select('id, player_id, ordre, data_inscripcio, players (nom)')
-      .eq('event_id', event.id)
+      .eq('event_id', eventRow.id)
       .order('ordre', { ascending: true });
     if (error) {
       return json({ ok: false, error: 'Error obtenint llista d\u2019espera' }, { status: 400 });
@@ -47,11 +56,11 @@ export const GET: RequestHandler = async ({ request }) => {
   }
 };
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async (event) => {
   try {
     let body: { player_id?: string; ordre?: number } | null = null;
     try {
-      body = await request.json();
+      body = await event.request.json();
     } catch {
       return json({ ok: false, error: 'Cos JSON requerit' }, { status: 400 });
     }
@@ -62,13 +71,10 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'Falta player_id' }, { status: 400 });
     }
 
-    const isAdmin = await checkIsAdmin();
-    if (!isAdmin) {
-      return json({ ok: false, error: 'Només admins' }, { status: 403 });
-    }
+    await requireAdmin(event);
 
-    const supabase = serverSupabase(request);
-    const { data: event, error: eErr } = await supabase
+    const supabase = serverClient(event);
+    const { data: eventRow, error: eErr } = await supabase
       .from('events')
       .select('id')
       .eq('actiu', true)
@@ -77,14 +83,14 @@ export const POST: RequestHandler = async ({ request }) => {
     if (eErr) {
       return json({ ok: false, error: 'Error obtenint event actiu' }, { status: 400 });
     }
-    if (!event) {
+    if (!eventRow) {
       return json({ ok: false, error: 'No hi ha cap event actiu' }, { status: 400 });
     }
 
     const { data: rp, error: rpErr } = await supabase
       .from('ranking_positions')
       .select('id')
-      .eq('event_id', event.id)
+      .eq('event_id', eventRow.id)
       .eq('player_id', player_id)
       .maybeSingle();
     if (rpErr) {
@@ -97,7 +103,7 @@ export const POST: RequestHandler = async ({ request }) => {
     const { data: wl, error: wlErr } = await supabase
       .from('waiting_list')
       .select('id')
-      .eq('event_id', event.id)
+      .eq('event_id', eventRow.id)
       .eq('player_id', player_id)
       .maybeSingle();
     if (wlErr) {
@@ -111,7 +117,7 @@ export const POST: RequestHandler = async ({ request }) => {
       const { data: maxRow, error: mErr } = await supabase
         .from('waiting_list')
         .select('ordre')
-        .eq('event_id', event.id)
+        .eq('event_id', eventRow.id)
         .order('ordre', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -123,7 +129,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     const { error: insErr } = await supabase
       .from('waiting_list')
-      .insert({ event_id: event.id, player_id, ordre });
+      .insert({ event_id: eventRow.id, player_id, ordre });
     if (insErr) {
       return json({ ok: false, error: 'No s\u2019ha pogut afegir' }, { status: 400 });
     }
