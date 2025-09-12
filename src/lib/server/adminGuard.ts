@@ -1,4 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
+import { error, type RequestEvent } from '@sveltejs/kit';
+import { serverSupabase as baseServerSupabase } from './supabaseAdmin';
+
+export function serverSupabase(event: RequestEvent) {
+  return baseServerSupabase(event.request);
+}
+
 
 export function serverSupabase(event: Parameters<import('@sveltejs/kit').RequestHandler>[0]) {
   const token =
