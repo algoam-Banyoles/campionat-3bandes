@@ -6,48 +6,35 @@ export function serverSupabase(event: RequestEvent) {
   return baseServerSupabase(event.request);
 }
 
-function getToken(event: RequestEvent): string | null {
-  return (
+
+export function serverSupabase(event: Parameters<import('@sveltejs/kit').RequestHandler>[0]) {
+  const token =
     event.cookies.get('sb-access-token') ??
     event.request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
-    null
+    '';
+  return createClient(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+    { global: { headers: token ? { Authorization: `Bearer ${token}` } : {} } }
   );
 }
 
-export async function getServerUser(event: RequestEvent): Promise<{ email: string } | null> {
-  const token = getToken(event);
-  if (!token) return null;
-
-  const supabase = createClient(
-    import.meta.env.PUBLIC_SUPABASE_URL,
-    import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
-  );
-
-  const { data, error: userErr } = await supabase.auth.getUser();
-  const email = data.user?.email ?? null;
-  if (userErr || !email) return null;
-  return { email };
-}
-
-export async function requireAdmin(event: RequestEvent): Promise<{ email: string }> {
-  const user = await getServerUser(event);
-  if (!user) {
-    throw error(401, 'Unauthorized');
+export async function requireAdmin(
+  event: Parameters<import('@sveltejs/kit').RequestHandler>[0]
+) {
+  const supabase = serverSupabase(event);
+  const { data: u } = await supabase.auth.getUser();
+  const email = u?.user?.email ?? null;
+  if (!email) {
+    return new Response(JSON.stringify({ error: 'No autenticat' }), { status: 401 });
   }
-
-  const token = getToken(event) ?? '';
-  const supabase = createClient(
-    import.meta.env.PUBLIC_SUPABASE_URL,
-    import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
-  );
-
-  const { data: isAdmin, error: adminErr } = await supabase.rpc('is_admin', { p_email: user.email });
-  if (adminErr || !isAdmin) {
-    throw error(403, 'Només admins');
+  const { data, error } = await supabase.rpc('is_admin', { p_email: email });
+  if (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
-
-  return user;
+  if (!data) {
+    return new Response(JSON.stringify({ error: 'No autoritzat' }), { status: 403 });
+  }
+  return null; // ok
 }
 
