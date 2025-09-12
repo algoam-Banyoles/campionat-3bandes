@@ -4,6 +4,7 @@
   import { user } from '$lib/authStore';
   import { checkIsAdmin, adminStore } from '$lib/roles';
   import Banner from '$lib/components/Banner.svelte';
+  import Loader from '$lib/components/Loader.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
 
   let loading = true;
@@ -23,6 +24,19 @@
   let inactOk: string | null = null;
   let inactErr: string | null = null;
 
+  type Change = {
+    creat_el: string;
+    player_id: string;
+    posicio_anterior: number | null;
+    posicio_nova: number | null;
+    motiu: string | null;
+  };
+
+  let recent: Change[] = [];
+  let recentPlayers: Record<string, string> = {};
+  let histLoading = false;
+  let histErr: string | null = null;
+
   onMount(async () => {
     try {
       loading = true;
@@ -40,6 +54,7 @@
         error = errText('Només els administradors poden accedir a aquesta pàgina.');
         return;
       }
+      await loadRecent();
     } catch (e) {
       error = formatSupabaseError(e);
     } finally {
@@ -110,6 +125,47 @@
       inactBusy = false;
     }
   }
+
+  async function loadRecent() {
+    try {
+      histLoading = true;
+      histErr = null;
+      const { supabase } = await import('$lib/supabaseClient');
+      const { data: ev, error: eEv } = await supabase
+        .from('events')
+        .select('id')
+        .eq('actiu', true)
+        .order('creat_el', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (eEv) throw eEv;
+      const eventId = ev?.id;
+      if (!eventId) return;
+      const { data: rows, error: eHist } = await supabase
+        .from('history_position_changes')
+        .select('creat_el, player_id, posicio_anterior, posicio_nova, motiu')
+        .eq('event_id', eventId)
+        .order('creat_el', { ascending: false })
+        .limit(10);
+      if (eHist) throw eHist;
+      recent = rows ?? [];
+      const ids = Array.from(new Set(recent.map((r) => r.player_id)));
+      if (ids.length > 0) {
+        const { data: pl, error: ePl } = await supabase
+          .from('players')
+          .select('id, nom')
+          .in('id', ids);
+        if (ePl) throw ePl;
+        for (const p of pl ?? []) {
+          recentPlayers[p.id] = p.nom;
+        }
+      }
+    } catch (e) {
+      histErr = formatSupabaseError(e);
+    } finally {
+      histLoading = false;
+    }
+  }
 </script>
 
 <svelte:head>
@@ -139,6 +195,38 @@
         Visualitza, filtra i actualitza l’estat dels reptes (proposats, acceptats, programats, jugats…).
       </p>
     </a>
+
+    <!-- Targeta: historial de moviments -->
+    <a href="/admin/historial" class="block rounded-2xl border p-4 hover:shadow-sm">
+      <h2 class="font-semibold">🕑 Historial complet</h2>
+      <p class="text-sm text-slate-600 mt-1">
+        Consulta tots els moviments de posició.
+      </p>
+    </a>
+
+    <!-- Widget: moviments recents -->
+    <div class="rounded-2xl border p-4">
+      <h2 class="font-semibold">Moviments recents</h2>
+      {#if histErr}
+        <Banner type="error" message={histErr} class="mb-2" />
+      {/if}
+      {#if histLoading}
+        <Loader />
+      {:else if recent.length > 0}
+        <ul class="mt-2 space-y-1 text-sm">
+          {#each recent as r}
+            <li>
+              {new Date(r.creat_el).toLocaleDateString()} ·
+              {r.posicio_anterior ?? '—'}→{r.posicio_nova ?? '—'} ·
+              {recentPlayers[r.player_id] ?? r.player_id} ·
+              {(r.motiu ?? '').slice(0, 30)}
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="mt-2 text-sm text-slate-600">Cap moviment</p>
+      {/if}
+    </div>
 
     <!-- Targeta: penalitzacions -->
     <div class="rounded-2xl border p-4">
