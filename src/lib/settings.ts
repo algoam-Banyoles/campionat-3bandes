@@ -1,8 +1,4 @@
-// src/lib/settings.ts
-import { supabase } from '$lib/supabaseClient';
-
 export type AppSettings = {
-  id?: string;
   caramboles_objectiu: number;
   max_entrades: number;
   allow_tiebreak: boolean;
@@ -12,9 +8,10 @@ export type AppSettings = {
   dies_jugar_despres_acceptar: number;
   ranking_max_jugadors: number;
   updated_at?: string;
+  id?: string;
 };
 
-const DEFAULTS: AppSettings = {
+const DEFAULT_SETTINGS: AppSettings = {
   caramboles_objectiu: 20,
   max_entrades: 50,
   allow_tiebreak: true,
@@ -25,21 +22,27 @@ const DEFAULTS: AppSettings = {
   ranking_max_jugadors: 20
 };
 
-let _cache: { value: AppSettings; ts: number } | null = null;
+let cache: AppSettings | null = null;
 
-export async function getSettings(force = false): Promise<AppSettings> {
-  if (!force && _cache && Date.now() - _cache.ts < 60_000) return _cache.value;
-  const { data, error } = await supabase
-    .from('app_settings')
-    .select('id,caramboles_objectiu,max_entrades,allow_tiebreak,cooldown_min_dies,cooldown_max_dies,dies_acceptar_repte,dies_jugar_despres_acceptar,ranking_max_jugadors,updated_at')
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const value = error ? DEFAULTS : (data ?? DEFAULTS);
-  _cache = { value, ts: Date.now() };
-  return value;
+export async function getSettings(): Promise<AppSettings> {
+  if (cache) return cache;
+  try {
+    const { supabase } = await import('$lib/supabaseClient');
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    cache = data ?? DEFAULT_SETTINGS;
+  } catch {
+    cache = DEFAULT_SETTINGS;
+  }
+  return cache;
 }
 
-export function invalidateSettingsCache() {
-  _cache = null;
+export function invalidate() {
+  cache = null;
 }
+

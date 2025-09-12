@@ -6,6 +6,7 @@
   import Banner from '$lib/components/Banner.svelte';
   import Loader from '$lib/components/Loader.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
+  import Loader from '$lib/components/Loader.svelte';
 
   let loading = true;
   let error: string | null = null;
@@ -23,11 +24,6 @@
   let inactBusy = false;
   let inactOk: string | null = null;
   let inactErr: string | null = null;
-
-  let resetBusy = false;
-  let resetOk: string | null = null;
-  let resetErr: string | null = null;
-  let clearWaiting = false;
 
   type Change = {
     creat_el: string;
@@ -131,33 +127,6 @@
       inactErr = formatSupabaseError(e);
     } finally {
       inactBusy = false;
-    }
-  }
-
-  async function resetChampionship() {
-    if (!confirm('Segur que vols fer un reset del campionat?')) return;
-    try {
-      resetBusy = true;
-      resetOk = null;
-      resetErr = null;
-      const { supabase } = await import('$lib/supabaseClient');
-      const { data } = await supabase.auth.getSession();
-      const token = data?.session?.access_token;
-      const res = await fetch('/admin/reset', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: 'Bearer ' + token
-        },
-        body: JSON.stringify({ clearWaiting })
-      });
-      const js = await res.json();
-      if (!res.ok || !js.ok) throw new Error(js.error || 'Error resetejant campionat');
-      resetOk = `Campionat reiniciat (${js.restored})`;
-    } catch (e) {
-      resetErr = formatSupabaseError(e);
-    } finally {
-      resetBusy = false;
     }
   }
 
@@ -325,34 +294,6 @@
           disabled={inactBusy}
         >
           {#if inactBusy}Executant…{:else}Executa inactivitat (42 dies){/if}
-        </button>
-      </div>
-    </div>
-
-    <!-- Targeta: reset campionat -->
-    <div class="rounded-2xl border p-4">
-      <h2 class="font-semibold">🧹 Neteja de proves / Reset rànquing</h2>
-      {#if resetOk}
-        <Banner type="success" message={resetOk} class="mb-2" />
-      {/if}
-      {#if resetErr}
-        <Banner type="error" message={resetErr} class="mb-2" />
-      {/if}
-      <div class="mt-2 space-y-2 text-sm">
-        <label class="flex items-center gap-2">
-          <input
-            type="checkbox"
-            bind:checked={clearWaiting}
-            class="rounded border"
-          />
-          Buidar també la llista d’espera
-        </label>
-        <button
-          class="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
-          on:click={resetChampionship}
-          disabled={resetBusy}
-        >
-          {#if resetBusy}Resetant…{:else}Reset campionat{/if}
         </button>
       </div>
     </div>

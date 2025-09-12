@@ -1,13 +1,8 @@
 <script lang="ts">
-
-      import { onMount } from 'svelte';
-      import { page } from '$app/stores';
-      import { user } from '$lib/authStore';
-      import { checkIsAdmin } from '$lib/roles';
-      import type { AppSettings } from '$lib/settings';
-      import Banner from '$lib/components/Banner.svelte';
-      import Loader from '$lib/components/Loader.svelte';
-    import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
+  import { onMount } from 'svelte';
+  import { page } from '$app/stores';
+  import { user, isAdmin } from '$lib/authStore';
+  import { getSettings, type AppSettings } from '$lib/settings';
 
   type Challenge = {
     id: string;
@@ -29,8 +24,7 @@
   let reptadorNom = '—';
   let reptatNom = '—';
 
-  export let data: { settings: AppSettings };
-  let settings: AppSettings = data.settings;
+  let settings: AppSettings = await getSettings();
 
   // Formulari
   let carR: number | '' = 0;
@@ -51,9 +45,8 @@
     try {
       loading = true; error = null; okMsg = null; rpcMsg = null;
 
-        if (!$user?.email) { error = errText('Has d’iniciar sessió.'); return; }
-        const isAdmin = await checkIsAdmin();
-        if (!isAdmin) { error = errText('Només administradors poden registrar resultats.'); return; }
+      if (!$user?.email) { error = 'Has d’iniciar sessió.'; return; }
+      if (!$isAdmin) { error = 'Només administradors poden registrar resultats.'; return; }
 
       const { supabase } = await import('$lib/supabaseClient');
 
@@ -63,7 +56,7 @@
         .eq('id', id)
         .maybeSingle();
       if (e1) throw e1;
-        if (!c) { error = errText('Repte no trobat.'); return; }
+      if (!c) { error = 'Repte no trobat.'; return; }
       chal = c;
 
       const { data: players, error: e2 } = await supabase
@@ -76,9 +69,9 @@
       reptatNom = dict.get(c.reptat_id) ?? '—';
 
       data_joc_local = toLocalInput(c.data_acceptacio || new Date().toISOString());
-      } catch (e) {
-        error = formatSupabaseError(e);
-      } finally {
+    } catch (e:any) {
+      error = e?.message ?? 'Error carregant el repte';
+    } finally {
       loading = false;
     }
   }
@@ -166,8 +159,8 @@
 
   async function save() {
     error = null; okMsg = null; rpcMsg = null;
-    if (valMsg) { error = errText(valMsg); return; }
-    if (!parsedIso) { error = errText('Data invàlida.'); return; }
+    if (valMsg) { error = valMsg; return; }
+    if (!parsedIso) { error = 'Data invàlida.'; return; }
 
     const isWalkover = tipusResultat !== 'normal';
     const hasTB = !isWalkover && !!tiebreak;
@@ -214,9 +207,9 @@
         else rpcMsg = `Rànquing sense canvis${r?.reason ? ' (' + r.reason + ')' : ''}.`;
       }
 
-      okMsg = okText('Resultat desat correctament. Repte marcat com a "jugat".');
-    } catch (e) {
-      error = formatSupabaseError(e);
+      okMsg = 'Resultat desat correctament. Repte marcat com a "jugat".';
+    } catch (e:any) {
+      error = e?.message ?? 'No s’ha pogut desar el resultat';
     } finally {
       saving = false;
     }
@@ -228,16 +221,16 @@
 <h1 class="text-2xl font-semibold mb-4">Posar resultat</h1>
 
 {#if loading}
-  <Loader />
+  <div class="animate-pulse rounded border p-4 text-slate-500">Carregant…</div>
 {:else}
   {#if error}
-    <Banner type="error" message={error} class="mb-4" />
+    <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3 mb-4">{error}</div>
   {/if}
   {#if okMsg}
-    <Banner type="success" message={okMsg} class="mb-2" />
+    <div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-2">{okMsg}</div>
   {/if}
   {#if rpcMsg}
-    <Banner type="info" message={rpcMsg} class="mb-4" />
+    <div class="rounded border border-blue-300 bg-blue-50 text-blue-900 p-3 mb-4">{rpcMsg}</div>
   {/if}
 
   {#if !error && chal}
@@ -293,29 +286,29 @@
           <div class="rounded-2xl border bg-white p-4 shadow-sm">
             <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Caràmboles</div>
             <div class="grid grid-cols-1 gap-3">
-              <div class="grid gap-1">
-                <label for="carR" class="text-sm text-slate-700">Reptador</label>
-                <input id="carR" type="number" min="0" max={settings.caramboles_objectiu}
+              <label class="grid gap-1">
+                <span class="text-sm text-slate-700">Reptador</span>
+                <input type="number" min="0" max={settings.caramboles_objectiu}
                        class="rounded-xl border px-3 py-2"
                        bind:value={carR}/>
-              </div>
-              <div class="grid gap-1">
-                <label for="carT" class="text-sm text-slate-700">Reptat</label>
-                <input id="carT" type="number" min="0" max={settings.caramboles_objectiu}
+              </label>
+              <label class="grid gap-1">
+                <span class="text-sm text-slate-700">Reptat</span>
+                <input type="number" min="0" max={settings.caramboles_objectiu}
                        class="rounded-xl border px-3 py-2"
                        bind:value={carT}/>
-              </div>
+              </label>
             </div>
           </div>
 
           <div class="rounded-2xl border bg-white p-4 shadow-sm">
             <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Entrades i Tie-break</div>
-            <div class="grid gap-1">
-              <label for="entrades" class="text-sm text-slate-700">Entrades (total)</label>
-              <input id="entrades" type="number" min="0" max={settings.max_entrades}
+            <label class="grid gap-1">
+              <span class="text-sm text-slate-700">Entrades (total)</span>
+              <input type="number" min="0" max={settings.max_entrades}
                      class="rounded-xl border px-3 py-2"
                      bind:value={entrades}/>
-            </div>
+            </label>
             <div class="mt-4 flex items-center gap-2">
               <input id="tiebreak" type="checkbox" class="rounded border" bind:checked={tiebreak} disabled={!settings.allow_tiebreak} />
               <label for="tiebreak" class="text-sm">Hi ha hagut tie-break</label>
@@ -323,23 +316,25 @@
 
             {#if tiebreak}
               <div class="mt-3 grid grid-cols-2 gap-3">
-                <div class="grid gap-1">
-                  <label for="tbR" class="text-sm text-slate-700">Tie-break (reptador)</label>
-                  <input id="tbR" type="number" min="0" class="rounded-xl border px-3 py-2" bind:value={tbR} />
-                </div>
-                <div class="grid gap-1">
-                  <label for="tbT" class="text-sm text-slate-700">Tie-break (reptat)</label>
-                  <input id="tbT" type="number" min="0" class="rounded-xl border px-3 py-2" bind:value={tbT} />
-                </div>
+                <label class="grid gap-1">
+                  <span class="text-sm text-slate-700">Tie-break (reptador)</span>
+                  <input type="number" min="0" class="rounded-xl border px-3 py-2" bind:value={tbR} />
+                </label>
+                <label class="grid gap-1">
+                  <span class="text-sm text-slate-700">Tie-break (reptat)</span>
+                  <input type="number" min="0" class="rounded-xl border px-3 py-2" bind:value={tbT} />
+                </label>
               </div>
             {/if}
           </div>
         </div>
       {/if}
 
-        {#if valMsg}
-          <Banner type="warn" message={valMsg} class="p-2 text-sm" />
-        {/if}
+      {#if valMsg}
+        <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 p-2 text-sm">
+          {valMsg}
+        </div>
+      {/if}
 
       <div class="flex items-center gap-3 pt-1">
         <button type="submit"

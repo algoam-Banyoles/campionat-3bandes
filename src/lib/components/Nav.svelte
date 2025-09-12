@@ -1,7 +1,6 @@
 <script lang="ts">
-    import { page } from '$app/stores';
-    import { user, logout } from '$lib/authStore';
-    import { adminStore } from '$lib/roles';
+  import { page } from '$app/stores';
+  import { user, isAdmin, logout } from '$lib/authStore';
 
   // enllaços sempre visibles
   const baseLinks = [
@@ -63,27 +62,25 @@
           </li>
         {/if}
 
-        {#if $user && $adminStore}
+        {#if $user && $isAdmin}
           <li>
-
-            <a href="/admin" class="px-2 py-1 rounded hover:bg-slate-100 hover:underline">
-
+            <a
+              href="/admin"
+              class="px-2 py-1 rounded hover:bg-slate-100 hover:underline"
+              class:bg-slate-900={isActive('/admin') && !$page.url.pathname.startsWith('/admin/config')}
+              class:text-white={isActive('/admin') && !$page.url.pathname.startsWith('/admin/config')}
+            >
               Admin
             </a>
           </li>
           <li>
-            <a href="/admin/config" class="px-2 py-1 rounded hover:bg-slate-100 hover:underline">
-              Configuració
-            </a>
-          </li>
-          <li>
             <a
-              href="/admin/penalitzacions"
+              href="/admin/config"
               class="px-2 py-1 rounded hover:bg-slate-100 hover:underline"
-              class:bg-slate-900={isActive('/admin/penalitzacions')}
-              class:text-white={isActive('/admin/penalitzacions')}
+              class:bg-slate-900={isActive('/admin/config')}
+              class:text-white={isActive('/admin/config')}
             >
-              Penalitzacions
+              Configuració
             </a>
           </li>
         {/if}
@@ -149,12 +146,13 @@
           </li>
         {/if}
 
-        {#if $user && $adminStore}
+        {#if $user && $isAdmin}
           <li>
             <a
               href="/admin"
               class="block px-2 py-2 rounded hover:bg-slate-100 hover:underline"
-
+              class:bg-slate-900={isActive('/admin') && !$page.url.pathname.startsWith('/admin/config')}
+              class:text-white={isActive('/admin') && !$page.url.pathname.startsWith('/admin/config')}
               on:click={() => (open = false)}
             >
               Admin
@@ -164,20 +162,11 @@
             <a
               href="/admin/config"
               class="block px-2 py-2 rounded hover:bg-slate-100 hover:underline"
+              class:bg-slate-900={isActive('/admin/config')}
+              class:text-white={isActive('/admin/config')}
               on:click={() => (open = false)}
             >
               Configuració
-            </a>
-          </li>
-          <li>
-            <a
-              href="/admin/penalitzacions"
-              class="block px-2 py-2 rounded hover:bg-slate-100 hover:underline"
-              class:bg-slate-900={isActive('/admin/penalitzacions')}
-              class:text-white={isActive('/admin/penalitzacions')}
-              on:click={() => (open = false)}
-            >
-              Penalitzacions
             </a>
           </li>
         {/if}
