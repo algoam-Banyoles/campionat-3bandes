@@ -1,7 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { requireAdmin } from '$lib/server/adminGuard';
-import { createClient } from '@supabase/supabase-js';
+import { requireAdmin, serverSupabase } from '$lib/server/adminGuard';
 
 function isRlsError(e: any): boolean {
   const msg = String(e?.message || '').toLowerCase();
@@ -28,15 +27,7 @@ export const POST: RequestHandler = async (event) => {
 
     await requireAdmin(event);
 
-    const token =
-      event.cookies.get('sb-access-token') ??
-      event.request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
-      '';
-    const supabase = createClient(
-      import.meta.env.PUBLIC_SUPABASE_URL,
-      import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
-      { global: { headers: { Authorization: `Bearer ${token}` } } }
-    );
+    const supabase = serverSupabase(event);
 
     const { error } = await supabase.rpc('apply_challenge_penalty', {
       p_challenge: challenge_id,
