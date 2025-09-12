@@ -1,11 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import { error, type RequestEvent } from '@sveltejs/kit';
-import { serverSupabase as baseServerSupabase } from './supabaseAdmin';
-
-export function serverSupabase(event: RequestEvent) {
-  return baseServerSupabase(event.request);
-}
-
 
 export function serverSupabase(event: Parameters<import('@sveltejs/kit').RequestHandler>[0]) {
   const token =
@@ -19,9 +12,7 @@ export function serverSupabase(event: Parameters<import('@sveltejs/kit').Request
   );
 }
 
-export async function requireAdmin(
-  event: Parameters<import('@sveltejs/kit').RequestHandler>[0]
-) {
+export async function requireAdmin(event: Parameters<import('@sveltejs/kit').RequestHandler>[0]) {
   const supabase = serverSupabase(event);
   const { data: u } = await supabase.auth.getUser();
   const email = u?.user?.email ?? null;
@@ -37,4 +28,3 @@ export async function requireAdmin(
   }
   return null; // ok
 }
-
