@@ -1,13 +1,13 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { checkIsAdmin } from '$lib/roles';
-import { serverSupabase } from '$lib/server/supabaseAdmin';
+import { requireAdmin } from '$lib/server/adminGuard';
+import { createClient } from '@supabase/supabase-js';
 
-export const PATCH: RequestHandler = async ({ request }) => {
+export const PATCH: RequestHandler = async (event) => {
   try {
     let body: { id?: string; direction?: 'up' | 'down' } | null = null;
     try {
-      body = await request.json();
+      body = await event.request.json();
     } catch {
       return json({ ok: false, error: 'Cos JSON requerit' }, { status: 400 });
     }
@@ -18,12 +18,18 @@ export const PATCH: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'Falten camps' }, { status: 400 });
     }
 
-    const isAdmin = await checkIsAdmin();
-    if (!isAdmin) {
-      return json({ ok: false, error: 'Només admins' }, { status: 403 });
-    }
+    await requireAdmin(event);
 
-    const supabase = serverSupabase(request);
+    const token =
+      event.cookies.get('sb-access-token') ??
+      event.request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
+      '';
+    const supabase = createClient(
+      import.meta.env.PUBLIC_SUPABASE_URL,
+      import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+
     const { data: row, error: rErr } = await supabase
       .from('waiting_list')
       .select('id, event_id, ordre')

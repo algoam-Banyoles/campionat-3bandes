@@ -1,21 +1,27 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { checkIsAdmin } from '$lib/roles';
-import { serverSupabase } from '$lib/server/supabaseAdmin';
+import { requireAdmin } from '$lib/server/adminGuard';
+import { createClient } from '@supabase/supabase-js';
 
-export const DELETE: RequestHandler = async ({ params, request }) => {
+export const DELETE: RequestHandler = async (event) => {
   try {
-    const isAdmin = await checkIsAdmin();
-    if (!isAdmin) {
-      return json({ ok: false, error: 'Només admins' }, { status: 403 });
-    }
+    await requireAdmin(event);
 
-    const id = params.id;
+    const id = event.params.id;
     if (!id) {
       return json({ ok: false, error: 'ID requerit' }, { status: 400 });
     }
 
-    const supabase = serverSupabase(request);
+    const token =
+      event.cookies.get('sb-access-token') ??
+      event.request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
+      '';
+    const supabase = createClient(
+      import.meta.env.PUBLIC_SUPABASE_URL,
+      import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+
     const { error } = await supabase
       .from('waiting_list')
       .delete()

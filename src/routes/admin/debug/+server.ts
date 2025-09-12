@@ -1,7 +1,8 @@
 // src/routes/admin/debug/+server.ts
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { serverSupabase } from '$lib/server/supabaseAdmin';
+import { requireAdmin } from '$lib/server/adminGuard';
+import { createClient } from '@supabase/supabase-js';
 
 // decodifica (sense verificar) la part payload d'un JWT
 function decodeJwtPayload(token: string | null) {
@@ -17,9 +18,13 @@ function decodeJwtPayload(token: string | null) {
   }
 }
 
-export const GET: RequestHandler = async ({ request }) => {
-  const auth = request.headers.get('authorization') || request.headers.get('Authorization') || '';
-  const token = auth.toLowerCase().startsWith('bearer ') ? auth.slice(7) : null;
+export const GET: RequestHandler = async (event) => {
+  await requireAdmin(event);
+
+  const token =
+    event.cookies.get('sb-access-token') ??
+    event.request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
+    null;
   const claims = decodeJwtPayload(token);
   const jwtEmail = claims?.email ?? null;
 
@@ -27,7 +32,11 @@ export const GET: RequestHandler = async ({ request }) => {
   let rls_ok = false;
   let rls_error: string | null = null;
   try {
-    const supabase = serverSupabase(request); // reenvia Authorization al PostgREST
+    const supabase = createClient(
+      import.meta.env.PUBLIC_SUPABASE_URL,
+      import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token ?? ''}` } } }
+    );
     const { error } = await supabase
       .from('admins')
       .select('email', { head: true, count: 'exact' })
@@ -46,3 +55,4 @@ export const GET: RequestHandler = async ({ request }) => {
     rls_error
   });
 };
+
