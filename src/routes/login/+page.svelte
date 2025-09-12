@@ -20,8 +20,21 @@
     try {
       loading = true;
       if (mode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        const session = data?.session;
+        if (session) {
+          await fetch('/api/session', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+              expires_at: session.expires_at
+            })
+          });
+        }
         okMsg = 'Sessió iniciada correctament.';
         await goto('/');   // redirigeix on vulguis
       } else {

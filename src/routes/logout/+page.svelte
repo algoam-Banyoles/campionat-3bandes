@@ -5,6 +5,7 @@
 
   onMount(async () => {
     await supabase.auth.signOut();
+    await fetch('/api/session', { method: 'DELETE', credentials: 'include' });
     goto('/');
   });
 </script>
