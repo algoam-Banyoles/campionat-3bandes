@@ -2,7 +2,8 @@ import { json } from '@sveltejs/kit';
 import { serverSupabase, requireAdmin } from '$lib/server/adminGuard';
 
 export async function POST(event) {
-  await requireAdmin(event);
+  const guard = await requireAdmin(event);
+  if (guard) return guard; // 401/403/500
 
   const supabase = serverSupabase(event);
   let payload: { challenge_id?: string; tipus?: 'incompareixenca' | 'desacord_dates' };
