@@ -1,20 +1,37 @@
 import { createClient } from '@supabase/supabase-js';
 
-export function serverSupabase(event: Parameters<import('@sveltejs/kit').RequestHandler>[0]) {
-  const token =
+function tokenFromEvent(event: Parameters<import('@sveltejs/kit').RequestHandler>[0]) {
+  return (
     event.cookies.get('sb-access-token') ??
     event.request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
-    '';
+    null
+  );
+}
+
+export function serverSupabase(
+  event: Parameters<import('@sveltejs/kit').RequestHandler>[0],
+  token?: string | null
+) {
+  const t = token ?? tokenFromEvent(event) ?? undefined;
   return createClient(
     import.meta.env.PUBLIC_SUPABASE_URL,
     import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
-    { global: { headers: token ? { Authorization: `Bearer ${token}` } : {} } }
+    { global: { headers: t ? { Authorization: `Bearer ${t}` } : {} } }
   );
 }
 
 export async function requireAdmin(event: Parameters<import('@sveltejs/kit').RequestHandler>[0]) {
-  const supabase = serverSupabase(event);
-  const { data: u } = await supabase.auth.getUser();
+  const token = tokenFromEvent(event);
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'No autenticat' }), { status: 401 });
+  }
+
+  const supabase = serverSupabase(event, token);
+  const { data: u, error: userErr } = await supabase.auth.getUser(token);
+  if (userErr) {
+    return new Response(JSON.stringify({ error: userErr.message }), { status: 500 });
+  }
+
   const email = u?.user?.email ?? null;
   if (!email) {
     return new Response(JSON.stringify({ error: 'No autenticat' }), { status: 401 });
