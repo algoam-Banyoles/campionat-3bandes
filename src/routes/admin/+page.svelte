@@ -6,6 +6,7 @@
   import Banner from '$lib/components/Banner.svelte';
   import Loader from '$lib/components/Loader.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
+  import Loader from '$lib/components/Loader.svelte';
 
   let loading = true;
   let error: string | null = null;
@@ -37,6 +38,7 @@
   let histLoading = false;
   let histErr: string | null = null;
 
+
   onMount(async () => {
     try {
       loading = true;
@@ -54,7 +56,9 @@
         error = errText('Només els administradors poden accedir a aquesta pàgina.');
         return;
       }
+
       await loadRecent();
+
     } catch (e) {
       error = formatSupabaseError(e);
     } finally {
@@ -196,6 +200,7 @@
       </p>
     </a>
 
+
     <!-- Targeta: historial de moviments -->
     <a href="/admin/historial" class="block rounded-2xl border p-4 hover:shadow-sm">
       <h2 class="font-semibold">🕑 Historial complet</h2>
@@ -226,6 +231,7 @@
       {:else}
         <p class="mt-2 text-sm text-slate-600">Cap moviment</p>
       {/if}
+
     </div>
 
     <!-- Targeta: penalitzacions -->
