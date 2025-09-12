@@ -4,7 +4,7 @@
 
   onMount(async () => {
     try {
-      await fetch('/reptes/penalitzacions');
+      await fetch('/reptes/penalitzacions', { method: 'POST' });
     } catch {
       // ignore errors applying penalties
     }
