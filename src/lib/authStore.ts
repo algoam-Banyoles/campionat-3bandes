@@ -40,3 +40,6 @@ export async function logout() {
   invalidateAdminCache();
   adminStore.set(false);
 }
+
+// Compatibilitat temporal: reexporta API de roles
+export { adminStore, checkIsAdmin as isAdmin, refreshAdmin } from '$lib/roles';
