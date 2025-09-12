@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { user, isAdmin, logout } from '$lib/authStore';
+  import { user, logout } from '$lib/authStore';
+  import { adminStore } from '$lib/roles';
 
   // enllaços sempre visibles
   const baseLinks = [
@@ -62,7 +63,7 @@
           </li>
         {/if}
 
-        {#if $user && $isAdmin}
+        {#if $user && $adminStore}
           <li>
             <a
               href="/admin"
@@ -146,7 +147,7 @@
           </li>
         {/if}
 
-        {#if $user && $isAdmin}
+        {#if $user && $adminStore}
           <li>
             <a
               href="/admin"
