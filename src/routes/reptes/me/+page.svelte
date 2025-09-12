@@ -31,11 +31,6 @@ export let data: { settings: AppSettings };
 let settings: AppSettings = data.settings;
 
 onMount(async () => {
-  try {
-    await fetch('/reptes/penalitzacions', { method: 'POST' });
-  } catch {
-    /* ignore */
-  }
   await load();
 });
 

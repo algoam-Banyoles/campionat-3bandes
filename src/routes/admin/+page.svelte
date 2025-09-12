@@ -79,15 +79,10 @@
       penaltyBusy = true;
       penaltyOk = null;
       penaltyErr = null;
-      const { supabase } = await import('$lib/supabaseClient');
-      const { data } = await supabase.auth.getSession();
-      const token = data?.session?.access_token;
-      const res = await fetch('/admin/penalitzacions', {
+      const res = await fetch('/reptes/penalitzacions', {
         method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: 'Bearer ' + token
-        },
+        headers: { 'content-type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ challenge_id, tipus })
       });
       const js = await res.json();
