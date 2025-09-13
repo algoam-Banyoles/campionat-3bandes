@@ -40,17 +40,32 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'Sessió invàlida' }, { status: 400 });
     }
 
-    const { data: player, error: pErr } = await supabase
-      .from('players')
-      .select('id')
+    const { data: adm, error: admErr } = await supabase
+      .from('admins')
+      .select('email')
       .eq('email', auth.user.email)
       .maybeSingle();
-    if (pErr) {
-      if (isRlsError(pErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
-      return json({ ok: false, error: pErr.message }, { status: 400 });
+    if (admErr) {
+      if (isRlsError(admErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
+      return json({ ok: false, error: admErr.message }, { status: 400 });
     }
-    if (!player) {
-      return json({ ok: false, error: 'Usuari sense jugador associat' }, { status: 400 });
+    const isAdmin = !!adm;
+
+    let playerId: string | null = null;
+    if (!isAdmin) {
+      const { data: player, error: pErr } = await supabase
+        .from('players')
+        .select('id')
+        .eq('email', auth.user.email)
+        .maybeSingle();
+      if (pErr) {
+        if (isRlsError(pErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
+        return json({ ok: false, error: pErr.message }, { status: 400 });
+      }
+      if (!player) {
+        return json({ ok: false, error: 'Usuari sense jugador associat' }, { status: 400 });
+      }
+      playerId = player.id;
     }
 
     const { data: challenge, error: cErr } = await supabase
@@ -66,7 +81,7 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'Repte no trobat' }, { status: 404 });
     }
 
-    if (challenge.reptat_id !== player.id) {
+    if (!isAdmin && challenge.reptat_id !== playerId) {
       return json({ ok: false, error: 'Només el reptat pot acceptar el repte' }, { status: 400 });
     }
     if (challenge.estat !== 'proposat') {

@@ -13,6 +13,7 @@
     pos_reptador: number | null;
     pos_reptat: number | null;
     data_acceptacio: string | null;
+    estat: 'proposat' | 'acceptat' | 'programat' | 'refusat' | 'caducat' | 'jugat' | 'anullat';
   };
 
   let loading = true;
@@ -56,11 +57,15 @@
 
       const { data: c, error: e1 } = await supabase
         .from('challenges')
-        .select('id,event_id,reptador_id,reptat_id,pos_reptador,pos_reptat,data_acceptacio')
+        .select('id,event_id,reptador_id,reptat_id,pos_reptador,pos_reptat,data_acceptacio,estat')
         .eq('id', id)
         .maybeSingle();
       if (e1) throw e1;
       if (!c) { error = 'Repte no trobat.'; return; }
+      if (!['acceptat', 'programat'].includes(c.estat)) {
+        error = 'Estat no permet posar resultat.';
+        return;
+      }
       chal = c;
 
       const { data: players, error: e2 } = await supabase
@@ -150,27 +155,54 @@
     error = null; okMsg = null; rpcMsg = null;
     if (valMsg) { error = valMsg; return; }
     if (!parsedIso) { error = 'Data invàlida.'; return; }
+    if (!chal || !['acceptat', 'programat'].includes(chal.estat)) {
+      error = 'Estat no permet posar resultat.';
+      return;
+    }
 
     try {
       saving = true;
-      const res = await fetch(`/admin/reptes/${id}/resultat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data_iso: parsedIso,
-          carR: Number(carR),
-          carT: Number(carT),
-          entrades: Number(entrades),
-          tiebreak,
-          tbR: tiebreak ? Number(tbR) : null,
-          tbT: tiebreak ? Number(tbT) : null,
-          tipusResultat
-        })
-      });
-      const j = await res.json();
-      if (!res.ok || !j?.ok) {
-        error = j?.error ?? 'No s’ha pogut desar el resultat';
-        return;
+      const { supabase } = await import('$lib/supabaseClient');
+
+      const insertRow: any = {
+        challenge_id: id,
+        data_joc: parsedIso,
+        caramboles_reptador: isWalkover ? 0 : Number(carR),
+        caramboles_reptat:   isWalkover ? 0 : Number(carT),
+        entrades:            isWalkover ? 0 : Number(entrades),
+        resultat: isWalkover ? tipusResultat : resultEnum(),
+        tiebreak: hasTB
+      };
+
+      if (hasTB) {
+        insertRow.tiebreak_reptador = Number(tbR);
+        insertRow.tiebreak_reptat   = Number(tbT);
+      } else {
+        // Respectar el CHECK: sense tiebreak, aquests camps han de ser NULL
+        insertRow.tiebreak_reptador = null;
+        insertRow.tiebreak_reptat   = null;
+      }
+
+      const { error: e1 } = await supabase.from('matches').insert(insertRow);
+      if (e1) throw e1;
+
+      const { data: upd, error: e2 } = await supabase
+        .from('challenges')
+        .update({ estat: 'jugat' })
+        .eq('id', id)
+        .in('estat', ['acceptat', 'programat'])
+        .select('id');
+      if (e2) throw e2;
+      if (!upd || upd.length === 0) throw new Error('Estat no permet posar resultat');
+
+      // Aplicar resultat al rànquing (si tens la RPC creada)
+      const { data: d3, error: e3 } = await supabase.rpc('apply_match_result', { p_challenge: id });
+      if (e3) {
+        rpcMsg = `Rànquing NO actualitzat (RPC): ${e3.message}`;
+      } else {
+        const r = Array.isArray(d3) && d3[0] ? d3[0] : null;
+        if (r?.swapped) rpcMsg = 'Rànquing actualitzat: intercanvi de posicions fet.';
+        else rpcMsg = `Rànquing sense canvis${r?.reason ? ' (' + r.reason + ')' : ''}.`;
       }
       okMsg = 'Resultat desat correctament. Repte marcat com a "jugat".';
       rpcMsg = j.rpcMsg ?? null;

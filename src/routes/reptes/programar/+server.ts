@@ -45,7 +45,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     const { data: chal, error: chalErr } = await supabase
       .from('challenges')
-      .select('data_programada,reprogram_count')
+      .select('data_programada,reprogram_count,estat')
       .eq('id', id)
       .maybeSingle();
     if (chalErr) {
@@ -53,6 +53,10 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: chalErr.message }, { status: 400 });
     }
     if (!chal) return json({ ok: false, error: 'Repte no trobat' }, { status: 404 });
+
+    if (!['proposat', 'acceptat', 'programat'].includes(chal.estat)) {
+      return json({ ok: false, error: 'Estat no permet programar' }, { status: 400 });
+    }
 
     const alreadyProgrammed = chal.data_programada && chal.data_programada !== data_iso;
     if (alreadyProgrammed && !isAdmin) {
@@ -70,10 +74,18 @@ export const POST: RequestHandler = async ({ request }) => {
       updates.reprogram_count = (chal.reprogram_count ?? 0) + 1;
     }
 
-    const { error: upErr } = await supabase.from('challenges').update(updates).eq('id', id);
+    const { data: upd, error: upErr } = await supabase
+      .from('challenges')
+      .update(updates)
+      .eq('id', id)
+      .in('estat', ['proposat', 'acceptat', 'programat'])
+      .select('id');
     if (upErr) {
       if (isRlsError(upErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
       return json({ ok: false, error: upErr.message }, { status: 400 });
+    }
+    if (!upd || upd.length === 0) {
+      return json({ ok: false, error: 'Estat no permet programar' }, { status: 400 });
     }
 
     return json({ ok: true });

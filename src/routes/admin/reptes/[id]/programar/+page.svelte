@@ -108,28 +108,33 @@
       error = errText('Cal indicar la data.');
       return;
     }
+    if (!chal || !['proposat', 'acceptat', 'programat'].includes(chal.estat)) {
+      error = errText('Estat no permet programar.');
+      return;
+    }
     try {
       saving = true;
       const { supabase } = await import('$lib/supabaseClient');
       const updates: any = { data_acceptacio: iso, estat: 'programat' };
-      if (chal && chal.estat === 'programat' && chal.data_acceptacio !== iso) {
+      if (chal.estat === 'programat' && chal.data_acceptacio !== iso) {
         updates.reprogram_count = (chal.reprogram_count ?? 0) + 1;
       }
-      const { error: e } = await supabase
+      const { data, error: e } = await supabase
         .from('challenges')
         .update(updates)
-        .eq('id', id);
+        .eq('id', id)
+        .in('estat', ['proposat', 'acceptat', 'programat'])
+        .select('id');
       if (e) throw e;
-        okMsg = okText('Data programada correctament.');
-      if (chal) {
-        chal.estat = 'programat';
-        chal.data_acceptacio = iso;
-        if (updates.reprogram_count) {
-          chal.reprogram_count = updates.reprogram_count;
-        }
+      if (!data || data.length === 0) throw new Error('Estat no permet programar');
+      okMsg = okText('Data programada correctament.');
+      chal.estat = 'programat';
+      chal.data_acceptacio = iso;
+      if (updates.reprogram_count) {
+        chal.reprogram_count = updates.reprogram_count;
       }
     } catch (e: any) {
-        error = formatSupabaseError(e);
+      error = formatSupabaseError(e);
     } finally {
       saving = false;
     }
@@ -138,22 +143,27 @@
   async function clearDate() {
     error = null;
     okMsg = null;
+    if (!chal || !['acceptat', 'programat'].includes(chal.estat)) {
+      error = errText('No es pot eliminar la data.');
+      return;
+    }
     try {
       saving = true;
       const { supabase } = await import('$lib/supabaseClient');
-      const { error: e } = await supabase
+      const { data, error: e } = await supabase
         .from('challenges')
         .update({ data_acceptacio: null, estat: 'acceptat' })
-        .eq('id', id);
+        .eq('id', id)
+        .in('estat', ['acceptat', 'programat'])
+        .select('id');
       if (e) throw e;
-        okMsg = okText('Data eliminada.');
+      if (!data || data.length === 0) throw new Error('Estat no permet eliminar la data');
+      okMsg = okText('Data eliminada.');
       data_local = '';
-      if (chal) {
-        chal.estat = 'acceptat';
-        chal.data_acceptacio = null;
-      }
+      chal.estat = 'acceptat';
+      chal.data_acceptacio = null;
     } catch (e: any) {
-        error = formatSupabaseError(e);
+      error = formatSupabaseError(e);
     } finally {
       saving = false;
     }
