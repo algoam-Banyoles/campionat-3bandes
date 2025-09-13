@@ -143,21 +143,6 @@
     return null;
   }
 
-  function resultEnum():
-    | 'guanya_reptador'
-    | 'guanya_reptat'
-    | 'empat_tiebreak_reptador'
-    | 'empat_tiebreak_reptat'
-    | 'walkover_reptador'
-    | 'walkover_reptat' {
-    if (tipusResultat !== 'normal') return tipusResultat;
-    const _carR = toNum(carR), _carT = toNum(carT);
-    if (tiebreak) {
-      const _tbR = Number(tbR), _tbT = Number(tbT);
-      return _tbR > _tbT ? 'empat_tiebreak_reptador' : 'empat_tiebreak_reptat';
-    }
-    return _carR > _carT ? 'guanya_reptador' : 'guanya_reptat';
-  }
 
   $: valMsg = loading ? null : validate(parsedIso, tipusResultat);
 
@@ -166,52 +151,29 @@
     if (valMsg) { error = valMsg; return; }
     if (!parsedIso) { error = 'Data invàlida.'; return; }
 
-    const isWalkover = tipusResultat !== 'normal';
-    const hasTB = !isWalkover && !!tiebreak;
-
     try {
       saving = true;
-      const { supabase } = await import('$lib/supabaseClient');
-
-      const insertRow: any = {
-        challenge_id: id,
-        data_joc: parsedIso,
-        caramboles_reptador: isWalkover ? 0 : Number(carR),
-        caramboles_reptat:   isWalkover ? 0 : Number(carT),
-        entrades:            isWalkover ? 0 : Number(entrades),
-        resultat: isWalkover ? tipusResultat : resultEnum(),
-        tiebreak: hasTB
-      };
-
-      if (hasTB) {
-        insertRow.tiebreak_reptador = Number(tbR);
-        insertRow.tiebreak_reptat   = Number(tbT);
-      } else {
-        // Respectar el CHECK: sense tiebreak, aquests camps han de ser NULL
-        insertRow.tiebreak_reptador = null;
-        insertRow.tiebreak_reptat   = null;
+      const res = await fetch(`/admin/reptes/${id}/resultat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data_iso: parsedIso,
+          carR: Number(carR),
+          carT: Number(carT),
+          entrades: Number(entrades),
+          tiebreak,
+          tbR: tiebreak ? Number(tbR) : null,
+          tbT: tiebreak ? Number(tbT) : null,
+          tipusResultat
+        })
+      });
+      const j = await res.json();
+      if (!res.ok || !j?.ok) {
+        error = j?.error ?? 'No s’ha pogut desar el resultat';
+        return;
       }
-
-      const { error: e1 } = await supabase.from('matches').insert(insertRow);
-      if (e1) throw e1;
-
-      const { error: e2 } = await supabase
-        .from('challenges')
-        .update({ estat: 'jugat' })
-        .eq('id', id);
-      if (e2) throw e2;
-
-      // Aplicar resultat al rànquing (si tens la RPC creada)
-      const { data: d3, error: e3 } = await supabase.rpc('apply_match_result', { p_challenge: id });
-      if (e3) {
-        rpcMsg = `Rànquing NO actualitzat (RPC): ${e3.message}`;
-      } else {
-        const r = Array.isArray(d3) && d3[0] ? d3[0] : null;
-        if (r?.swapped) rpcMsg = 'Rànquing actualitzat: intercanvi de posicions fet.';
-        else rpcMsg = `Rànquing sense canvis${r?.reason ? ' (' + r.reason + ')' : ''}.`;
-      }
-
       okMsg = 'Resultat desat correctament. Repte marcat com a "jugat".';
+      rpcMsg = j.rpcMsg ?? null;
     } catch (e:any) {
       error = e?.message ?? 'No s’ha pogut desar el resultat';
     } finally {
