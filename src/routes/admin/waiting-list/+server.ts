@@ -1,25 +1,13 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { requireAdmin } from '$lib/server/adminGuard';
-import { createClient } from '@supabase/supabase-js';
-
-function serverClient(event: Parameters<RequestHandler>[0]) {
-  const token =
-    event.cookies.get('sb-access-token') ??
-    event.request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
-    '';
-  return createClient(
-    import.meta.env.PUBLIC_SUPABASE_URL,
-    import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
-  );
-}
+import { requireAdmin, serverSupabase } from '$lib/server/adminGuard';
 
 export const GET: RequestHandler = async (event) => {
   try {
-    await requireAdmin(event);
+    const guard = await requireAdmin(event);
+    if (guard) return guard; // 401/403/500
 
-    const supabase = serverClient(event);
+    const supabase = serverSupabase(event);
     const { data: eventRow, error: eErr } = await supabase
       .from('events')
       .select('id')
@@ -71,9 +59,10 @@ export const POST: RequestHandler = async (event) => {
       return json({ ok: false, error: 'Falta player_id' }, { status: 400 });
     }
 
-    await requireAdmin(event);
+    const guard = await requireAdmin(event);
+    if (guard) return guard; // 401/403/500
 
-    const supabase = serverClient(event);
+    const supabase = serverSupabase(event);
     const { data: eventRow, error: eErr } = await supabase
       .from('events')
       .select('id')

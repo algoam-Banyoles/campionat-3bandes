@@ -25,7 +25,8 @@ export const POST: RequestHandler = async (event) => {
       return json({ ok: false, error: 'Tipus no suportat' }, { status: 400 });
     }
 
-    await requireAdmin(event);
+    const guard = await requireAdmin(event);
+    if (guard) return guard; // 401/403/500
 
     const supabase = serverSupabase(event);
 
