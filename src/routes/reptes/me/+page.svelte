@@ -2,6 +2,7 @@
 import { onMount } from 'svelte';
 import { user } from '$lib/authStore';
 import { getSettings, type AppSettings } from '$lib/settings';
+import { checkIsAdmin } from '$lib/roles';
 
 type Challenge = {
   id: string;
@@ -29,8 +30,10 @@ let busy: string | null = null;
 let scheduleLocal: Map<string, string> = new Map();
 export let data: { settings: AppSettings };
 let settings: AppSettings = data.settings;
+let isAdmin = false;
 
 onMount(async () => {
+  isAdmin = await checkIsAdmin();
   await load();
 });
 
@@ -152,6 +155,10 @@ function canProgram(r: Challenge) {
 
 function isFrozen(r: Challenge) {
   return ['anullat', 'jugat', 'refusat', 'caducat'].includes(r.estat);
+}
+
+function canSetResult(r: Challenge) {
+  return isAdmin && ['acceptat', 'programat'].includes(r.estat);
 }
 
 async function accept(r: Challenge) {
@@ -335,6 +342,12 @@ async function saveSchedule(r: Challenge) {
               >
                 {busy === r.id ? 'Desant…' : 'Desa data'}
               </button>
+              {#if canSetResult(r)}
+                <a
+                  class="rounded bg-slate-900 text-white px-3 py-1 h-9"
+                  href={`/admin/reptes/${r.id}/resultat`}
+                >Posar resultat</a>
+              {/if}
             </div>
           {:else if isFrozen(r)}
             <div class="text-sm text-slate-500">Sense accions.</div>

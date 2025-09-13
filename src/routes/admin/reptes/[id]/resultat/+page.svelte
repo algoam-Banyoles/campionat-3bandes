@@ -13,6 +13,7 @@
     pos_reptador: number | null;
     pos_reptat: number | null;
     data_acceptacio: string | null;
+    estat: 'proposat' | 'acceptat' | 'programat' | 'refusat' | 'caducat' | 'jugat' | 'anullat';
   };
 
   let loading = true;
@@ -56,11 +57,15 @@
 
       const { data: c, error: e1 } = await supabase
         .from('challenges')
-        .select('id,event_id,reptador_id,reptat_id,pos_reptador,pos_reptat,data_acceptacio')
+        .select('id,event_id,reptador_id,reptat_id,pos_reptador,pos_reptat,data_acceptacio,estat')
         .eq('id', id)
         .maybeSingle();
       if (e1) throw e1;
       if (!c) { error = 'Repte no trobat.'; return; }
+      if (!['acceptat', 'programat'].includes(c.estat)) {
+        error = 'Estat no permet posar resultat.';
+        return;
+      }
       chal = c;
 
       const { data: players, error: e2 } = await supabase
@@ -165,6 +170,10 @@
     error = null; okMsg = null; rpcMsg = null;
     if (valMsg) { error = valMsg; return; }
     if (!parsedIso) { error = 'Data invàlida.'; return; }
+    if (!chal || !['acceptat', 'programat'].includes(chal.estat)) {
+      error = 'Estat no permet posar resultat.';
+      return;
+    }
 
     const isWalkover = tipusResultat !== 'normal';
     const hasTB = !isWalkover && !!tiebreak;
@@ -195,11 +204,14 @@
       const { error: e1 } = await supabase.from('matches').insert(insertRow);
       if (e1) throw e1;
 
-      const { error: e2 } = await supabase
+      const { data: upd, error: e2 } = await supabase
         .from('challenges')
         .update({ estat: 'jugat' })
-        .eq('id', id);
+        .eq('id', id)
+        .in('estat', ['acceptat', 'programat'])
+        .select('id');
       if (e2) throw e2;
+      if (!upd || upd.length === 0) throw new Error('Estat no permet posar resultat');
 
       // Aplicar resultat al rànquing (si tens la RPC creada)
       const { data: d3, error: e3 } = await supabase.rpc('apply_match_result', { p_challenge: id });

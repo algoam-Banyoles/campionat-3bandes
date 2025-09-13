@@ -32,10 +32,6 @@
   let busy: string | null = null; // id en acció
   let isAdmin = false;
 
-  // selecció de dates proposades
-  let dateChoice: Map<string, string> = new Map();
-  // input local per reprogramar
-  let reprogLocal: Map<string, string> = new Map();
 
   onMount(load);
 
@@ -47,15 +43,6 @@
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
-  function setChoice(id: string, val: string) {
-    dateChoice.set(id, val);
-    dateChoice = new Map(dateChoice);
-  }
-
-  function setReprogLocal(id: string, val: string) {
-    reprogLocal.set(id, val);
-    reprogLocal = new Map(reprogLocal);
-  }
 
   async function load() {
     try {
@@ -102,15 +89,6 @@
         reptador_nom: nameById.get(c.reptador_id) ?? '—',
         reptat_nom: nameById.get(c.reptat_id) ?? '—'
       }));
-
-      dateChoice = new Map();
-      reprogLocal = new Map();
-      for (const r of rows) {
-        dateChoice.set(r.id, '');
-        reprogLocal.set(r.id, toLocalInput(r.data_programada));
-      }
-      dateChoice = new Map(dateChoice);
-      reprogLocal = new Map(reprogLocal);
       } catch (e) {
         error = formatSupabaseError(e);
       } finally {
@@ -144,9 +122,6 @@
   }
 
   // --- Lògica de permisos d'acció segons l'estat ---
-  function canAccept(r: ChallengeRow) {
-    return r.estat === 'proposat';
-  }
   function programInfo(r: ChallengeRow) {
     if (r.estat === 'proposat') return { allowed: true };
     if (['acceptat', 'programat'].includes(r.estat)) {
@@ -161,46 +136,11 @@
   function canRefuse(r: ChallengeRow) {
     return r.estat === 'proposat';
   }
-  function canCancel(r: ChallengeRow) {
-    return r.estat === 'proposat';
-  }
   function canSetResult(r: ChallengeRow) {
     return r.estat === 'acceptat' || r.estat === 'programat';
   }
   function isFrozen(r: ChallengeRow) {
     return ['anullat', 'jugat', 'refusat', 'caducat'].includes(r.estat);
-  }
-  function canReprogram(r: ChallengeRow) {
-    if (r.estat !== 'programat') return false;
-    if (isAdmin) return true;
-    return r.reprogram_count < 1;
-  }
-
-  async function acceptWithDate(r: ChallengeRow) {
-    const iso = dateChoice.get(r.id);
-    if (!iso) {
-      error = errText('Cal seleccionar una data.');
-      return;
-    }
-    try {
-      busy = r.id;
-      error = null;
-      okMsg = null;
-        const res = await fetch('/reptes/accepta', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ id: r.id, data_iso: iso })
-        });
-      const out = await res.json();
-      if (!out.ok) throw new Error(out.error || 'No s\u2019ha pogut programar');
-      okMsg = okText('Repte programat correctament.');
-      await load();
-    } catch (e) {
-      error = formatSupabaseError(e);
-    } finally {
-      busy = null;
-    }
   }
 
   async function acceptNoDate(r: ChallengeRow) {
@@ -225,72 +165,26 @@
     }
   }
 
-  async function reprogram(r: ChallengeRow) {
-    const local = reprogLocal.get(r.id) ?? '';
-    const iso = new Date(local).toISOString();
-    if (!local || isNaN(new Date(local).getTime())) {
-      error = errText('Cal indicar una data vàlida.');
-      return;
-    }
-    if (new Date(iso) < new Date()) {
-      error = errText('La nova data ha de ser futura.');
-      return;
-    }
+  async function refuse(r: ChallengeRow) {
+    if (!canRefuse(r)) return;
     try {
       busy = r.id;
       error = null;
       okMsg = null;
       const { supabase } = await import('$lib/supabaseClient');
-      const { error: e } = await supabase
+      const { data, error: e } = await supabase
         .from('challenges')
-        .update({
-          data_programada: iso,
-          estat: 'programat',
-          reprogram_count: (r.reprogram_count ?? 0) + 1
-        })
-        .eq('id', r.id);
+        .update({ estat: 'refusat' })
+        .eq('id', r.id)
+        .eq('estat', 'proposat')
+        .select('id');
       if (e) throw e;
-      okMsg = okText('Data reprogramada correctament.');
+      if (!data || data.length === 0) throw new Error('Estat no permès');
+      okMsg = okText('Repte refusat.');
       await load();
     } catch (e) {
       error = formatSupabaseError(e);
     } finally {
-      busy = null;
-    }
-  }
-
-  async function refuse(r: ChallengeRow) {
-    if (!canRefuse(r)) return;
-    try {
-      await updateState(r.id, 'refusat');
-    } catch (e) {
-      /* handled in updateState */
-    }
-  }
-
-  async function cancel(r: ChallengeRow) {
-    if (!canCancel(r)) return;
-    try {
-      await updateState(r.id, 'anullat');
-    } catch (e) {
-      /* handled */
-    }
-  }
-
-  async function updateState(id: string, newState: ChallengeRow['estat'], also?: Record<string, any>) {
-    try {
-      busy = id;
-      error = null;
-      okMsg = null;
-      const { supabase } = await import('$lib/supabaseClient');
-      const payload: any = { estat: newState, ...(also ?? {}) };
-      const { error: e } = await supabase.from('challenges').update(payload).eq('id', id);
-      if (e) throw e;
-        okMsg = okText(`Repte actualitzat a "${newState}".`);
-      await load();
-      } catch (e) {
-        error = formatSupabaseError(e);
-      } finally {
       busy = null;
     }
   }
@@ -342,37 +236,41 @@
               {:else}
                 {@const p = programInfo(r)}
                 <div class="flex flex-wrap items-center gap-2">
-                  {#if canAccept(r)}
-
+                  {#if r.estat === 'proposat'}
+                    <button
+                      class="rounded bg-green-700 text-white px-3 py-1 text-xs disabled:opacity-60"
+                      disabled={busy === r.id}
+                      on:click={() => acceptNoDate(r)}
+                    >Accepta</button>
+                    <a
+                      class="inline-block rounded bg-indigo-700 text-white px-3 py-1 text-xs"
+                      class:pointer-events-none={busy === r.id || !p.allowed}
+                      class:opacity-60={busy === r.id || !p.allowed}
+                      href={p.allowed ? `/admin/reptes/${r.id}/programar` : undefined}
+                      title={!p.allowed ? p.reason : undefined}
+                    >Programar</a>
                     <button
                       class="rounded bg-amber-700 text-white px-3 py-1 text-xs disabled:opacity-60"
                       disabled={busy === r.id}
                       on:click={() => refuse(r)}
                     >Refusa</button>
-                  {/if}
-
-                  <a
-                    class="inline-block rounded bg-indigo-700 text-white px-3 py-1 text-xs"
-                    class:pointer-events-none={busy === r.id || !p.allowed}
-                    class:opacity-60={busy === r.id || !p.allowed}
-                    href={p.allowed ? `/admin/reptes/${r.id}/programar` : undefined}
-                    title={!p.allowed ? p.reason : undefined}
-                  >Programar</a>
-                  {#if !p.allowed && p.reason}
-                    <span class="text-xs text-slate-500">{p.reason}</span>
-                  {/if}
-                  {#if canSetResult(r)}
+                  {:else if r.estat === 'acceptat' || r.estat === 'programat'}
                     <a
-                      class="inline-block rounded bg-slate-900 text-white px-3 py-1 text-xs"
-                      href={`/admin/reptes/${r.id}/resultat`}
-                    >Posar resultat</a>
-                  {/if}
-                  {#if canCancel(r)}
-                    <button
-                      class="rounded bg-red-700 text-white px-3 py-1 text-xs disabled:opacity-60"
-                      disabled={busy === r.id}
-                      on:click={() => cancel(r)}
-                    >Anul·la</button>
+                      class="inline-block rounded bg-indigo-700 text-white px-3 py-1 text-xs"
+                      class:pointer-events-none={busy === r.id || !p.allowed}
+                      class:opacity-60={busy === r.id || !p.allowed}
+                      href={p.allowed ? `/admin/reptes/${r.id}/programar` : undefined}
+                      title={!p.allowed ? p.reason : undefined}
+                    >Programar</a>
+                    {#if !p.allowed && p.reason}
+                      <span class="text-xs text-slate-500">{p.reason}</span>
+                    {/if}
+                    {#if canSetResult(r)}
+                      <a
+                        class="inline-block rounded bg-slate-900 text-white px-3 py-1 text-xs"
+                        href={`/admin/reptes/${r.id}/resultat`}
+                      >Posar resultat</a>
+                    {/if}
                   {/if}
                 </div>
               {/if}
