@@ -1,7 +1,6 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
-import { requireAdmin } from '$lib/server/adminGuard';
-import { createClient } from '@supabase/supabase-js';
+import { requireAdmin, serverSupabase } from '$lib/server/adminGuard';
 
 export const PATCH: RequestHandler = async (event) => {
   try {
@@ -18,17 +17,10 @@ export const PATCH: RequestHandler = async (event) => {
       return json({ ok: false, error: 'Falten camps' }, { status: 400 });
     }
 
-    await requireAdmin(event);
+    const guard = await requireAdmin(event);
+    if (guard) return guard; // 401/403/500
 
-    const token =
-      event.cookies.get('sb-access-token') ??
-      event.request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
-      '';
-    const supabase = createClient(
-      import.meta.env.PUBLIC_SUPABASE_URL,
-      import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
-      { global: { headers: { Authorization: `Bearer ${token}` } } }
-    );
+    const supabase = serverSupabase(event);
 
     const { data: row, error: rErr } = await supabase
       .from('waiting_list')

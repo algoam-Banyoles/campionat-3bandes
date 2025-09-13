@@ -186,11 +186,12 @@
       busy = r.id;
       error = null;
       okMsg = null;
-      const res = await fetch('/reptes/accepta', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: r.id, data_iso: iso })
-      });
+        const res = await fetch('/reptes/accepta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ id: r.id, data_iso: iso })
+        });
       const out = await res.json();
       if (!out.ok) throw new Error(out.error || 'No s\u2019ha pogut programar');
       okMsg = okText('Repte programat correctament.');
@@ -207,11 +208,12 @@
       busy = r.id;
       error = null;
       okMsg = null;
-      const res = await fetch('/reptes/accepta', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: r.id, data_iso: null })
-      });
+        const res = await fetch('/reptes/accepta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ id: r.id, data_iso: null })
+        });
       const out = await res.json();
       if (!out.ok) throw new Error(out.error || 'No s\u2019ha pogut acceptar');
       okMsg = okText('Repte acceptat.');

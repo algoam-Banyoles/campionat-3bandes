@@ -1,7 +1,10 @@
 import { json } from '@sveltejs/kit';
-import { serverSupabase } from '$lib/server/adminGuard';
+import { serverSupabase, requireAdmin } from '$lib/server/adminGuard';
 
 export async function GET(event) {
+  const guard = await requireAdmin(event);
+  if (guard) return guard; // 401/403/500
+
   const supabase = serverSupabase(event);
   const { data: userData, error } = await supabase.auth.getUser();
   return json({

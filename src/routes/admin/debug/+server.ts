@@ -19,7 +19,8 @@ function decodeJwtPayload(token: string | null) {
 }
 
 export const GET: RequestHandler = async (event) => {
-  await requireAdmin(event);
+  const guard = await requireAdmin(event);
+  if (guard) return guard; // 401/403/500
 
   const token =
     event.cookies.get('sb-access-token') ??
