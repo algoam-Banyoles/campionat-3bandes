@@ -8,7 +8,7 @@ import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alert
 import type { SupabaseClient } from '@supabase/supabase-js';
 
   // Configurable al gust: quins estats considerem “actius”
-  const ACTIVE_STATES = ['proposat', 'acceptat'] as const;
+  const ACTIVE_STATES = ['proposat', 'acceptat', 'programat'] as const;
 
   type Ranked = { player_id: string; posicio: number; nom: string; email: string | null };
   type PlayerRow = { id: string; nom: string; email: string | null };
@@ -24,7 +24,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
   let reptador_id: string | null = null;
   let reptat_id: string | null = null;
   let tipus: 'normal' | 'access' = 'normal';
-  let estat: 'proposat' | 'acceptat' | 'refusat' | 'caducat' | 'jugat' | 'anullat' = 'proposat';
+  let estat: 'proposat' | 'acceptat' | 'programat' | 'refusat' | 'caducat' | 'jugat' | 'anullat' = 'proposat';
 
   // dates proposades (0..3, però recomanat 3 si estat = proposat)
   let d1 = '';
@@ -153,27 +153,36 @@ async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
         throw new Error('En estat "proposat" calen 3 dates proposades (normativa).');
       }
 
-      // si estat és “acceptat”: permetre opcionalment fixar una data programada
-      let data_acceptacio: string | null = null;
-      if (estat === 'acceptat') {
+      // si es crea ja acceptat, opcionalment es pot programar
+      let data_programada_iso: string | null = null;
+      let finalEstat = estat;
+      let data_acceptacio_iso: string | null = null;
+      if (finalEstat === 'acceptat') {
+        data_acceptacio_iso = new Date().toISOString();
         const iso = toISO(data_programada);
-        if (iso) data_acceptacio = iso;
+        if (iso) {
+          data_programada_iso = iso;
+          finalEstat = 'programat';
+        }
       }
 
       busy = true;
 
-      const payload = {
+      const payload: any = {
         event_id: eventActiuId,
         tipus,
         reptador_id,
         reptat_id,
-        estat,
+        estat: finalEstat,
         dates_proposades: dates,           // pot estar buit si admin ho vol forçar
         data_proposta: new Date().toISOString(),
-        data_acceptacio,                   // si s’ha proporcionat
+        data_programada: data_programada_iso,
         pos_reptador: r1.posicio,
         pos_reptat: r2.posicio
       };
+      if (data_acceptacio_iso) {
+        payload.data_acceptacio = data_acceptacio_iso;
+      }
 
       const { error: eIns } = await supabase.from('challenges').insert(payload);
       if (eIns) throw eIns;
@@ -261,7 +270,7 @@ async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
           <div>
             <label for="prog" class="block text-sm mb-1">Data programada (opcional)</label>
             <input id="prog" type="datetime-local" class="w-full rounded border px-2 py-1" bind:value={data_programada} />
-            <p class="text-xs text-slate-500 mt-1">Si s’omple, es desa com a <em>data_acceptacio</em>.</p>
+            <p class="text-xs text-slate-500 mt-1">Si s’omple, l’estat passa a «programat» i es desa com a <em>data_programada</em>.</p>
           </div>
         {/if}
       </div>

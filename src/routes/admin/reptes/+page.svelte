@@ -273,11 +273,7 @@
                       >Posar resultat</a>
                     {/if}
                   {/if}
-                  <button
-                    class="rounded bg-rose-700 text-white px-3 py-1 text-xs disabled:opacity-60"
-                    disabled={busy === r.id}
-                    on:click={() => penalitza(r)}
-                  >Penalitza → Incompareixença</button>
+                  
                 </div>
               {/if}
             </td>

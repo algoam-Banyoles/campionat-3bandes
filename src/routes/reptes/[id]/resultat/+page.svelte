@@ -13,7 +13,7 @@
     reptat_id: string;
     pos_reptador: number | null;
     pos_reptat: number | null;
-    data_acceptacio: string | null;
+    data_programada: string | null;
   };
 
   type Settings = {
@@ -64,7 +64,7 @@
       // 1) Carrega repte
       const { data: c, error: e1 } = await supabase
         .from('challenges')
-        .select('id,event_id,reptador_id,reptat_id,pos_reptador,pos_reptat,data_acceptacio')
+        .select('id,event_id,reptador_id,reptat_id,pos_reptador,pos_reptat,data_programada')
         .eq('id', id)
         .maybeSingle();
       if (e1) throw e1;
@@ -90,7 +90,7 @@
         .maybeSingle();
       if (cfg) settings = cfg;
 
-      data_joc_local = toLocalInput(c.data_acceptacio) || toLocalInput(new Date().toISOString());
+      data_joc_local = toLocalInput(c.data_programada) || toLocalInput(new Date().toISOString());
       } catch (e) {
         error = formatSupabaseError(e);
       } finally {

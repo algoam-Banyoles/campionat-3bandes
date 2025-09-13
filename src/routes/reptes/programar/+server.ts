@@ -45,7 +45,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     const { data: chal, error: chalErr } = await supabase
       .from('challenges')
-      .select('data_programada,reprogram_count,estat')
+      .select('data_programada,reprogram_count,estat,data_acceptacio')
       .eq('id', id)
       .maybeSingle();
     if (chalErr) {
@@ -72,6 +72,9 @@ export const POST: RequestHandler = async ({ request }) => {
     const updates: any = { data_programada: data_iso, estat: 'programat' };
     if (alreadyProgrammed) {
       updates.reprogram_count = (chal.reprogram_count ?? 0) + 1;
+    }
+    if (chal.estat === 'proposat') {
+      updates.data_acceptacio = new Date().toISOString();
     }
 
     const { data: upd, error: upErr } = await supabase

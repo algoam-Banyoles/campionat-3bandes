@@ -9,9 +9,10 @@ declare
   v_old timestamptz;
   v_reprogram integer;
   v_is_admin boolean;
+  v_estat text;
 begin
-  select data_acceptacio, coalesce(reprogram_count,0)
-    into v_old, v_reprogram
+  select data_programada, coalesce(reprogram_count,0), estat
+    into v_old, v_reprogram, v_estat
     from challenges
     where id = p_challenge;
   if not found then
@@ -28,14 +29,16 @@ begin
       return;
     end if;
     update challenges
-      set data_acceptacio = p_when,
+      set data_programada = p_when,
           estat = 'programat',
-          reprogram_count = v_reprogram + 1
+          reprogram_count = v_reprogram + 1,
+          data_acceptacio = case when v_estat = 'proposat' then now() else data_acceptacio end
       where id = p_challenge;
   else
     update challenges
-      set data_acceptacio = p_when,
-          estat = 'programat'
+      set data_programada = p_when,
+          estat = 'programat',
+          data_acceptacio = case when v_estat = 'proposat' then now() else data_acceptacio end
       where id = p_challenge;
   end if;
 
@@ -44,3 +47,4 @@ end;
 $$;
 
 grant execute on function public.program_challenge(uuid, timestamp with time zone) to authenticated;
+
