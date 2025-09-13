@@ -85,6 +85,21 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'El jugador reptat ja té un repte actiu per a aquest esdeveniment' }, { status: 400 });
     }
 
+    // Valida que el repte compleix la normativa
+    const { data: chk, error: chkErr } = await supabase.rpc('can_create_challenge', {
+      p_event: event_id,
+      p_reptador: reptador_id,
+      p_reptat: reptat_id
+    });
+    if (chkErr) {
+      if (isRlsError(chkErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
+      return json({ ok: false, error: chkErr.message }, { status: 400 });
+    }
+    const resChk = (chk as any)?.[0];
+    if (!resChk?.ok) {
+      return json({ ok: false, error: resChk?.reason ?? 'Repte no permès' }, { status: 400 });
+    }
+
     const { error: insErr } = await supabase.from('challenges').insert({
       event_id,
       reptador_id,
