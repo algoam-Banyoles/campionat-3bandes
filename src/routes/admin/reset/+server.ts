@@ -10,24 +10,10 @@ export async function POST(event) {
   if (guard) return guard; // 401/403/500
 
   const supabase = serverSupabase(event);
-  let payload: { clearWaiting?: unknown };
-  try {
-    payload = await event.request.json();
-  } catch {
-    return json({ error: 'JSON invàlid' }, { status: 400 });
-  }
-
-  const { clearWaiting = false } = payload;
-  if (typeof clearWaiting !== 'boolean') {
-    return json({ error: 'clearWaiting ha de ser booleà' }, { status: 400 });
-  }
-  const { data, error } = await supabase.rpc('reset_event_to_initial', {
-    p_event: null,
-    p_clear_waiting: !!clearWaiting
-  });
+  const { data, error } = await supabase.rpc('reset_full_competition');
   if (error) {
-    return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500 });
+    return json({ error: error.message }, { status: 500 });
   }
-  return json({ ok: true, ...(data ?? {}) });
+  return json(data ?? {});
 }
 

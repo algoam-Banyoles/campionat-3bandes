@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
+  import { goto, invalidateAll } from '$app/navigation';
   import { user } from '$lib/authStore';
   import { checkIsAdmin, adminStore } from '$lib/roles';
   import Banner from '$lib/components/Banner.svelte';
@@ -27,7 +27,6 @@
   let resetBusy = false;
   let resetOk: string | null = null;
   let resetErr: string | null = null;
-  let clearWaiting = false;
 
   let captureBusy = false;
   let captureOk: string | null = null;
@@ -159,13 +158,18 @@
       resetErr = null;
       const res = await fetch('/admin/reset', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ clearWaiting })
+        credentials: 'include'
       });
       const js = await res.json();
-      if (!res.ok || !js.ok) throw new Error(js.error || 'Error resetejant campionat');
-      resetOk = `Campionat reiniciat (${js.restored})`;
+      if (!res.ok || js.error) throw new Error(js.error || 'Error resetejant campionat');
+      const evId = js.event_id ?? js.eventId;
+      const reptes = js.deleted_challenges ?? js.deleted_reptes ?? js.deleted?.reptes ?? 0;
+      const partides = js.deleted_matches ?? js.deleted_partides ?? js.deleted?.partides ?? 0;
+      const hist = js.deleted_history ?? js.deleted_historial ?? js.deleted?.historic ?? js.deleted?.hist ?? 0;
+      const seedRank = js.seed_ranking ?? js.seed?.ranking ?? 0;
+      const seedWait = js.seed_waiting ?? js.seed?.espera ?? js.seed?.waiting ?? 0;
+      resetOk = `✅ Reinici completat — event: ${evId} — esborrats: ${reptes} reptes, ${partides} partides, ${hist} històric — seed: ${seedRank} ranking, ${seedWait} espera`;
+      await invalidateAll();
     } catch (e) {
       resetErr = formatSupabaseError(e);
     } finally {
@@ -364,17 +368,9 @@
         >
           {#if captureBusy}Desant…{:else}Desa rànquing actual com a estat inicial{/if}
         </button>
-        <p class="text-xs text-slate-600">
-          A partir d’ara, el botó Reset restaurarà aquest estat.
-        </p>
-        <label class="flex items-center gap-2">
-          <input
-            type="checkbox"
-            bind:checked={clearWaiting}
-            class="rounded border"
-          />
-          Buidar també la llista d’espera
-        </label>
+      <p class="text-xs text-slate-600">
+        A partir d’ara, el botó Reset restaurarà aquest estat.
+      </p>
         <button
           class="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
           on:click={resetChampionship}
