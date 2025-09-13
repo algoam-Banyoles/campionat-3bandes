@@ -177,7 +177,7 @@
         invalidateAll()
       ]);
     } catch (e) {
-      resetErr = formatSupabaseError(e);
+      resetErr = e instanceof Error ? e.message : formatSupabaseError(e);
     } finally {
       resetBusy = false;
     }
