@@ -22,6 +22,10 @@ export async function POST(event) {
   if (!challenge_id || !tipus) {
     return json({ error: 'Falten camps: challenge_id, tipus' }, { status: 400 });
   }
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(challenge_id)) {
+    return json({ error: 'challenge_id invàlid' }, { status: 400 });
+  }
   if (!PENALTY_TYPES.includes(tipus as any)) {
     return json({ error: 'Tipus no suportat' }, { status: 400 });
   }
@@ -32,6 +36,9 @@ export async function POST(event) {
     .eq('id', challenge_id)
     .maybeSingle();
   if (chalErr) {
+    if ((chalErr as any).code === '22P02') {
+      return json({ error: 'challenge_id invàlid' }, { status: 400 });
+    }
     return json({ error: "No s'ha pogut comprovar el repte" }, { status: 500 });
   }
   if (!chal) {
