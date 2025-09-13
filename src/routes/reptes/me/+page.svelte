@@ -13,7 +13,7 @@ type Challenge = {
   estat: 'proposat' | 'acceptat' | 'programat' | 'refusat' | 'caducat' | 'jugat' | 'anullat';
   dates_proposades: string[];
   data_proposta: string;
-  data_acceptacio: string | null;
+  data_programada: string | null;
   reprogram_count: number;
   pos_reptador: number | null;
   pos_reptat: number | null;
@@ -65,7 +65,7 @@ async function load() {
 
     const { data: ch, error: e2 } = await supabase
       .from('challenges')
-      .select('id,event_id,tipus,reptador_id,reptat_id,estat,dates_proposades,data_proposta,data_acceptacio,reprogram_count,pos_reptador,pos_reptat')
+      .select('id,event_id,tipus,reptador_id,reptat_id,estat,dates_proposades,data_proposta,data_programada,reprogram_count,pos_reptador,pos_reptat')
       .or(`reptador_id.eq.${myPlayerId},reptat_id.eq.${myPlayerId}`)
       .order('data_proposta', { ascending: false });
     if (e2) throw e2;
@@ -92,7 +92,7 @@ async function load() {
     scheduleLocal = new Map();
     const now = toLocalInput(new Date().toISOString());
     for (const r of rows) {
-      scheduleLocal.set(r.id, toLocalInput(r.data_acceptacio) || now);
+      scheduleLocal.set(r.id, toLocalInput(r.data_programada) || now);
     }
     scheduleLocal = new Map(scheduleLocal);
   } catch (e: any) {
@@ -166,13 +166,14 @@ async function accept(r: Challenge) {
   okMsg = null;
   try {
     busy = r.id;
-    const { supabase } = await import('$lib/supabaseClient');
-    const { error: e } = await supabase
-      .from('challenges')
-      .update({ estat: 'acceptat', data_acceptacio: null })
-      .eq('id', r.id)
-      .eq('estat', 'proposat');
-    if (e) throw e;
+    const res = await fetch('/reptes/accepta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id: r.id, data_iso: null })
+    });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error || 'No s\u2019ha pogut acceptar el repte');
     okMsg = 'Repte acceptat correctament.';
     await load();
   } catch (e: any) {
@@ -219,12 +220,16 @@ async function saveSchedule(r: Challenge) {
   }
   try {
     busy = r.id;
-    const { supabase } = await import('$lib/supabaseClient');
-    const { data, error: e } = await supabase.rpc('program_challenge', { p_challenge: r.id, p_when: parsedIso });
-    if (e) throw e;
-    if (data?.[0]?.ok === false) {
-      const reason = data?.[0]?.reason;
-      if (reason === 'reprogram_limit_reached') {
+    const res = await fetch('/reptes/programar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id: r.id, data_iso: parsedIso })
+    });
+    const out = await res.json();
+    if (!out.ok) {
+      const reason = out.error;
+      if (reason === 'Només una reprogramació; contacta un administrador') {
         error = 'Aquest repte ja s\u2019ha reprogramat una vegada. Si cal canviar-ho de nou, contacta amb un administrador.';
       } else {
         error = reason ?? 'No s\u2019ha pogut desar la data';
@@ -272,8 +277,8 @@ async function saveSchedule(r: Challenge) {
             <span class="text-xs rounded bg-slate-800 text-white px-2 py-0.5">{r.tipus}</span>
             <span class="text-xs rounded bg-slate-100 px-2 py-0.5 capitalize">{r.estat}</span>
             <span class="text-xs text-slate-500 ml-auto">Proposat: {fmt(r.data_proposta)}</span>
-            {#if r.data_acceptacio}
-              <span class="text-xs text-slate-500">Programat: {fmt(r.data_acceptacio)}</span>
+            {#if r.data_programada}
+              <span class="text-xs text-slate-500">Programat: {fmt(r.data_programada)}</span>
             {/if}
           </div>
 

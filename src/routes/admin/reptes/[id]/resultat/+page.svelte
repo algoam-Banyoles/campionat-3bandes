@@ -12,7 +12,7 @@
     reptat_id: string;
     pos_reptador: number | null;
     pos_reptat: number | null;
-    data_acceptacio: string | null;
+    data_programada: string | null;
     estat: 'proposat' | 'acceptat' | 'programat' | 'refusat' | 'caducat' | 'jugat' | 'anullat';
   };
 
@@ -39,6 +39,15 @@
 
   let data_joc_local = '';
 
+  $: isWalkover = tipusResultat !== 'normal';
+  $: hasTB = tipusResultat === 'normal' && tiebreak;
+
+  function resultEnum() {
+    if (tipusResultat !== 'normal') return tipusResultat;
+    if (tiebreak) return Number(tbR) > Number(tbT) ? 'empat_tiebreak_reptador' : 'empat_tiebreak_reptat';
+    return Number(carR) > Number(carT) ? 'guanya_reptador' : 'guanya_reptat';
+  }
+
   const id = $page.params.id;
 
   onMount(load);
@@ -57,7 +66,7 @@
 
       const { data: c, error: e1 } = await supabase
         .from('challenges')
-        .select('id,event_id,reptador_id,reptat_id,pos_reptador,pos_reptat,data_acceptacio,estat')
+        .select('id,event_id,reptador_id,reptat_id,pos_reptador,pos_reptat,data_programada,estat')
         .eq('id', id)
         .maybeSingle();
       if (e1) throw e1;
@@ -77,7 +86,7 @@
       reptadorNom = dict.get(c.reptador_id) ?? '—';
       reptatNom = dict.get(c.reptat_id) ?? '—';
 
-      data_joc_local = toLocalInput(c.data_acceptacio || new Date().toISOString());
+      data_joc_local = toLocalInput(c.data_programada || new Date().toISOString());
     } catch (e:any) {
       error = e?.message ?? 'Error carregant el repte';
     } finally {
@@ -205,7 +214,6 @@
         else rpcMsg = `Rànquing sense canvis${r?.reason ? ' (' + r.reason + ')' : ''}.`;
       }
       okMsg = 'Resultat desat correctament. Repte marcat com a "jugat".';
-      rpcMsg = j.rpcMsg ?? null;
     } catch (e:any) {
       error = e?.message ?? 'No s’ha pogut desar el resultat';
     } finally {
