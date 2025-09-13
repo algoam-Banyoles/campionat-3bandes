@@ -12,8 +12,11 @@ export async function POST(event) {
   const supabase = serverSupabase(event);
   const { data, error } = await supabase.rpc('reset_full_competition');
   if (error) {
-    return json({ error: error.message }, { status: 500 });
+    return json(
+      { error: "No s'ha pogut reiniciar el campionat" },
+      { status: 500 }
+    );
   }
-  return json(data ?? {});
+  return json(data ?? {}, { status: 200 });
 }
 
