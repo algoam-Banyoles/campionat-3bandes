@@ -36,6 +36,7 @@
   let tbR: number | '' = '';
   let tbT: number | '' = '';
   let tipusResultat: 'normal' | 'walkover_reptador' | 'walkover_reptat' = 'normal';
+  let isWalkover = false;
 
   let data_joc_local = '';
 
@@ -127,6 +128,15 @@
   }
 
   const toNum = (v: number | '' ) => (v === '' ? NaN : Number(v));
+
+  $: isWalkover = tipusResultat !== 'normal';
+
+  function resultEnum(): string {
+    if (tiebreak) {
+      return Number(tbR) > Number(tbT) ? 'empat_tiebreak_reptador' : 'empat_tiebreak_reptat';
+    }
+    return Number(carR) > Number(carT) ? 'guanya_reptador' : 'guanya_reptat';
+  }
   const isInt = (v: number | '' ) => Number.isInteger(toNum(v));
 
   let parsedIso: string | null = null;
@@ -180,10 +190,10 @@
         caramboles_reptat:   isWalkover ? 0 : Number(carT),
         entrades:            isWalkover ? 0 : Number(entrades),
         resultat: isWalkover ? tipusResultat : resultEnum(),
-        tiebreak: hasTB
+        tiebreak: tiebreak
       };
 
-      if (hasTB) {
+      if (tiebreak) {
         insertRow.tiebreak_reptador = Number(tbR);
         insertRow.tiebreak_reptat   = Number(tbT);
       } else {

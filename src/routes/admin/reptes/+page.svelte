@@ -189,6 +189,26 @@
     }
   }
 
+  async function penalitza(r: ChallengeRow) {
+    try {
+      busy = r.id;
+      error = null;
+      okMsg = null;
+      const { supabase } = await import('$lib/supabaseClient');
+      const { error: e } = await supabase.rpc('apply_challenge_penalty', {
+        p_challenge: r.id,
+        p_tipus: 'incompareixenca'
+      });
+      if (e) throw e;
+      okMsg = okText('Penalització aplicada.');
+      await load();
+    } catch (e) {
+      error = formatSupabaseError(e);
+    } finally {
+      busy = null;
+    }
+  }
+
 </script>
 
 <svelte:head><title>Admin · Reptes</title></svelte:head>
