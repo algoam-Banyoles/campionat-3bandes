@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto, invalidateAll } from '$app/navigation';
+  import { goto, invalidateAll, invalidate } from '$app/navigation';
   import { user } from '$lib/authStore';
   import { checkIsAdmin, adminStore } from '$lib/roles';
   import Banner from '$lib/components/Banner.svelte';
@@ -161,15 +161,21 @@
         credentials: 'include'
       });
       const js = await res.json();
-      if (!res.ok || js.error) throw new Error(js.error || 'Error resetejant campionat');
-      const evId = js.event_id ?? js.eventId;
-      const reptes = js.deleted_challenges ?? js.deleted_reptes ?? js.deleted?.reptes ?? 0;
-      const partides = js.deleted_matches ?? js.deleted_partides ?? js.deleted?.partides ?? 0;
-      const hist = js.deleted_history ?? js.deleted_historial ?? js.deleted?.historic ?? js.deleted?.hist ?? 0;
-      const seedRank = js.seed_ranking ?? js.seed?.ranking ?? 0;
-      const seedWait = js.seed_waiting ?? js.seed?.espera ?? js.seed?.waiting ?? 0;
-      resetOk = `✅ Reinici completat — event: ${evId} — esborrats: ${reptes} reptes, ${partides} partides, ${hist} històric — seed: ${seedRank} ranking, ${seedWait} espera`;
-      await invalidateAll();
+      if (!res.ok || js.error || !js.ok)
+        throw new Error(js.error || 'Error resetejant campionat');
+      const evId = js.event_id;
+      const deleted = js.deleted ?? {};
+      const seeded = js.seeded ?? {};
+      resetOk =
+        `✅ Reinici completat — event: ${evId} — esborrats: ${deleted.challenges} reptes, ${deleted.matches} partides, ${deleted.history} històric — seed: ${seeded.ranking_players} ranking, ${seeded.waiting_list} espera`;
+      await loadRecent();
+      await Promise.all([
+        invalidate('/reptes'),
+        invalidate('/admin/reptes'),
+        invalidate('/classificacio'),
+        invalidate('/llista-espera'),
+        invalidateAll()
+      ]);
     } catch (e) {
       resetErr = formatSupabaseError(e);
     } finally {
