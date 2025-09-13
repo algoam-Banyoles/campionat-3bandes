@@ -27,7 +27,7 @@ export async function requireAdmin(event: Parameters<import('@sveltejs/kit').Req
   }
 
   const supabase = serverSupabase(event, token);
-  const { data: u, error: userErr } = await supabase.auth.getUser(token);
+  const { data: u, error: userErr } = await supabase.auth.getUser();
   if (userErr) {
     return new Response(JSON.stringify({ error: userErr.message }), { status: 500 });
   }
@@ -36,7 +36,7 @@ export async function requireAdmin(event: Parameters<import('@sveltejs/kit').Req
   if (!email) {
     return new Response(JSON.stringify({ error: 'No autenticat' }), { status: 401 });
   }
-  const { data, error } = await supabase.rpc('is_admin', { p_email: email });
+  const { data, error } = await supabase.rpc('is_admin', { email });
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
