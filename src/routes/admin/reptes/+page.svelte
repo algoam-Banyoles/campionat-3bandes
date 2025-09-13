@@ -277,6 +277,28 @@
     }
   }
 
+  async function penalitza(r: ChallengeRow) {
+    try {
+      busy = r.id;
+      error = null;
+      okMsg = null;
+      const res = await fetch('/reptes/penalitzacions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ challenge_id: r.id, tipus: 'incompareixenca' })
+      });
+      const js = await res.json();
+      if (!res.ok || !js.ok) throw new Error(js.error || 'Error aplicant penalització');
+      okMsg = okText('Penalització aplicada');
+      await load();
+    } catch (e) {
+      error = formatSupabaseError(e);
+    } finally {
+      busy = null;
+    }
+  }
+
   async function updateState(id: string, newState: ChallengeRow['estat'], also?: Record<string, any>) {
     try {
       busy = id;
@@ -374,6 +396,11 @@
                       on:click={() => cancel(r)}
                     >Anul·la</button>
                   {/if}
+                  <button
+                    class="rounded bg-rose-700 text-white px-3 py-1 text-xs disabled:opacity-60"
+                    disabled={busy === r.id}
+                    on:click={() => penalitza(r)}
+                  >Penalitza → Incompareixença</button>
                 </div>
               {/if}
             </td>
