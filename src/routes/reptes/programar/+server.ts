@@ -34,11 +34,9 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'Sessió invàlida' }, { status: 400 });
     }
 
-    const { data: adm, error: admErr } = await supabase
-      .from('admins')
-      .select('email')
-      .eq('email', auth.user.email)
-      .maybeSingle();
+    const { data: adm, error: admErr } = await supabase.rpc('is_admin', {
+      p_email: auth.user.email
+    });
     if (admErr) {
       if (isRlsError(admErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
       return json({ ok: false, error: admErr.message }, { status: 400 });

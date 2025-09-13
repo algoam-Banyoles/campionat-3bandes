@@ -1,6 +1,6 @@
 <script lang="ts">
 import { onMount } from 'svelte';
-import { user } from '$lib/authStore';
+import { user, adminStore } from '$lib/authStore';
 import { getSettings, type AppSettings } from '$lib/settings';
 import { checkIsAdmin } from '$lib/roles';
 
@@ -324,21 +324,25 @@ async function saveSchedule(r: Challenge) {
                   id={`schedule-${r.id}`}
                   value={scheduleLocal.get(r.id) ?? ''}
                   on:input={(e) => scheduleLocal.set(r.id, (e.target as HTMLInputElement).value)}
-                  disabled={busy === r.id}
+                  disabled={
+                    busy === r.id ||
+                    (!$adminStore && r.estat === 'programat' && r.reprogram_count >= 1)
+                  }
                 />
                 <p class="text-xs text-slate-500 mt-1">
                   La data ha d'estar dins de {settings.dies_jugar_despres_acceptar} dies.
                 </p>
-                {#if r.estat === 'programat' && r.reprogram_count >= 1}
-                  <p class="text-xs text-slate-500 mt-1">
-                    Has arribat al límit de reprogramacions. Només un administrador pot canviar-la de nou.
-                  </p>
+                {#if r.estat === 'programat' && r.reprogram_count >= 1 && !$adminStore}
+                  <p class="text-xs text-slate-500 mt-1">Ja has reprogramat un cop; cal administrador.</p>
                 {/if}
               </div>
               <button
                 class="rounded bg-blue-600 text-white px-3 py-1 h-9 disabled:opacity-60"
                 on:click={() => saveSchedule(r)}
-                disabled={busy === r.id}
+                disabled={
+                  busy === r.id ||
+                  (!$adminStore && r.estat === 'programat' && r.reprogram_count >= 1)
+                }
               >
                 {busy === r.id ? 'Desant…' : 'Desa data'}
               </button>

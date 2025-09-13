@@ -1,11 +1,10 @@
 <script lang="ts">
 
     import { onMount } from 'svelte';
-    import { supabase } from '$lib/supabaseClient';
     import { getSettings } from '$lib/settings';
     import Banner from '$lib/components/Banner.svelte';
     import Loader from '$lib/components/Loader.svelte';
-    import { formatSupabaseError, ok as okMsg, err as errMsg } from '$lib/ui/alerts';
+    import { ok as okMsg, err as errMsg } from '$lib/ui/alerts';
 
 
   type RankedPlayer = { posicio: number; player_id: string; nom: string };
@@ -14,12 +13,12 @@
     let loading = true;
     let err: string | null = null;
     let ok: string | null = null;
+    let info: string | null = null;
 
   let myPlayerId: string | null = null;
   let myPos: number | null = null;
   let eventId: string | null = null;
 
-  let allRank: RankedPlayer[] = [];
   let reptables: RankedPlayer[] = [];
   let noReptables: NotReptable[] = [];
 
@@ -36,73 +35,29 @@
       loading = true;
       err = null;
       ok = null;
+      info = null;
       await getSettings();
 
-      // 1) Sessió i player_id
-      const { data: s } = await supabase.auth.getSession();
-      const email = s?.session?.user?.email ?? null;
-        if (!email) { err = errMsg("Has d’iniciar sessió."); return; }
-
-      const qPlayer = await supabase.from('players').select('id').eq('email', email).maybeSingle();
-      if (qPlayer.error) throw qPlayer.error;
-        if (!qPlayer.data) { err = errMsg('El teu email no està vinculat a cap jugador.'); return; }
-      myPlayerId = qPlayer.data.id;
-
-      // 2) Event actiu
-      const qEvent = await supabase.from('events').select('id').eq('actiu', true).order('creat_el', { ascending: false }).limit(1).maybeSingle();
-      if (qEvent.error) throw qEvent.error;
-        if (!qEvent.data) { err = errMsg('No hi ha cap esdeveniment actiu.'); return; }
-      eventId = qEvent.data.id;
-
-      // 3) Rànquing complet i meva posició
-      const qRank = await supabase
-        .from('ranking_positions')
-        .select('posicio, player_id, players!inner(nom)')
-        .eq('event_id', eventId)
-        .order('posicio', { ascending: true });
-      if (qRank.error) throw qRank.error;
-      allRank = (qRank.data ?? []).map((r: any) => ({
-        posicio: r.posicio, player_id: r.player_id, nom: r.players?.nom ?? '—'
-      }));
-
-      const mine = allRank.find(r => r.player_id === myPlayerId) ?? null;
-        if (!mine) { err = errMsg('No formes part del rànquing actual.'); return; }
-      myPos = mine.posicio;
-
-      // 4) Determinar reptables i no disponibles
-      reptables = [];
-      noReptables = [];
-      for (const r of allRank) {
-        if (r.player_id === myPlayerId) continue;
-        if (r.posicio >= myPos! || r.posicio < myPos! - 2) {
-          noReptables.push({ ...r, motiu: 'fora del marge de posicions' });
-          continue;
-        }
-        const { data: chk, error: eChk } = await supabase.rpc('can_create_challenge', {
-          p_event: eventId,
-          p_reptador: myPlayerId,
-          p_reptat: r.player_id
-        });
-        if (eChk) {
-          noReptables.push({ ...r, motiu: 'no disponible' });
-          continue;
-        }
-        const res = (chk as any)?.[0];
-        if (res?.ok) {
-          reptables.push(r);
-        } else {
-          let motiu = res?.reason ?? 'no disponible';
-          if (motiu.toLowerCase().includes('repte actiu')) motiu = 'té un repte actiu';
-          else if (motiu.toLowerCase().includes('temps mínim')) motiu = 'cooldown no complert';
-          else if (motiu.toLowerCase().includes('diferència de posicions')) motiu = 'fora del marge de posicions';
-          noReptables.push({ ...r, motiu });
-        }
+      const res = await fetch('/reptes/nou/eligibles', { credentials: 'include' });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        err = errMsg(data.error || 'Error en carregar dades.');
+        return;
       }
-      } catch (e) {
-        err = formatSupabaseError(e);
-      } finally {
-        loading = false;
+
+      myPlayerId = data.my_player_id;
+      myPos = data.my_pos;
+      eventId = data.event_id;
+      reptables = data.reptables ?? [];
+      noReptables = data.no_reptables ?? [];
+      if (reptables.length === 0) {
+        info = 'Ara mateix no pots reptar cap jugador.';
       }
+    } catch (e: any) {
+      err = errMsg(e?.message || 'Error en carregar dades.');
+    } finally {
+      loading = false;
+    }
   });
 
   function toLocalInput(iso: string) {
@@ -167,24 +122,28 @@
         .map(v => parseLocalToIso(v || null))
         .filter(Boolean) as string[];
 
-      const { error } = await supabase.from('challenges').insert({
-        event_id: eventId,
-        reptador_id: myPlayerId,
-        reptat_id: selectedOpponent,
-        tipus: 'normal',
-        estat: 'proposat',
-        dates_proposades: datesIso,
-        observacions: notes || null
+      const res = await fetch('/reptes/nou', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_id: eventId,
+          reptat_id: selectedOpponent,
+          dates_proposades: datesIso,
+          observacions: notes || null,
+          tipus: 'normal'
+        })
       });
-      if (error) throw error;
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Error en crear repte');
 
         ok = okMsg('Repte creat correctament. S’han enviat les teves propostes de data.');
       // Reseteja el formulari
       selectedOpponent = null;
       notes = '';
       dateInputs = [toLocalInput(new Date().toISOString())];
-      } catch (e) {
-        err = formatSupabaseError(e);
+      } catch (e: any) {
+        err = errMsg(e?.message || 'Error en crear repte');
       }
     }
   </script>
@@ -198,6 +157,7 @@
 {:else}
     {#if err}<Banner type="error" message={err} class="mb-3" />{/if}
     {#if ok}<Banner type="success" message={ok} class="mb-3" />{/if}
+    {#if info}<Banner type="info" message={info} class="mb-3" />{/if}
 
   {#if myPos}
     <div class="rounded-2xl border bg-white p-4 shadow-sm mb-4">
@@ -209,7 +169,7 @@
     <div class="grid gap-4">
       <div class="grid gap-1">
         <label for="opponent" class="text-sm text-slate-700">Tria oponent (posicions permeses)</label>
-        <select id="opponent" class="rounded-xl border px-3 py-2" bind:value={selectedOpponent}>
+        <select id="opponent" class="rounded-xl border px-3 py-2" bind:value={selectedOpponent} disabled={reptables.length === 0}>
           <option value="" disabled selected>— Selecciona jugador —</option>
           {#each reptables as r}
             <option value={r.player_id}>#{r.posicio} — {r.nom}</option>

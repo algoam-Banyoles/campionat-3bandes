@@ -148,21 +148,6 @@
     return null;
   }
 
-  function resultEnum():
-    | 'guanya_reptador'
-    | 'guanya_reptat'
-    | 'empat_tiebreak_reptador'
-    | 'empat_tiebreak_reptat'
-    | 'walkover_reptador'
-    | 'walkover_reptat' {
-    if (tipusResultat !== 'normal') return tipusResultat;
-    const _carR = toNum(carR), _carT = toNum(carT);
-    if (tiebreak) {
-      const _tbR = Number(tbR), _tbT = Number(tbT);
-      return _tbR > _tbT ? 'empat_tiebreak_reptador' : 'empat_tiebreak_reptat';
-    }
-    return _carR > _carT ? 'guanya_reptador' : 'guanya_reptat';
-  }
 
   $: valMsg = loading ? null : validate(parsedIso, tipusResultat);
 
@@ -174,9 +159,6 @@
       error = 'Estat no permet posar resultat.';
       return;
     }
-
-    const isWalkover = tipusResultat !== 'normal';
-    const hasTB = !isWalkover && !!tiebreak;
 
     try {
       saving = true;
@@ -222,8 +204,8 @@
         if (r?.swapped) rpcMsg = 'Rànquing actualitzat: intercanvi de posicions fet.';
         else rpcMsg = `Rànquing sense canvis${r?.reason ? ' (' + r.reason + ')' : ''}.`;
       }
-
       okMsg = 'Resultat desat correctament. Repte marcat com a "jugat".';
+      rpcMsg = j.rpcMsg ?? null;
     } catch (e:any) {
       error = e?.message ?? 'No s’ha pogut desar el resultat';
     } finally {
