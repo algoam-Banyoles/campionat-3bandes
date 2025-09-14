@@ -3,6 +3,7 @@
   import { onMount } from "svelte";
   import { user, authReady, initAuth, logout } from "$lib/authStore";
   import { adminStore } from '$lib/roles';
+  import Toasts from '$lib/components/Toasts.svelte';
 
   let showInscripcio = false;
 
@@ -173,6 +174,8 @@
 <main class="mx-auto max-w-5xl p-2 sm:p-4">
   <slot />
 </main>
+
+<Toasts />
 
 <!-- DEBUG opcional: treu-ho quan vulguis -->
 {#if $authReady}

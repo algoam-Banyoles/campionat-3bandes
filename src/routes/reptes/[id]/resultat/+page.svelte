@@ -5,6 +5,8 @@
       import { checkIsAdmin } from '$lib/roles';
     import Banner from '$lib/components/Banner.svelte';
     import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
+    import { refreshRanking } from '$lib/rankingStore';
+    import { addToast } from '$lib/ui/toastStore';
 
   type Challenge = {
     id: string;
@@ -198,6 +200,8 @@
         rpcMsg = r?.swapped
           ? okText('Rànquing actualitzat: intercanvi de posicions fet.')
           : okText(`Rànquing sense canvis${r?.reason ? ' (' + r.reason + ')' : ''}.`);
+        await refreshRanking();
+        addToast('Rànquing actualitzat', 'success');
       }
 
       okMsg = okText('Resultat desat correctament. Repte marcat com a jugat.');
