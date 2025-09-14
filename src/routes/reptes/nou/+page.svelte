@@ -1,6 +1,8 @@
 <script lang="ts">
 
     import { onMount } from 'svelte';
+    import { page } from '$app/stores';
+    import { get } from 'svelte/store';
     import { getSettings } from '$lib/settings';
     import Banner from '$lib/components/Banner.svelte';
     import Loader from '$lib/components/Loader.svelte';
@@ -56,6 +58,10 @@
       noReptables = data.no_reptables ?? [];
       if (reptables.length === 0) {
         info = 'Ara mateix no pots reptar cap jugador.';
+      }
+      const preSel = get(page).url.searchParams.get('opponent');
+      if (preSel && reptables.some((r) => r.player_id === preSel)) {
+        selectedOpponent = preSel;
       }
     } catch (e: any) {
       err = errMsg(e?.message || 'Error en carregar dades.');
