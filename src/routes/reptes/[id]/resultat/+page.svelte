@@ -132,17 +132,21 @@
       const { supabase } = await import('$lib/supabaseClient');
 
       // 1) Inserir match
-      const { error: e1 } = await supabase.from('matches').insert({
-        challenge_id: id,
-        data_joc: data_iso,
-        caramboles_reptador: carR,
-        caramboles_reptat: carT,
-        entrades,
-        resultat,
-        tiebreak,
-        tiebreak_reptador: tiebreak ? tbR : null,
-        tiebreak_reptat: tiebreak ? tbT : null
-      });
+      const { error: e1 } = await supabase
+        .from('matches')
+        .insert({
+          challenge_id: id,
+          data_joc: data_iso,
+          caramboles_reptador: carR,
+          caramboles_reptat: carT,
+          entrades,
+          resultat,
+          tiebreak,
+          tiebreak_reptador: tiebreak ? tbR : null,
+          tiebreak_reptat: tiebreak ? tbT : null
+        })
+        .select('id')
+        .single();
       if (e1) throw e1;
 
       // 2) Update estat repte

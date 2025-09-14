@@ -201,7 +201,11 @@
         insertRow.tiebreak_reptat   = null;
       }
 
-      const { error: e1 } = await supabase.from('matches').insert(insertRow);
+      const { error: e1 } = await supabase
+        .from('matches')
+        .insert(insertRow)
+        .select('id')
+        .single();
       if (e1) throw e1;
 
       const { data: upd, error: e2 } = await supabase

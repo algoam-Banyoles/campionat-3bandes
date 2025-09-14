@@ -105,7 +105,11 @@ export const POST: RequestHandler = async (event) => {
     motiu: isWalkover ? 'incompareixenca' : null,
   };
 
-  const { error: e1 } = await supabase.from('matches').insert(insertRow);
+  const { error: e1 } = await supabase
+    .from('matches')
+    .insert(insertRow)
+    .select('id')
+    .single();
   if (e1) return json({ ok: false, error: e1.message }, { status: 400 });
 
   const { error: e2 } = await supabase
