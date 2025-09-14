@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import PlayerEvolutionModal from '$lib/components/PlayerEvolutionModal.svelte';
 
   type Row = {
     event_id: string;
@@ -26,6 +27,10 @@
   let error: string | null = null;
   let rows: Row[] = [];
   let myPlayerId: string | null = null;
+
+  let showModal = false;
+  let modalPlayerId: string | null = null;
+  let modalPlayerName = '';
 
   onMount(async () => {
     try {
@@ -67,6 +72,16 @@
       loading = false;
     }
   });
+
+  function openModal(r: Row) {
+    modalPlayerId = r.player_id;
+    modalPlayerName = r.nom;
+    showModal = true;
+  }
+
+  function closeModal() {
+    showModal = false;
+  }
 
   async function evaluateBadges(
     supabase: any,
@@ -206,15 +221,30 @@
           <tr class="border-t">
             <td class="px-3 py-2">{r.posicio ?? '-'}</td>
             <td class="px-3 py-2">
-              {r.nom}
+              <button
+                type="button"
+                class="text-blue-600 hover:underline"
+                on:click={() => openModal(r)}
+              >
+                {r.nom}
+              </button>
               {#if r.canReptar}
-                <span title="Pot reptar" class="ml-1 inline-block h-3 w-3 rounded-full bg-green-500 align-middle"></span>
+                <span
+                  title="Pot reptar"
+                  class="ml-1 inline-block h-3 w-3 rounded-full bg-green-500 align-middle"
+                ></span>
               {/if}
               {#if r.canSerReptat}
-                <span title="Pot ser reptat" class="ml-1 inline-block h-3 w-3 rounded-full bg-blue-500 align-middle"></span>
+                <span
+                  title="Pot ser reptat"
+                  class="ml-1 inline-block h-3 w-3 rounded-full bg-blue-500 align-middle"
+                ></span>
               {/if}
               {#if r.isMe}
-                <span title="Tu" class="ml-1 inline-block h-3 w-3 rounded-full bg-yellow-400 align-middle"></span>
+                <span
+                  title="Tu"
+                  class="ml-1 inline-block h-3 w-3 rounded-full bg-yellow-400 align-middle"
+                ></span>
               {/if}
               {#if r.hasActiveChallenge}
                 <span
@@ -251,5 +281,13 @@
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-red-500"></span><span>repte actiu</span></div>
 
   </div>
+{/if}
+
+{#if showModal && modalPlayerId}
+  <PlayerEvolutionModal
+    playerId={modalPlayerId}
+    playerName={modalPlayerName}
+    on:close={closeModal}
+  />
 {/if}
 
