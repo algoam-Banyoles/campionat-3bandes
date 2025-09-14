@@ -220,14 +220,19 @@ async function saveSchedule(r: Challenge) {
   }
   try {
     busy = r.id;
-    const res = await fetch('/reptes/programar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ id: r.id, data_iso: parsedIso })
+    const u = $user;
+    if (!u?.email) {
+      error = 'Has d\u2019iniciar sessi\u00f3.';
+      return;
+    }
+    const { supabase } = await import('$lib/supabaseClient');
+    const { data: out, error: rpcErr } = await supabase.rpc('programar_repte', {
+      p_challenge: r.id,
+      p_data: parsedIso,
+      p_actor_email: u.email
     });
-    const out = await res.json();
-    if (!out.ok) {
+    if (rpcErr) throw rpcErr;
+    if (!out?.ok) {
       const reason = out.error;
       if (reason === 'Només una reprogramació; contacta un administrador') {
         error = 'Aquest repte ja s\u2019ha reprogramat una vegada. Si cal canviar-ho de nou, contacta amb un administrador.';
