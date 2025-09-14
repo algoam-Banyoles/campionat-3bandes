@@ -4,6 +4,7 @@
   import { user } from '$lib/authStore';
   import { checkIsAdmin } from '$lib/roles';
   import { getSettings, type AppSettings } from '$lib/settings';
+  import { refreshRanking } from '$lib/rankingStore';
 
   type Challenge = {
     id: string;
@@ -224,6 +225,7 @@
         else rpcMsg = `Rànquing sense canvis${r?.reason ? ' (' + r.reason + ')' : ''}.`;
       }
       okMsg = 'Resultat desat correctament. Repte marcat com a "jugat".';
+      await refreshRanking();
     } catch (e:any) {
       error = e?.message ?? 'No s’ha pogut desar el resultat';
     } finally {
