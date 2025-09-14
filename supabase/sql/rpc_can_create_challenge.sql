@@ -70,9 +70,10 @@ begin
     return;
   end if;
 
-  -- Rank gap check
-  if abs(v_pos_reptador - v_pos_reptat) > v_max_gap then
-    return query select false, 'Diferència de posicions massa gran';
+  -- Rank gap check: only challenge up to v_max_gap positions above
+  if (v_pos_reptador - v_pos_reptat) <= 0 or (v_pos_reptador - v_pos_reptat) > v_max_gap then
+    return query select false,
+      'Només es pot reptar fins a ' || v_max_gap || ' posicions per sobre';
     return;
   end if;
 

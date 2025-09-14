@@ -194,6 +194,26 @@
     }
   }
 
+  async function penalitza(r: ChallengeRow) {
+    try {
+      busy = r.id;
+      error = null;
+      okMsg = null;
+      const { supabase } = await import('$lib/supabaseClient');
+      const { error: e } = await supabase.rpc('apply_challenge_penalty', {
+        p_challenge: r.id,
+        p_tipus: 'incompareixenca'
+      });
+      if (e) throw e;
+      okMsg = okText('Penalització aplicada.');
+      await load();
+    } catch (e) {
+      error = formatSupabaseError(e);
+    } finally {
+      busy = null;
+    }
+  }
+
 </script>
 
 <svelte:head><title>Admin · Reptes</title></svelte:head>
@@ -278,11 +298,7 @@
                       >Posar resultat</a>
                     {/if}
                   {/if}
-                  <button
-                    class="rounded bg-rose-700 text-white px-3 py-1 text-xs disabled:opacity-60"
-                    disabled={busy === r.id}
-                    on:click={() => penalitza(r)}
-                  >Penalitza → Incompareixença</button>
+                  
                 </div>
               {/if}
             </td>

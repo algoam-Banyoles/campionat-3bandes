@@ -24,7 +24,7 @@ begin
         where c.event_id = p_event
           and (c.reptador_id = rp.player_id or c.reptat_id = rp.player_id)
           and (
-            (c.estat = 'programat' and c.data_acceptacio >= now() - interval '21 days') or
+            (c.estat = 'programat' and c.data_programada >= now() - interval '21 days') or
             (c.estat = 'jugat' and m.data_joc >= now() - interval '21 days')
           )
       )

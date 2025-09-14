@@ -13,7 +13,7 @@
     pos_reptador: number | null;
     pos_reptat: number | null;
     estat: 'proposat' | 'acceptat' | 'programat' | 'refusat' | 'caducat' | 'jugat' | 'anullat';
-    data_acceptacio: string | null;
+    data_programada: string | null;
     reprogram_count: number;
   };
 
@@ -51,7 +51,7 @@
 
       const { data: c, error: e1 } = await supabase
         .from('challenges')
-        .select('id,reptador_id,reptat_id,pos_reptador,pos_reptat,estat,data_acceptacio,reprogram_count')
+        .select('id,reptador_id,reptat_id,pos_reptador,pos_reptat,estat,data_programada,reprogram_count')
         .eq('id', id)
         .maybeSingle();
       if (e1) throw e1;
@@ -60,7 +60,7 @@
         return;
       }
       chal = c;
-      data_local = toLocalInput(c.data_acceptacio);
+      data_local = toLocalInput(c.data_programada);
 
       const { data: players, error: e2 } = await supabase
         .from('players')
@@ -115,9 +115,12 @@
     try {
       saving = true;
       const { supabase } = await import('$lib/supabaseClient');
-      const updates: any = { data_acceptacio: iso, estat: 'programat' };
-      if (chal.estat === 'programat' && chal.data_acceptacio !== iso) {
+      const updates: any = { data_programada: iso, estat: 'programat' };
+      if (chal.estat === 'programat' && chal.data_programada !== iso) {
         updates.reprogram_count = (chal.reprogram_count ?? 0) + 1;
+      }
+      if (chal.estat === 'proposat') {
+        updates.data_acceptacio = new Date().toISOString();
       }
       const { data, error: e } = await supabase
         .from('challenges')
@@ -129,7 +132,7 @@
       if (!data || data.length === 0) throw new Error('Estat no permet programar');
       okMsg = okText('Data programada correctament.');
       chal.estat = 'programat';
-      chal.data_acceptacio = iso;
+      chal.data_programada = iso;
       if (updates.reprogram_count) {
         chal.reprogram_count = updates.reprogram_count;
       }
@@ -140,34 +143,6 @@
     }
   }
 
-  async function clearDate() {
-    error = null;
-    okMsg = null;
-    if (!chal || !['acceptat', 'programat'].includes(chal.estat)) {
-      error = errText('No es pot eliminar la data.');
-      return;
-    }
-    try {
-      saving = true;
-      const { supabase } = await import('$lib/supabaseClient');
-      const { data, error: e } = await supabase
-        .from('challenges')
-        .update({ data_acceptacio: null, estat: 'acceptat' })
-        .eq('id', id)
-        .in('estat', ['acceptat', 'programat'])
-        .select('id');
-      if (e) throw e;
-      if (!data || data.length === 0) throw new Error('Estat no permet eliminar la data');
-      okMsg = okText('Data eliminada.');
-      data_local = '';
-      chal.estat = 'acceptat';
-      chal.data_acceptacio = null;
-    } catch (e: any) {
-      error = formatSupabaseError(e);
-    } finally {
-      saving = false;
-    }
-  }
 </script>
 
 <svelte:head>
@@ -191,7 +166,7 @@
       <div>Reptador: #{chal.pos_reptador ?? '—'} — {reptadorNom}</div>
       <div>Reptat: #{chal.pos_reptat ?? '—'} — {reptatNom}</div>
       <div>Estat actual: <span class="capitalize">{chal.estat.replace('_', ' ')}</span></div>
-      <div>Data acceptació actual: {fmt(chal.data_acceptacio)}</div>
+      <div>Data programada actual: {fmt(chal.data_programada)}</div>
     </div>
 
     {#if canProgram}
@@ -212,12 +187,6 @@
             class="rounded bg-indigo-700 text-white px-3 py-1 disabled:opacity-60"
             disabled={saving}
           >Desa</button>
-          <button
-            type="button"
-            class="rounded bg-slate-500 text-white px-3 py-1 disabled:opacity-60"
-            on:click={clearDate}
-            disabled={saving}
-          >Deixa sense data</button>
         </div>
       </form>
     {:else if frozen}
