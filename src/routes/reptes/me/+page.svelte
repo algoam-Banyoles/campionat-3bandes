@@ -28,6 +28,8 @@ let rows: Challenge[] = [];
 let myPlayerId: string | null = null;
 let busy: string | null = null;
 let scheduleLocal: Map<string, string> = new Map();
+let tab: 'enviats' | 'rebuts' | 'programats' | 'jugats' = 'enviats';
+let current: Challenge[] = [];
 export let data: { settings: AppSettings };
 let settings: AppSettings = data.settings;
 let isAdmin = false;
@@ -128,6 +130,15 @@ function addDays(date: Date, days: number) {
   return d;
 }
 
+function deadlineAccept(r: Challenge) {
+  return fmt(addDays(new Date(r.data_proposta), settings.dies_acceptar_repte).toISOString());
+}
+
+function deadlinePlay(r: Challenge) {
+  const base = r.data_programada ?? r.data_proposta;
+  return fmt(addDays(new Date(base), settings.dies_jugar_despres_acceptar).toISOString());
+}
+
 let maxScheduleLocal = '';
 $: maxScheduleLocal = toLocalInput(addDays(new Date(), settings.dies_jugar_despres_acceptar).toISOString());
 
@@ -138,6 +149,20 @@ function isMeReptat(r: Challenge) {
 function isMeReptador(r: Challenge) {
   return myPlayerId === r.reptador_id;
 }
+
+$: enviats = rows.filter((r) => r.estat === 'proposat' && isMeReptador(r));
+$: rebuts = rows.filter((r) => r.estat === 'proposat' && isMeReptat(r));
+$: programats = rows.filter((r) => ['acceptat', 'programat'].includes(r.estat));
+$: jugats = rows.filter((r) => r.estat === 'jugat');
+$:
+  current =
+    tab === 'enviats'
+      ? enviats
+      : tab === 'rebuts'
+        ? rebuts
+        : tab === 'programats'
+          ? programats
+          : jugats;
 
 function canAccept(r: Challenge) {
   return r.estat === 'proposat' && isMeReptat(r);
@@ -270,13 +295,40 @@ async function saveSchedule(r: Challenge) {
     <div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-3">{okMsg}</div>
   {/if}
 
-  {#if !error && rows.length === 0}
-    <p class="text-slate-600">No tens reptes registrats.</p>
+  <div class="mb-4 border-b flex gap-4">
+    <button
+      class={`pb-1 border-b-2 ${tab === 'enviats' ? 'border-slate-800 font-semibold' : 'border-transparent text-slate-500'}`}
+      on:click={() => (tab = 'enviats')}
+    >
+      Enviats ({enviats.length})
+    </button>
+    <button
+      class={`pb-1 border-b-2 ${tab === 'rebuts' ? 'border-slate-800 font-semibold' : 'border-transparent text-slate-500'}`}
+      on:click={() => (tab = 'rebuts')}
+    >
+      Rebuts ({rebuts.length})
+    </button>
+    <button
+      class={`pb-1 border-b-2 ${tab === 'programats' ? 'border-slate-800 font-semibold' : 'border-transparent text-slate-500'}`}
+      on:click={() => (tab = 'programats')}
+    >
+      Programats ({programats.length})
+    </button>
+    <button
+      class={`pb-1 border-b-2 ${tab === 'jugats' ? 'border-slate-800 font-semibold' : 'border-transparent text-slate-500'}`}
+      on:click={() => (tab = 'jugats')}
+    >
+      Jugats ({jugats.length})
+    </button>
+  </div>
+
+  {#if !error && current.length === 0}
+    <p class="text-slate-600">No tens reptes en aquesta pestanya.</p>
   {/if}
 
-  {#if rows.length > 0}
+  {#if current.length > 0}
     <div class="space-y-3">
-      {#each rows as r}
+      {#each current as r}
         <div class="rounded border p-3 space-y-2">
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-xs rounded bg-slate-800 text-white px-2 py-0.5">{r.tipus}</span>
@@ -286,6 +338,12 @@ async function saveSchedule(r: Challenge) {
               <span class="text-xs text-slate-500">Programat: {fmt(r.data_programada)}</span>
             {/if}
           </div>
+
+          {#if r.estat === 'proposat'}
+            <div class="text-xs text-red-600">Acceptar abans de: {deadlineAccept(r)}</div>
+          {:else if ['acceptat', 'programat'].includes(r.estat)}
+            <div class="text-xs text-red-600">Jugar abans de: {deadlinePlay(r)}</div>
+          {/if}
 
           <div class="text-sm">
             <div><strong>Reptador:</strong> #{r.pos_reptador ?? '—'} — {r.reptador_nom}</div>
