@@ -72,3 +72,10 @@ create policy "Authenticated users can select ranking_positions"
   for select
   to authenticated
   using (true);
+
+alter table public.player_weekly_positions enable row level security;
+create policy "Authenticated users can select player_weekly_positions"
+  on public.player_weekly_positions
+  for select
+  to authenticated
+  using (true);

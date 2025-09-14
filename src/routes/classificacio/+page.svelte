@@ -245,13 +245,7 @@
                   title="Tu"
                   class="ml-1 inline-block h-3 w-3 rounded-full bg-yellow-400 align-middle"
                 ></span>
-              {/if}
-              {#if r.hasActiveChallenge}
-                <span
-                  title="Té un repte actiu"
-                  class="ml-1 inline-block h-3 w-3 rounded-full bg-red-500 align-middle"
 
-                ></span>
               {/if}
             </td>
             <td class="px-3 py-2">{r.mitjana ?? '-'}</td>
