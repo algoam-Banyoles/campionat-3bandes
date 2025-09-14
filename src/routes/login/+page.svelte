@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { supabase } from '$lib/supabaseClient';
-    import { status, user } from '$lib/authStore';
+    import { goto } from '$app/navigation';
+    import { supabase } from '$lib/supabaseClient';
+    import { status, user } from '$lib/stores/auth';
 
   let mode: 'login' | 'signup' = 'login';
   let email = '';

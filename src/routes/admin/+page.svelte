@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { goto, invalidateAll, invalidate } from '$app/navigation';
-    import { user, adminStore } from '$lib/authStore';
+    import { onMount } from 'svelte';
+    import { goto, invalidateAll, invalidate } from '$app/navigation';
+    import { user, adminStore } from '$lib/stores/auth';
     import { checkIsAdmin } from '$lib/roles';
   import Banner from '$lib/components/Banner.svelte';
   import Loader from '$lib/components/Loader.svelte';

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
-    import { user, status } from '$lib/authStore';
-  import { getSettings, type AppSettings } from '$lib/settings';
-  import { get } from 'svelte/store';
+    import { onMount } from 'svelte';
+    import { goto } from '$app/navigation';
+    import { user, status } from '$lib/stores/auth';
+    import { getSettings, type AppSettings } from '$lib/settings';
+    import { get } from 'svelte/store';
 
   type Challenge = {
     id: string;

@@ -1,7 +1,8 @@
 <script lang="ts">
   import "../app.css";
   import { onMount } from "svelte";
-    import { user, status, initAuth, logout, adminStore } from "$lib/authStore";
+  import { user, status, adminStore, isLoading } from "$lib/stores/auth";
+  import { initAuthClient, signOut } from "$lib/utils/auth-client";
   import Toasts from '$lib/components/Toasts.svelte';
 
   let showInscripcio = false;
@@ -64,7 +65,7 @@
 
   onMount(() => {
     // Inicialitza sessió + rol admin en muntar el layout
-    initAuth();
+    initAuthClient();
   });
 
   // helper d’estils opcionals per remarcar link actiu
@@ -80,6 +81,9 @@
     }
 </script>
 
+{#if $isLoading}
+  <div class="fullpage-spinner">Carregant sessió…</div>
+{:else}
 <nav class="bg-slate-900 text-white">
   <div class="mx-auto max-w-5xl px-4 py-3 flex items-center gap-6">
     <a href="/" class="font-semibold">Campionat 3 Bandes</a>
@@ -110,7 +114,7 @@
           <span class="text-sm opacity-80">{$user.email}</span>
           <button
             class="rounded border px-3 py-1 text-sm hover:bg-slate-800"
-            on:click={logout}
+            on:click={signOut}
           >
             Sortir
           </button>
@@ -158,7 +162,7 @@
           <span class="text-sm opacity-80">{$user.email}</span>
           <button
             class="w-fit rounded border px-3 py-1 text-sm hover:bg-slate-800"
-            on:click={() => { logout(); menuOpen = false; }}
+            on:click={() => { signOut(); menuOpen = false; }}
           >
             Sortir
           </button>
@@ -181,4 +185,5 @@
   <div class="fixed bottom-2 right-2 text-xs bg-slate-800 text-white px-2 py-1 rounded">
     {$user?.email ?? "anònim"} | admin: {$adminStore ? "sí" : "no"}
   </div>
+{/if}
 {/if}
