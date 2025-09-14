@@ -171,6 +171,8 @@
   <p class="text-slate-500 mt-4">Inicia sessió per poder crear reptes.</p>
 {/if}
 
-<p class="mt-6">
-  <a class="underline" href="/reptes/me">👉 Els meus reptes</a>
-</p>
+{#if $user}
+  <p class="mt-6">
+    <a class="underline" href="/reptes/me">👉 Els meus reptes</a>
+  </p>
+{/if}

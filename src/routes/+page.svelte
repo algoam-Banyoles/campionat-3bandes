@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { user } from '$lib/authStore';
+  import { goto } from '$app/navigation';
+  import { user, authReady } from '$lib/authStore';
   import { getSettings, type AppSettings } from '$lib/settings';
+  import { get } from 'svelte/store';
 
   type Challenge = {
     id: string;
@@ -22,90 +24,95 @@
   let warnings: string[] = [];
   let settings: AppSettings;
 
-  onMount(async () => {
-    try {
-      const u = $user;
+  onMount(() => {
+    const unsub = authReady.subscribe(async (ready) => {
+      if (!ready) return;
+      const u = get(user);
       if (!u?.email) {
-        error = 'Has d\u2019iniciar sessi\u00f3.';
+        goto('/ranking');
+        loading = false;
+        unsub();
         return;
       }
+      try {
+        const { supabase } = await import('$lib/supabaseClient');
+        settings = await getSettings();
 
-      const { supabase } = await import('$lib/supabaseClient');
-      settings = await getSettings();
-
-      const { data: p, error: e1 } = await supabase
-        .from('players')
-        .select('id')
-        .eq('email', u.email)
-        .maybeSingle();
-      if (e1) throw e1;
-      if (!p) {
-        error = 'El teu email no est\u00e0 vinculat a cap jugador.';
-        return;
-      }
-      const myId = p.id;
-
-      const { data: ch, error: e2 } = await supabase
-        .from('challenges')
-        .select('id,reptador_id,reptat_id,estat,data_proposta,data_programada')
-        .or(`reptador_id.eq.${myId},reptat_id.eq.${myId}`)
-        .order('data_proposta', { ascending: false });
-      if (e2) throw e2;
-
-      const ids = Array.from(
-        new Set([...(ch ?? []).map((c) => c.reptador_id), ...(ch ?? []).map((c) => c.reptat_id)])
-      );
-      let nameById = new Map<string, string>();
-      if (ids.length) {
-        const { data: players, error: e3 } = await supabase
+        const { data: p, error: e1 } = await supabase
           .from('players')
-          .select('id,nom')
-          .in('id', ids);
-        if (e3) throw e3;
-        nameById = new Map(players?.map((pl) => [pl.id, pl.nom]) ?? []);
-      }
-
-      active = [];
-      pending = [];
-      recent = [];
-      warnings = [];
-
-      const now = new Date();
-      for (const c of ch ?? []) {
-        const item: Challenge = {
-          ...c,
-          reptador_nom: nameById.get(c.reptador_id) ?? '—',
-          reptat_nom: nameById.get(c.reptat_id) ?? '—'
-        };
-        if (['acceptat', 'programat'].includes(c.estat)) {
-          active.push(item);
+          .select('id')
+          .eq('email', u.email)
+          .maybeSingle();
+        if (e1) throw e1;
+        if (!p) {
+          error = 'El teu email no està vinculat a cap jugador.';
+          return;
         }
-        if (c.estat === 'proposat' && c.reptat_id === myId) {
-          pending.push(item);
-          const daysPassed = diffDays(new Date(c.data_proposta), now);
-          const daysLeft = settings.dies_acceptar_repte - daysPassed;
-          if (daysLeft <= 2) {
-            warnings.push(
-              `Queden ${daysLeft} dies per acceptar el repte de ${item.reptador_nom}.`
-            );
+        const myId = p.id;
+
+        const { data: ch, error: e2 } = await supabase
+          .from('challenges')
+          .select('id,reptador_id,reptat_id,estat,data_proposta,data_programada')
+          .or(`reptador_id.eq.${myId},reptat_id.eq.${myId}`)
+          .order('data_proposta', { ascending: false });
+        if (e2) throw e2;
+
+        const ids = Array.from(
+          new Set([...(ch ?? []).map((c) => c.reptador_id), ...(ch ?? []).map((c) => c.reptat_id)])
+        );
+        let nameById = new Map<string, string>();
+        if (ids.length) {
+          const { data: players, error: e3 } = await supabase
+            .from('players')
+            .select('id,nom')
+            .in('id', ids);
+          if (e3) throw e3;
+          nameById = new Map(players?.map((pl) => [pl.id, pl.nom]) ?? []);
+        }
+
+        active = [];
+        pending = [];
+        recent = [];
+        warnings = [];
+
+        const now = new Date();
+        for (const c of ch ?? []) {
+          const item: Challenge = {
+            ...c,
+            reptador_nom: nameById.get(c.reptador_id) ?? '—',
+            reptat_nom: nameById.get(c.reptat_id) ?? '—'
+          };
+          if (['acceptat', 'programat'].includes(c.estat)) {
+            active.push(item);
+          }
+          if (c.estat === 'proposat' && c.reptat_id === myId) {
+            pending.push(item);
+            const daysPassed = diffDays(new Date(c.data_proposta), now);
+            const daysLeft = settings.dies_acceptar_repte - daysPassed;
+            if (daysLeft <= 2) {
+              warnings.push(
+                `Queden ${daysLeft} dies per acceptar el repte de ${item.reptador_nom}.`
+              );
+            }
+          }
+          if (c.estat === 'jugat') {
+            recent.push(item);
           }
         }
-        if (c.estat === 'jugat') {
-          recent.push(item);
-        }
+        recent = recent
+          .sort(
+            (a, b) =>
+              new Date(b.data_programada ?? 0).getTime() -
+              new Date(a.data_programada ?? 0).getTime()
+          )
+          .slice(0, 5);
+      } catch (e: any) {
+        error = e?.message ?? 'Error desconegut carregant dades.';
+      } finally {
+        loading = false;
       }
-      recent = recent
-        .sort(
-          (a, b) =>
-            new Date(b.data_programada ?? 0).getTime() -
-            new Date(a.data_programada ?? 0).getTime()
-        )
-        .slice(0, 5);
-    } catch (e: any) {
-      error = e?.message ?? 'Error desconegut carregant dades.';
-    } finally {
-      loading = false;
-    }
+      unsub();
+    });
   });
 
   function diffDays(d1: Date, d2: Date) {
