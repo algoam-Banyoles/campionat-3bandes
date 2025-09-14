@@ -99,13 +99,12 @@ export const POST: RequestHandler = async (event) => {
     caramboles_reptador: isWalkover ? 0 : carR,
     caramboles_reptat: isWalkover ? 0 : carT,
     entrades: isWalkover ? 0 : entrades,
-    serie_maxima_reptador: isWalkover ? 0 : serieR,
-    serie_maxima_reptat: isWalkover ? 0 : serieT,
+    serie_max_reptador: isWalkover ? 0 : serieR,
+    serie_max_reptat: isWalkover ? 0 : serieT,
     resultat,
     tiebreak: hasTB,
     tiebreak_reptador: hasTB ? tbR : null,
-    tiebreak_reptat: hasTB ? tbT : null,
-    motiu: isWalkover ? 'incompareixenca' : null,
+    tiebreak_reptat: hasTB ? tbT : null
   };
 
   const { error: e1 } = await supabase
