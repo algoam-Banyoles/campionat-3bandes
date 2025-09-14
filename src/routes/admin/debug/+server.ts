@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/adminGuard';
 import { createClient } from '@supabase/supabase-js';
+import { wrapRpc } from '$lib/errors';
 
 // decodifica (sense verificar) la part payload d'un JWT
 function decodeJwtPayload(token: string | null) {
@@ -33,10 +34,12 @@ export const GET: RequestHandler = async (event) => {
   let rls_ok = false;
   let rls_error: string | null = null;
   try {
-    const supabase = createClient(
-      import.meta.env.PUBLIC_SUPABASE_URL,
-      import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
-      { global: { headers: { Authorization: `Bearer ${token ?? ''}` } } }
+    const supabase = wrapRpc(
+      createClient(
+        import.meta.env.PUBLIC_SUPABASE_URL,
+        import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+        { global: { headers: { Authorization: `Bearer ${token ?? ''}` } } }
+      )
     );
     const { error } = await supabase
       .from('admins')

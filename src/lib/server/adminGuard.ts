@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { wrapRpc } from '../errors';
 
 function tokenFromEvent(event: Parameters<import('@sveltejs/kit').RequestHandler>[0]) {
   return (
@@ -13,10 +14,12 @@ export function serverSupabase(
   token?: string | null
 ) {
   const t = token ?? tokenFromEvent(event) ?? undefined;
-  return createClient(
-    import.meta.env.PUBLIC_SUPABASE_URL,
-    import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
-    { global: { headers: t ? { Authorization: `Bearer ${t}` } : {} } }
+  return wrapRpc(
+    createClient(
+      import.meta.env.PUBLIC_SUPABASE_URL,
+      import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+      { global: { headers: t ? { Authorization: `Bearer ${t}` } : {} } }
+    )
   );
 }
 
