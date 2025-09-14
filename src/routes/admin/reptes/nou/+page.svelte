@@ -72,7 +72,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
       // 2) Event actiu
       const { data: ev, error: eEvent } = await supabase
         .from('events')
-        .select('id, nom, any_temporada')
+        .select('id, nom')
         .eq('actiu', true)
         .limit(1)
         .maybeSingle();
