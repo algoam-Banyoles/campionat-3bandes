@@ -43,7 +43,8 @@
   let carR = 0;
   let carT = 0;
   let entrades = 0;
-  let tiebreak = false;
+  let serieR = 0;
+  let serieT = 0;
   let tbR: number | null = null;
   let tbT: number | null = null;
   let data_joc_local = '';
@@ -113,9 +114,12 @@
   }
 
   function decideWinner(): 'reptador' | 'reptat' | 'empat' {
-    if (tiebreak && tbR != null && tbT != null) return tbR > tbT ? 'reptador' : 'reptat';
     if (carR === settings.caramboles_objectiu && carT < settings.caramboles_objectiu) return 'reptador';
     if (carT === settings.caramboles_objectiu && carR < settings.caramboles_objectiu) return 'reptat';
+    if (carR === carT) {
+      if (tbR != null && tbT != null) return tbR > tbT ? 'reptador' : 'reptat';
+      return 'empat';
+    }
     if (carR > carT) return 'reptador';
     if (carT > carR) return 'reptat';
     return 'empat';
@@ -125,6 +129,33 @@
     error = null; okMsg = null; rpcMsg = null;
     const data_iso = parseLocalToIso(data_joc_local);
     if (!data_iso) { error = errText('Data invàlida.'); return; }
+    if (carR < 0 || carT < 0 || entrades < 0 || serieR < 0 || serieT < 0) {
+      error = errText('Els valors han de ser enters ≥ 0.');
+      return;
+    }
+    if (serieR > carR || serieT > carT) {
+      error = errText('La sèrie màxima no pot superar les caràmboles.');
+      return;
+    }
+    const isTie = carR === carT;
+    if (isTie) {
+      if (!settings.allow_tiebreak) {
+        error = errText('Empat de caràmboles i el tie-break està desactivat.');
+        return;
+      }
+      if (tbR == null || tbT == null) {
+        error = errText('Cal informar el resultat del tie-break.');
+        return;
+      }
+      if (tbR < 0 || tbT < 0) {
+        error = errText('El tie-break no pot tenir valors negatius.');
+        return;
+      }
+      if (tbR === tbT) {
+        error = errText('El tie-break no pot acabar en empat.');
+        return;
+      }
+    }
 
     const resultat = decideWinner();
 
@@ -141,10 +172,12 @@
           caramboles_reptador: carR,
           caramboles_reptat: carT,
           entrades,
+          serie_maxima_reptador: serieR,
+          serie_maxima_reptat: serieT,
           resultat,
-          tiebreak,
-          tiebreak_reptador: tiebreak ? tbR : null,
-          tiebreak_reptat: tiebreak ? tbT : null
+          tiebreak: isTie,
+          tiebreak_reptador: isTie ? tbR : null,
+          tiebreak_reptat: isTie ? tbT : null
         })
         .select('id')
         .single();
@@ -212,11 +245,15 @@
       <label for="entrades" class="mr-2">Entrades:</label>
       <input id="entrades" type="number" bind:value={entrades} min="0" max={settings.max_entrades} />
     </div>
-    <div class="flex items-center gap-2">
-      <input id="tiebreak" type="checkbox" bind:checked={tiebreak} />
-      <label for="tiebreak">Hi ha hagut tie-break</label>
+    <div>
+      <label for="serieR" class="mr-2">Sèrie màxima reptador:</label>
+      <input id="serieR" type="number" bind:value={serieR} min="0" max={carR} />
     </div>
-    {#if tiebreak}
+    <div>
+      <label for="serieT" class="mr-2">Sèrie màxima reptat:</label>
+      <input id="serieT" type="number" bind:value={serieT} min="0" max={carT} />
+    </div>
+    {#if carR === carT && settings.allow_tiebreak}
       <div>
         <label for="tbR" class="mr-2">Tie-break reptador:</label>
         <input id="tbR" type="number" bind:value={tbR} min="0" />
