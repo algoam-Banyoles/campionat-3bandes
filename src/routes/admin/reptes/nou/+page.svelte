@@ -6,6 +6,7 @@ import { checkIsAdmin } from '$lib/roles';
 import Banner from '$lib/components/Banner.svelte';
 import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { canCreateAccessChallenge } from '$lib/canCreateAccessChallenge';
 
   // Configurable al gust: quins estats considerem “actius”
   const ACTIVE_STATES = ['proposat', 'acceptat', 'programat'] as const;
@@ -38,10 +39,18 @@ import type { SupabaseClient } from '@supabase/supabase-js';
   let forceCreate = false; // permet saltar bloquejos (actius, rang, etc.)
   let playersById = new Map<string, PlayerRow>();
   let ranked: Ranked[] = []; // rànquing de l’event actiu
+  let waitFirst: PlayerRow | null = null; // primer de la llista d'espera
 
   let busy = false;
 
   onMount(load);
+
+  // Assigna reptador/reptat automàticament en reptes d'accés
+  $: if (tipus === 'access') {
+    reptador_id = waitFirst?.id ?? null;
+    const p20 = ranked.find(r => r.posicio === 20);
+    reptat_id = p20?.player_id ?? null;
+  }
 
   function toISO(dtLocal: string): string | null {
     if (!dtLocal) return null;
@@ -97,6 +106,24 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
       // diccionari auxiliar
       playersById = new Map(ranked.map(r => [r.player_id, { id: r.player_id, nom: r.nom, email: r.email }]));
+
+      // 4) Primer jugador de la llista d'espera
+      const { data: wl, error: eWl } = await supabase
+        .from('waiting_list')
+        .select('player_id, players(id, nom, email)')
+        .eq('event_id', eventActiuId)
+        .order('ordre', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (eWl) throw eWl;
+      if (wl) {
+        waitFirst = {
+          id: wl.player_id,
+          nom: (wl as any).players?.nom ?? '—',
+          email: (wl as any).players?.email ?? null
+        };
+        playersById.set(waitFirst.id, waitFirst);
+      }
       } catch (e) {
         error = formatSupabaseError(e);
       } finally {
@@ -130,13 +157,34 @@ async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
       // posicions actuals al rànquing (per coherència)
       const r1 = ranked.find(r => r.player_id === reptador_id);
       const r2 = ranked.find(r => r.player_id === reptat_id);
-      if (!r1 || !r2) throw new Error('Jugadors no presents al rànquing de l’event actiu.');
+      if (tipus === 'access') {
+        if (!waitFirst || reptador_id !== waitFirst.id)
+          throw new Error('El reptador ha de ser el primer de la llista d’espera.');
+        if (!r2 || r2.posicio !== 20)
+          throw new Error('El reptat ha de ser el jugador #20 del rànquing.');
+      } else {
+        if (!r1 || !r2)
+          throw new Error('Jugadors no presents al rànquing de l’event actiu.');
+      }
 
       // Validacions per defecte (es poden “forçar” si forceCreate = true)
       if (!forceCreate) {
-        // rang: reptador només pot reptar -1 o -2
-        const allowed = [r1.posicio - 1, r1.posicio - 2].includes(r2.posicio);
-        if (!allowed) throw new Error(`Rang invàlid: #${r1.posicio} només pot reptar #${r1.posicio - 1} o #${r1.posicio - 2}.`);
+        if (tipus === 'access') {
+          const chk = await canCreateAccessChallenge(
+            supabase,
+            eventActiuId,
+            reptador_id,
+            reptat_id
+          );
+          if (!chk.ok) throw new Error(chk.reason || 'Repte d’accés no permès');
+        } else {
+          // rang: reptador només pot reptar -1 o -2
+          const allowed = [r1!.posicio - 1, r1!.posicio - 2].includes(r2!.posicio);
+          if (!allowed)
+            throw new Error(
+              `Rang invàlid: #${r1!.posicio} només pot reptar #${r1!.posicio - 1} o #${r1!.posicio - 2}.`
+            );
+        }
 
         // cap dels dos amb repte actiu
         const a1 = await hasActiveChallenge(supabase, reptador_id);
@@ -177,8 +225,8 @@ async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
         dates_proposades: dates,           // pot estar buit si admin ho vol forçar
         data_proposta: new Date().toISOString(),
         data_programada: data_programada_iso,
-        pos_reptador: r1.posicio,
-        pos_reptat: r2.posicio
+        pos_reptador: r1?.posicio ?? null,
+        pos_reptat: r2?.posicio ?? null
       };
       if (data_acceptacio_iso) {
         payload.data_acceptacio = data_acceptacio_iso;
@@ -235,21 +283,39 @@ async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
       <div class="grid sm:grid-cols-2 gap-3">
         <div>
           <label for="reptador" class="block text-sm mb-1">Reptador</label>
-          <select id="reptador" class="w-full rounded border px-3 py-2" bind:value={reptador_id} required>
-            <option value="" disabled selected>— Selecciona —</option>
-            {#each ranked as r}
-              <option value={r.player_id}>#{r.posicio} — {r.nom}</option>
-            {/each}
-          </select>
+          {#if tipus === 'access'}
+            <input
+              id="reptador"
+              class="w-full rounded border px-3 py-2 bg-slate-50"
+              value={waitFirst ? waitFirst.nom : '—'}
+              disabled
+            />
+          {:else}
+            <select id="reptador" class="w-full rounded border px-3 py-2" bind:value={reptador_id} required>
+              <option value="" disabled selected>— Selecciona —</option>
+              {#each ranked as r}
+                <option value={r.player_id}>#{r.posicio} — {r.nom}</option>
+              {/each}
+            </select>
+          {/if}
         </div>
         <div>
           <label for="reptat" class="block text-sm mb-1">Reptat</label>
-          <select id="reptat" class="w-full rounded border px-3 py-2" bind:value={reptat_id} required>
-            <option value="" disabled selected>— Selecciona —</option>
-            {#each ranked as r}
-              <option value={r.player_id}>#{r.posicio} — {r.nom}</option>
-            {/each}
-          </select>
+          {#if tipus === 'access'}
+            <input
+              id="reptat"
+              class="w-full rounded border px-3 py-2 bg-slate-50"
+              value={ranked.find(r => r.posicio === 20)?.nom ?? '—'}
+              disabled
+            />
+          {:else}
+            <select id="reptat" class="w-full rounded border px-3 py-2" bind:value={reptat_id} required>
+              <option value="" disabled selected>— Selecciona —</option>
+              {#each ranked as r}
+                <option value={r.player_id}>#{r.posicio} — {r.nom}</option>
+              {/each}
+            </select>
+          {/if}
         </div>
       </div>
 
