@@ -88,6 +88,7 @@
       <a href="/calendari" class={isActive("/calendari", $page.url.pathname)}>Calendari</a>
       <a href="/classificacio" class={isActive("/classificacio", $page.url.pathname)}>Classificació</a>
       <a href="/reptes" class={isActive("/reptes", $page.url.pathname)}>Reptes</a>
+      <a href="/llista-espera" class={isActive("/llista-espera", $page.url.pathname)}>Llista d'espera</a>
       <a href="/historial" class={isActive("/historial", $page.url.pathname)}>Historial</a>
 
       {#if $authReady && $user}
@@ -135,6 +136,7 @@
       <a href="/calendari" class={isActive("/calendari", $page.url.pathname)}>Calendari</a>
       <a href="/classificacio" class={isActive("/classificacio", $page.url.pathname)}>Classificació</a>
       <a href="/reptes" class={isActive("/reptes", $page.url.pathname)}>Reptes</a>
+      <a href="/llista-espera" class={isActive("/llista-espera", $page.url.pathname)}>Llista d'espera</a>
       <a href="/historial" class={isActive("/historial", $page.url.pathname)}>Historial</a>
 
       {#if $authReady && $user}
