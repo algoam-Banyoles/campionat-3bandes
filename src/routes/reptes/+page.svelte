@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { user } from '$lib/authStore';
+  import type { SupabaseClient } from '@supabase/supabase-js';
 
   type Challenge = {
     id: string;
@@ -24,28 +25,42 @@
 
   let loading = true;
   let error: string | null = null;
-  let pendents: Challenge[] = [];
+  let actius: Challenge[] = [];
   let recents: Resultat[] = [];
+  let myPlayerId: string | null = null;
+  let supabase: SupabaseClient;
 
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString();
 
-  onMount(async () => {
+  async function load() {
     try {
-      const { supabase } = await import('$lib/supabaseClient');
+      loading = true;
+      const mod = await import('$lib/supabaseClient');
+      supabase = mod.supabase;
 
-      // Reptes pendents
+      const { data: auth } = await supabase.auth.getUser();
+      if (auth?.user?.email) {
+        const { data: player } = await supabase
+          .from('players')
+          .select('id')
+          .eq('email', auth.user.email)
+          .maybeSingle();
+        myPlayerId = (player as any)?.id ?? null;
+      }
+
+      // Reptes actius
       const { data: ch, error: cErr } = await supabase
         .from('challenges')
         .select('id,reptador_id,reptat_id,estat,data_proposta,data_programada')
-        .neq('estat', 'jugat')
+        .in('estat', ['proposat', 'acceptat', 'refusat'])
         .order('data_proposta', { ascending: true });
       if (cErr) throw cErr;
-      pendents = ch ?? [];
+      actius = ch ?? [];
 
       const idsPendents = Array.from(
         new Set([
-          ...pendents.map((c) => c.reptador_id),
-          ...pendents.map((c) => c.reptat_id)
+          ...actius.map((c) => c.reptador_id),
+          ...actius.map((c) => c.reptat_id)
         ])
       );
       let nameById = new Map<string, string>();
@@ -57,7 +72,7 @@
         if (pErr) throw pErr;
         nameById = new Map(players?.map((p: any) => [p.id, p.nom]) ?? []);
       }
-      pendents = pendents.map((c) => ({
+      actius = actius.map((c) => ({
         ...c,
         reptador_nom: nameById.get(c.reptador_id) ?? '—',
         reptat_nom: nameById.get(c.reptat_id) ?? '—'
@@ -113,7 +128,37 @@
     } finally {
       loading = false;
     }
-  });
+  }
+
+  onMount(load);
+
+  async function accept(ch: Challenge) {
+    try {
+      error = null;
+      const { error: upErr } = await supabase
+        .from('challenges')
+        .update({ estat: 'acceptat' })
+        .eq('id', ch.id);
+      if (upErr) throw upErr;
+      await load();
+    } catch (e: any) {
+      error = e?.message ?? 'Error acceptant repte';
+    }
+  }
+
+  async function refuse(ch: Challenge) {
+    try {
+      error = null;
+      const { error: upErr } = await supabase
+        .from('challenges')
+        .update({ estat: 'refusat' })
+        .eq('id', ch.id);
+      if (upErr) throw upErr;
+      await load();
+    } catch (e: any) {
+      error = e?.message ?? 'Error refusant repte';
+    }
+  }
 </script>
 
 <h1 class="text-2xl font-semibold mb-4">Reptes</h1>
@@ -124,18 +169,34 @@
   <div class="mb-4 rounded border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>
 {:else}
   <section class="mb-6">
-    <h2 class="text-xl font-semibold mb-2">Reptes pendents</h2>
-    {#if pendents.length}
+    <h2 class="text-xl font-semibold mb-2">Reptes actius</h2>
+    {#if actius.length}
       <ul class="space-y-2">
-        {#each pendents as r}
+        {#each actius as r}
           <li class="p-3 border rounded">
             <div class="font-medium">{r.reptador_nom} vs {r.reptat_nom}</div>
             <div class="text-sm text-slate-600 capitalize">{r.estat}</div>
+            {#if myPlayerId === r.reptat_id && r.estat === 'proposat'}
+              <div class="mt-2 flex gap-2">
+                <button
+                  class="rounded bg-green-600 text-white px-3 py-1"
+                  on:click={() => accept(r)}
+                >
+                  Accepta
+                </button>
+                <button
+                  class="rounded bg-red-600 text-white px-3 py-1"
+                  on:click={() => refuse(r)}
+                >
+                  Refusa
+                </button>
+              </div>
+            {/if}
           </li>
         {/each}
       </ul>
     {:else}
-      <p class="text-slate-600">No hi ha reptes pendents.</p>
+      <p class="text-slate-600">No hi ha reptes actius.</p>
     {/if}
   </section>
 
