@@ -28,3 +28,19 @@ export async function scheduleChallenge(
   if (error) throw new Error(error.message);
 }
 
+
+export async function resolveAccessChallenge(
+  supabase: SupabaseClient,
+  challengeId: string,
+  winner: 'reptador' | 'reptat'
+): Promise<{ ok: boolean; error?: string }> {
+  const { data, error } = await supabase.rpc('resolve_access_challenge', {
+    challenge_id: challengeId,
+    winner
+  });
+  if (error) throw new Error(error.message);
+  const res = (data as any) ?? { ok: false };
+  if (!res.ok) throw new Error(res.error || 'Error resolent repte d\'accés');
+  return res;
+}
+
