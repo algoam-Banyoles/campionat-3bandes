@@ -187,27 +187,4 @@
       <p class="text-slate-600">No hi ha avisos.</p>
     {/if}
   </section>
-
-  <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-    <a
-      href="/reptes/nou"
-      class="rounded bg-blue-600 text-white p-3 text-center hover:bg-blue-700"
-      >Nou repte</a
-    >
-    <a
-      href="/reptes/me"
-      class="rounded bg-blue-600 text-white p-3 text-center hover:bg-blue-700"
-      >Els meus reptes</a
-    >
-    <a
-      href="/classificacio"
-      class="rounded bg-blue-600 text-white p-3 text-center hover:bg-blue-700"
-      >R\u00e0nquing</a
-    >
-    <a
-      href="/llista-espera"
-      class="rounded bg-blue-600 text-white p-3 text-center hover:bg-blue-700"
-      >Llista d'espera</a
-    >
-  </section>
 {/if}

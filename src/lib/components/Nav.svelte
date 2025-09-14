@@ -9,6 +9,7 @@
     { href: '/calendari', label: 'Calendari' },
     { href: '/classificacio', label: 'Classificació' },
     { href: '/reptes', label: 'Reptes' },
+    { href: '/llista-espera', label: "Llista d'espera" },
     { href: '/socis', label: 'Socis' }
   ];
 
