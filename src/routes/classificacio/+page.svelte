@@ -44,6 +44,7 @@
       if (err) error = err.message;
       else {
         const base = (data as Row[]) ?? [];
+
         rows = base.map((r) => ({
           ...r,
           canReptar: false,
@@ -148,6 +149,8 @@
           <th class="px-3 py-2 text-left font-semibold">Mitjana</th>
           <th class="px-3 py-2 text-left font-semibold">Estat</th>
           <th class="px-3 py-2 text-left font-semibold">Assignat</th>
+          <th class="px-3 py-2 text-left font-semibold">Reptar</th>
+          <th class="px-3 py-2 text-left font-semibold">Reptable</th>
         </tr>
       </thead>
       <tbody>
@@ -169,6 +172,18 @@
             <td class="px-3 py-2">{r.mitjana ?? '-'}</td>
             <td class="px-3 py-2 capitalize">{r.estat.replace('_', ' ')}</td>
             <td class="px-3 py-2">{fmtSafe(r.assignat_el)}</td>
+            <td class="px-3 py-2">
+              <span
+                class={`text-xs rounded px-2 py-0.5 ${r.canReptar ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}
+                >{r.canReptar ? 'Sí' : 'No'}</span
+              >
+            </td>
+            <td class="px-3 py-2">
+              <span
+                class={`text-xs rounded px-2 py-0.5 ${r.canSerReptat ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'}`}
+                >{r.canSerReptat ? 'Sí' : 'No'}</span
+              >
+            </td>
           </tr>
         {/each}
       </tbody>
