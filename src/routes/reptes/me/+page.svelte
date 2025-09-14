@@ -28,6 +28,9 @@ let rows: Challenge[] = [];
 let myPlayerId: string | null = null;
 let busy: string | null = null;
 let scheduleLocal: Map<string, string> = new Map();
+let acceptDate: Map<string, string> = new Map();
+let refuseReason: Map<string, string> = new Map();
+let contraLocal: Map<string, [string, string, string]> = new Map();
 let tab: 'enviats' | 'rebuts' | 'programats' | 'jugats' = 'enviats';
 let current: Challenge[] = [];
 export let data: { settings: AppSettings };
@@ -92,11 +95,20 @@ async function load() {
     }));
 
     scheduleLocal = new Map();
+    acceptDate = new Map();
+    refuseReason = new Map();
+    contraLocal = new Map();
     const now = toLocalInput(new Date().toISOString());
     for (const r of rows) {
       scheduleLocal.set(r.id, toLocalInput(r.data_programada) || now);
+      acceptDate.set(r.id, '');
+      refuseReason.set(r.id, '');
+      contraLocal.set(r.id, ['', '', '']);
     }
     scheduleLocal = new Map(scheduleLocal);
+    acceptDate = new Map(acceptDate);
+    refuseReason = new Map(refuseReason);
+    contraLocal = new Map(contraLocal);
   } catch (e: any) {
     error = e?.message ?? 'Error desconegut carregant reptes';
   } finally {
@@ -173,7 +185,6 @@ function canRefuse(r: Challenge) {
 }
 
 function canProgram(r: Challenge) {
-  if (r.estat === 'proposat') return isMeReptat(r);
   if (['acceptat', 'programat'].includes(r.estat)) return isMeReptat(r) || isMeReptador(r);
   return false;
 }
@@ -189,13 +200,18 @@ function canSetResult(r: Challenge) {
 async function accept(r: Challenge) {
   error = null;
   okMsg = null;
+  const sel = acceptDate.get(r.id);
+  if (!sel) {
+    error = 'Cal triar una data.';
+    return;
+  }
   try {
     busy = r.id;
     const res = await fetch('/reptes/accepta', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ id: r.id, data_iso: null })
+      body: JSON.stringify({ id: r.id, data_iso: sel })
     });
     const out = await res.json();
     if (!out.ok) throw new Error(out.error || 'No s\u2019ha pogut acceptar el repte');
@@ -212,18 +228,48 @@ async function refuse(r: Challenge) {
   error = null;
   okMsg = null;
   try {
+    const motiu = (refuseReason.get(r.id) ?? '').trim() || null;
     busy = r.id;
-    const { supabase } = await import('$lib/supabaseClient');
-    const { error: e } = await supabase
-      .from('challenges')
-      .update({ estat: 'refusat' })
-      .eq('id', r.id)
-      .eq('estat', 'proposat');
-    if (e) throw e;
+    const res = await fetch('/reptes/refusa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id: r.id, motiu })
+    });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error || 'No s\u2019ha pogut refusar el repte');
     okMsg = 'Repte refusat correctament.';
     await load();
   } catch (e: any) {
     error = e?.message ?? 'No s\u2019ha pogut refusar el repte';
+  } finally {
+    busy = null;
+  }
+}
+
+async function counter(r: Challenge) {
+  error = null;
+  okMsg = null;
+  const arr = contraLocal.get(r.id) ?? ['', '', ''];
+  const dates = arr.map((l) => parseLocalToIso(l)).filter((d): d is string => !!d);
+  if (dates.length === 0) {
+    error = 'Cal indicar almenys una data.';
+    return;
+  }
+  try {
+    busy = r.id;
+    const res = await fetch('/reptes/contraproposta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id: r.id, dates_iso: dates })
+    });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error || 'No s\u2019ha pogut enviar la contraproposta');
+    okMsg = 'Contraproposta enviada correctament.';
+    await load();
+  } catch (e: any) {
+    error = e?.message ?? 'No s\u2019ha pogut enviar la contraproposta';
   } finally {
     busy = null;
   }
@@ -360,21 +406,79 @@ async function saveSchedule(r: Challenge) {
           {/if}
 
           {#if canAccept(r)}
-            <div class="flex gap-2 mb-2">
-              <button
-                class="rounded bg-green-600 text-white px-3 py-1 disabled:opacity-60"
-                on:click={() => accept(r)}
-                disabled={busy === r.id}
-              >
-                {busy === r.id ? 'Processant…' : 'Accepta'}
-              </button>
-              <button
-                class="rounded bg-red-600 text-white px-3 py-1 disabled:opacity-60"
-                on:click={() => refuse(r)}
-                disabled={busy === r.id}
-              >
-                {busy === r.id ? 'Processant…' : 'Refusa'}
-              </button>
+            <div class="space-y-2 mb-2">
+              {#if r.dates_proposades?.length}
+                <div class="flex items-center gap-2">
+                  <select
+                    class="border rounded px-2 py-1 flex-1"
+                    on:change={(e) => {
+                      acceptDate.set(r.id, (e.target as HTMLSelectElement).value);
+                      acceptDate = new Map(acceptDate);
+                    }}
+                    value={acceptDate.get(r.id) ?? ''}
+                  >
+                    <option value="">-- Selecciona data --</option>
+                    {#each r.dates_proposades as d}
+                      <option value={d}>{fmt(d)}</option>
+                    {/each}
+                  </select>
+                  <button
+                    class="rounded bg-green-600 text-white px-3 py-1 disabled:opacity-60"
+                    on:click={() => accept(r)}
+                    disabled={busy === r.id || !acceptDate.get(r.id)}
+                  >
+                    {busy === r.id ? 'Processant…' : 'Accepta'}
+                  </button>
+                </div>
+              {:else}
+                <div class="text-sm text-slate-500">No hi ha dates proposades.</div>
+              {/if}
+
+              <div class="flex items-center gap-2">
+                <input
+                  class="flex-1 border rounded px-2 py-1"
+                  placeholder="Motiu (opcional)"
+                  value={refuseReason.get(r.id) ?? ''}
+                  on:input={(e) => {
+                    refuseReason.set(r.id, (e.target as HTMLInputElement).value);
+                    refuseReason = new Map(refuseReason);
+                  }}
+                />
+                <button
+                  class="rounded bg-red-600 text-white px-3 py-1 disabled:opacity-60"
+                  on:click={() => refuse(r)}
+                  disabled={busy === r.id}
+                >
+                  {busy === r.id ? 'Processant…' : 'Refusa'}
+                </button>
+              </div>
+
+              <div class="space-y-1">
+                <div class="text-sm">Contra-proposa:</div>
+                <div class="flex flex-wrap gap-2">
+                  {#each [0, 1, 2] as i}
+                    <input
+                      type="datetime-local"
+                      step="60"
+                      class="border rounded px-2 py-1"
+                      value={contraLocal.get(r.id)?.[i] ?? ''}
+                      on:input={(e) => {
+                        const arr = contraLocal.get(r.id) ?? ['', '', ''];
+                        arr[i] = (e.target as HTMLInputElement).value;
+                        contraLocal.set(r.id, arr);
+                        contraLocal = new Map(contraLocal);
+                      }}
+                    />
+                  {/each}
+                </div>
+                <button
+                  class="rounded bg-yellow-600 text-white px-3 py-1 disabled:opacity-60"
+                  on:click={() => counter(r)}
+                  disabled={busy === r.id}
+                >
+                  {busy === r.id ? 'Processant…' : 'Contra-proposa'}
+                </button>
+              </div>
             </div>
           {/if}
 
