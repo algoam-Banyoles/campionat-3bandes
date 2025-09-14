@@ -8,7 +8,8 @@
     import Loader from '$lib/components/Loader.svelte';
     import { ok as okMsg, err as errMsg } from '$lib/ui/alerts';
     import { supabase } from '$lib/supabaseClient';
-    import { canCreateChallenge, type CanCreateChallengeResult } from '$lib/canCreateChallenge';
+    import { canCreateChallenge } from '$lib/canCreateChallenge';
+    import { canCreateAccessChallenge } from '$lib/canCreateAccessChallenge';
 
 
   type RankedPlayer = { posicio: number; player_id: string; nom: string };
@@ -27,9 +28,11 @@
   let noReptables: NotReptable[] = [];
 
   let selectedOpponent: string | null = null;
+  let opponentName: string | null = null;
   let notes = '';
 
-  let canChk: CanCreateChallengeResult | null = null;
+  let canChk: { ok: boolean; reason: string | null } | null = null;
+  let isAccess = false;
 
   // Dates proposades (en format local del <input>)
   let dateInputs: string[] = [
@@ -44,24 +47,85 @@
       info = null;
       await getSettings();
 
-      const res = await fetch('/reptes/nou/eligibles', { credentials: 'include' });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        err = errMsg(data.error || 'Error en carregar dades.');
+      const params = get(page).url.searchParams;
+      isAccess = params.get('access') === '1';
+
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth?.user?.email) {
+        err = errMsg('Sessió no iniciada.');
         return;
       }
 
-      myPlayerId = data.my_player_id;
-      myPos = data.my_pos;
-      eventId = data.event_id;
-      reptables = data.reptables ?? [];
-      noReptables = data.no_reptables ?? [];
-      if (reptables.length === 0) {
-        info = 'Ara mateix no pots reptar cap jugador.';
+      const { data: player, error: pErr } = await supabase
+        .from('players')
+        .select('id')
+        .eq('email', auth.user.email)
+        .maybeSingle();
+      if (pErr) {
+        err = errMsg(pErr.message);
+        return;
       }
-      const preSel = get(page).url.searchParams.get('opponent');
-      if (preSel && reptables.some((r) => r.player_id === preSel)) {
-        selectedOpponent = preSel;
+      myPlayerId = (player as any)?.id ?? null;
+
+      const { data: ev, error: eErr } = await supabase
+        .from('events')
+        .select('id')
+        .eq('actiu', true)
+        .order('creat_el', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (eErr || !ev) {
+        err = errMsg(eErr?.message || 'No hi ha cap esdeveniment actiu.');
+        return;
+      }
+      eventId = (ev as any).id;
+
+      if (isAccess) {
+        let oppId = params.get('opponent');
+        if (!oppId) {
+          const { data: pos20, error: p20Err } = await supabase
+            .from('ranking_positions')
+            .select('player_id, players!inner(nom)')
+            .eq('event_id', eventId)
+            .eq('posicio', 20)
+            .maybeSingle();
+          if (p20Err) {
+            err = errMsg(p20Err.message);
+            return;
+          }
+          if (pos20) {
+            oppId = (pos20 as any).player_id;
+            opponentName = (pos20 as any).players.nom ?? '';
+          }
+        } else {
+          const { data: opp } = await supabase
+            .from('players')
+            .select('nom')
+            .eq('id', oppId)
+            .maybeSingle();
+          opponentName = (opp as any)?.nom ?? '';
+        }
+        selectedOpponent = oppId;
+      } else {
+        const res = await fetch('/reptes/nou/eligibles', { credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          err = errMsg(data.error || 'Error en carregar dades.');
+          return;
+        }
+
+        myPlayerId = data.my_player_id;
+        myPos = data.my_pos;
+        eventId = data.event_id;
+        reptables = data.reptables ?? [];
+        noReptables = data.no_reptables ?? [];
+        if (reptables.length === 0) {
+          info = 'Ara mateix no pots reptar cap jugador.';
+        }
+        const preSel = params.get('opponent');
+        if (preSel && reptables.some((r) => r.player_id === preSel)) {
+          selectedOpponent = preSel;
+        }
       }
     } catch (e: any) {
       err = errMsg(e?.message || 'Error en carregar dades.');
@@ -133,7 +197,9 @@
 
   $: (async () => {
     if (selectedOpponent && eventId && myPlayerId) {
-      canChk = await canCreateChallenge(supabase, eventId, myPlayerId, selectedOpponent);
+      canChk = isAccess
+        ? await canCreateAccessChallenge(supabase, eventId, myPlayerId, selectedOpponent)
+        : await canCreateChallenge(supabase, eventId, myPlayerId, selectedOpponent);
     } else {
       canChk = null;
     }
@@ -162,7 +228,7 @@
           reptat_id: selectedOpponent,
           dates_proposades: datesIso,
           observacions: notes || null,
-          tipus: 'normal'
+          tipus: isAccess ? 'access' : 'normal'
         })
       });
       const data = await res.json();
@@ -199,25 +265,31 @@
 
   <div class="rounded-2xl border bg-white p-4 shadow-sm max-w-xl">
     <div class="grid gap-4">
-      <div class="grid gap-1">
-        <label for="opponent" class="text-sm text-slate-700">Tria oponent (posicions permeses)</label>
-        <select id="opponent" class="rounded-xl border px-3 py-2" bind:value={selectedOpponent} disabled={reptables.length === 0}>
-          <option value="" disabled selected>— Selecciona jugador —</option>
-          {#each reptables as r}
-            <option value={r.player_id}>#{r.posicio} — {r.nom}</option>
-          {/each}
-        </select>
-      </div>
-
-      {#if noReptables.length}
-        <details class="text-sm text-slate-700">
-          <summary class="cursor-pointer select-none">Oponents no disponibles</summary>
-          <ul class="mt-2 list-disc pl-6 text-slate-600">
-            {#each noReptables as nr}
-              <li>#{nr.posicio} — {nr.nom} ({nr.motiu})</li>
+      {#if !isAccess}
+        <div class="grid gap-1">
+          <label for="opponent" class="text-sm text-slate-700">Tria oponent (posicions permeses)</label>
+          <select id="opponent" class="rounded-xl border px-3 py-2" bind:value={selectedOpponent} disabled={reptables.length === 0}>
+            <option value="" disabled selected>— Selecciona jugador —</option>
+            {#each reptables as r}
+              <option value={r.player_id}>#{r.posicio} — {r.nom}</option>
             {/each}
-          </ul>
-        </details>
+          </select>
+        </div>
+
+        {#if noReptables.length}
+          <details class="text-sm text-slate-700">
+            <summary class="cursor-pointer select-none">Oponents no disponibles</summary>
+            <ul class="mt-2 list-disc pl-6 text-slate-600">
+              {#each noReptables as nr}
+                <li>#{nr.posicio} — {nr.nom} ({nr.motiu})</li>
+              {/each}
+            </ul>
+          </details>
+        {/if}
+      {:else}
+        <div class="grid gap-1 text-sm text-slate-700">
+          Oponent: {opponentName || 'Jugador #20'}
+        </div>
       {/if}
 
       <div class="grid gap-2">
