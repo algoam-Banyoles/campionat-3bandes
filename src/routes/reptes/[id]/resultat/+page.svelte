@@ -26,6 +26,7 @@
   let saving = false;
     let error: string | null = null;
     let okMsg: string | null = null;
+    let rpcMsg: string | null = null;
 
   let chal: Challenge | null = null;
   let reptadorNom = '—';
@@ -121,7 +122,7 @@
   }
 
   async function save() {
-    error = null; okMsg = null;
+    error = null; okMsg = null; rpcMsg = null;
     const data_iso = parseLocalToIso(data_joc_local);
     if (!data_iso) { error = errText('Data invàlida.'); return; }
 
@@ -155,6 +156,16 @@
         .update({ estat: 'jugat' })
         .eq('id', id);
       if (e2) throw e2;
+      // 3) Actualitza rànquing
+      const { data: d3, error: e3 } = await supabase.rpc('apply_match_result', { p_challenge: id });
+      if (e3) {
+        rpcMsg = errText(`Rànquing NO actualitzat (RPC): ${e3.message}`);
+      } else {
+        const r = Array.isArray(d3) && d3[0] ? d3[0] : null;
+        rpcMsg = r?.swapped
+          ? okText('Rànquing actualitzat: intercanvi de posicions fet.')
+          : okText(`Rànquing sense canvis${r?.reason ? ' (' + r.reason + ')' : ''}.`);
+      }
 
       okMsg = okText('Resultat desat correctament. Repte marcat com a jugat.');
     } catch (e) {
@@ -174,6 +185,9 @@
   {:else if chal}
     {#if okMsg}
       <Banner type="success" message={okMsg} class="mb-2" />
+    {/if}
+    {#if rpcMsg}
+      <Banner type="info" message={rpcMsg} class="mb-2" />
     {/if}
 
   <div class="mb-4">
