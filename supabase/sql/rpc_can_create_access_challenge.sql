@@ -23,6 +23,7 @@ begin
     where event_id = p_event
     order by ordre
     limit 1;
+
   if v_first is null or v_first <> p_reptador then
     return query select false, 'No és el primer de la llista d''espera';
     return;
