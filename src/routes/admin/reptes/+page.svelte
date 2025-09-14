@@ -35,11 +35,6 @@
   
   onMount(load);
 
-  // Funció temporal de penalització pendent d'implementació
-  function penalitza(r: ChallengeRow) {
-    console.warn('penalitza no implementat', r);
-  }
-
   function toLocalInput(iso: string | null) {
     if (!iso) return '';
     const d = new Date(iso);
