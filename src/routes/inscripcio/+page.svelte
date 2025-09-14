@@ -1,10 +1,62 @@
 <script lang="ts">
   import { user } from '$lib/authStore';
   import { invalidate } from '$app/navigation';
+  import { onMount } from 'svelte';
 
   let loading = false;
   let error: string | null = null;
   let ok: string | null = null;
+  let checking = true;
+  let preError: string | null = null;
+  let inRanking = false;
+  let inWaiting = false;
+
+  onMount(async () => {
+    try {
+      const u = $user;
+      if (!u?.email) return;
+      const { supabase } = await import('$lib/supabaseClient');
+      const { data: ev, error: eEv } = await supabase
+        .from('events')
+        .select('id')
+        .eq('actiu', true)
+        .limit(1)
+        .maybeSingle();
+      if (eEv) throw eEv;
+      const eventId = ev?.id;
+      if (!eventId) return;
+      const { data: pl, error: ePl } = await supabase
+        .from('players')
+        .select('id')
+        .eq('email', u.email)
+        .maybeSingle();
+      if (ePl) throw ePl;
+      if (!pl) return;
+      const { data: rp, error: eRp } = await supabase
+        .from('ranking_positions')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('player_id', pl.id)
+        .maybeSingle();
+      if (eRp) throw eRp;
+      if (rp) {
+        inRanking = true;
+        return;
+      }
+      const { data: wl, error: eWl } = await supabase
+        .from('waiting_list')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('player_id', pl.id)
+        .maybeSingle();
+      if (eWl) throw eWl;
+      if (wl) inWaiting = true;
+    } catch (e: any) {
+      preError = e?.message ?? 'Error desconegut';
+    } finally {
+      checking = false;
+    }
+  });
 
   async function inscriure() {
     try {
@@ -13,7 +65,7 @@
       ok = null;
       const u = $user;
       if (!u?.email) {
-        error = 'Has d\u2019iniciar sessi\u00f3.';
+        error = 'Has d’iniciar sessió.';
         return;
       }
       const { supabase } = await import('$lib/supabaseClient');
@@ -50,9 +102,11 @@
         return;
       }
       if (r.waiting) {
-        ok = `Inscrit a la llista d\u2019espera (ordre ${r.ordre})`;
+        ok = `Inscrit a la llista d’espera (ordre ${r.ordre})`;
+        inWaiting = true;
       } else {
-        ok = `Inscrit al r\u00e0nquing (posici\u00f3 ${r.posicio})`;
+        ok = `Inscrit al rànquing (posició ${r.posicio})`;
+        inRanking = true;
       }
       await Promise.all([
         invalidate('/classificacio'),
@@ -67,19 +121,29 @@
 </script>
 
 <svelte:head>
-  <title>Inscripci\u00f3</title>
+  <title>Inscripció</title>
 </svelte:head>
 
-<h1 class="text-2xl font-semibold mb-4">Inscripci\u00f3</h1>
+<h1 class="text-2xl font-semibold mb-4">Inscripció</h1>
 
 {#if $user}
-  <button
-    class="rounded bg-slate-800 px-4 py-2 text-white disabled:opacity-50"
-    disabled={loading}
-    on:click={inscriure}
-  >
-    {loading ? 'Processant…' : 'Inscriu-me'}
-  </button>
+  {#if checking}
+    <p class="text-slate-500">Comprovant inscripció…</p>
+  {:else if preError}
+    <div class="rounded border border-red-200 bg-red-50 p-3 text-red-700">{preError}</div>
+  {:else if inRanking}
+    <p>Ja estàs inscrit al rànquing.</p>
+  {:else if inWaiting}
+    <p>Ja estàs a la llista d'espera.</p>
+  {:else}
+    <button
+      class="rounded bg-slate-800 px-4 py-2 text-white disabled:opacity-50"
+      disabled={loading}
+      on:click={inscriure}
+    >
+      {loading ? 'Processant…' : 'Inscriu-me'}
+    </button>
+  {/if}
   {#if error}
     <div class="mt-4 rounded border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>
   {/if}
@@ -87,5 +151,6 @@
     <div class="mt-4 rounded border border-green-200 bg-green-50 p-3 text-green-700">{ok}</div>
   {/if}
 {:else}
-  <p>Cal iniciar sessi\u00f3 per inscriure's.</p>
+  <p>Cal iniciar sessió per inscriure's.</p>
 {/if}
+
