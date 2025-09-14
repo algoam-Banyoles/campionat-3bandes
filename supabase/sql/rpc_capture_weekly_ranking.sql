@@ -1,3 +1,8 @@
+
+drop function if exists public.capture_initial_ranking(uuid);
+drop function if exists public.capture_weekly_ranking(uuid);
+
+
 create or replace function public.capture_weekly_ranking(p_event uuid)
 returns void
 language plpgsql
