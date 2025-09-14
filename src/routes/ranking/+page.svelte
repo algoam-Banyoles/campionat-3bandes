@@ -4,6 +4,7 @@
   import { get } from 'svelte/store';
   import { canCreateChallenge } from '$lib/canCreateChallenge';
   import { ranking, refreshRanking, type RankingRow } from '$lib/rankingStore';
+  import PlayerEvolutionModal from '$lib/components/PlayerEvolutionModal.svelte';
 
   type RowState = RankingRow & { canChallenge: boolean; reason: string | null };
 
@@ -14,6 +15,7 @@
   let myPos: number | null = null;
   let eventId: string | null = null;
   let unsub: (() => void) | null = null;
+  let modalPlayer: { id: string; name: string } | null = null;
 
   onMount(async () => {
     try {
@@ -94,6 +96,10 @@
     goto(`/reptes/nou?opponent=${id}`);
   }
 
+  function openEvolution(id: string, name: string) {
+    modalPlayer = { id, name };
+  }
+
   const fmtMitjana = (m: number | null) => (m == null ? '-' : String(m));
   const fmtEstat = (e: string) => e.replace('_', ' ');
 </script>
@@ -124,7 +130,14 @@
         {#each rows as r}
           <tr class="border-t">
             <td class="px-3 py-2">{r.posicio}</td>
-            <td class="px-3 py-2">{r.nom}</td>
+            <td class="px-3 py-2">
+              <button
+                class="text-blue-600 hover:underline"
+                on:click={() => openEvolution(r.player_id, r.nom)}
+              >
+                {r.nom}
+              </button>
+            </td>
             <td class="px-3 py-2">{fmtMitjana(r.mitjana)}</td>
             <td class="px-3 py-2 capitalize">{fmtEstat(r.estat)}</td>
             <td class="px-3 py-2">
@@ -144,4 +157,11 @@
       </tbody>
     </table>
   </div>
+  {#if modalPlayer}
+    <PlayerEvolutionModal
+      playerId={modalPlayer.id}
+      playerName={modalPlayer.name}
+      on:close={() => (modalPlayer = null)}
+    />
+  {/if}
 {/if}

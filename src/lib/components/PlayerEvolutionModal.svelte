@@ -86,6 +86,8 @@
         scales: {
           y: {
             reverse: true,
+            min: 1,
+            max: 20,
             ticks: { stepSize: 1 }
           }
         }
