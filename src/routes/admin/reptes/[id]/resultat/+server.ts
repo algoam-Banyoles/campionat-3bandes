@@ -23,7 +23,8 @@ export const POST: RequestHandler = async (event) => {
     carR,
     carT,
     entrades,
-    tiebreak,
+    serieR,
+    serieT,
     tbR,
     tbT,
     tipusResultat,
@@ -56,19 +57,19 @@ export const POST: RequestHandler = async (event) => {
     if (!isInt(carR) || carR < 0) return json({ ok: false, error: 'Caràmboles reptador invàlid' }, { status: 400 });
     if (!isInt(carT) || carT < 0) return json({ ok: false, error: 'Caràmboles reptat invàlid' }, { status: 400 });
     if (!isInt(entrades) || entrades < 0) return json({ ok: false, error: 'Entrades invàlides' }, { status: 400 });
+    if (!isInt(serieR) || serieR < 0) return json({ ok: false, error: 'Sèrie màxima reptador invàlida' }, { status: 400 });
+    if (!isInt(serieT) || serieT < 0) return json({ ok: false, error: 'Sèrie màxima reptat invàlida' }, { status: 400 });
+    if (serieR > carR) return json({ ok: false, error: 'Sèrie màxima reptador no pot superar caràmboles' }, { status: 400 });
+    if (serieT > carT) return json({ ok: false, error: 'Sèrie màxima reptat no pot superar caràmboles' }, { status: 400 });
     if (carR > settings.caramboles_objectiu || carT > settings.caramboles_objectiu)
       return json({ ok: false, error: `Caràmboles màximes: ${settings.caramboles_objectiu}.` }, { status: 400 });
     if (entrades > settings.max_entrades)
       return json({ ok: false, error: `Entrades màximes: ${settings.max_entrades}.` }, { status: 400 });
 
-    if (carR === carT) {
+    const isTie = carR === carT;
+    if (isTie) {
       if (!settings.allow_tiebreak)
         return json({ ok: false, error: 'Empat de caràmboles i el tie-break està desactivat a Configuració.' }, { status: 400 });
-      if (!tiebreak)
-        return json({ ok: false, error: 'Empat de caràmboles: activa tie-break i informa el resultat.' }, { status: 400 });
-    }
-
-    if (tiebreak) {
       if (!isInt(tbR) || !isInt(tbT))
         return json({ ok: false, error: 'Resultat de tie-break ha de ser enter.' }, { status: 400 });
       if (tbR < 0 || tbT < 0)
@@ -80,7 +81,7 @@ export const POST: RequestHandler = async (event) => {
 
   let resultat: string;
   if (tipusResultat === 'normal') {
-    if (tiebreak) {
+    if (carR === carT) {
       resultat = tbR > tbT ? 'empat_tiebreak_reptador' : 'empat_tiebreak_reptat';
     } else {
       resultat = carR > carT ? 'guanya_reptador' : 'guanya_reptat';
@@ -90,7 +91,7 @@ export const POST: RequestHandler = async (event) => {
   }
 
   const isWalkover = tipusResultat !== 'normal';
-  const hasTB = tipusResultat === 'normal' && !!tiebreak;
+  const hasTB = tipusResultat === 'normal' && carR === carT;
 
   const insertRow: any = {
     challenge_id: id,
@@ -98,6 +99,8 @@ export const POST: RequestHandler = async (event) => {
     caramboles_reptador: isWalkover ? 0 : carR,
     caramboles_reptat: isWalkover ? 0 : carT,
     entrades: isWalkover ? 0 : entrades,
+    serie_maxima_reptador: isWalkover ? 0 : serieR,
+    serie_maxima_reptat: isWalkover ? 0 : serieT,
     resultat,
     tiebreak: hasTB,
     tiebreak_reptador: hasTB ? tbR : null,
