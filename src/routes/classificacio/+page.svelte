@@ -158,15 +158,28 @@
           <tr class="border-t">
             <td class="px-3 py-2">{r.posicio ?? '-'}</td>
             <td class="px-3 py-2">
-              {r.nom}
+              <a
+                href={`/classificacio/${r.player_id}`}
+                class="text-blue-600 hover:underline"
+                >{r.nom}</a
+              >
               {#if r.canReptar}
-                <span title="Pot reptar" class="ml-1 inline-block h-3 w-3 rounded-full bg-green-500 align-middle"></span>
+                <span
+                  title="Pot reptar"
+                  class="ml-1 inline-block h-3 w-3 rounded-full bg-green-500 align-middle"
+                ></span>
               {/if}
               {#if r.canSerReptat}
-                <span title="Pot ser reptat" class="ml-1 inline-block h-3 w-3 rounded-full bg-blue-500 align-middle"></span>
+                <span
+                  title="Pot ser reptat"
+                  class="ml-1 inline-block h-3 w-3 rounded-full bg-blue-500 align-middle"
+                ></span>
               {/if}
               {#if r.isMe}
-                <span title="Tu" class="ml-1 inline-block h-3 w-3 rounded-full bg-yellow-400 align-middle"></span>
+                <span
+                  title="Tu"
+                  class="ml-1 inline-block h-3 w-3 rounded-full bg-yellow-400 align-middle"
+                ></span>
               {/if}
             </td>
             <td class="px-3 py-2">{r.mitjana ?? '-'}</td>
