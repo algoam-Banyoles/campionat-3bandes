@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import PlayerEvolutionModal from '$lib/components/PlayerEvolutionModal.svelte';
 
   type Row = {
     event_id: string;
@@ -13,6 +14,7 @@
     canSerReptat?: boolean;
     isMe?: boolean;
     hasActiveChallenge?: boolean;
+
   };
 
   const fmtSafe = (iso: string | null): string => {
@@ -49,12 +51,14 @@
           ...r,
           canReptar: false,
           canSerReptat: false,
+
           isMe: myPlayerId === r.player_id,
           hasActiveChallenge: false
         }));
 
         const eventId = base[0]?.event_id as string | undefined;
         await evaluateBadges(supabase, rows, eventId);
+
         // trigger reactivity after in-place badge updates
         rows = [...rows];
       }
@@ -64,6 +68,7 @@
       loading = false;
     }
   });
+
 
   async function evaluateBadges(
     supabase: any,
@@ -154,6 +159,7 @@
     const waiting = rows.filter((r) => r.posicio == null || r.posicio > 20);
     const firstWaiting = waiting[0];
     const pos20 = byPos.get(20);
+
     if (firstWaiting && pos20 && !firstWaiting.hasActiveChallenge) {
       const { data } = await supabase.rpc('can_create_access_challenge', {
         p_event: eventId,
@@ -188,6 +194,8 @@
           <th class="px-3 py-2 text-left font-semibold">Mitjana</th>
           <th class="px-3 py-2 text-left font-semibold">Estat</th>
           <th class="px-3 py-2 text-left font-semibold">Assignat</th>
+          <th class="px-3 py-2 text-left font-semibold">Reptar</th>
+          <th class="px-3 py-2 text-left font-semibold">Reptable</th>
         </tr>
       </thead>
       <tbody>
@@ -195,19 +203,23 @@
           <tr class="border-t">
             <td class="px-3 py-2">{r.posicio ?? '-'}</td>
             <td class="px-3 py-2">
+
               {r.nom}
               {#if r.canReptar}
                 <span title="Pot reptar" class="ml-1 inline-block h-3 w-3 rounded-full bg-green-500 align-middle"></span>
               {/if}
               {#if r.canSerReptat}
                 <span title="Pot ser reptat" class="ml-1 inline-block h-3 w-3 rounded-full bg-blue-500 align-middle"></span>
+
               {/if}
               {#if r.isMe}
                 <span
                   title="Tu"
+
                   class="ml-1 inline-block rounded bg-yellow-400 px-1 text-xs font-semibold text-slate-900 align-middle"
                   >Tu</span
                 >
+
               {/if}
               {#if r.hasActiveChallenge}
                 <span
@@ -219,6 +231,18 @@
             <td class="px-3 py-2">{r.mitjana ?? '-'}</td>
             <td class="px-3 py-2 capitalize">{r.estat.replace('_', ' ')}</td>
             <td class="px-3 py-2">{fmtSafe(r.assignat_el)}</td>
+            <td class="px-3 py-2">
+              <span
+                class={`text-xs rounded px-2 py-0.5 ${r.canReptar ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}
+                >{r.canReptar ? 'Sí' : 'No'}</span
+              >
+            </td>
+            <td class="px-3 py-2">
+              <span
+                class={`text-xs rounded px-2 py-0.5 ${r.canSerReptat ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'}`}
+                >{r.canSerReptat ? 'Sí' : 'No'}</span
+              >
+            </td>
           </tr>
         {/each}
       </tbody>
@@ -227,11 +251,13 @@
   <div class="mt-2 flex gap-4 text-sm">
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-green-500"></span><span>pot reptar</span></div>
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-blue-500"></span><span>pot ser reptat</span></div>
+
     <div class="flex items-center gap-1">
       <span class="inline-block rounded bg-yellow-400 px-1 text-xs font-semibold text-slate-900">Tu</span>
       <span>tu</span>
     </div>
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-red-500"></span><span>repte actiu</span></div>
   </div>
+
 {/if}
 

@@ -79,7 +79,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     const { error: upErr } = await supabase
       .from('challenges')
-      .update({ estat: 'refusat', motiu_refus: motiu })
+      .update({ estat: 'refusat' })
       .eq('id', id);
     if (upErr) {
       if (isRlsError(upErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
