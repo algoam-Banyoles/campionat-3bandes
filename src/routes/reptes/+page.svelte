@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { user } from '$lib/authStore';
   import type { SupabaseClient } from '@supabase/supabase-js';
+  import { acceptChallenge, refuseChallenge, scheduleChallenge } from '$lib/challenges';
 
   type Challenge = {
     id: string;
@@ -9,7 +10,9 @@
     reptat_id: string;
     estat: string;
     data_proposta: string;
+    data_acceptacio: string | null;
     data_programada: string | null;
+    reprogramacions: number | null;
     reptador_nom?: string;
     reptat_nom?: string;
   };
@@ -29,8 +32,13 @@
   let recents: Resultat[] = [];
   let myPlayerId: string | null = null;
   let supabase: SupabaseClient;
+  let dateDrafts: Record<string, string> = {};
 
-  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString();
+  const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : '—');
+  const parseLocalToIso = (local: string) => {
+    const d = new Date(local);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  };
 
   async function load() {
     try {
@@ -51,8 +59,8 @@
       // Reptes actius
       const { data: ch, error: cErr } = await supabase
         .from('challenges')
-        .select('id,reptador_id,reptat_id,estat,data_proposta,data_programada')
-        .in('estat', ['proposat', 'acceptat', 'refusat'])
+        .select('id,reptador_id,reptat_id,estat,data_proposta,data_acceptacio,data_programada,reprogramacions')
+        .in('estat', ['proposat', 'acceptat', 'programat', 'refusat'])
         .order('data_proposta', { ascending: true });
       if (cErr) throw cErr;
       actius = ch ?? [];
@@ -135,12 +143,9 @@
   async function accept(ch: Challenge) {
     try {
       error = null;
-      const { error: upErr } = await supabase
-        .from('challenges')
-        .update({ estat: 'acceptat' })
-        .eq('id', ch.id);
-      if (upErr) throw upErr;
-      await load();
+      await acceptChallenge(supabase, ch.id);
+      ch.estat = 'acceptat';
+      ch.data_acceptacio = new Date().toISOString();
     } catch (e: any) {
       error = e?.message ?? 'Error acceptant repte';
     }
@@ -149,14 +154,29 @@
   async function refuse(ch: Challenge) {
     try {
       error = null;
-      const { error: upErr } = await supabase
-        .from('challenges')
-        .update({ estat: 'refusat' })
-        .eq('id', ch.id);
-      if (upErr) throw upErr;
-      await load();
+      await refuseChallenge(supabase, ch.id);
+      ch.estat = 'refusat';
     } catch (e: any) {
       error = e?.message ?? 'Error refusant repte';
+    }
+  }
+
+  async function propose(ch: Challenge) {
+    const iso = parseLocalToIso(dateDrafts[ch.id]);
+    if (!iso) {
+      error = 'Data invàlida';
+      return;
+    }
+    try {
+      error = null;
+      await scheduleChallenge(supabase, ch.id, iso);
+      if (ch.data_programada) {
+        ch.reprogramacions = (ch.reprogramacions ?? 0) + 1;
+      }
+      ch.data_programada = iso;
+      dateDrafts[ch.id] = '';
+    } catch (e: any) {
+      error = e?.message ?? 'Error programant repte';
     }
   }
 </script>
@@ -175,7 +195,17 @@
         {#each actius as r}
           <li class="p-3 border rounded">
             <div class="font-medium">{r.reptador_nom} vs {r.reptat_nom}</div>
-            <div class="text-sm text-slate-600 capitalize">{r.estat}</div>
+            <div class="text-sm text-slate-600 capitalize">Estat: {r.estat}</div>
+            <div class="text-sm text-slate-600">
+              Proposat: {fmtDate(r.data_proposta)}
+              {#if r.data_acceptacio}
+                • Acceptat: {fmtDate(r.data_acceptacio)}
+              {/if}
+              {#if r.data_programada}
+                • Programat: {fmtDate(r.data_programada)}
+              {/if}
+            </div>
+            <div class="text-sm text-slate-600">Reprogramacions: {r.reprogramacions ?? 0}</div>
             {#if myPlayerId === r.reptat_id && r.estat === 'proposat'}
               <div class="mt-2 flex gap-2">
                 <button
@@ -189,6 +219,22 @@
                   on:click={() => refuse(r)}
                 >
                   Refusa
+                </button>
+              </div>
+            {/if}
+            {#if r.estat !== 'refusat'}
+              <div class="mt-2 flex gap-2 items-center">
+                <input
+                  type="datetime-local"
+                  step="60"
+                  class="border rounded px-2 py-1"
+                  bind:value={dateDrafts[r.id]}
+                />
+                <button
+                  class="rounded border px-3 py-1 text-sm"
+                  on:click={() => propose(r)}
+                >
+                  Proposa data
                 </button>
               </div>
             {/if}
