@@ -3,12 +3,15 @@
 
   type Row = {
     event_id: string;
-    posicio: number;
+    posicio: number | null;
     player_id: string;
     nom: string;
     mitjana: number | null;
     estat: string;
     assignat_el: string | null;
+    canReptar?: boolean;
+    canSerReptat?: boolean;
+    isMe?: boolean;
   };
 
   const fmtSafe = (iso: string | null): string => {
@@ -20,20 +23,109 @@
   let loading = true;
   let error: string | null = null;
   let rows: Row[] = [];
+  let myPlayerId: string | null = null;
 
   onMount(async () => {
     try {
       const { supabase } = await import('$lib/supabaseClient');
+
+      const { data: auth } = await supabase.auth.getUser();
+      if (auth?.user?.email) {
+        const { data: player } = await supabase
+          .from('players')
+          .select('id')
+          .eq('email', auth.user.email)
+          .maybeSingle();
+        myPlayerId = (player as any)?.id ?? null;
+      }
+
       const { data, error: err } = await supabase.rpc('get_ranking');
 
       if (err) error = err.message;
-      else rows = (data as Row[]) ?? [];
+      else {
+        const base = (data as Row[]) ?? [];
+        rows = base.map((r) => ({
+          ...r,
+          canReptar: false,
+          canSerReptat: false,
+          isMe: myPlayerId === r.player_id
+        }));
+
+        const eventId = base[0]?.event_id as string | undefined;
+        await evaluateBadges(supabase, rows, eventId);
+        rows = rows;
+      }
     } catch (e: any) {
       error = e?.message ?? 'Error desconegut';
     } finally {
       loading = false;
     }
   });
+
+  async function evaluateBadges(
+    supabase: any,
+    rows: Row[],
+    eventId: string | undefined
+  ): Promise<void> {
+    if (!eventId) return;
+    const byPos = new Map<number, Row>();
+    const ranking = rows.filter((r) => r.posicio != null && r.posicio <= 20);
+    ranking.forEach((r) => byPos.set(r.posicio as number, r));
+
+    const maxGap = 2;
+    const tasks: Promise<void>[] = [];
+
+    for (const r of ranking) {
+      tasks.push(
+        (async () => {
+          for (let d = 1; d <= maxGap; d++) {
+            const opp = byPos.get((r.posicio as number) - d);
+            if (!opp) continue;
+            const { data } = await supabase.rpc('can_create_challenge', {
+              p_event: eventId,
+              p_reptador: r.player_id,
+              p_reptat: opp.player_id
+            });
+            if ((data as any)?.[0]?.ok) {
+              r.canReptar = true;
+              break;
+            }
+          }
+
+          for (let d = 1; d <= maxGap; d++) {
+            const challenger = byPos.get((r.posicio as number) + d);
+            if (!challenger) continue;
+            const { data } = await supabase.rpc('can_create_challenge', {
+              p_event: eventId,
+              p_reptador: challenger.player_id,
+              p_reptat: r.player_id
+            });
+            if ((data as any)?.[0]?.ok) {
+              r.canSerReptat = true;
+              break;
+            }
+          }
+        })()
+      );
+    }
+
+    await Promise.all(tasks);
+
+    const waiting = rows.filter((r) => r.posicio == null || r.posicio > 20);
+    const firstWaiting = waiting[0];
+    const pos20 = byPos.get(20);
+    if (firstWaiting && pos20) {
+      const { data } = await supabase.rpc('can_create_access_challenge', {
+        p_event: eventId,
+        p_reptador: firstWaiting.player_id,
+        p_reptat: pos20.player_id
+      });
+      if ((data as any)?.[0]?.ok) {
+        firstWaiting.canReptar = true;
+        pos20.canSerReptat = true;
+      }
+    }
+  }
 </script>
 
 <h1 class="text-xl font-semibold mb-4">Classificació</h1>
@@ -61,8 +153,19 @@
       <tbody>
         {#each rows as r}
           <tr class="border-t">
-            <td class="px-3 py-2">{r.posicio}</td>
-            <td class="px-3 py-2">{r.nom}</td>
+            <td class="px-3 py-2">{r.posicio ?? '-'}</td>
+            <td class="px-3 py-2">
+              {r.nom}
+              {#if r.canReptar}
+                <span title="Pot reptar" class="ml-1 inline-block h-3 w-3 rounded-full bg-green-500 align-middle"></span>
+              {/if}
+              {#if r.canSerReptat}
+                <span title="Pot ser reptat" class="ml-1 inline-block h-3 w-3 rounded-full bg-blue-500 align-middle"></span>
+              {/if}
+              {#if r.isMe}
+                <span title="Tu" class="ml-1 inline-block h-3 w-3 rounded-full bg-yellow-400 align-middle"></span>
+              {/if}
+            </td>
             <td class="px-3 py-2">{r.mitjana ?? '-'}</td>
             <td class="px-3 py-2 capitalize">{r.estat.replace('_', ' ')}</td>
             <td class="px-3 py-2">{fmtSafe(r.assignat_el)}</td>
@@ -70,6 +173,11 @@
         {/each}
       </tbody>
     </table>
+  </div>
+  <div class="mt-2 flex gap-4 text-sm">
+    <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-green-500"></span><span>pot reptar</span></div>
+    <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-blue-500"></span><span>pot ser reptat</span></div>
+    <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-yellow-400"></span><span>tu</span></div>
   </div>
 {/if}
 
