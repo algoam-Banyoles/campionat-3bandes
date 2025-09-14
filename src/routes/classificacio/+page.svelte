@@ -13,6 +13,8 @@
     canReptar?: boolean;
     canSerReptat?: boolean;
     isMe?: boolean;
+    hasActiveChallenge?: boolean;
+
   };
 
   const fmtSafe = (iso: string | null): string => {
@@ -29,6 +31,7 @@
   let showModal = false;
   let modalPlayerId: string | null = null;
   let modalPlayerName = '';
+
 
   onMount(async () => {
     try {
@@ -49,17 +52,20 @@
       if (err) error = err.message;
       else {
         const base = (data as Row[]) ?? [];
-
         rows = base.map((r) => ({
           ...r,
           canReptar: false,
           canSerReptat: false,
-          isMe: myPlayerId === r.player_id
+
+          isMe: myPlayerId === r.player_id,
+          hasActiveChallenge: false
         }));
 
         const eventId = base[0]?.event_id as string | undefined;
         await evaluateBadges(supabase, rows, eventId);
-        rows = rows;
+
+        // trigger reactivity after in-place badge updates
+        rows = [...rows];
       }
     } catch (e: any) {
       error = e?.message ?? 'Error desconegut';
@@ -84,6 +90,37 @@
     eventId: string | undefined
   ): Promise<void> {
     if (!eventId) return;
+    const byId = new Map<string, Row>();
+    rows.forEach((r) => byId.set(r.player_id, r));
+
+    const { data: active } = await supabase
+      .from('challenges')
+      .select('reptador_id, reptat_id')
+      .eq('event_id', eventId)
+      .in('estat', ['proposat', 'acceptat', 'programat']);
+    const activeIds = new Set<string>();
+    (active as any[] ?? []).forEach((c) => {
+      activeIds.add((c as any).reptador_id);
+      activeIds.add((c as any).reptat_id);
+    });
+    activeIds.forEach((id) => {
+      const row = byId.get(id);
+      if (row) row.hasActiveChallenge = true;
+    });
+
+    const { data: played } = await supabase
+      .from('matches')
+      .select('challenge:challenge_id(reptador_id, reptat_id)')
+      .eq('challenge.event_id', eventId);
+    const playedIds = new Set<string>();
+    (played as any[] ?? []).forEach((m) => {
+      const ch = (m as any).challenge;
+      if (ch) {
+        playedIds.add(ch.reptador_id);
+        playedIds.add(ch.reptat_id);
+      }
+    });
+
     const byPos = new Map<number, Row>();
     const ranking = rows.filter((r) => r.posicio != null && r.posicio <= 20);
     ranking.forEach((r) => byPos.set(r.posicio as number, r));
@@ -94,6 +131,12 @@
     for (const r of ranking) {
       tasks.push(
         (async () => {
+          if (r.hasActiveChallenge) return;
+          if (!playedIds.has(r.player_id)) {
+            r.canReptar = true;
+            r.canSerReptat = true;
+            return;
+          }
           for (let d = 1; d <= maxGap; d++) {
             const opp = byPos.get((r.posicio as number) - d);
             if (!opp) continue;
@@ -130,7 +173,8 @@
     const waiting = rows.filter((r) => r.posicio == null || r.posicio > 20);
     const firstWaiting = waiting[0];
     const pos20 = byPos.get(20);
-    if (firstWaiting && pos20) {
+
+    if (firstWaiting && pos20 && !firstWaiting.hasActiveChallenge) {
       const { data } = await supabase.rpc('can_create_access_challenge', {
         p_event: eventId,
         p_reptador: firstWaiting.player_id,
@@ -173,6 +217,7 @@
           <tr class="border-t">
             <td class="px-3 py-2">{r.posicio ?? '-'}</td>
             <td class="px-3 py-2">
+
               <button
                 type="button"
                 class="text-blue-600 hover:underline"
@@ -180,6 +225,7 @@
               >
                 {r.nom}
               </button>
+
               {#if r.canReptar}
                 <span
                   title="Pot reptar"
@@ -196,6 +242,12 @@
                 <span
                   title="Tu"
                   class="ml-1 inline-block h-3 w-3 rounded-full bg-yellow-400 align-middle"
+                ></span>
+              {/if}
+              {#if r.hasActiveChallenge}
+                <span
+                  title="Té un repte actiu"
+                  class="ml-1 inline-block h-3 w-3 rounded-full bg-red-500 align-middle"
                 ></span>
               {/if}
             </td>
@@ -223,6 +275,7 @@
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-green-500"></span><span>pot reptar</span></div>
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-blue-500"></span><span>pot ser reptat</span></div>
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-yellow-400"></span><span>tu</span></div>
+    <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-red-500"></span><span>repte actiu</span></div>
   </div>
 {/if}
 

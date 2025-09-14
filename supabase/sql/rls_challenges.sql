@@ -81,7 +81,9 @@ create policy "Authenticated users can select ranking_positions"
   using (true);
 
 alter table public.player_weekly_positions enable row level security;
+<
 drop policy if exists "Authenticated users can select player_weekly_positions" on public.player_weekly_positions;
+
 create policy "Authenticated users can select player_weekly_positions"
   on public.player_weekly_positions
   for select
