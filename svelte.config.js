@@ -1,4 +1,5 @@
-import adapter from '@sveltejs/adapter-static';
+import adapterStatic from '@sveltejs/adapter-static';
+import adapterAuto from '@sveltejs/adapter-auto';
 
 const dev = process.env.NODE_ENV === 'development';
 const vercel = !!process.env.VERCEL;
@@ -8,7 +9,9 @@ const base = dev || vercel ? '' : '/c3b';
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
   kit: {
-    adapter: adapter(vercel ? {} : { fallback: '200.html' }), // evita errors 404 refrescant rutes
+    adapter: vercel
+      ? adapterAuto()
+      : adapterStatic({ fallback: '200.html' }), // evita errors 404 refrescant rutes
     paths: { base }
   }
 };
