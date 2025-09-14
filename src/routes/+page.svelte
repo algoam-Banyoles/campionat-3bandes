@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { user, authReady } from '$lib/authStore';
+    import { user, status } from '$lib/authStore';
   import { getSettings, type AppSettings } from '$lib/settings';
   import { get } from 'svelte/store';
 
@@ -25,15 +25,15 @@
   let settings: AppSettings;
 
   onMount(() => {
-    const unsub = authReady.subscribe(async (ready) => {
-      if (!ready) return;
-      const u = get(user);
-      if (!u?.email) {
-        goto('/ranking');
-        loading = false;
-        unsub();
-        return;
-      }
+      const unsub = status.subscribe(async (s) => {
+        if (s === 'loading') return;
+        const u = get(user);
+        if (s === 'anonymous' || !u?.email) {
+          goto('/ranking');
+          loading = false;
+          unsub();
+          return;
+        }
       try {
         const { supabase } = await import('$lib/supabaseClient');
         settings = await getSettings();

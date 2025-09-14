@@ -1,23 +1,12 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import { adminStore, checkIsAdmin } from '$lib/roles';
+  import { adminStore } from '$lib/authStore';
+</script>
 
-    let checked = false;
-
-    onMount(async () => {
-      const ok = await checkIsAdmin();
-      checked = true;
-      if (!ok) {
-        // adminStore remains false; unauthorized message will show
-      }
-    });
-  </script>
-
-  {#if $adminStore}
-    <slot />
-  {:else if checked}
-    <div class="m-4 rounded border border-red-300 bg-red-50 p-4 text-red-800">
-      No autoritzat — <a href="/" class="underline">Inici</a>
-    </div>
-  {/if}
+{#if $adminStore}
+  <slot />
+{:else}
+  <div class="m-4 rounded border border-red-300 bg-red-50 p-4 text-red-800">
+    No autoritzat — <a href="/" class="underline">Inici</a>
+  </div>
+{/if}
 

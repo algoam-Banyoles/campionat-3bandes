@@ -1,45 +1,98 @@
 // src/lib/authStore.ts
-import { writable } from 'svelte/store';
+import { writable, derived, type Writable } from 'svelte/store';
 import { supabase } from '$lib/supabaseClient';
-import { adminStore, refreshAdmin, invalidateAdminCache } from '$lib/roles';
+import { checkIsAdmin, invalidateAdminCache } from '$lib/roles';
 
 // Tipus mínims perquè no depengui dels types de supabase-js
-type SessionUser = { email: string | null } | null;
+type Session = {
+  access_token: string;
+  user: { id: string; email: string | null };
+};
 
-export const user = writable<SessionUser>(null);
-export const authReady = writable<boolean>(false);
+export type UserProfile = {
+  id: string;
+  email: string | null;
+  roles: string[];
+};
 
-/** Recarrega sessió i computa si és admin (consulta taula 'admins' per email). */
-export async function initAuth() {
+// Estat principal d'autenticació
+export const status: Writable<'loading' | 'authenticated' | 'anonymous'> = writable('loading');
+export const session = writable<Session | null>(null);
+export const user = writable<UserProfile | null>(null);
+
+// Derivats
+export const roles = derived(user, (u) => u?.roles ?? []);
+export const adminStore = derived(roles, (r) => r.includes('admin'));
+export const isAdmin = adminStore; // alias
+export const token = derived(session, (s) => s?.access_token ?? null);
+
+let hydrating: AbortController | null = null;
+
+async function hydrate() {
+  hydrating?.abort();
+  const ac = new AbortController();
+  hydrating = ac;
   try {
-    // 1) sessió actual
     const { data: sessData, error: sessErr } = await supabase.auth.getSession();
-    if (sessErr) throw sessErr;
-    const sessUser = sessData.session?.user ?? null;
-    user.set(sessUser ? { email: sessUser.email ?? null } : null);
-
-    // 2) escolta canvis d'autenticació
-    supabase.auth.onAuthStateChange((_event, session) => {
-      const u = session?.user ?? null;
-      user.set(u ? { email: u.email ?? null } : null);
-      invalidateAdminCache();
-      void refreshAdmin();
+    if (ac.signal.aborted) return;
+    if (sessErr || !sessData.session) {
+      session.set(null);
+      user.set(null);
+      status.set('anonymous');
+      return;
+    }
+    session.set({
+      access_token: sessData.session.access_token,
+      user: {
+        id: sessData.session.user.id,
+        email: sessData.session.user.email ?? null
+      }
     });
 
-    // 3) calcula admin un cop carregada la sessió
-    await refreshAdmin();
-  } finally {
-    authReady.set(true);
+    const rolesArr: string[] = [];
+    try {
+      invalidateAdminCache();
+      const adm = await checkIsAdmin();
+      if (adm) rolesArr.push('admin');
+    } catch (e) {
+      console.warn('checkIsAdmin failed', e);
+    }
+    if (ac.signal.aborted) return;
+    user.set({
+      id: sessData.session.user.id,
+      email: sessData.session.user.email ?? null,
+      roles: rolesArr
+    });
+    status.set('authenticated');
+  } catch (e) {
+    session.set(null);
+    user.set(null);
+    status.set('anonymous');
   }
 }
 
-/** Tanca sessió i neteja stores. */
-export async function logout() {
-  await supabase.auth.signOut();
-  user.set(null);
-  invalidateAdminCache();
-  adminStore.set(false);
+/** Inicialitza sessió i listeners d'autenticació */
+export async function initAuth() {
+  await hydrate();
+  supabase.auth.onAuthStateChange(async (event) => {
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      await hydrate();
+    }
+    if (event === 'SIGNED_OUT') {
+      hydrating?.abort();
+      session.set(null);
+      user.set(null);
+      status.set('anonymous');
+    }
+  });
 }
 
-// Compatibilitat temporal: reexporta API de roles
-export { adminStore, checkIsAdmin as isAdmin, refreshAdmin } from '$lib/roles';
+/** Tanca sessió i neteja estat. */
+export async function logout() {
+  await supabase.auth.signOut();
+  hydrating?.abort();
+  session.set(null);
+  user.set(null);
+  status.set('anonymous');
+}
+
