@@ -5,7 +5,7 @@
   import { canCreateChallenge } from '$lib/canCreateChallenge';
   import { ranking, refreshRanking, type RankingRow } from '$lib/rankingStore';
   import PlayerEvolutionModal from '$lib/components/PlayerEvolutionModal.svelte';
-  import { adminStore } from '$lib/roles';
+    import { adminStore } from '$lib/authStore';
   import { applyDisagreementDrop } from '$lib/applyDisagreementDrop';
 
   type RowState = RankingRow & {

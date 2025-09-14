@@ -1,11 +1,8 @@
 // src/lib/roles.ts
-import { writable } from 'svelte/store';
 import { supabase } from '$lib/supabaseClient';
 
 const CACHE_TTL_MS = 60 * 1000;
 let cache: { value: boolean; ts: number } | null = null;
-
-export const adminStore = writable<boolean>(false);
 
 export function invalidateAdminCache(): void {
   cache = null;
@@ -41,15 +38,8 @@ export async function checkIsAdmin(): Promise<boolean> {
     cache = { value: false, ts: now };
     return false;
   }
-  const val = !!data;
-  cache = { value: val, ts: now };
-  return val;
-}
-
-export async function refreshAdmin(): Promise<boolean> {
-  invalidateAdminCache();
-  const val = await checkIsAdmin();
-  adminStore.set(val);
-  return val;
-}
+    const val = !!data;
+    cache = { value: val, ts: now };
+    return val;
+  }
 

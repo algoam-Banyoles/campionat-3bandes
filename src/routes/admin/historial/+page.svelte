@@ -4,7 +4,7 @@
   import Banner from '$lib/components/Banner.svelte';
   import { supabase } from '$lib/supabaseClient';
   import { formatSupabaseError } from '$lib/ui/alerts';
-  import { adminStore } from '$lib/roles';
+    import { adminStore } from '$lib/authStore';
 
   type Change = {
     creat_el: string;

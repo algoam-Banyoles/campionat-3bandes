@@ -1,8 +1,7 @@
 <script lang="ts">
   import "../app.css";
   import { onMount } from "svelte";
-  import { user, authReady, initAuth, logout } from "$lib/authStore";
-  import { adminStore } from '$lib/roles';
+    import { user, status, initAuth, logout, adminStore } from "$lib/authStore";
   import Toasts from '$lib/components/Toasts.svelte';
 
   let showInscripcio = false;
@@ -76,9 +75,9 @@
   let menuOpen = false;
   const toggleMenu = () => (menuOpen = !menuOpen);
 
-  $: if ($authReady) {
-    void refreshInscripcioVisibility($user);
-  }
+    $: if ($status === 'authenticated') {
+      void refreshInscripcioVisibility($user);
+    }
 </script>
 
 <nav class="bg-slate-900 text-white">
@@ -92,7 +91,7 @@
       <a href="/llista-espera" class={isActive("/llista-espera", $page.url.pathname)}>Llista d'espera</a>
       <a href="/historial" class={isActive("/historial", $page.url.pathname)}>Historial</a>
 
-      {#if $authReady && $user}
+        {#if $status === 'authenticated' && $user}
         {#if showInscripcio}
           <a href="/inscripcio" class={isActive("/inscripcio", $page.url.pathname)}>Inscripció</a>
         {/if}
@@ -100,14 +99,14 @@
         <a href="/reptes/nou" class={isActive("/reptes/nou", $page.url.pathname)}>Crear repte</a>
       {/if}
 
-      {#if $authReady && $adminStore}
+        {#if $status === 'authenticated' && $adminStore}
         <a href="/admin" class={isActive("/admin", $page.url.pathname)}>Admin</a>
       {/if}
 
       <div class="ml-auto flex items-center gap-3">
-        {#if !$authReady}
-          <span class="text-sm opacity-80">…</span>
-        {:else if $user}
+          {#if $status === 'loading'}
+            <span class="text-sm opacity-80">…</span>
+          {:else if $user}
           <span class="text-sm opacity-80">{$user.email}</span>
           <button
             class="rounded border px-3 py-1 text-sm hover:bg-slate-800"
@@ -140,7 +139,7 @@
       <a href="/llista-espera" class={isActive("/llista-espera", $page.url.pathname)}>Llista d'espera</a>
       <a href="/historial" class={isActive("/historial", $page.url.pathname)}>Historial</a>
 
-      {#if $authReady && $user}
+        {#if $status === 'authenticated' && $user}
         {#if showInscripcio}
           <a href="/inscripcio" class={isActive("/inscripcio", $page.url.pathname)}>Inscripció</a>
         {/if}
@@ -148,14 +147,14 @@
         <a href="/reptes/nou" class={isActive("/reptes/nou", $page.url.pathname)}>Crear repte</a>
       {/if}
 
-      {#if $authReady && $adminStore}
+        {#if $status === 'authenticated' && $adminStore}
         <a href="/admin" class={isActive("/admin", $page.url.pathname)}>Admin</a>
       {/if}
 
-      <div class="pt-2 flex flex-col gap-2">
-        {#if !$authReady}
-          <span class="text-sm opacity-80">…</span>
-        {:else if $user}
+        <div class="pt-2 flex flex-col gap-2">
+          {#if $status === 'loading'}
+            <span class="text-sm opacity-80">…</span>
+          {:else if $user}
           <span class="text-sm opacity-80">{$user.email}</span>
           <button
             class="w-fit rounded border px-3 py-1 text-sm hover:bg-slate-800"
@@ -178,7 +177,7 @@
 <Toasts />
 
 <!-- DEBUG opcional: treu-ho quan vulguis -->
-{#if $authReady}
+  {#if $status !== 'loading'}
   <div class="fixed bottom-2 right-2 text-xs bg-slate-800 text-white px-2 py-1 rounded">
     {$user?.email ?? "anònim"} | admin: {$adminStore ? "sí" : "no"}
   </div>

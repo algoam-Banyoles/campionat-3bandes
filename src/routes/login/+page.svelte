@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { supabase } from '$lib/supabaseClient';
-  import { authReady, user } from '$lib/authStore';
+    import { status, user } from '$lib/authStore';
 
   let mode: 'login' | 'signup' = 'login';
   let email = '';
@@ -82,7 +82,7 @@
   <div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-3">{okMsg}</div>
 {/if}
 
-{#if $authReady && $user}
+  {#if $status === 'authenticated' && $user}
   <p class="text-slate-600">Ja has iniciat sessió com <strong>{$user.email}</strong>.</p>
 {:else}
   <form class="max-w-sm space-y-3" on:submit|preventDefault={onSubmit}>
