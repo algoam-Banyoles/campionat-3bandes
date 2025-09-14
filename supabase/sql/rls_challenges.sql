@@ -4,6 +4,7 @@
 alter table public.challenges enable row level security;
 
 -- Allow authenticated users to select from challenges
+drop policy if exists "Authenticated users can select challenges" on public.challenges;
 create policy "Authenticated users can select challenges"
   on public.challenges
   for select
@@ -11,6 +12,7 @@ create policy "Authenticated users can select challenges"
   using (true);
 
 -- Players can create a challenge for themselves when allowed
+drop policy if exists "Players can insert challenges" on public.challenges;
 create policy "Players can insert challenges"
   on public.challenges
   for insert
@@ -25,6 +27,7 @@ create policy "Players can insert challenges"
   );
 
 -- Admins can insert challenges regardless of checks
+drop policy if exists "Admins can insert challenges" on public.challenges;
 create policy "Admins can insert challenges"
   on public.challenges
   for insert
@@ -36,6 +39,7 @@ create policy "Admins can insert challenges"
   );
 
 -- Admins can update challenge status fields
+drop policy if exists "Admins can update challenges" on public.challenges;
 create policy "Admins can update challenges"
   on public.challenges
   for update
@@ -53,6 +57,7 @@ create policy "Admins can update challenges"
 
 -- Ensure SELECT access for supporting tables
 alter table public.players enable row level security;
+drop policy if exists "Authenticated users can select players" on public.players;
 create policy "Authenticated users can select players"
   on public.players
   for select
@@ -60,6 +65,7 @@ create policy "Authenticated users can select players"
   using (true);
 
 alter table public.events enable row level security;
+drop policy if exists "Authenticated users can select events" on public.events;
 create policy "Authenticated users can select events"
   on public.events
   for select
@@ -67,8 +73,17 @@ create policy "Authenticated users can select events"
   using (true);
 
 alter table public.ranking_positions enable row level security;
+drop policy if exists "Authenticated users can select ranking_positions" on public.ranking_positions;
 create policy "Authenticated users can select ranking_positions"
   on public.ranking_positions
+  for select
+  to authenticated
+  using (true);
+
+alter table public.player_weekly_positions enable row level security;
+drop policy if exists "Authenticated users can select player_weekly_positions" on public.player_weekly_positions;
+create policy "Authenticated users can select player_weekly_positions"
+  on public.player_weekly_positions
   for select
   to authenticated
   using (true);
