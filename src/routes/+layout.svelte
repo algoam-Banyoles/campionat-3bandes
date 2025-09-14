@@ -28,6 +28,7 @@
       <a href="/reptes" class={isActive("/reptes", $page.url.pathname)}>Reptes</a>
 
       {#if $authReady && $user}
+        <a href="/inscripcio" class={isActive("/inscripcio", $page.url.pathname)}>Inscripció</a>
         <a href="/reptes/me" class={isActive("/reptes/me", $page.url.pathname)}>Els meus reptes</a>
         <a href="/reptes/nou" class={isActive("/reptes/nou", $page.url.pathname)}>Crear repte</a>
       {/if}
@@ -71,6 +72,7 @@
       <a href="/reptes" class={isActive("/reptes", $page.url.pathname)}>Reptes</a>
 
       {#if $authReady && $user}
+        <a href="/inscripcio" class={isActive("/inscripcio", $page.url.pathname)}>Inscripció</a>
         <a href="/reptes/me" class={isActive("/reptes/me", $page.url.pathname)}>Els meus reptes</a>
         <a href="/reptes/nou" class={isActive("/reptes/nou", $page.url.pathname)}>Crear repte</a>
       {/if}
