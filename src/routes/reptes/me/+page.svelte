@@ -1,8 +1,8 @@
 <script lang="ts">
-import { onMount } from 'svelte';
-import { user, adminStore } from '$lib/authStore';
-import { getSettings, type AppSettings } from '$lib/settings';
-import { checkIsAdmin } from '$lib/roles';
+  import { onMount } from 'svelte';
+  import { user, adminStore } from '$lib/stores/auth';
+  import { getSettings, type AppSettings } from '$lib/settings';
+  import { checkIsAdmin } from '$lib/roles';
 
 type Challenge = {
   id: string;

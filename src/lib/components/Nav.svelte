@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { page } from '$app/stores';
-    import { user, logout, adminStore } from '$lib/authStore';
+    import { page } from '$app/stores';
+    import { user, adminStore } from '$lib/stores/auth';
+    import { signOut } from '$lib/utils/auth-client';
 
   // enllaços sempre visibles
   const baseLinks = [
@@ -91,7 +92,7 @@
       <div class="ml-auto flex items-center gap-2">
         {#if $user}
           <span class="text-sm text-slate-600 hidden sm:inline">{$user.email}</span>
-          <button class="rounded bg-slate-900 text-white px-3 py-1" on:click={logout}>
+            <button class="rounded bg-slate-900 text-white px-3 py-1" on:click={signOut}>
             Surt
           </button>
         {:else}
@@ -174,7 +175,7 @@
 
         <li class="pt-2 border-t">
           {#if $user}
-            <button class="w-full text-left px-2 py-2 rounded hover:bg-slate-100" on:click={logout}>
+              <button class="w-full text-left px-2 py-2 rounded hover:bg-slate-100" on:click={signOut}>
               Surt ({$user.email})
             </button>
           {:else}

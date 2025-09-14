@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { user } from '$lib/authStore';
-  import type { SupabaseClient } from '@supabase/supabase-js';
-  import { acceptChallenge, refuseChallenge, scheduleChallenge } from '$lib/challenges';
+    import { onMount } from 'svelte';
+    import { user } from '$lib/stores/auth';
+    import type { SupabaseClient } from '@supabase/supabase-js';
+    import { acceptChallenge, refuseChallenge, scheduleChallenge } from '$lib/challenges';
 
   type Challenge = {
     id: string;

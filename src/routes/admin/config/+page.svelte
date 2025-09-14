@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { user } from '$lib/authStore';
+      import { user } from '$lib/stores/auth';
     import { checkIsAdmin } from '$lib/roles';
     import Banner from '$lib/components/Banner.svelte';
     import Loader from '$lib/components/Loader.svelte';

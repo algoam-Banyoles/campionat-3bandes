@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { goto } from '$app/navigation';
-  import { get } from 'svelte/store';
-  import { canCreateChallenge } from '$lib/canCreateChallenge';
-  import { ranking, refreshRanking, type RankingRow } from '$lib/rankingStore';
-  import PlayerEvolutionModal from '$lib/components/PlayerEvolutionModal.svelte';
-    import { adminStore } from '$lib/authStore';
-  import { applyDisagreementDrop } from '$lib/applyDisagreementDrop';
+    import { onMount, onDestroy } from 'svelte';
+    import { goto } from '$app/navigation';
+    import { get } from 'svelte/store';
+    import { canCreateChallenge } from '$lib/canCreateChallenge';
+    import { ranking, refreshRanking, type RankingRow } from '$lib/rankingStore';
+    import PlayerEvolutionModal from '$lib/components/PlayerEvolutionModal.svelte';
+    import { adminStore } from '$lib/stores/auth';
+    import { applyDisagreementDrop } from '$lib/applyDisagreementDrop';
 
   type RowState = RankingRow & {
     canChallenge: boolean;

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { adminStore } from '$lib/authStore';
+    import { adminStore } from '$lib/stores/auth';
 </script>
 
 {#if $adminStore}
