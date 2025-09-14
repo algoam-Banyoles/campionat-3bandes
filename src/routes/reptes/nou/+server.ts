@@ -46,13 +46,16 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'Sessió no iniciada' }, { status: 401 });
     }
 
-    const { data: isAdm, error: admErr } = await supabase.rpc('is_admin', {
-      p_email: auth.user.email
-    });
+    const { data: adminRow, error: admErr } = await supabase
+      .from('admins')
+      .select('email')
+      .eq('email', auth.user.email)
+      .limit(1)
+      .maybeSingle();
     if (admErr) {
       return json({ ok: false, error: admErr.message }, { status: 400 });
     }
-    const isAdmin = !!isAdm;
+    const isAdmin = !!adminRow;
 
     let reptadorId = reptador_id;
     if (!isAdmin) {
