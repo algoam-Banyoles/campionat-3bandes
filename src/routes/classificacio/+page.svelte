@@ -28,11 +28,6 @@
   let rows: Row[] = [];
   let myPlayerId: string | null = null;
 
-  let showModal = false;
-  let modalPlayerId: string | null = null;
-  let modalPlayerName = '';
-
-
   onMount(async () => {
     try {
       const { supabase } = await import('$lib/supabaseClient');
@@ -74,15 +69,6 @@
     }
   });
 
-  function openModal(r: Row) {
-    modalPlayerId = r.player_id;
-    modalPlayerName = r.nom;
-    showModal = true;
-  }
-
-  function closeModal() {
-    showModal = false;
-  }
 
   async function evaluateBadges(
     supabase: any,
@@ -218,31 +204,22 @@
             <td class="px-3 py-2">{r.posicio ?? '-'}</td>
             <td class="px-3 py-2">
 
-              <button
-                type="button"
-                class="text-blue-600 hover:underline"
-                on:click={() => openModal(r)}
-              >
-                {r.nom}
-              </button>
-
+              {r.nom}
               {#if r.canReptar}
-                <span
-                  title="Pot reptar"
-                  class="ml-1 inline-block h-3 w-3 rounded-full bg-green-500 align-middle"
-                ></span>
+                <span title="Pot reptar" class="ml-1 inline-block h-3 w-3 rounded-full bg-green-500 align-middle"></span>
               {/if}
               {#if r.canSerReptat}
-                <span
-                  title="Pot ser reptat"
-                  class="ml-1 inline-block h-3 w-3 rounded-full bg-blue-500 align-middle"
-                ></span>
+                <span title="Pot ser reptat" class="ml-1 inline-block h-3 w-3 rounded-full bg-blue-500 align-middle"></span>
+
               {/if}
               {#if r.isMe}
                 <span
                   title="Tu"
-                  class="ml-1 inline-block h-3 w-3 rounded-full bg-yellow-400 align-middle"
-                ></span>
+
+                  class="ml-1 inline-block rounded bg-yellow-400 px-1 text-xs font-semibold text-slate-900 align-middle"
+                  >Tu</span
+                >
+
               {/if}
               {#if r.hasActiveChallenge}
                 <span
@@ -274,16 +251,13 @@
   <div class="mt-2 flex gap-4 text-sm">
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-green-500"></span><span>pot reptar</span></div>
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-blue-500"></span><span>pot ser reptat</span></div>
-    <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-yellow-400"></span><span>tu</span></div>
+
+    <div class="flex items-center gap-1">
+      <span class="inline-block rounded bg-yellow-400 px-1 text-xs font-semibold text-slate-900">Tu</span>
+      <span>tu</span>
+    </div>
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-red-500"></span><span>repte actiu</span></div>
   </div>
-{/if}
 
-{#if showModal && modalPlayerId}
-  <PlayerEvolutionModal
-    playerId={modalPlayerId}
-    playerName={modalPlayerName}
-    on:close={closeModal}
-  />
 {/if}
 
