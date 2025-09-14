@@ -8,7 +8,7 @@
     import Loader from '$lib/components/Loader.svelte';
     import { ok as okMsg, err as errMsg } from '$lib/ui/alerts';
     import { supabase } from '$lib/supabaseClient';
-    import { canCreateChallenge } from '$lib/canCreateChallenge';
+    import { canCreateChallengeDetail } from '$lib/canCreateChallengeDetail';
     import { canCreateAccessChallenge } from '$lib/canCreateAccessChallenge';
 
 
@@ -31,7 +31,7 @@
   let opponentName: string | null = null;
   let notes = '';
 
-  let canChk: { ok: boolean; reason: string | null } | null = null;
+  let canChk: { ok: boolean; reason?: string | null } | null = null;
   let isAccess = false;
 
   // Dates proposades (en format local del <input>)
@@ -199,7 +199,7 @@
     if (selectedOpponent && eventId && myPlayerId) {
       canChk = isAccess
         ? await canCreateAccessChallenge(supabase, eventId, myPlayerId, selectedOpponent)
-        : await canCreateChallenge(supabase, eventId, myPlayerId, selectedOpponent);
+        : await canCreateChallengeDetail(supabase, eventId, myPlayerId, selectedOpponent);
     } else {
       canChk = null;
     }
