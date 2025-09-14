@@ -6,6 +6,7 @@
   import Banner from '$lib/components/Banner.svelte';
   import Loader from '$lib/components/Loader.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
+  import { runDeadlines } from '$lib/deadlinesService';
 
   let loading = true;
   let error: string | null = null;
@@ -31,6 +32,10 @@
   let captureBusy = false;
   let captureOk: string | null = null;
   let captureErr: string | null = null;
+
+  let deadlinesBusy = false;
+  let deadlinesRes: { caducats_sense_acceptar: number; anullats_sense_jugar: number } | null = null;
+  let deadlinesErr: string | null = null;
 
   type Change = {
     creat_el: string;
@@ -132,6 +137,22 @@
     }
   }
 
+
+  async function processDeadlines() {
+    try {
+      deadlinesBusy = true;
+      deadlinesErr = null;
+      deadlinesRes = null;
+      const { supabase } = await import('$lib/supabaseClient');
+      const res = await runDeadlines(supabase);
+      deadlinesRes = res;
+      await Promise.all([invalidate('/reptes'), invalidate('/admin/reptes')]);
+    } catch (e) {
+      deadlinesErr = formatSupabaseError(e);
+    } finally {
+      deadlinesBusy = false;
+    }
+  }
   async function captureInitialRanking() {
     try {
       captureBusy = true;
@@ -349,6 +370,24 @@
           {#if inactBusy}Executant…{:else}Executa inactivitat (42 dies){/if}
         </button>
       </div>
+    </div>
+
+    <!-- Targeta: terminis reptes -->
+    <div class="rounded-2xl border p-4">
+      <h2 class="font-semibold">⏰ Terminis reptes</h2>
+      {#if deadlinesRes}
+        <pre class="text-sm mt-2">{JSON.stringify(deadlinesRes)}</pre>
+      {/if}
+      {#if deadlinesErr}
+        <Banner type="error" message={deadlinesErr} class="mb-2" />
+      {/if}
+      <button
+        class="mt-2 rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
+        on:click={processDeadlines}
+        disabled={deadlinesBusy}
+      >
+        {#if deadlinesBusy}Processant…{:else}Processar terminis{/if}
+      </button>
     </div>
 
     <!-- Targeta: reset campionat -->
