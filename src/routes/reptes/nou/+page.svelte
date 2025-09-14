@@ -5,6 +5,8 @@
     import Banner from '$lib/components/Banner.svelte';
     import Loader from '$lib/components/Loader.svelte';
     import { ok as okMsg, err as errMsg } from '$lib/ui/alerts';
+    import { supabase } from '$lib/supabaseClient';
+    import { canCreateChallenge, type CanCreateChallengeResult } from '$lib/canCreateChallenge';
 
 
   type RankedPlayer = { posicio: number; player_id: string; nom: string };
@@ -24,6 +26,8 @@
 
   let selectedOpponent: string | null = null;
   let notes = '';
+
+  let canChk: CanCreateChallengeResult | null = null;
 
   // Dates proposades (en format local del <input>)
   let dateInputs: string[] = [
@@ -110,12 +114,21 @@
   let valMsg: string | null = null;
   $: valMsg = validate();
 
+  $: (async () => {
+    if (selectedOpponent && eventId && myPlayerId) {
+      canChk = await canCreateChallenge(supabase, eventId, myPlayerId, selectedOpponent);
+    } else {
+      canChk = null;
+    }
+  })();
+
   async function creaRepte() {
     try {
       err = null;
       ok = null;
       const v = validate();
       if (v) { err = v; return; }
+      if (canChk && !canChk.ok) { err = errMsg(canChk.reason || 'Repte no permès'); return; }
 
       // Converteix totes les dates vàlides a ISO
       const datesIso = dateInputs
@@ -153,11 +166,12 @@
 <h1 class="text-2xl font-semibold mb-4">Nou repte</h1>
 
 {#if loading}
-  <Loader />
+      <Loader />
 {:else}
     {#if err}<Banner type="error" message={err} class="mb-3" />{/if}
     {#if ok}<Banner type="success" message={ok} class="mb-3" />{/if}
     {#if info}<Banner type="info" message={info} class="mb-3" />{/if}
+    {#if canChk && !canChk.ok}<Banner type="error" message={canChk.reason || 'Repte no permès'} class="mb-3" />{/if}
 
   {#if myPos}
     <div class="rounded-2xl border bg-white p-4 shadow-sm mb-4">
@@ -232,7 +246,7 @@
       <div class="flex items-center gap-3 pt-1">
         <button class="rounded-2xl bg-slate-900 text-white px-4 py-2 disabled:opacity-60"
                 on:click|preventDefault={creaRepte}
-                disabled={!!valMsg}>
+                disabled={!!valMsg || !(canChk?.ok)}>
           Crear repte
         </button>
         <a href="/reptes" class="text-sm underline text-slate-600">Torna</a>
