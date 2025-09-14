@@ -28,6 +28,7 @@ export async function scheduleChallenge(
   if (error) throw new Error(error.message);
 }
 
+
 export async function resolveAccessChallenge(
   supabase: SupabaseClient,
   challengeId: string,
