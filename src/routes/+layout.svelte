@@ -4,6 +4,64 @@
   import { user, authReady, initAuth, logout } from "$lib/authStore";
   import { adminStore } from '$lib/roles';
 
+  let showInscripcio = false;
+
+  type SessionUser = { email: string | null } | null;
+
+  async function refreshInscripcioVisibility(u: SessionUser) {
+    if (!u?.email) {
+      showInscripcio = false;
+      return;
+    }
+    try {
+      const { supabase } = await import('$lib/supabaseClient');
+      const { data: ev, error: eEv } = await supabase
+        .from('events')
+        .select('id')
+        .eq('actiu', true)
+        .limit(1)
+        .maybeSingle();
+      if (eEv) throw eEv;
+      const eventId = ev?.id;
+      if (!eventId) {
+        showInscripcio = false;
+        return;
+      }
+      const { data: pl, error: ePl } = await supabase
+        .from('players')
+        .select('id')
+        .eq('email', u.email)
+        .maybeSingle();
+      if (ePl) throw ePl;
+      if (!pl) {
+        showInscripcio = false;
+        return;
+      }
+      const { data: rp, error: eRp } = await supabase
+        .from('ranking_positions')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('player_id', pl.id)
+        .maybeSingle();
+      if (eRp) throw eRp;
+      if (rp) {
+        showInscripcio = false;
+        return;
+      }
+      const { data: wl, error: eWl } = await supabase
+        .from('waiting_list')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('player_id', pl.id)
+        .maybeSingle();
+      if (eWl) throw eWl;
+      showInscripcio = !wl;
+    } catch (e) {
+      console.warn('refreshInscripcioVisibility error', e);
+      showInscripcio = false;
+    }
+  }
+
   onMount(() => {
     // Inicialitza sessió + rol admin en muntar el layout
     initAuth();
@@ -16,6 +74,10 @@
 
   let menuOpen = false;
   const toggleMenu = () => (menuOpen = !menuOpen);
+
+  $: if ($authReady) {
+    void refreshInscripcioVisibility($user);
+  }
 </script>
 
 <nav class="bg-slate-900 text-white">
@@ -29,7 +91,9 @@
       <a href="/historial" class={isActive("/historial", $page.url.pathname)}>Historial</a>
 
       {#if $authReady && $user}
-        <a href="/inscripcio" class={isActive("/inscripcio", $page.url.pathname)}>Inscripció</a>
+        {#if showInscripcio}
+          <a href="/inscripcio" class={isActive("/inscripcio", $page.url.pathname)}>Inscripció</a>
+        {/if}
         <a href="/reptes/me" class={isActive("/reptes/me", $page.url.pathname)}>Els meus reptes</a>
         <a href="/reptes/nou" class={isActive("/reptes/nou", $page.url.pathname)}>Crear repte</a>
       {/if}
@@ -74,7 +138,9 @@
       <a href="/historial" class={isActive("/historial", $page.url.pathname)}>Historial</a>
 
       {#if $authReady && $user}
-        <a href="/inscripcio" class={isActive("/inscripcio", $page.url.pathname)}>Inscripció</a>
+        {#if showInscripcio}
+          <a href="/inscripcio" class={isActive("/inscripcio", $page.url.pathname)}>Inscripció</a>
+        {/if}
         <a href="/reptes/me" class={isActive("/reptes/me", $page.url.pathname)}>Els meus reptes</a>
         <a href="/reptes/nou" class={isActive("/reptes/nou", $page.url.pathname)}>Crear repte</a>
       {/if}
