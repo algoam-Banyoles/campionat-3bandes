@@ -34,61 +34,17 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'Sessió invàlida' }, { status: 400 });
     }
 
-    const { data: adm, error: admErr } = await supabase.rpc('is_admin', {
-      p_email: auth.user.email
+    const { data: out, error: rpcErr } = await supabase.rpc('programar_repte', {
+      p_challenge: id,
+      p_data: data_iso,
+      p_actor_email: auth.user.email
     });
-    if (admErr) {
-      if (isRlsError(admErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
-      return json({ ok: false, error: admErr.message }, { status: 400 });
+    if (rpcErr) {
+      if (isRlsError(rpcErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
+      return json({ ok: false, error: rpcErr.message }, { status: 400 });
     }
-    const isAdmin = !!adm;
-
-    const { data: chal, error: chalErr } = await supabase
-      .from('challenges')
-      .select('data_programada,reprogram_count,estat,data_acceptacio')
-      .eq('id', id)
-      .maybeSingle();
-    if (chalErr) {
-      if (isRlsError(chalErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
-      return json({ ok: false, error: chalErr.message }, { status: 400 });
-    }
-    if (!chal) return json({ ok: false, error: 'Repte no trobat' }, { status: 404 });
-
-    if (!['proposat', 'acceptat', 'programat'].includes(chal.estat)) {
-      return json({ ok: false, error: 'Estat no permet programar' }, { status: 400 });
-    }
-
-    const alreadyProgrammed = chal.data_programada && chal.data_programada !== data_iso;
-    if (alreadyProgrammed && !isAdmin) {
-      const count = chal.reprogram_count ?? 0;
-      if (count >= 1) {
-        return json(
-          { ok: false, error: 'Només una reprogramació; contacta un administrador' },
-          { status: 403 }
-        );
-      }
-    }
-
-    const updates: any = { data_programada: data_iso, estat: 'programat' };
-    if (alreadyProgrammed) {
-      updates.reprogram_count = (chal.reprogram_count ?? 0) + 1;
-    }
-    if (chal.estat === 'proposat') {
-      updates.data_acceptacio = new Date().toISOString();
-    }
-
-    const { data: upd, error: upErr } = await supabase
-      .from('challenges')
-      .update(updates)
-      .eq('id', id)
-      .in('estat', ['proposat', 'acceptat', 'programat'])
-      .select('id');
-    if (upErr) {
-      if (isRlsError(upErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
-      return json({ ok: false, error: upErr.message }, { status: 400 });
-    }
-    if (!upd || upd.length === 0) {
-      return json({ ok: false, error: 'Estat no permet programar' }, { status: 400 });
+    if (!out?.ok) {
+      return json(out, { status: 400 });
     }
 
     return json({ ok: true });

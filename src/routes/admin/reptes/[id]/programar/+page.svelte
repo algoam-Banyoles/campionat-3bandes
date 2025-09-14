@@ -114,29 +114,29 @@
     }
     try {
       saving = true;
+      if (!$user?.email) {
+        error = errText('Has d\u2019iniciar sessi\u00f3.');
+        saving = false;
+        return;
+      }
       const { supabase } = await import('$lib/supabaseClient');
-      const updates: any = { data_programada: iso, estat: 'programat' };
-      if (chal.estat === 'programat' && chal.data_programada !== iso) {
-        updates.reprogram_count = (chal.reprogram_count ?? 0) + 1;
+      const { data: out, error: rpcErr } = await supabase.rpc('programar_repte', {
+        p_challenge: id,
+        p_data: iso,
+        p_actor_email: $user.email
+      });
+      if (rpcErr) throw rpcErr;
+      if (!out?.ok) {
+        throw new Error(out.error || 'Error programant repte');
       }
-      if (chal.estat === 'proposat') {
-        updates.data_acceptacio = new Date().toISOString();
-      }
-      const { data, error: e } = await supabase
-        .from('challenges')
-        .update(updates)
-        .eq('id', id)
-        .in('estat', ['proposat', 'acceptat', 'programat'])
-        .select('id');
-      if (e) throw e;
-      if (!data || data.length === 0) throw new Error('Estat no permet programar');
       okMsg = okText('Data programada correctament.');
+      const wasReprogram = chal.estat === 'programat' && chal.data_programada !== iso;
       chal.estat = 'programat';
       chal.data_programada = iso;
-      if (updates.reprogram_count) {
-        chal.reprogram_count = updates.reprogram_count;
+      if (wasReprogram) {
+        chal.reprogram_count = (chal.reprogram_count ?? 0) + 1;
       }
-    } catch (e: any) {
+    } catch (e) {
       error = formatSupabaseError(e);
     } finally {
       saving = false;
