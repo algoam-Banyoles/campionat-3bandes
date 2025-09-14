@@ -107,7 +107,8 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     // Valida que el repte compleix la normativa
-    const { data: chk, error: chkErr } = await supabase.rpc('can_create_challenge', {
+    const rpc = tipus === 'access' ? 'can_create_access_challenge' : 'can_create_challenge';
+    const { data: chk, error: chkErr } = await supabase.rpc(rpc, {
       p_event: event_id,
       p_reptador: reptadorId,
       p_reptat: reptat_id
