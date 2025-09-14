@@ -28,9 +28,6 @@
   let rows: Row[] = [];
   let myPlayerId: string | null = null;
 
-  let showModal = false;
-  let modalPlayerId: string | null = null;
-  let modalPlayerName = '';
 
   onMount(async () => {
     try {
@@ -51,7 +48,6 @@
       if (err) error = err.message;
       else {
         const base = (data as Row[]) ?? [];
-
         rows = base.map((r) => ({
           ...r,
           canReptar: false,
@@ -59,12 +55,13 @@
 
           isMe: myPlayerId === r.player_id,
           hasActiveChallenge: false
-
         }));
 
         const eventId = base[0]?.event_id as string | undefined;
         await evaluateBadges(supabase, rows, eventId);
-        rows = rows;
+
+        // trigger reactivity after in-place badge updates
+        rows = [...rows];
       }
     } catch (e: any) {
       error = e?.message ?? 'Error desconegut';
@@ -73,23 +70,12 @@
     }
   });
 
-  function openModal(r: Row) {
-    modalPlayerId = r.player_id;
-    modalPlayerName = r.nom;
-    showModal = true;
-  }
-
-  function closeModal() {
-    showModal = false;
-  }
-
   async function evaluateBadges(
     supabase: any,
     rows: Row[],
     eventId: string | undefined
   ): Promise<void> {
     if (!eventId) return;
-
     const byId = new Map<string, Row>();
     rows.forEach((r) => byId.set(r.player_id, r));
 
@@ -121,7 +107,6 @@
       }
     });
 
-
     const byPos = new Map<number, Row>();
     const ranking = rows.filter((r) => r.posicio != null && r.posicio <= 20);
     ranking.forEach((r) => byPos.set(r.posicio as number, r));
@@ -132,14 +117,12 @@
     for (const r of ranking) {
       tasks.push(
         (async () => {
-
           if (r.hasActiveChallenge) return;
           if (!playedIds.has(r.player_id)) {
             r.canReptar = true;
             r.canSerReptat = true;
             return;
           }
-
           for (let d = 1; d <= maxGap; d++) {
             const opp = byPos.get((r.posicio as number) - d);
             if (!opp) continue;
@@ -178,7 +161,6 @@
     const pos20 = byPos.get(20);
 
     if (firstWaiting && pos20 && !firstWaiting.hasActiveChallenge) {
-
       const { data } = await supabase.rpc('can_create_access_challenge', {
         p_event: eventId,
         p_reptador: firstWaiting.player_id,
@@ -221,31 +203,22 @@
           <tr class="border-t">
             <td class="px-3 py-2">{r.posicio ?? '-'}</td>
             <td class="px-3 py-2">
-              <button
-                type="button"
-                class="text-blue-600 hover:underline"
-                on:click={() => openModal(r)}
-              >
-                {r.nom}
-              </button>
+
+              {r.nom}
               {#if r.canReptar}
-                <span
-                  title="Pot reptar"
-                  class="ml-1 inline-block h-3 w-3 rounded-full bg-green-500 align-middle"
-                ></span>
+                <span title="Pot reptar" class="ml-1 inline-block h-3 w-3 rounded-full bg-green-500 align-middle"></span>
               {/if}
               {#if r.canSerReptat}
-                <span
-                  title="Pot ser reptat"
-                  class="ml-1 inline-block h-3 w-3 rounded-full bg-blue-500 align-middle"
-                ></span>
+                <span title="Pot ser reptat" class="ml-1 inline-block h-3 w-3 rounded-full bg-blue-500 align-middle"></span>
               {/if}
               {#if r.isMe}
+                <span title="Tu" class="ml-1 inline-block h-3 w-3 rounded-full bg-yellow-400 align-middle"></span>
+              {/if}
+              {#if r.hasActiveChallenge}
                 <span
-                  title="Tu"
-                  class="ml-1 inline-block h-3 w-3 rounded-full bg-yellow-400 align-middle"
+                  title="Té un repte actiu"
+                  class="ml-1 inline-block h-3 w-3 rounded-full bg-red-500 align-middle"
                 ></span>
-
               {/if}
             </td>
             <td class="px-3 py-2">{r.mitjana ?? '-'}</td>
@@ -273,15 +246,6 @@
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-blue-500"></span><span>pot ser reptat</span></div>
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-yellow-400"></span><span>tu</span></div>
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-red-500"></span><span>repte actiu</span></div>
-
   </div>
-{/if}
-
-{#if showModal && modalPlayerId}
-  <PlayerEvolutionModal
-    playerId={modalPlayerId}
-    playerName={modalPlayerName}
-    on:close={closeModal}
-  />
 {/if}
 
