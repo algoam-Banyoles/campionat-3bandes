@@ -24,26 +24,22 @@
     try {
       const { supabase } = await import('$lib/supabaseClient');
 
-      // Auth & player
-      const { data: auth, error: authErr } = await supabase.auth.getUser();
-      if (authErr || !auth?.user?.email) {
-        error = 'Sessió invàlida';
-        return;
+      // Auth & player (opcional)
+      const { data: auth } = await supabase.auth.getUser();
+      if (auth?.user?.email) {
+        const { data: player, error: pErr } = await supabase
+          .from('players')
+          .select('id')
+          .eq('email', auth.user.email)
+          .maybeSingle();
+        if (pErr) {
+          error = pErr.message;
+          return;
+        }
+        if (player) {
+          myPlayerId = player.id as string;
+        }
       }
-      const { data: player, error: pErr } = await supabase
-        .from('players')
-        .select('id')
-        .eq('email', auth.user.email)
-        .maybeSingle();
-      if (pErr) {
-        error = pErr.message;
-        return;
-      }
-      if (!player) {
-        error = 'Usuari sense jugador associat';
-        return;
-      }
-      myPlayerId = player.id as string;
 
       // Event
       const { data: event, error: eErr } = await supabase
@@ -74,7 +70,7 @@
       myPos = rows.find((r) => r.player_id === myPlayerId)?.posicio ?? null;
 
       // Evaluate challenge availability
-      if (myPos && eventId) {
+      if (myPlayerId && myPos && eventId) {
         for (const r of rows) {
           if (r.player_id === myPlayerId) continue;
           if (r.posicio >= myPos || myPos - r.posicio > 2) {
@@ -132,7 +128,7 @@
             <td class="px-3 py-2">{fmtMitjana(r.mitjana)}</td>
             <td class="px-3 py-2 capitalize">{fmtEstat(r.estat)}</td>
             <td class="px-3 py-2">
-              {#if r.player_id !== myPlayerId}
+              {#if myPlayerId && r.player_id !== myPlayerId}
                 <button
                   class="rounded-2xl border px-3 py-1 text-sm disabled:opacity-50"
                   disabled={!r.canChallenge}
