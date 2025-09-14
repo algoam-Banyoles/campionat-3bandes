@@ -183,14 +183,25 @@
       saving = true;
       const { supabase } = await import('$lib/supabaseClient');
 
+      const isWalkover = tipusResultat !== 'normal';
+      const hasTB = tipusResultat === 'normal' && tiebreak;
+      const resEnum = hasTB
+        ? Number(tbR) > Number(tbT)
+          ? 'empat_tiebreak_reptador'
+          : 'empat_tiebreak_reptat'
+        : Number(carR) > Number(carT)
+        ? 'guanya_reptador'
+        : 'guanya_reptat';
+
       const insertRow: any = {
         challenge_id: id,
         data_joc: parsedIso,
         caramboles_reptador: isWalkover ? 0 : Number(carR),
         caramboles_reptat:   isWalkover ? 0 : Number(carT),
         entrades:            isWalkover ? 0 : Number(entrades),
-        resultat: isWalkover ? tipusResultat : resultEnum(),
-        tiebreak: tiebreak
+        resultat: isWalkover ? tipusResultat : resEnum,
+        tiebreak: hasTB
+
       };
 
       if (tiebreak) {
