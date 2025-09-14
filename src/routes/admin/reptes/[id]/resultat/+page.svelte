@@ -35,16 +35,18 @@
   let tiebreak = false;
   let tbR: number | '' = '';
   let tbT: number | '' = '';
-  let tipusResultat: 'normal' | 'walkover_reptador' | 'walkover_reptat' = 'normal';
-  let isWalkover = false;
+  let tipusResultat: 'normal' | 'incompareixenca_reptador' | 'incompareixenca_reptat' = 'normal';
 
   let data_joc_local = '';
 
-  $: isWalkover = tipusResultat !== 'normal';
-  $: hasTB = tipusResultat === 'normal' && tiebreak;
 
-  function resultEnum() {
-    if (tipusResultat !== 'normal') return tipusResultat;
+  function resultEnum():
+    | 'guanya_reptador'
+    | 'guanya_reptat'
+    | 'empat_tiebreak_reptador'
+    | 'empat_tiebreak_reptat' {
+    if (tipusResultat === 'incompareixenca_reptador') return 'guanya_reptat';
+    if (tipusResultat === 'incompareixenca_reptat') return 'guanya_reptador';
     if (tiebreak) return Number(tbR) > Number(tbT) ? 'empat_tiebreak_reptador' : 'empat_tiebreak_reptat';
     return Number(carR) > Number(carT) ? 'guanya_reptador' : 'guanya_reptat';
   }
@@ -129,21 +131,13 @@
 
   const toNum = (v: number | '' ) => (v === '' ? NaN : Number(v));
 
-  $: isWalkover = tipusResultat !== 'normal';
-
-  function resultEnum(): string {
-    if (tiebreak) {
-      return Number(tbR) > Number(tbT) ? 'empat_tiebreak_reptador' : 'empat_tiebreak_reptat';
-    }
-    return Number(carR) > Number(carT) ? 'guanya_reptador' : 'guanya_reptat';
-  }
   const isInt = (v: number | '' ) => Number.isInteger(toNum(v));
 
   let parsedIso: string | null = null;
   $: parsedIso = parseLocalToIso(data_joc_local);
   $: if (tipusResultat !== 'normal') tiebreak = false;
 
-  function validate(parsed: string | null, tipus: 'normal' | 'walkover_reptador' | 'walkover_reptat'): string | null {
+  function validate(parsed: string | null, tipus: 'normal' | 'incompareixenca_reptador' | 'incompareixenca_reptat'): string | null {
     if (!parsed) return 'Cal indicar la data de joc.';
     if (tipus !== 'normal') return null;
     const _carR = toNum(carR), _carT = toNum(carT), _entr = toNum(entrades);
@@ -185,13 +179,7 @@
 
       const isWalkover = tipusResultat !== 'normal';
       const hasTB = tipusResultat === 'normal' && tiebreak;
-      const resEnum = hasTB
-        ? Number(tbR) > Number(tbT)
-          ? 'empat_tiebreak_reptador'
-          : 'empat_tiebreak_reptat'
-        : Number(carR) > Number(carT)
-        ? 'guanya_reptador'
-        : 'guanya_reptat';
+      const resEnum = resultEnum();
 
       const insertRow: any = {
         challenge_id: id,
@@ -199,7 +187,7 @@
         caramboles_reptador: isWalkover ? 0 : Number(carR),
         caramboles_reptat:   isWalkover ? 0 : Number(carT),
         entrades:            isWalkover ? 0 : Number(entrades),
-        resultat: isWalkover ? tipusResultat : resEnum,
+        resultat: resEnum,
         tiebreak: hasTB
 
       };
@@ -288,8 +276,8 @@
         <label for="tipus" class="text-sm text-slate-700">Tipus de resultat</label>
         <select id="tipus" class="rounded-xl border px-3 py-2" bind:value={tipusResultat}>
           <option value="normal">Partida normal</option>
-          <option value="walkover_reptador">Incompareixença (guanya reptador)</option>
-          <option value="walkover_reptat">Incompareixença (guanya reptat)</option>
+          <option value="incompareixenca_reptador">Incompareixença del reptador (guanya reptat)</option>
+          <option value="incompareixenca_reptat">Incompareixença del reptat (guanya reptador)</option>
         </select>
       </div>
 
