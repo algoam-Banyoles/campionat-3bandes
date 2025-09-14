@@ -1,17 +1,11 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
+  import { get } from 'svelte/store';
   import { canCreateChallenge } from '$lib/canCreateChallenge';
+  import { ranking, refreshRanking, type RankingRow } from '$lib/rankingStore';
 
-  type Row = {
-    posicio: number;
-    player_id: string;
-    nom: string;
-    mitjana: number | null;
-    estat: string;
-  };
-
-  type RowState = Row & { canChallenge: boolean; reason: string | null };
+  type RowState = RankingRow & { canChallenge: boolean; reason: string | null };
 
   let loading = true;
   let error: string | null = null;
@@ -19,10 +13,17 @@
   let myPlayerId: string | null = null;
   let myPos: number | null = null;
   let eventId: string | null = null;
+  let unsub: (() => void) | null = null;
 
   onMount(async () => {
     try {
       const { supabase } = await import('$lib/supabaseClient');
+
+      unsub = ranking.subscribe((base) => {
+        const rdata = base.slice(0, 20);
+        rows = rdata.map((r) => ({ ...r, canChallenge: false, reason: null }));
+        void evaluateChallenges(supabase);
+      });
 
       // Auth & player (opcional)
       const { data: auth } = await supabase.auth.getUser();
@@ -59,36 +60,35 @@
       }
       eventId = event.id as string;
 
-      // Ranking
-      const { data, error: rErr } = await supabase.rpc('get_ranking');
-      if (rErr) {
-        error = rErr.message;
-        return;
-      }
-      const rdata = (data as Row[]) ?? [];
-      rows = rdata.slice(0, 20).map((r) => ({ ...r, canChallenge: false, reason: null }));
-      myPos = rows.find((r) => r.player_id === myPlayerId)?.posicio ?? null;
-
-      // Evaluate challenge availability
-      if (myPlayerId && myPos && eventId) {
-        for (const r of rows) {
-          if (r.player_id === myPlayerId) continue;
-          if (r.posicio >= myPos || myPos - r.posicio > 2) {
-            r.canChallenge = false;
-            r.reason = 'Només fins a 2 posicions per sobre';
-            continue;
-          }
-          const chk = await canCreateChallenge(supabase, eventId, myPlayerId, r.player_id);
-          r.canChallenge = chk.ok;
-          r.reason = chk.ok ? chk.warning : chk.reason;
-        }
-      }
+      await refreshRanking();
+      myPos = get(ranking).find((r) => r.player_id === myPlayerId)?.posicio ?? null;
+      await evaluateChallenges(supabase);
     } catch (e: any) {
       error = e?.message ?? 'Error desconegut';
     } finally {
       loading = false;
     }
   });
+
+  onDestroy(() => {
+    unsub?.();
+  });
+
+  async function evaluateChallenges(supabase: any) {
+    myPos = rows.find((r) => r.player_id === myPlayerId)?.posicio ?? null;
+    if (!(myPlayerId && myPos && eventId)) return;
+    for (const r of rows) {
+      if (r.player_id === myPlayerId) continue;
+      if (r.posicio >= myPos || myPos - r.posicio > 2) {
+        r.canChallenge = false;
+        r.reason = 'Només fins a 2 posicions per sobre';
+        continue;
+      }
+      const chk = await canCreateChallenge(supabase, eventId, myPlayerId, r.player_id);
+      r.canChallenge = chk.ok;
+      r.reason = chk.ok ? chk.warning : chk.reason;
+    }
+  }
 
   function reptar(id: string) {
     goto(`/reptes/nou?opponent=${id}`);
