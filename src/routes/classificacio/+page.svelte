@@ -13,6 +13,7 @@
     canSerReptat?: boolean;
     isMe?: boolean;
     hasActiveChallenge?: boolean;
+
   };
 
   const fmtSafe = (iso: string | null): string => {
@@ -45,12 +46,15 @@
       if (err) error = err.message;
       else {
         const base = (data as Row[]) ?? [];
+
         rows = base.map((r) => ({
           ...r,
           canReptar: false,
           canSerReptat: false,
+
           isMe: myPlayerId === r.player_id,
           hasActiveChallenge: false
+
         }));
 
         const eventId = base[0]?.event_id as string | undefined;
@@ -70,6 +74,7 @@
     eventId: string | undefined
   ): Promise<void> {
     if (!eventId) return;
+
     const byId = new Map<string, Row>();
     rows.forEach((r) => byId.set(r.player_id, r));
 
@@ -101,6 +106,7 @@
       }
     });
 
+
     const byPos = new Map<number, Row>();
     const ranking = rows.filter((r) => r.posicio != null && r.posicio <= 20);
     ranking.forEach((r) => byPos.set(r.posicio as number, r));
@@ -111,12 +117,14 @@
     for (const r of ranking) {
       tasks.push(
         (async () => {
+
           if (r.hasActiveChallenge) return;
           if (!playedIds.has(r.player_id)) {
             r.canReptar = true;
             r.canSerReptat = true;
             return;
           }
+
           for (let d = 1; d <= maxGap; d++) {
             const opp = byPos.get((r.posicio as number) - d);
             if (!opp) continue;
@@ -153,7 +161,9 @@
     const waiting = rows.filter((r) => r.posicio == null || r.posicio > 20);
     const firstWaiting = waiting[0];
     const pos20 = byPos.get(20);
+
     if (firstWaiting && pos20 && !firstWaiting.hasActiveChallenge) {
+
       const { data } = await supabase.rpc('can_create_access_challenge', {
         p_event: eventId,
         p_reptador: firstWaiting.player_id,
@@ -187,6 +197,8 @@
           <th class="px-3 py-2 text-left font-semibold">Mitjana</th>
           <th class="px-3 py-2 text-left font-semibold">Estat</th>
           <th class="px-3 py-2 text-left font-semibold">Assignat</th>
+          <th class="px-3 py-2 text-left font-semibold">Reptar</th>
+          <th class="px-3 py-2 text-left font-semibold">Reptable</th>
         </tr>
       </thead>
       <tbody>
@@ -208,12 +220,25 @@
                 <span
                   title="Té un repte actiu"
                   class="ml-1 inline-block h-3 w-3 rounded-full bg-red-500 align-middle"
+
                 ></span>
               {/if}
             </td>
             <td class="px-3 py-2">{r.mitjana ?? '-'}</td>
             <td class="px-3 py-2 capitalize">{r.estat.replace('_', ' ')}</td>
             <td class="px-3 py-2">{fmtSafe(r.assignat_el)}</td>
+            <td class="px-3 py-2">
+              <span
+                class={`text-xs rounded px-2 py-0.5 ${r.canReptar ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}
+                >{r.canReptar ? 'Sí' : 'No'}</span
+              >
+            </td>
+            <td class="px-3 py-2">
+              <span
+                class={`text-xs rounded px-2 py-0.5 ${r.canSerReptat ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'}`}
+                >{r.canSerReptat ? 'Sí' : 'No'}</span
+              >
+            </td>
           </tr>
         {/each}
       </tbody>
@@ -224,6 +249,7 @@
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-blue-500"></span><span>pot ser reptat</span></div>
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-yellow-400"></span><span>tu</span></div>
     <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-red-500"></span><span>repte actiu</span></div>
+
   </div>
 {/if}
 
