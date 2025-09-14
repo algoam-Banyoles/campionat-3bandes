@@ -68,8 +68,10 @@ begin
         where event_id = v_event and player_id = v_reptat;
 
       -- envia reptat al final de la llista
-      insert into waiting_list(event_id, player_id, ordre, data_inscripcio)
-        values (v_event, v_reptat, v_max, now());
+
+      insert into waiting_list(event_id, player_id, ordre)
+        values (v_event, v_reptat, v_max);
+
 
       -- registre historial
       insert into history_position_changes(event_id, player_id, posicio_anterior, posicio_nova, motiu, ref_challenge)

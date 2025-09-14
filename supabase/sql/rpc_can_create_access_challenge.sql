@@ -8,8 +8,6 @@ security definer
 as $$
 declare
   v_first uuid;
-  v_data  timestamp with time zone;
-  v_max   integer;
   v_pos_t integer;
   v_last_match timestamp with time zone;
 begin
@@ -19,22 +17,13 @@ begin
     return;
   end if;
 
-  -- Si el primer no ha reptat en 15 dies, passa al final
-  loop
-    select player_id, data_inscripcio into v_first, v_data
-      from waiting_list
-      where event_id = p_event
-      order by ordre
-      limit 1;
-    exit when v_first is null or v_data >= now() - interval '15 days';
-    select coalesce(max(ordre),0) + 1 into v_max
-      from waiting_list where event_id = p_event;
-    update waiting_list
-      set ordre = v_max, data_inscripcio = now()
-      where event_id = p_event and player_id = v_first;
-  end loop;
-
   -- Reptador ha de ser el primer de la llista d'espera
+  select player_id into v_first
+    from waiting_list
+    where event_id = p_event
+    order by ordre
+    limit 1;
+
   if v_first is null or v_first <> p_reptador then
     return query select false, 'No és el primer de la llista d''espera';
     return;
