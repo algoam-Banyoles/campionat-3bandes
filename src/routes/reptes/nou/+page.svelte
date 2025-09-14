@@ -110,10 +110,21 @@
   function validate(): string | null {
     if (!eventId || !myPlayerId) return 'Error d’estat intern: falta event o jugador.';
     if (!selectedOpponent) return 'Cal triar oponent.';
-    const parsed = dateInputs
-      .map(v => parseLocalToIso(v || null))
-      .filter(Boolean) as string[];
-    if (parsed.length === 0) return 'Has de proposar almenys una data.';
+
+    const parsed = dateInputs.map((v) => parseLocalToIso(v || null));
+    const valid = parsed.filter(Boolean) as string[];
+
+    // Totes les dates han de ser vàlides
+    if (valid.length !== dateInputs.length) return 'Formats de data invàlids.';
+    // Entre 1 i 3 dates
+    if (valid.length < 1 || valid.length > 3) return 'Has de proposar entre 1 i 3 dates.';
+    // Sense duplicats
+    const uniq = new Set(valid);
+    if (uniq.size !== valid.length) return 'Les dates han de ser diferents.';
+    // Futures
+    const now = Date.now();
+    if (valid.some((iso) => new Date(iso).getTime() <= now)) return 'Les dates han de ser futures.';
+
     return null;
   }
 
@@ -147,6 +158,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           event_id: eventId,
+          reptador_id: myPlayerId,
           reptat_id: selectedOpponent,
           dates_proposades: datesIso,
           observacions: notes || null,
