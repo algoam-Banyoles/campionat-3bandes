@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import PlayerEvolutionModal from '$lib/components/PlayerEvolutionModal.svelte';
+  import { goto } from '$app/navigation';
+  import { canCreateChallenge } from '$lib/canCreateChallenge';
 
   type Row = {
     event_id: string;
@@ -10,11 +11,15 @@
     mitjana: number | null;
     estat: string;
     assignat_el: string | null;
-    canReptar?: boolean;
-    canSerReptat?: boolean;
     isMe?: boolean;
     hasActiveChallenge?: boolean;
-
+    cooldownToChallenge?: boolean;
+    cooldownToBeChallenged?: boolean;
+    reptable?: boolean;
+    canChallenge?: boolean;
+    reason?: string | null;
+    protected?: boolean;
+    outside?: boolean;
   };
 
   const fmtSafe = (iso: string | null): string => {
@@ -49,15 +54,19 @@
         const base = (data as Row[]) ?? [];
         rows = base.map((r) => ({
           ...r,
-          canReptar: false,
-          canSerReptat: false,
-
           isMe: myPlayerId === r.player_id,
-          hasActiveChallenge: false
+          hasActiveChallenge: false,
+          cooldownToChallenge: false,
+          cooldownToBeChallenged: false,
+          reptable: false,
+          canChallenge: false,
+          reason: null,
+          protected: false,
+          outside: r.posicio == null || r.posicio > 20
         }));
 
         const eventId = base[0]?.event_id as string | undefined;
-        await evaluateBadges(supabase, rows, eventId);
+        await evaluateBadges(supabase, rows, eventId, myPlayerId);
 
         // trigger reactivity after in-place badge updates
         rows = [...rows];
@@ -73,104 +82,127 @@
   async function evaluateBadges(
     supabase: any,
     rows: Row[],
-    eventId: string | undefined
+    eventId: string | undefined,
+    myPlayerId: string | null
   ): Promise<void> {
     if (!eventId) return;
+
+    const MAX_UP_CHALLENGE = 2;
+    const COOLDOWN_DAYS = 7;
+
     const byId = new Map<string, Row>();
     rows.forEach((r) => byId.set(r.player_id, r));
 
+    // Active challenges
     const { data: active } = await supabase
       .from('challenges')
-      .select('reptador_id, reptat_id')
+      .select('challenger_id, challenged_id')
       .eq('event_id', eventId)
-      .in('estat', ['proposat', 'acceptat', 'programat']);
+      .in('status', ['PENDING', 'ACCEPTED']);
     const activeIds = new Set<string>();
     (active as any[] ?? []).forEach((c) => {
-      activeIds.add((c as any).reptador_id);
-      activeIds.add((c as any).reptat_id);
+      activeIds.add((c as any).challenger_id);
+      activeIds.add((c as any).challenged_id);
     });
     activeIds.forEach((id) => {
       const row = byId.get(id);
       if (row) row.hasActiveChallenge = true;
     });
 
-    const { data: played } = await supabase
-      .from('matches')
-      .select('challenge:challenge_id(reptador_id, reptat_id)')
-      .eq('challenge.event_id', eventId);
-    const playedIds = new Set<string>();
-    (played as any[] ?? []).forEach((m) => {
-      const ch = (m as any).challenge;
-      if (ch) {
-        playedIds.add(ch.reptador_id);
-        playedIds.add(ch.reptat_id);
+    // Last challenge info
+    const { data: last } = await supabase
+      .from('player_last_challenge')
+      .select('player_id, last_challenge_date, last_challenge_outcome, was_challenger')
+      .eq('event_id', eventId);
+    const lastMap = new Map<string, any>();
+    (last as any[] ?? []).forEach((l) => lastMap.set(l.player_id, l));
+
+    const now = Date.now();
+    rows.forEach((r) => {
+      const lc = lastMap.get(r.player_id);
+      r.cooldownToChallenge = false;
+      r.cooldownToBeChallenged = false;
+      if (lc?.last_challenge_date) {
+        const dt = new Date(lc.last_challenge_date);
+        const diff = (now - dt.getTime()) / (1000 * 60 * 60 * 24);
+        if (diff < COOLDOWN_DAYS) {
+          r.cooldownToChallenge = true;
+          r.cooldownToBeChallenged = true;
+          if (lc.last_challenge_outcome === 'REFUSED' && lc.was_challenger) {
+            r.cooldownToChallenge = false;
+          }
+        }
       }
+      r.protected =
+        r.cooldownToBeChallenged && !r.hasActiveChallenge && !r.cooldownToChallenge;
     });
 
-    const byPos = new Map<number, Row>();
     const ranking = rows.filter((r) => r.posicio != null && r.posicio <= 20);
+    const byPos = new Map<number, Row>();
     ranking.forEach((r) => byPos.set(r.posicio as number, r));
+    const waiting = rows.filter((r) => r.posicio == null || r.posicio > 20);
 
-    const maxGap = 2;
-    const tasks: Promise<void>[] = [];
+    const myRow = myPlayerId ? byId.get(myPlayerId) : null;
+    const myPos = myRow?.posicio ?? null;
+    const canIChallenge = !!(
+      myRow &&
+      !myRow.hasActiveChallenge &&
+      !myRow.cooldownToChallenge
+    );
 
-    for (const r of ranking) {
-      tasks.push(
-        (async () => {
-          if (r.hasActiveChallenge) return;
-          if (!playedIds.has(r.player_id)) {
-            r.canReptar = true;
-            r.canSerReptat = true;
-            return;
-          }
-          for (let d = 1; d <= maxGap; d++) {
-            const opp = byPos.get((r.posicio as number) - d);
-            if (!opp) continue;
-            const { data } = await supabase.rpc('can_create_challenge', {
-              p_event: eventId,
-              p_reptador: r.player_id,
-              p_reptat: opp.player_id
-            });
-            if ((data as any)?.[0]?.ok) {
-              r.canReptar = true;
-              break;
-            }
-          }
-
-          for (let d = 1; d <= maxGap; d++) {
-            const challenger = byPos.get((r.posicio as number) + d);
-            if (!challenger) continue;
-            const { data } = await supabase.rpc('can_create_challenge', {
-              p_event: eventId,
-              p_reptador: challenger.player_id,
-              p_reptat: r.player_id
-            });
-            if ((data as any)?.[0]?.ok) {
-              r.canSerReptat = true;
-              break;
-            }
-          }
-        })()
-      );
+    if (myRow) {
+      myRow.outside = myPos == null || myPos > 20;
     }
 
-    await Promise.all(tasks);
+    rows.forEach((r) => {
+      if (r.player_id === myPlayerId) return;
+      r.reptable = false;
+      r.canChallenge = false;
+    });
 
-    const waiting = rows.filter((r) => r.posicio == null || r.posicio > 20);
-    const firstWaiting = waiting[0];
-    const pos20 = byPos.get(20);
-
-    if (firstWaiting && pos20 && !firstWaiting.hasActiveChallenge) {
-      const { data } = await supabase.rpc('can_create_access_challenge', {
-        p_event: eventId,
-        p_reptador: firstWaiting.player_id,
-        p_reptat: pos20.player_id
-      });
-      if ((data as any)?.[0]?.ok) {
-        firstWaiting.canReptar = true;
-        pos20.canSerReptat = true;
+    if (myRow && myPos != null && myPos <= 20 && canIChallenge) {
+      // current player inside ranking
+      for (const r of ranking) {
+        if (r.player_id === myPlayerId) continue;
+        if (r.hasActiveChallenge || r.cooldownToBeChallenged) continue;
+        if (r.posicio != null && myPos - (r.posicio as number) > 0 && myPos - (r.posicio as number) <= MAX_UP_CHALLENGE) {
+          r.reptable = true;
+        }
       }
     }
+
+    if (myRow && (myPos == null || myPos > 20) && canIChallenge) {
+      // waiting list first vs position 20
+      const firstWaiting = waiting[0];
+      const pos20 = byPos.get(20);
+      if (
+        firstWaiting?.player_id === myPlayerId &&
+        pos20 &&
+        !pos20.hasActiveChallenge &&
+        !pos20.cooldownToBeChallenged
+      ) {
+        pos20.reptable = true;
+      }
+    }
+
+    if (myPlayerId && eventId && canIChallenge) {
+      for (const r of rows) {
+        if (r.reptable) {
+          const chk = await canCreateChallenge(
+            supabase,
+            eventId,
+            myPlayerId,
+            r.player_id
+          );
+          r.canChallenge = chk.ok;
+          r.reason = chk.ok ? chk.warning : chk.reason;
+        }
+      }
+    }
+  }
+
+  function reptar(id: string) {
+    goto(`/reptes/nou?opponent=${id}`);
   }
 </script>
 
@@ -201,29 +233,62 @@
           <tr class="border-t">
             <td class="px-3 py-2">{r.posicio ?? '-'}</td>
             <td class="px-3 py-2">
-
               {r.nom}
-              {#if r.canReptar}
-                <span title="Pot reptar" class="ml-1 inline-block h-3 w-3 rounded-full bg-green-500 align-middle"></span>
-              {/if}
-              {#if r.canSerReptat}
-                <span title="Pot ser reptat" class="ml-1 inline-block h-3 w-3 rounded-full bg-blue-500 align-middle"></span>
-
-              {/if}
               {#if r.isMe}
                 <span
+                  class="ml-1 inline-block rounded-full bg-yellow-400 px-2.5 py-1 text-xs font-medium text-gray-900 align-middle"
                   title="Tu"
-
-                  class="ml-1 inline-block rounded bg-yellow-400 px-1 text-xs font-semibold text-slate-900 align-middle"
+                  aria-label="Tu"
                   >Tu</span
                 >
-
               {/if}
               {#if r.hasActiveChallenge}
                 <span
-                  title="Té un repte actiu"
-                  class="ml-1 inline-block h-3 w-3 rounded-full bg-red-500 align-middle"
-                ></span>
+                  class="ml-1 inline-block rounded-full bg-red-600 px-2.5 py-1 text-xs font-medium text-white align-middle"
+                  title="Aquest jugador té un repte actiu (no pot iniciar-ne cap altre)."
+                  aria-label="Aquest jugador té un repte actiu (no pot iniciar-ne cap altre)."
+                  >Té repte actiu</span
+                >
+              {:else if r.cooldownToChallenge}
+                <span
+                  class="ml-1 inline-block rounded-full bg-yellow-300 px-2.5 py-1 text-xs font-medium text-gray-900 align-middle"
+                  title="En cooldown fins passats 7 dies del darrer repte disputat."
+                  aria-label="En cooldown fins passats 7 dies del darrer repte disputat."
+                  >No pot reptar</span
+                >
+              {:else if r.isMe}
+                <span
+                  class="ml-1 inline-block rounded-full bg-green-600 px-2.5 py-1 text-xs font-medium text-white align-middle"
+                  title="Pots reptar fins a 2 posicions per sobre teu."
+                  aria-label="Pots reptar fins a 2 posicions per sobre teu."
+                  >Pot reptar</span
+                >
+              {:else if r.reptable}
+                <button
+                  class="ml-1 rounded-full bg-blue-600 px-2.5 py-1 text-xs font-medium text-white align-middle disabled:opacity-50"
+                  title={r.canChallenge ? 'Aquest jugador és reptable per tu ara mateix.' : r.reason || 'No pots reptar'}
+                  aria-label={r.canChallenge ? 'Aquest jugador és reptable per tu ara mateix.' : r.reason || 'No pots reptar'}
+                  disabled={!r.canChallenge}
+                  on:click={() => reptar(r.player_id)}
+                >
+                  Reptable
+                </button>
+              {/if}
+              {#if r.protected}
+                <span
+                  class="ml-1 inline-block rounded-full bg-gray-400 px-2.5 py-1 text-xs font-medium text-white align-middle"
+                  title="Protegit (cooldown de ser reptat)"
+                  aria-label="Protegit (cooldown de ser reptat)"
+                  >Protegit</span
+                >
+              {/if}
+              {#if r.outside}
+                <span
+                  class="ml-1 inline-block rounded-full bg-gray-200 px-2.5 py-1 text-xs font-medium text-gray-800 align-middle"
+                  title="Fora de rànquing actiu"
+                  aria-label="Fora de rànquing actiu"
+                  >Fora de rànquing actiu</span
+                >
               {/if}
             </td>
             <td class="px-3 py-2">{r.mitjana ?? '-'}</td>
@@ -234,15 +299,35 @@
       </tbody>
     </table>
   </div>
-  <div class="mt-2 flex gap-4 text-sm">
-    <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-green-500"></span><span>pot reptar</span></div>
-    <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-blue-500"></span><span>pot ser reptat</span></div>
-
+  <div class="mt-2 flex flex-wrap gap-4 text-sm">
     <div class="flex items-center gap-1">
-      <span class="inline-block rounded bg-yellow-400 px-1 text-xs font-semibold text-slate-900">Tu</span>
+      <span class="inline-block rounded-full bg-red-600 px-2.5 py-1 text-xs font-medium text-white">Té repte actiu</span>
+      <span>té repte actiu</span>
+    </div>
+    <div class="flex items-center gap-1">
+      <span class="inline-block rounded-full bg-yellow-300 px-2.5 py-1 text-xs font-medium text-gray-900">No pot reptar</span>
+      <span>no pot reptar (cooldown)</span>
+    </div>
+    <div class="flex items-center gap-1">
+      <span class="inline-block rounded-full bg-green-600 px-2.5 py-1 text-xs font-medium text-white">Pot reptar</span>
+      <span>pot reptar</span>
+    </div>
+    <div class="flex items-center gap-1">
+      <span class="inline-block rounded-full bg-blue-600 px-2.5 py-1 text-xs font-medium text-white">Reptable</span>
+      <span>reptable</span>
+    </div>
+    <div class="flex items-center gap-1">
+      <span class="inline-block rounded-full bg-gray-400 px-2.5 py-1 text-xs font-medium text-white">Protegit</span>
+      <span>protegit (no reptable)</span>
+    </div>
+    <div class="flex items-center gap-1">
+      <span class="inline-block rounded-full bg-gray-200 px-2.5 py-1 text-xs font-medium text-gray-800">Fora de rànquing actiu</span>
+      <span>fora de rànquing actiu</span>
+    </div>
+    <div class="flex items-center gap-1">
+      <span class="inline-block rounded-full bg-yellow-400 px-2.5 py-1 text-xs font-medium text-gray-900">Tu</span>
       <span>tu</span>
     </div>
-    <div class="flex items-center gap-1"><span class="inline-block h-3 w-3 rounded-full bg-red-500"></span><span>repte actiu</span></div>
   </div>
 
 {/if}
