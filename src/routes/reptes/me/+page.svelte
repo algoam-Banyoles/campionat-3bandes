@@ -3,6 +3,7 @@
   import { user, adminStore } from '$lib/stores/auth';
   import { getSettings, type AppSettings } from '$lib/settings';
   import { checkIsAdmin } from '$lib/roles';
+  import { authFetch } from '$lib/utils/http';
 
 type Challenge = {
   id: string;
@@ -207,10 +208,8 @@ async function accept(r: Challenge) {
   }
   try {
     busy = r.id;
-    const res = await fetch('/reptes/accepta', {
+    const res = await authFetch('/reptes/accepta', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ id: r.id, data_iso: sel })
     });
     const out = await res.json();
@@ -230,10 +229,8 @@ async function refuse(r: Challenge) {
   try {
     const motiu = (refuseReason.get(r.id) ?? '').trim() || null;
     busy = r.id;
-    const res = await fetch('/reptes/refusa', {
+    const res = await authFetch('/reptes/refusa', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ id: r.id, motiu })
     });
     const out = await res.json();
@@ -258,10 +255,8 @@ async function counter(r: Challenge) {
   }
   try {
     busy = r.id;
-    const res = await fetch('/reptes/contraproposta', {
+    const res = await authFetch('/reptes/contraproposta', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ id: r.id, dates_iso: dates })
     });
     const out = await res.json();

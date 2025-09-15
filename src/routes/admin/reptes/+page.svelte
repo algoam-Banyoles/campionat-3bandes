@@ -6,6 +6,7 @@
         import Banner from '$lib/components/Banner.svelte';
         import Loader from '$lib/components/Loader.svelte';
       import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
+      import { authFetch } from '$lib/utils/http';
 
 
   type ChallengeRow = {
@@ -148,10 +149,8 @@
       busy = r.id;
       error = null;
       okMsg = null;
-        const res = await fetch('/reptes/accepta', {
+        const res = await authFetch('/reptes/accepta', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
           body: JSON.stringify({ id: r.id, data_iso: null })
         });
       const out = await res.json();

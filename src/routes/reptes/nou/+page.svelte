@@ -9,6 +9,7 @@
   import { supabase } from '$lib/supabaseClient';
   import { canCreateChallengeDetail } from '$lib/canCreateChallengeDetail';
   import { canCreateAccessChallenge } from '$lib/canCreateAccessChallenge';
+  import { authFetch } from '$lib/utils/http';
 
   type RankedPlayer = { posicio: number; player_id: string; nom: string };
   type NotReptable = RankedPlayer & { motiu: string };
@@ -37,19 +38,6 @@
     toLocalInput(new Date().toISOString())
   ];
 
-  /**
-   * Obté l'header Authorization Bearer des de la sessió de Supabase.
-   * S'utilitza a les crides fetch del client perquè el backend rebi el JWT.
-   */
-  async function getAuthHeader(): Promise<Record<string, string>> {
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data?.session?.access_token ?? null;
-      return token ? { Authorization: `Bearer ${token}` } : {};
-    } catch {
-      return {};
-    }
-  }
 
   onMount(async () => {
     try {
@@ -120,10 +108,7 @@
         selectedOpponent = oppId;
       } else {
         // >>>>>>>>>> CANVI IMPORTANT: injectem Authorization al fetch
-        const res = await fetch('/reptes/nou/eligibles', {
-          credentials: 'include',
-          headers: await getAuthHeader()
-        });
+        const res = await authFetch('/reptes/nou/eligibles');
         const data = await res.json();
         if (!res.ok || !data.ok) {
           err = errMsg(data.error || 'Error en carregar dades.');
@@ -235,13 +220,8 @@
         .filter(Boolean) as string[];
 
       // >>>>>>>>>> CANVI IMPORTANT: injectem Authorization al POST
-      const res = await fetch('/reptes/nou', {
+      const res = await authFetch('/reptes/nou', {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(await getAuthHeader())
-        },
         body: JSON.stringify({
           event_id: eventId,
           reptador_id: myPlayerId,

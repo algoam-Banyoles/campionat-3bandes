@@ -1,6 +1,7 @@
 <script lang="ts">
   import { supabase } from '$lib/supabaseClient';
   import Banner from '$lib/components/Banner.svelte';
+  import { authFetch } from '$lib/utils/http';
 
   export let challengeId: string;
   export let reptadorId: string | null = null;
@@ -11,22 +12,10 @@
   let err: string | null = null;
   let ok: string | null = null;
 
-  // Helper: obtenir Authorization Bearer del Supabase
-  async function getAuthHeader(): Promise<Record<string, string>> {
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data?.session?.access_token ?? null;
-      return token ? { Authorization: `Bearer ${token}` } : {};
-    } catch { return {}; }
-  }
-
   async function ensureChallengeParties() {
     // Si no han arribat per props, els busquem
     if (reptadorId && reptatId) return;
-    const res = await fetch(`/reptes/detall/${challengeId}`, { // adapta si tens un altre endpoint
-      headers: await getAuthHeader(),
-      credentials: 'include'
-    });
+    const res = await authFetch(`/reptes/detall/${challengeId}`); // adapta si tens un altre endpoint
     const j = await res.json();
     if (res.ok) {
       reptadorId = j.reptador_id;
@@ -70,13 +59,8 @@
 
     submitting = true;
     try {
-      const res = await fetch('/reptes/proposa-data', {
+      const res = await authFetch('/reptes/proposa-data', {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(await getAuthHeader())
-        },
         body: JSON.stringify({ challenge_id: challengeId, data_programada: iso })
       });
       const body = await res.json().catch(() => ({}));
