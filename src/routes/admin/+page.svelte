@@ -7,6 +7,7 @@
   import Loader from '$lib/components/Loader.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
   import { runDeadlines } from '$lib/deadlinesService';
+  import { authFetch } from '$lib/utils/http';
 
   let loading = true;
   let error: string | null = null;
@@ -83,10 +84,8 @@
       penaltyBusy = true;
       penaltyOk = null;
       penaltyErr = null;
-      const res = await fetch('/reptes/penalitzacions', {
+      const res = await authFetch('/reptes/penalitzacions', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ challenge_id, tipus })
       });
       const js = await res.json();
@@ -177,9 +176,8 @@
       resetBusy = true;
       resetOk = null;
       resetErr = null;
-      const res = await fetch('/admin/reset', {
-        method: 'POST',
-        credentials: 'include'
+      const res = await authFetch('/admin/reset', {
+        method: 'POST'
       });
       const js = await res.json();
       if (!res.ok || js.error || !js.ok)

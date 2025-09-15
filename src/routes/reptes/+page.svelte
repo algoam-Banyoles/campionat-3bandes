@@ -5,6 +5,7 @@
     import { acceptChallenge, refuseChallenge, scheduleChallenge } from '$lib/challenges';
     import { getSettings, type AppSettings } from '$lib/settings';
 
+
   type Challenge = {
     id: string;
     reptador_id: string;
@@ -228,6 +229,7 @@
                 </button>
               </div>
             {/if}
+
             {#if r.estat !== 'refusat'}
               {#if (r.reprogramacions ?? 0) < reproLimit}
                 <div class="mt-2 flex gap-2 items-center">
@@ -247,6 +249,7 @@
               {:else}
                 <div class="mt-2 text-xs text-red-600">Límit de reprogramacions assolit.</div>
               {/if}
+
             {/if}
           </li>
         {/each}

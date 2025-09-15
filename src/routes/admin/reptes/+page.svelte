@@ -9,6 +9,7 @@
       import { getSettings, type AppSettings } from '$lib/settings';
 
 
+
   type ChallengeRow = {
     id: string;
     event_id: string;
@@ -153,10 +154,8 @@
       busy = r.id;
       error = null;
       okMsg = null;
-        const res = await fetch('/reptes/accepta', {
+        const res = await authFetch('/reptes/accepta', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
           body: JSON.stringify({ id: r.id, data_iso: null })
         });
       const out = await res.json();

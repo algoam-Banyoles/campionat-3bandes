@@ -2,6 +2,7 @@
     import { goto } from '$app/navigation';
     import { supabase } from '$lib/supabaseClient';
     import { status, user } from '$lib/stores/auth';
+    import { authFetch } from '$lib/utils/http';
 
   let mode: 'login' | 'signup' = 'login';
   let email = '';
@@ -24,10 +25,8 @@
         if (error) throw error;
         const session = data?.session;
         if (session) {
-          await fetch('/api/session', {
+          await authFetch('/api/session', {
             method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            credentials: 'include',
             body: JSON.stringify({
               access_token: session.access_token,
               refresh_token: session.refresh_token,
