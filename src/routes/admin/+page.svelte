@@ -191,7 +191,7 @@
       await Promise.all([
         invalidate('/reptes'),
         invalidate('/admin/reptes'),
-        invalidate('/classificacio'),
+        invalidate('/ranking'),
         invalidate('/llista-espera'),
         invalidateAll()
       ]);

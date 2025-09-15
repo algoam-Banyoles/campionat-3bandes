@@ -70,8 +70,12 @@
 
   // helper d’estils opcionals per remarcar link actiu
   import { page } from "$app/stores";
-  const isActive = (href: string, current: string) =>
-    current.startsWith(href) ? "underline font-semibold" : "hover:underline";
+  const isActive = (href: string, current: string) => {
+    if (href === '/') {
+      return current === '/' ? "underline font-semibold" : "hover:underline";
+    }
+    return current.startsWith(href) ? "underline font-semibold" : "hover:underline";
+  };
 
   let menuOpen = false;
   const toggleMenu = () => (menuOpen = !menuOpen);
@@ -90,7 +94,7 @@
 
     <div class="hidden md:flex items-center gap-6 flex-1">
       <a href="/calendari" class={isActive("/calendari", $page.url.pathname)}>Calendari</a>
-      <a href="/classificacio" class={isActive("/classificacio", $page.url.pathname)}>Classificació</a>
+      <a href="/" class={isActive("/", $page.url.pathname)}>Classificació</a>
       <a href="/reptes" class={isActive("/reptes", $page.url.pathname)}>Reptes</a>
       <a href="/llista-espera" class={isActive("/llista-espera", $page.url.pathname)}>Llista d'espera</a>
       <a href="/historial" class={isActive("/historial", $page.url.pathname)}>Historial</a>
@@ -138,7 +142,7 @@
   {#if menuOpen}
     <div class="md:hidden px-4 pb-4 flex flex-col gap-2">
       <a href="/calendari" class={isActive("/calendari", $page.url.pathname)}>Calendari</a>
-      <a href="/classificacio" class={isActive("/classificacio", $page.url.pathname)}>Classificació</a>
+      <a href="/" class={isActive("/", $page.url.pathname)}>Classificació</a>
       <a href="/reptes" class={isActive("/reptes", $page.url.pathname)}>Reptes</a>
       <a href="/llista-espera" class={isActive("/llista-espera", $page.url.pathname)}>Llista d'espera</a>
       <a href="/historial" class={isActive("/historial", $page.url.pathname)}>Historial</a>
