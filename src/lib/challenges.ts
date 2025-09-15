@@ -1,6 +1,19 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { authFetch } from '$lib/utils/http';
 
+export type ChallengeParticipants = {
+  reptador_id: string | null;
+  reptat_id: string | null;
+};
+
+export function isParticipant(
+  mePlayerId: string | null,
+  repte: ChallengeParticipants | null | undefined
+): boolean {
+  if (!mePlayerId || !repte) return false;
+  return mePlayerId === repte.reptador_id || mePlayerId === repte.reptat_id;
+}
+
 export async function acceptChallenge(supabase: SupabaseClient, id: string): Promise<void> {
   const { error } = await supabase
     .from('challenges')

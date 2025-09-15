@@ -7,6 +7,7 @@ export type AppSettings = {
   dies_acceptar_repte: number;
   dies_jugar_despres_acceptar: number;
   ranking_max_jugadors: number;
+  reprogramacions_limit: number;
   updated_at?: string;
   id?: string;
 };
@@ -19,7 +20,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   cooldown_max_dies: 7,
   dies_acceptar_repte: 7,
   dies_jugar_despres_acceptar: 7,
-  ranking_max_jugadors: 20
+  ranking_max_jugadors: 20,
+  reprogramacions_limit: 3
 };
 
 let cache: AppSettings | null = null;

@@ -3,6 +3,8 @@
     import { user } from '$lib/stores/auth';
     import type { SupabaseClient } from '@supabase/supabase-js';
     import { acceptChallenge, refuseChallenge, scheduleChallenge } from '$lib/challenges';
+    import { getSettings, type AppSettings } from '$lib/settings';
+
 
   type Challenge = {
     id: string;
@@ -33,6 +35,8 @@
   let myPlayerId: string | null = null;
   let supabase: SupabaseClient;
   let dateDrafts: Record<string, string> = {};
+  let settings: AppSettings | null = null;
+  let reproLimit = 3;
 
   const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : '—');
   const parseLocalToIso = (local: string) => {
@@ -45,6 +49,9 @@
       loading = true;
       const mod = await import('$lib/supabaseClient');
       supabase = mod.supabase;
+
+      settings = await getSettings();
+      reproLimit = settings?.reprogramacions_limit ?? 3;
 
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {
@@ -205,7 +212,7 @@
                 • Programat: {fmtDate(r.data_programada)}
               {/if}
             </div>
-            <div class="text-sm text-slate-600">Reprogramacions: {r.reprogramacions ?? 0}</div>
+            <div class="text-sm text-slate-600">Reprogramacions: {r.reprogramacions ?? 0} / {reproLimit}</div>
             {#if myPlayerId === r.reptat_id && r.estat === 'proposat'}
               <div class="mt-2 flex gap-2">
                 <button
