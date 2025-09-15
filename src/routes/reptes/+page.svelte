@@ -222,7 +222,7 @@
                 </button>
               </div>
             {/if}
-            {#if r.estat !== 'refusat'}
+            {#if r.estat !== 'refusat' && myPlayerId && (myPlayerId === r.reptador_id || myPlayerId === r.reptat_id)}
               <div class="mt-2 flex gap-2 items-center">
                 <input
                   type="datetime-local"

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { authFetch } from '$lib/utils/http';
 
 export async function acceptChallenge(supabase: SupabaseClient, id: string): Promise<void> {
   const { error } = await supabase
@@ -17,15 +18,18 @@ export async function refuseChallenge(supabase: SupabaseClient, id: string): Pro
 }
 
 export async function scheduleChallenge(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   id: string,
   isoDate: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from('challenges')
-    .update({ data_programada: isoDate })
-    .eq('id', id);
-  if (error) throw new Error(error.message);
+  const res = await authFetch('/reptes/programar', {
+    method: 'POST',
+    body: JSON.stringify({ id, data_iso: isoDate })
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || body?.ok === false) {
+    throw new Error(body?.error || 'Error programant repte');
+  }
 }
 
 
