@@ -5,6 +5,7 @@
 import { getSettings, type AppSettings } from '$lib/settings';
 import { checkIsAdmin } from '$lib/roles';
 import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
+import { authFetch } from '$lib/utils/http';
 
 
 type Challenge = {
@@ -39,7 +40,8 @@ let current: Challenge[] = [];
 export let data: { settings: AppSettings };
 let settings: AppSettings = data.settings;
 let isAdmin = false;
-let reproLimit = settings.reprogramacions_limit ?? 3;
+const REPRO_LIMIT = 3;
+let reproLimit = REPRO_LIMIT;
 
 const challengeStateLabel = (state: string): string => CHALLENGE_STATE_LABEL[state] ?? state;
 const challengeStatePluralLabel = (state: string): string => {
