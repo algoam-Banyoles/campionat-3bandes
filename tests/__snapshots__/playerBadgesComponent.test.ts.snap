@@ -1,0 +1,30 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`PlayerBadges descriptors > matches snapshot for multiple badges 1`] = `
+[
+  {
+    "ariaLabel": "Tu",
+    "className": "ml-1 inline-block rounded-full bg-yellow-400 px-2.5 py-1 text-xs font-medium text-gray-900 align-middle",
+    "disabled": false,
+    "element": "span",
+    "state": "self",
+    "text": "Tu",
+  },
+  {
+    "ariaLabel": "Aquest jugador té un repte actiu (no pot iniciar-ne cap altre).",
+    "className": "ml-1 inline-block rounded-full bg-red-600 px-2.5 py-1 text-xs font-medium text-white align-middle",
+    "disabled": false,
+    "element": "span",
+    "state": "active-challenge",
+    "text": "Té repte actiu",
+  },
+  {
+    "ariaLabel": "Protegit (cooldown de ser reptat)",
+    "className": "ml-1 inline-block rounded-full bg-gray-400 px-2.5 py-1 text-xs font-medium text-white align-middle",
+    "disabled": false,
+    "element": "span",
+    "state": "protected",
+    "text": "Protegit",
+  },
+]
+`;

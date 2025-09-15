@@ -1,25 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import PlayerBadges from '$lib/components/PlayerBadges.svelte';
   import { canCreateChallenge } from '$lib/canCreateChallenge';
+  import type { PlayerBadgeSource } from '$lib/playerBadges';
 
-  type Row = {
+  type Row = PlayerBadgeSource & {
     event_id: string;
     posicio: number | null;
-    player_id: string;
     nom: string;
     mitjana: number | null;
     estat: string;
     assignat_el: string | null;
-    isMe?: boolean;
-    hasActiveChallenge?: boolean;
-    cooldownToChallenge?: boolean;
     cooldownToBeChallenged?: boolean;
-    reptable?: boolean;
-    canChallenge?: boolean;
-    reason?: string | null;
-    protected?: boolean;
-    outside?: boolean;
   };
 
   const fmtSafe = (iso: string | null): string => {
@@ -234,62 +227,7 @@
             <td class="px-3 py-2">{r.posicio ?? '-'}</td>
             <td class="px-3 py-2">
               {r.nom}
-              {#if r.isMe}
-                <span
-                  class="ml-1 inline-block rounded-full bg-yellow-400 px-2.5 py-1 text-xs font-medium text-gray-900 align-middle"
-                  title="Tu"
-                  aria-label="Tu"
-                  >Tu</span
-                >
-              {/if}
-              {#if r.hasActiveChallenge}
-                <span
-                  class="ml-1 inline-block rounded-full bg-red-600 px-2.5 py-1 text-xs font-medium text-white align-middle"
-                  title="Aquest jugador té un repte actiu (no pot iniciar-ne cap altre)."
-                  aria-label="Aquest jugador té un repte actiu (no pot iniciar-ne cap altre)."
-                  >Té repte actiu</span
-                >
-              {:else if r.cooldownToChallenge}
-                <span
-                  class="ml-1 inline-block rounded-full bg-yellow-300 px-2.5 py-1 text-xs font-medium text-gray-900 align-middle"
-                  title="En cooldown fins passats 7 dies del darrer repte disputat."
-                  aria-label="En cooldown fins passats 7 dies del darrer repte disputat."
-                  >No pot reptar</span
-                >
-              {:else if r.isMe}
-                <span
-                  class="ml-1 inline-block rounded-full bg-green-600 px-2.5 py-1 text-xs font-medium text-white align-middle"
-                  title="Pots reptar fins a 2 posicions per sobre teu."
-                  aria-label="Pots reptar fins a 2 posicions per sobre teu."
-                  >Pot reptar</span
-                >
-              {:else if r.reptable}
-                <button
-                  class="ml-1 rounded-full bg-blue-600 px-2.5 py-1 text-xs font-medium text-white align-middle disabled:opacity-50"
-                  title={r.canChallenge ? 'Aquest jugador és reptable per tu ara mateix.' : r.reason || 'No pots reptar'}
-                  aria-label={r.canChallenge ? 'Aquest jugador és reptable per tu ara mateix.' : r.reason || 'No pots reptar'}
-                  disabled={!r.canChallenge}
-                  on:click={() => reptar(r.player_id)}
-                >
-                  Reptable
-                </button>
-              {/if}
-              {#if r.protected}
-                <span
-                  class="ml-1 inline-block rounded-full bg-gray-400 px-2.5 py-1 text-xs font-medium text-white align-middle"
-                  title="Protegit (cooldown de ser reptat)"
-                  aria-label="Protegit (cooldown de ser reptat)"
-                  >Protegit</span
-                >
-              {/if}
-              {#if r.outside}
-                <span
-                  class="ml-1 inline-block rounded-full bg-gray-200 px-2.5 py-1 text-xs font-medium text-gray-800 align-middle"
-                  title="Fora de rànquing actiu"
-                  aria-label="Fora de rànquing actiu"
-                  >Fora de rànquing actiu</span
-                >
-              {/if}
+              <PlayerBadges row={r} on:challenge={(event) => reptar(event.detail)} />
             </td>
             <td class="px-3 py-2">{r.mitjana ?? '-'}</td>
             <td class="px-3 py-2 capitalize">{r.estat.replace('_', ' ')}</td>
@@ -301,31 +239,66 @@
   </div>
   <div class="mt-2 flex flex-wrap gap-4 text-sm">
     <div class="flex items-center gap-1">
-      <span class="inline-block rounded-full bg-red-600 px-2.5 py-1 text-xs font-medium text-white">Té repte actiu</span>
+      <span
+        class="inline-block rounded-full bg-red-600 px-2.5 py-1 text-xs font-medium text-white"
+        aria-label="Té repte actiu"
+        title="Té repte actiu"
+        >Té repte actiu</span
+      >
       <span>té repte actiu</span>
     </div>
     <div class="flex items-center gap-1">
-      <span class="inline-block rounded-full bg-yellow-300 px-2.5 py-1 text-xs font-medium text-gray-900">No pot reptar</span>
+      <span
+        class="inline-block rounded-full bg-yellow-300 px-2.5 py-1 text-xs font-medium text-gray-900"
+        aria-label="No pot reptar (cooldown)"
+        title="No pot reptar (cooldown)"
+        >No pot reptar</span
+      >
       <span>no pot reptar (cooldown)</span>
     </div>
     <div class="flex items-center gap-1">
-      <span class="inline-block rounded-full bg-green-600 px-2.5 py-1 text-xs font-medium text-white">Pot reptar</span>
+      <span
+        class="inline-block rounded-full bg-green-600 px-2.5 py-1 text-xs font-medium text-white"
+        aria-label="Pot reptar"
+        title="Pot reptar"
+        >Pot reptar</span
+      >
       <span>pot reptar</span>
     </div>
     <div class="flex items-center gap-1">
-      <span class="inline-block rounded-full bg-blue-600 px-2.5 py-1 text-xs font-medium text-white">Reptable</span>
+      <span
+        class="inline-block rounded-full bg-blue-600 px-2.5 py-1 text-xs font-medium text-white"
+        aria-label="Reptable"
+        title="Reptable"
+        >Reptable</span
+      >
       <span>reptable</span>
     </div>
     <div class="flex items-center gap-1">
-      <span class="inline-block rounded-full bg-gray-400 px-2.5 py-1 text-xs font-medium text-white">Protegit</span>
+      <span
+        class="inline-block rounded-full bg-gray-400 px-2.5 py-1 text-xs font-medium text-white"
+        aria-label="Protegit"
+        title="Protegit"
+        >Protegit</span
+      >
       <span>protegit (no reptable)</span>
     </div>
     <div class="flex items-center gap-1">
-      <span class="inline-block rounded-full bg-gray-200 px-2.5 py-1 text-xs font-medium text-gray-800">Fora de rànquing actiu</span>
+      <span
+        class="inline-block rounded-full bg-gray-200 px-2.5 py-1 text-xs font-medium text-gray-800"
+        aria-label="Fora de rànquing actiu"
+        title="Fora de rànquing actiu"
+        >Fora de rànquing actiu</span
+      >
       <span>fora de rànquing actiu</span>
     </div>
     <div class="flex items-center gap-1">
-      <span class="inline-block rounded-full bg-yellow-400 px-2.5 py-1 text-xs font-medium text-gray-900">Tu</span>
+      <span
+        class="inline-block rounded-full bg-yellow-400 px-2.5 py-1 text-xs font-medium text-gray-900"
+        aria-label="Tu"
+        title="Tu"
+        >Tu</span
+      >
       <span>tu</span>
     </div>
   </div>
