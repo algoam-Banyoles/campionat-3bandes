@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { user, adminStore } from '$lib/stores/auth';
-  import { getSettings, type AppSettings } from '$lib/settings';
-  import { checkIsAdmin } from '$lib/roles';
-  import { authFetch } from '$lib/utils/http';
+
+import { getSettings, type AppSettings } from '$lib/settings';
+import { checkIsAdmin } from '$lib/roles';
+
 
 type Challenge = {
   id: string;
@@ -37,6 +38,7 @@ let current: Challenge[] = [];
 export let data: { settings: AppSettings };
 let settings: AppSettings = data.settings;
 let isAdmin = false;
+let reproLimit = settings.reprogramacions_limit ?? 3;
 
 onMount(async () => {
   isAdmin = await checkIsAdmin();
@@ -390,6 +392,7 @@ async function saveSchedule(r: Challenge) {
             <div><strong>Reptador:</strong> #{r.pos_reptador ?? '—'} — {r.reptador_nom}</div>
             <div><strong>Reptat:</strong> #{r.pos_reptat ?? '—'} — {r.reptat_nom}</div>
           </div>
+          <div class="text-sm text-slate-600">Reprogramacions: {r.reprogram_count} / {reproLimit}</div>
 
           {#if r.dates_proposades?.length}
             <div class="text-sm">
@@ -493,14 +496,14 @@ async function saveSchedule(r: Challenge) {
                   on:input={(e) => scheduleLocal.set(r.id, (e.target as HTMLInputElement).value)}
                   disabled={
                     busy === r.id ||
-                    (!$adminStore && r.estat === 'programat' && r.reprogram_count >= 1)
+                    (!$adminStore && r.estat === 'programat' && r.reprogram_count >= reproLimit)
                   }
                 />
                 <p class="text-xs text-slate-500 mt-1">
                   La data ha d'estar dins de {settings.dies_jugar_despres_acceptar} dies.
                 </p>
-                {#if r.estat === 'programat' && r.reprogram_count >= 1 && !$adminStore}
-                  <p class="text-xs text-slate-500 mt-1">Ja has reprogramat un cop; cal administrador.</p>
+                {#if r.estat === 'programat' && r.reprogram_count >= reproLimit && !$adminStore}
+                  <p class="text-xs text-slate-500 mt-1">Límit de reprogramacions assolit; cal administrador.</p>
                 {/if}
               </div>
               <button
@@ -508,7 +511,7 @@ async function saveSchedule(r: Challenge) {
                 on:click={() => saveSchedule(r)}
                 disabled={
                   busy === r.id ||
-                  (!$adminStore && r.estat === 'programat' && r.reprogram_count >= 1)
+                  (!$adminStore && r.estat === 'programat' && r.reprogram_count >= reproLimit)
                 }
               >
                 {busy === r.id ? 'Desant…' : 'Desa data'}
