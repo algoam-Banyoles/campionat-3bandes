@@ -7,6 +7,7 @@
     import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
     import { refreshRanking } from '$lib/rankingStore';
     import { addToast } from '$lib/ui/toastStore';
+    import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
 
   type Challenge = {
     id: string;
@@ -204,7 +205,9 @@
         addToast('Rànquing actualitzat', 'success');
       }
 
-      okMsg = okText('Resultat desat correctament. Repte marcat com a jugat.');
+      okMsg = okText(
+        `Resultat desat correctament. Repte marcat com a ${CHALLENGE_STATE_LABEL.jugat.toLowerCase()}.`
+      );
     } catch (e) {
       error = formatSupabaseError(e);
     } finally {

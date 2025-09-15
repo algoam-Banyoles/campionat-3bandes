@@ -4,6 +4,7 @@
     import { user, status } from '$lib/stores/auth';
     import { getSettings, type AppSettings } from '$lib/settings';
     import { get } from 'svelte/store';
+    import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
 
   type Challenge = {
     id: string;
@@ -23,6 +24,8 @@
   let recent: Challenge[] = [];
   let warnings: string[] = [];
   let settings: AppSettings;
+
+  const challengeStateLabel = (state: string): string => CHALLENGE_STATE_LABEL[state] ?? state;
 
   onMount(() => {
       const unsub = status.subscribe(async (s) => {
@@ -135,7 +138,7 @@
         {#each active as r}
           <li class="p-3 border rounded">
             <div class="font-medium">{r.reptador_nom} vs {r.reptat_nom}</div>
-            <div class="text-sm text-slate-600">{r.estat}</div>
+            <div class="text-sm text-slate-600">{challengeStateLabel(r.estat)}</div>
           </li>
         {/each}
       </ul>
@@ -152,7 +155,7 @@
           <li class="p-3 border rounded">
             <div class="font-medium">{r.reptador_nom} vs {r.reptat_nom}</div>
             <div class="text-sm text-slate-600">
-              Proposat {new Date(r.data_proposta).toLocaleDateString()}
+              {CHALLENGE_STATE_LABEL.proposat} {new Date(r.data_proposta).toLocaleDateString()}
             </div>
           </li>
         {/each}

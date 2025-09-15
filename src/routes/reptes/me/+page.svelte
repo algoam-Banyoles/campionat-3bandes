@@ -4,6 +4,7 @@
 
 import { getSettings, type AppSettings } from '$lib/settings';
 import { checkIsAdmin } from '$lib/roles';
+import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
 
 
 type Challenge = {
@@ -39,6 +40,12 @@ export let data: { settings: AppSettings };
 let settings: AppSettings = data.settings;
 let isAdmin = false;
 let reproLimit = settings.reprogramacions_limit ?? 3;
+
+const challengeStateLabel = (state: string): string => CHALLENGE_STATE_LABEL[state] ?? state;
+const challengeStatePluralLabel = (state: string): string => {
+  const label = challengeStateLabel(state);
+  return label.endsWith('s') ? label : `${label}s`;
+};
 
 onMount(async () => {
   isAdmin = await checkIsAdmin();
@@ -355,13 +362,13 @@ async function saveSchedule(r: Challenge) {
       class={`pb-1 border-b-2 ${tab === 'programats' ? 'border-slate-800 font-semibold' : 'border-transparent text-slate-500'}`}
       on:click={() => (tab = 'programats')}
     >
-      Programats ({programats.length})
+      {challengeStatePluralLabel('programat')} ({programats.length})
     </button>
     <button
       class={`pb-1 border-b-2 ${tab === 'jugats' ? 'border-slate-800 font-semibold' : 'border-transparent text-slate-500'}`}
       on:click={() => (tab = 'jugats')}
     >
-      Jugats ({jugats.length})
+      {challengeStatePluralLabel('jugat')} ({jugats.length})
     </button>
   </div>
 
@@ -375,10 +382,10 @@ async function saveSchedule(r: Challenge) {
         <div class="rounded border p-3 space-y-2">
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-xs rounded bg-slate-800 text-white px-2 py-0.5">{r.tipus}</span>
-            <span class="text-xs rounded bg-slate-100 px-2 py-0.5 capitalize">{r.estat}</span>
-            <span class="text-xs text-slate-500 ml-auto">Proposat: {fmt(r.data_proposta)}</span>
+            <span class="text-xs rounded bg-slate-100 px-2 py-0.5">{challengeStateLabel(r.estat)}</span>
+            <span class="text-xs text-slate-500 ml-auto">{CHALLENGE_STATE_LABEL.proposat}: {fmt(r.data_proposta)}</span>
             {#if r.data_programada}
-              <span class="text-xs text-slate-500">Programat: {fmt(r.data_programada)}</span>
+              <span class="text-xs text-slate-500">{CHALLENGE_STATE_LABEL.programat}: {fmt(r.data_programada)}</span>
             {/if}
           </div>
 

@@ -4,6 +4,7 @@
   import Banner from '$lib/components/Banner.svelte';
   import { supabase } from '$lib/supabaseClient';
   import { formatSupabaseError } from '$lib/ui/alerts';
+  import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
 
   type Change = {
     creat_el: string;
@@ -46,6 +47,8 @@
   let hasMore = false;
   let lastDate: string | null = null;
   let eventId: string | null = null;
+
+  const challengeStateLabel = (state: string): string => CHALLENGE_STATE_LABEL[state] ?? state;
 
   async function fetchEvent(): Promise<void> {
     const { data, error } = await supabase
@@ -282,13 +285,13 @@
       </select>
       <select class="rounded-xl border px-3 py-2" bind:value={filterEstat}>
         <option value="">Tots els estats</option>
-        <option value="proposat">proposat</option>
-        <option value="acceptat">acceptat</option>
-        <option value="programat">programat</option>
+        <option value="proposat">{CHALLENGE_STATE_LABEL.proposat}</option>
+        <option value="acceptat">{CHALLENGE_STATE_LABEL.acceptat}</option>
+        <option value="programat">{CHALLENGE_STATE_LABEL.programat}</option>
         <option value="refusat">refusat</option>
-        <option value="caducat">caducat</option>
-        <option value="jugat">jugat</option>
-        <option value="anullat">anullat</option>
+        <option value="caducat">{CHALLENGE_STATE_LABEL.caducat}</option>
+        <option value="jugat">{CHALLENGE_STATE_LABEL.jugat}</option>
+        <option value="anullat">{CHALLENGE_STATE_LABEL.anullat}</option>
       </select>
       <button
         class="rounded-xl bg-slate-200 px-3 py-2 text-sm"
@@ -316,7 +319,7 @@
               <td class="p-2 whitespace-nowrap">{new Date(c.data_proposta).toLocaleString()}</td>
               <td class="p-2">{players[c.reptador_id] ?? c.reptador_id}</td>
               <td class="p-2">{players[c.reptat_id] ?? c.reptat_id}</td>
-              <td class="p-2 capitalize">{c.estat}</td>
+              <td class="p-2">{challengeStateLabel(c.estat)}</td>
               <td class="p-2">
                 {#if c.matches && c.matches.length > 0}
                   {c.matches[0].caramboles_reptador} - {c.matches[0].caramboles_reptat}

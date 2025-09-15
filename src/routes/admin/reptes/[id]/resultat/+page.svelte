@@ -5,6 +5,7 @@
     import { checkIsAdmin } from '$lib/roles';
   import { getSettings, type AppSettings } from '$lib/settings';
   import { refreshRanking } from '$lib/rankingStore';
+  import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
 
   type Challenge = {
     id: string;
@@ -224,7 +225,7 @@
         if (r?.swapped) rpcMsg = 'Rànquing actualitzat: intercanvi de posicions fet.';
         else rpcMsg = `Rànquing sense canvis${r?.reason ? ' (' + r.reason + ')' : ''}.`;
       }
-      okMsg = 'Resultat desat correctament. Repte marcat com a "jugat".';
+      okMsg = `Resultat desat correctament. Repte marcat com a "${CHALLENGE_STATE_LABEL.jugat.toLowerCase()}".`;
       await refreshRanking();
     } catch (e:any) {
       error = e?.message ?? 'No s’ha pogut desar el resultat';

@@ -7,6 +7,7 @@
         import Loader from '$lib/components/Loader.svelte';
       import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
       import { getSettings, type AppSettings } from '$lib/settings';
+      import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
 
 
 
@@ -35,6 +36,9 @@
   let isAdmin = false;
   let settings: AppSettings | null = null;
   let reproLimit = 3;
+
+  const challengeStateLabel = (state: string): string =>
+    CHALLENGE_STATE_LABEL[state] ?? state.replace('_', ' ');
 
   
   onMount(load);
@@ -254,7 +258,7 @@
             <td class="px-3 py-2">#{r.pos_reptador ?? '—'} — {r.reptador_nom}</td>
             <td class="px-3 py-2">#{r.pos_reptat ?? '—'} — {r.reptat_nom}</td>
             <td class="px-3 py-2">
-              <span class={`text-xs rounded px-2 py-0.5 capitalize ${estatClass(r.estat)}`}>{r.estat.replace('_',' ')}</span>
+              <span class={`text-xs rounded px-2 py-0.5 ${estatClass(r.estat)}`}>{challengeStateLabel(r.estat)}</span>
             </td>
             <td class="px-3 py-2">{r.reprogram_count} / {reproLimit}</td>
             <td class="px-3 py-2">

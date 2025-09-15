@@ -4,6 +4,7 @@
     import type { SupabaseClient } from '@supabase/supabase-js';
     import { acceptChallenge, refuseChallenge, scheduleChallenge } from '$lib/challenges';
     import { getSettings, type AppSettings } from '$lib/settings';
+    import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
 
 
   type Challenge = {
@@ -43,6 +44,7 @@
     const d = new Date(local);
     return isNaN(d.getTime()) ? null : d.toISOString();
   };
+  const challengeStateLabel = (state: string): string => CHALLENGE_STATE_LABEL[state] ?? state;
 
   async function load() {
     try {
@@ -202,14 +204,14 @@
         {#each actius as r}
           <li class="p-3 border rounded">
             <div class="font-medium">{r.reptador_nom} vs {r.reptat_nom}</div>
-            <div class="text-sm text-slate-600 capitalize">Estat: {r.estat}</div>
+            <div class="text-sm text-slate-600">Estat: {challengeStateLabel(r.estat)}</div>
             <div class="text-sm text-slate-600">
-              Proposat: {fmtDate(r.data_proposta)}
+              {CHALLENGE_STATE_LABEL.proposat}: {fmtDate(r.data_proposta)}
               {#if r.data_acceptacio}
-                • Acceptat: {fmtDate(r.data_acceptacio)}
+                • {CHALLENGE_STATE_LABEL.acceptat}: {fmtDate(r.data_acceptacio)}
               {/if}
               {#if r.data_programada}
-                • Programat: {fmtDate(r.data_programada)}
+                • {CHALLENGE_STATE_LABEL.programat}: {fmtDate(r.data_programada)}
               {/if}
             </div>
             <div class="text-sm text-slate-600">Reprogramacions: {r.reprogramacions ?? 0} / {reproLimit}</div>

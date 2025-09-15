@@ -7,6 +7,7 @@ import Banner from '$lib/components/Banner.svelte';
 import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { canCreateAccessChallenge } from '$lib/canCreateAccessChallenge';
+import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
 
   // Configurable al gust: quins estats considerem “actius”
   const ACTIVE_STATES = ['proposat', 'acceptat', 'programat'] as const;
@@ -323,12 +324,12 @@ async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
         <div>
           <label for="estat" class="block text-sm mb-1">Estat inicial</label>
           <select id="estat" class="w-full rounded border px-3 py-2" bind:value={estat}>
-            <option value="proposat">Proposat</option>
-            <option value="acceptat">Acceptat (programat)</option>
+            <option value="proposat">{CHALLENGE_STATE_LABEL.proposat}</option>
+            <option value="acceptat">{CHALLENGE_STATE_LABEL.acceptat} ({CHALLENGE_STATE_LABEL.programat.toLowerCase()})</option>
             <option value="refusat">Refusat</option>
-            <option value="caducat">Caducat</option>
-            <option value="jugat">Jugat</option>
-            <option value="anullat">Anullat</option>
+            <option value="caducat">{CHALLENGE_STATE_LABEL.caducat}</option>
+            <option value="jugat">{CHALLENGE_STATE_LABEL.jugat}</option>
+            <option value="anullat">{CHALLENGE_STATE_LABEL.anullat}</option>
           </select>
         </div>
 
@@ -336,13 +337,16 @@ async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
           <div>
             <label for="prog" class="block text-sm mb-1">Data programada (opcional)</label>
             <input id="prog" type="datetime-local" class="w-full rounded border px-2 py-1" bind:value={data_programada} />
-            <p class="text-xs text-slate-500 mt-1">Si s’omple, l’estat passa a «programat» i es desa com a <em>data_programada</em>.</p>
+            <p class="text-xs text-slate-500 mt-1">
+              Si s’omple, l’estat passa a «{CHALLENGE_STATE_LABEL.programat.toLowerCase()}» i es desa com a
+              <em>data_programada</em>.
+            </p>
           </div>
         {/if}
       </div>
 
       <fieldset class="border rounded p-3">
-        <legend class="text-sm px-1">Dates proposades (normativa: 3 si “proposat”)</legend>
+        <legend class="text-sm px-1">Dates proposades (normativa: 3 si “{CHALLENGE_STATE_LABEL.proposat.toLowerCase()}”)</legend>
         <div class="grid sm:grid-cols-3 gap-2">
           <div>
             <label for="d1" class="block text-sm mb-1">Data 1</label>
