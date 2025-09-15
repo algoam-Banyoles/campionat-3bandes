@@ -109,7 +109,7 @@
         inRanking = true;
       }
       await Promise.all([
-        invalidate('/classificacio'),
+        invalidate('/ranking'),
         invalidate('/llista-espera')
       ]);
     } catch (e: any) {

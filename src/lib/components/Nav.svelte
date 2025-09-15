@@ -7,7 +7,7 @@
   const baseLinks = [
     { href: '/', label: 'Inici' },
     { href: '/calendari', label: 'Calendari' },
-    { href: '/classificacio', label: 'Classificació' },
+    { href: '/ranking', label: 'Classificació' },
     { href: '/reptes', label: 'Reptes' },
     { href: '/llista-espera', label: "Llista d'espera" },
     { href: '/socis', label: 'Socis' }

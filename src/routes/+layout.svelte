@@ -90,7 +90,7 @@
 
     <div class="hidden md:flex items-center gap-6 flex-1">
       <a href="/calendari" class={isActive("/calendari", $page.url.pathname)}>Calendari</a>
-      <a href="/classificacio" class={isActive("/classificacio", $page.url.pathname)}>Classificació</a>
+      <a href="/ranking" class={isActive("/ranking", $page.url.pathname)}>Classificació</a>
       <a href="/reptes" class={isActive("/reptes", $page.url.pathname)}>Reptes</a>
       <a href="/llista-espera" class={isActive("/llista-espera", $page.url.pathname)}>Llista d'espera</a>
       <a href="/historial" class={isActive("/historial", $page.url.pathname)}>Historial</a>
@@ -138,7 +138,7 @@
   {#if menuOpen}
     <div class="md:hidden px-4 pb-4 flex flex-col gap-2">
       <a href="/calendari" class={isActive("/calendari", $page.url.pathname)}>Calendari</a>
-      <a href="/classificacio" class={isActive("/classificacio", $page.url.pathname)}>Classificació</a>
+      <a href="/ranking" class={isActive("/ranking", $page.url.pathname)}>Classificació</a>
       <a href="/reptes" class={isActive("/reptes", $page.url.pathname)}>Reptes</a>
       <a href="/llista-espera" class={isActive("/llista-espera", $page.url.pathname)}>Llista d'espera</a>
       <a href="/historial" class={isActive("/historial", $page.url.pathname)}>Historial</a>
