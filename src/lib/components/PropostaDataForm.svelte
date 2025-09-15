@@ -1,7 +1,9 @@
 <script lang="ts">
   import { supabase } from '$lib/supabaseClient';
   import Banner from '$lib/components/Banner.svelte';
+
   import { authFetch } from '$lib/utils/http';
+
 
   export let challengeId: string;
   export let reptadorId: string | null = null;
@@ -47,7 +49,10 @@
     if (error || !me?.id) { canShow = false; return; }
 
     await ensureChallengeParties();
-    canShow = !!(me.id && (me.id === reptadorId || me.id === reptatId));
+    canShow = isParticipant(me.id ?? null, {
+      reptador_id: reptadorId,
+      reptat_id: reptatId
+    });
   }
 
   $: computeCanShow(); // re-calcula si canvien props
