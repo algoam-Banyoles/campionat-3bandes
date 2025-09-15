@@ -1,15 +1,25 @@
 <script lang="ts">
   import { supabase } from '$lib/supabaseClient';
   import Banner from '$lib/components/Banner.svelte';
+  import { onMount } from 'svelte';
+  import { getSettings, type AppSettings } from '$lib/settings';
 
   export let challengeId: string;
   export let reptadorId: string | null = null;
   export let reptatId: string | null = null;
+  export let reprogramacions = 0;
 
   let dataLocal = '';
   let submitting = false;
   let err: string | null = null;
   let ok: string | null = null;
+  let settings: AppSettings | null = null;
+  let limit = 3;
+
+  onMount(async () => {
+    settings = await getSettings();
+    limit = settings?.reprogramacions_limit ?? 3;
+  });
 
   // Helper: obtenir Authorization Bearer del Supabase
   async function getAuthHeader(): Promise<Record<string, string>> {
@@ -96,19 +106,27 @@
   {#if err}<Banner type="error" class="mb-2" message={err} />{/if}
   {#if ok}<Banner type="success" class="mb-2" message={ok} />{/if}
 
-  <div class="flex gap-2 items-center">
-    <input
-      type="datetime-local"
-      step="60"
-      class="rounded-xl border px-3 py-2"
-      bind:value={dataLocal}
-      aria-label="Proposa data"
-    />
-    <button
-      class="rounded-2xl border px-3 py-2"
-      on:click|preventDefault={proposa}
-      disabled={submitting || !dataLocal}>
-      {submitting ? 'Enviant…' : 'Proposa data'}
-    </button>
+  <div class="mb-2">
+    <span class="text-sm rounded bg-slate-100 px-2 py-1">Reprogramacions: {reprogramacions} / {limit}</span>
   </div>
+
+  {#if reprogramacions < limit}
+    <div class="flex gap-2 items-center">
+      <input
+        type="datetime-local"
+        step="60"
+        class="rounded-xl border px-3 py-2"
+        bind:value={dataLocal}
+        aria-label="Proposa data"
+      />
+      <button
+        class="rounded-2xl border px-3 py-2"
+        on:click|preventDefault={proposa}
+        disabled={submitting || !dataLocal}>
+        {submitting ? 'Enviant…' : 'Proposa data'}
+      </button>
+    </div>
+  {:else}
+    <div class="text-sm text-red-600">Límit de reprogramacions assolit.</div>
+  {/if}
 {/if}
