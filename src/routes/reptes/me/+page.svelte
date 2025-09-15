@@ -5,6 +5,7 @@
 import { getSettings, type AppSettings } from '$lib/settings';
 import { checkIsAdmin } from '$lib/roles';
 import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
+import { authFetch } from '$lib/utils/http';
 
 
 type Challenge = {

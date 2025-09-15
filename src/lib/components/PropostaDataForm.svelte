@@ -5,6 +5,7 @@
   import { getSettings, type AppSettings } from '$lib/settings';
 
   import { authFetch } from '$lib/utils/http';
+  import { isParticipant } from '$lib/challenges';
 
 
   export let challengeId: string;

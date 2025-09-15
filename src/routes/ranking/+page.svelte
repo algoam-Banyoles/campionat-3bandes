@@ -4,6 +4,7 @@
     import { get } from 'svelte/store';
     import { canCreateChallenge } from '$lib/canCreateChallenge';
     import { ranking, refreshRanking, type RankingRow } from '$lib/rankingStore';
+    import { getPlayerBadges, type VPlayerBadges } from '$lib/playerBadges';
     import PlayerEvolutionModal from '$lib/components/PlayerEvolutionModal.svelte';
     import { adminStore } from '$lib/stores/auth';
     import { applyDisagreementDrop } from '$lib/applyDisagreementDrop';
@@ -29,6 +30,7 @@
   let penaltyError: string | null = null;
   let penaltyBusy = false;
   let highlightIds = new Set<string>();
+  let badgeMap = new Map<string, VPlayerBadges>();
 
   onMount(async () => {
     try {
@@ -44,6 +46,7 @@
           moved: highlightIds.has(r.player_id),
         }));
         void evaluateChallenges(supabaseClient);
+        void loadBadges();
       });
 
       // Auth & player (opcional)
@@ -82,6 +85,7 @@
       eventId = event.id as string;
 
       await refreshRanking();
+      await loadBadges();
       myPos = get(ranking).find((r) => r.player_id === myPlayerId)?.posicio ?? null;
       await evaluateChallenges(supabaseClient);
     } catch (e: any) {
@@ -111,6 +115,18 @@
     }
   }
 
+  async function loadBadges(): Promise<void> {
+    const list = await getPlayerBadges();
+    badgeMap = new Map<string, VPlayerBadges>(list.map((b) => [b.player_id, b]));
+  }
+
+  const badgeTooltip = (badge: VPlayerBadges | undefined): string | undefined => {
+    if (!badge || badge.days_since_last == null) return undefined;
+    if (badge.days_since_last === 0) return "Últim repte: avui";
+    if (badge.days_since_last === 1) return "Últim repte: fa 1 dia";
+    return `Últim repte: fa ${badge.days_since_last} dies`;
+  };
+
   function reptar(id: string) {
     goto(`/reptes/nou?opponent=${id}`);
   }
@@ -133,6 +149,7 @@
       if (!(playerA && playerB)) throw new Error('Selecció invàlida');
       await applyDisagreementDrop(supabaseClient, eventId, playerA, playerB);
       await refreshRanking();
+      await loadBadges();
       const after = get(ranking);
       const beforeMap = new Map(before.map((r) => [r.player_id, r.posicio]));
       highlightIds = new Set(
@@ -196,15 +213,40 @@
       </thead>
       <tbody>
         {#each rows as r}
+          {@const badge = badgeMap.get(r.player_id)}
           <tr class="border-t" class:bg-yellow-100={r.moved}>
             <td class="px-3 py-2">{r.posicio}</td>
             <td class="px-3 py-2">
-              <button
-                class="text-blue-600 hover:underline"
-                on:click={() => openEvolution(r.player_id, r.nom)}
-              >
-                {r.nom}
-              </button>
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  class="text-blue-600 hover:underline"
+                  on:click={() => openEvolution(r.player_id, r.nom)}
+                >
+                  {r.nom}
+                </button>
+                {#if badge?.has_active_challenge}
+                  <span
+                    class="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700"
+                    title={badgeTooltip(badge) ?? undefined}
+                  >
+                    Repte actiu
+                  </span>
+                {:else if badge?.in_cooldown}
+                  <span
+                    class="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-medium text-orange-700"
+                    title={badgeTooltip(badge) ?? undefined}
+                  >
+                    Cooldown
+                  </span>
+                {:else if badge?.can_be_challenged}
+                  <span
+                    class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700"
+                    title={badgeTooltip(badge) ?? undefined}
+                  >
+                    Es pot reptar
+                  </span>
+                {/if}
+              </div>
             </td>
             <td class="px-3 py-2">{fmtMitjana(r.mitjana)}</td>
             <td class="px-3 py-2 capitalize">{fmtEstat(r.estat)}</td>
