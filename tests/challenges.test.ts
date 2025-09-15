@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
+vi.mock('$lib/utils/http', () => ({ authFetch: vi.fn() }));
+import { authFetch } from '$lib/utils/http';
 import { acceptChallenge, refuseChallenge, scheduleChallenge } from '../src/lib/challenges';
 
 describe('challenge helpers', () => {
@@ -25,13 +27,16 @@ describe('challenge helpers', () => {
     expect(update).toHaveBeenCalledWith({ estat: 'refusat' });
   });
 
-  it('scheduleChallenge sets date', async () => {
-    const eq = vi.fn().mockResolvedValue({ error: null });
-    const update = vi.fn().mockReturnValue({ eq });
-    const from = vi.fn().mockReturnValue({ update });
-    const client = { from } as any;
-    await scheduleChallenge(client, 'abc', '2024-01-02T00:00:00.000Z');
-    expect(update).toHaveBeenCalledWith({ data_programada: '2024-01-02T00:00:00.000Z' });
+  it('scheduleChallenge posts to backend', async () => {
+    (authFetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true })
+    });
+    await scheduleChallenge({} as any, 'abc', '2024-01-02T00:00:00.000Z');
+    expect(authFetch).toHaveBeenCalledWith('/reptes/programar', {
+      method: 'POST',
+      body: JSON.stringify({ id: 'abc', data_iso: '2024-01-02T00:00:00.000Z' })
+    });
   });
 
   it('throws on supabase error', async () => {

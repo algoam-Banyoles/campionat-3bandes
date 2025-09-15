@@ -229,27 +229,21 @@
                 </button>
               </div>
             {/if}
-
-            {#if r.estat !== 'refusat'}
-              {#if (r.reprogramacions ?? 0) < reproLimit}
-                <div class="mt-2 flex gap-2 items-center">
-                  <input
-                    type="datetime-local"
-                    step="60"
-                    class="border rounded px-2 py-1"
-                    bind:value={dateDrafts[r.id]}
-                  />
-                  <button
-                    class="rounded border px-3 py-1 text-sm"
-                    on:click={() => propose(r)}
-                  >
-                    Proposa data
-                  </button>
-                </div>
-              {:else}
-                <div class="mt-2 text-xs text-red-600">Límit de reprogramacions assolit.</div>
-              {/if}
-
+            {#if r.estat !== 'refusat' && myPlayerId && (myPlayerId === r.reptador_id || myPlayerId === r.reptat_id)}
+              <div class="mt-2 flex gap-2 items-center">
+                <input
+                  type="datetime-local"
+                  step="60"
+                  class="border rounded px-2 py-1"
+                  bind:value={dateDrafts[r.id]}
+                />
+                <button
+                  class="rounded border px-3 py-1 text-sm"
+                  on:click={() => propose(r)}
+                >
+                  Proposa data
+                </button>
+              </div>
             {/if}
           </li>
         {/each}
