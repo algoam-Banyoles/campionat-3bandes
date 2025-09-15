@@ -6,7 +6,7 @@
   import Banner from '$lib/components/Banner.svelte';
   import Loader from '$lib/components/Loader.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
-  import { runDeadlines } from '$lib/deadlinesService';
+  import { runDeadlines, type RunDeadlinesResult } from '$lib/deadlinesService';
   import { authFetch } from '$lib/utils/http';
 
   let loading = true;
@@ -35,7 +35,7 @@
   let captureErr: string | null = null;
 
   let deadlinesBusy = false;
-  let deadlinesRes: { caducats_sense_acceptar: number; anullats_sense_jugar: number } | null = null;
+  let deadlinesRes: RunDeadlinesResult | null = null;
   let deadlinesErr: string | null = null;
 
   type Change = {
@@ -143,7 +143,7 @@
       deadlinesErr = null;
       deadlinesRes = null;
       const { supabase } = await import('$lib/supabaseClient');
-      const res = await runDeadlines(supabase);
+      const res = await runDeadlines(supabase, $user?.email ?? null);
       deadlinesRes = res;
       await Promise.all([invalidate('/reptes'), invalidate('/admin/reptes')]);
     } catch (e) {
@@ -374,7 +374,16 @@
     <div class="rounded-2xl border p-4">
       <h2 class="font-semibold">⏰ Terminis reptes</h2>
       {#if deadlinesRes}
-        <pre class="text-sm mt-2">{JSON.stringify(deadlinesRes)}</pre>
+        <div class="mt-2 space-y-1 text-sm">
+          <p>Reptes processats: <strong>{deadlinesRes.challengesProcessed}</strong></p>
+          <p>Inactivitats processades: <strong>{deadlinesRes.inactivityProcessed}</strong></p>
+          {#if deadlinesRes.raw.length > 0}
+            <details class="text-xs">
+              <summary class="cursor-pointer text-slate-600">Detall complet</summary>
+              <pre class="mt-1 max-h-48 overflow-auto rounded-xl bg-slate-100 p-2">{JSON.stringify(deadlinesRes.raw, null, 2)}</pre>
+            </details>
+          {/if}
+        </div>
       {/if}
       {#if deadlinesErr}
         <Banner type="error" message={deadlinesErr} class="mb-2" />
