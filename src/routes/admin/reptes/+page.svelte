@@ -6,7 +6,8 @@
         import Banner from '$lib/components/Banner.svelte';
         import Loader from '$lib/components/Loader.svelte';
       import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
-      import { getSettings, type AppSettings } from '$lib/settings';
+      import { REPROGRAMACIONS_LIMIT } from '$lib/settings';
+      import { authFetch } from '$lib/utils/http';
 
 
 
@@ -33,8 +34,7 @@
   let rows: ChallengeRow[] = [];
   let busy: string | null = null; // id en acció
   let isAdmin = false;
-  let settings: AppSettings | null = null;
-  let reproLimit = 3;
+  const reproLimit = REPROGRAMACIONS_LIMIT;
 
   
   onMount(load);
@@ -67,8 +67,6 @@
         isAdmin = true;
 
       const { supabase } = await import('$lib/supabaseClient');
-      settings = await getSettings();
-      reproLimit = settings?.reprogramacions_limit ?? 3;
 
       const { data: ch, error: e1 } = await supabase
         .from('challenges')

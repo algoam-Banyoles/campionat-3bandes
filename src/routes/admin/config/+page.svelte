@@ -1,11 +1,11 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-      import { user } from '$lib/stores/auth';
-    import { checkIsAdmin } from '$lib/roles';
-    import Banner from '$lib/components/Banner.svelte';
-    import Loader from '$lib/components/Loader.svelte';
-    import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
-
+  import { onMount } from 'svelte';
+  import { user } from '$lib/stores/auth';
+  import { checkIsAdmin } from '$lib/roles';
+  import Banner from '$lib/components/Banner.svelte';
+  import Loader from '$lib/components/Loader.svelte';
+  import { formatSupabaseError, ok as okText } from '$lib/ui/alerts';
+  import { adminUpdateSettings } from '$lib/settings';
 
   type Settings = {
     id?: string;
@@ -17,8 +17,25 @@
     dies_acceptar_repte: number;
     dies_jugar_despres_acceptar: number;
     ranking_max_jugadors: number;
+    pre_inactiu_setmanes: number;
+    inactiu_setmanes: number;
     updated_at?: string | null;
   };
+
+  function createDefaultForm(): Settings {
+    return {
+      caramboles_objectiu: 20,
+      max_entrades: 50,
+      allow_tiebreak: true,
+      cooldown_min_dies: 3,
+      cooldown_max_dies: 7,
+      dies_acceptar_repte: 7,
+      dies_jugar_despres_acceptar: 7,
+      ranking_max_jugadors: 20,
+      pre_inactiu_setmanes: 3,
+      inactiu_setmanes: 6
+    };
+  }
 
   let form: Settings | null = null;
   let saving = false;
@@ -33,38 +50,29 @@
     const { data } = await supabase
       .from('app_settings')
       .select(
-        'id,caramboles_objectiu,max_entrades,allow_tiebreak,cooldown_min_dies,cooldown_max_dies,dies_acceptar_repte,dies_jugar_despres_acceptar,ranking_max_jugadors,updated_at'
+        'id,caramboles_objectiu,max_entrades,allow_tiebreak,cooldown_min_dies,cooldown_max_dies,dies_acceptar_repte,dies_jugar_despres_acceptar,ranking_max_jugadors,pre_inactiu_setmanes,inactiu_setmanes,updated_at'
       )
       .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (data) {
-      form = data as Settings;
+      form = { ...createDefaultForm(), ...(data as Settings) };
     } else {
-      form = {
-        caramboles_objectiu: 20,
-        max_entrades: 50,
-        allow_tiebreak: true,
-        cooldown_min_dies: 3,
-        cooldown_max_dies: 7,
-        dies_acceptar_repte: 7,
-        dies_jugar_despres_acceptar: 7,
-        ranking_max_jugadors: 20
-      };
+      form = createDefaultForm();
     }
   }
 
   async function init() {
     try {
       loading = true;
-        admin = await checkIsAdmin();
+      admin = await checkIsAdmin();
       if (admin) {
         await loadSettings();
       }
-      } catch (e) {
-        error = formatSupabaseError(e);
-      } finally {
+    } catch (e) {
+      error = formatSupabaseError(e);
+    } finally {
       loading = false;
     }
   }
@@ -92,6 +100,12 @@
       return 'Dies per jugar després d’acceptar han de ser un enter > 0';
     if (!Number.isInteger(form.ranking_max_jugadors) || form.ranking_max_jugadors <= 0)
       return 'Rànquing: màxim jugadors ha de ser un enter > 0';
+    if (!Number.isInteger(form.pre_inactiu_setmanes) || form.pre_inactiu_setmanes <= 0)
+      return 'Setmanes pre-inactiu han de ser un enter > 0';
+    if (!Number.isInteger(form.inactiu_setmanes) || form.inactiu_setmanes <= 0)
+      return 'Setmanes inactiu han de ser un enter > 0';
+    if (form.pre_inactiu_setmanes > form.inactiu_setmanes)
+      return 'Setmanes pre-inactiu no poden superar les d’inactiu';
     return null;
   }
 
@@ -128,13 +142,22 @@
             cooldown_max_dies: form.cooldown_max_dies,
             dies_acceptar_repte: form.dies_acceptar_repte,
             dies_jugar_despres_acceptar: form.dies_jugar_despres_acceptar,
-            ranking_max_jugadors: form.ranking_max_jugadors
+            ranking_max_jugadors: form.ranking_max_jugadors,
+            pre_inactiu_setmanes: form.pre_inactiu_setmanes,
+            inactiu_setmanes: form.inactiu_setmanes
           })
           .select('id')
           .single();
         if (e) throw e;
         form.id = inserted.id;
       }
+
+      await adminUpdateSettings(
+        form.dies_acceptar_repte,
+        form.dies_jugar_despres_acceptar,
+        form.pre_inactiu_setmanes,
+        form.inactiu_setmanes
+      );
       await loadSettings();
       ok = okText('Configuració desada');
     } catch (e) {
@@ -255,6 +278,28 @@
               min="1"
               class="w-full rounded-xl border px-3 py-2"
               bind:value={form.ranking_max_jugadors}
+            />
+          </div>
+
+          <div>
+            <label for="pre_inactiu_setmanes" class="block text-sm mb-1">Setmanes pre-inactiu</label>
+            <input
+              id="pre_inactiu_setmanes"
+              type="number"
+              min="1"
+              class="w-full rounded-xl border px-3 py-2"
+              bind:value={form.pre_inactiu_setmanes}
+            />
+          </div>
+
+          <div>
+            <label for="inactiu_setmanes" class="block text-sm mb-1">Setmanes inactiu</label>
+            <input
+              id="inactiu_setmanes"
+              type="number"
+              min="1"
+              class="w-full rounded-xl border px-3 py-2"
+              bind:value={form.inactiu_setmanes}
             />
           </div>
 

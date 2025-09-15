@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { user, adminStore } from '$lib/stores/auth';
 
-import { getSettings, type AppSettings } from '$lib/settings';
+import { type AppSettings, REPROGRAMACIONS_LIMIT } from '$lib/settings';
+import { authFetch } from '$lib/utils/http';
 import { checkIsAdmin } from '$lib/roles';
 
 
@@ -38,7 +39,7 @@ let current: Challenge[] = [];
 export let data: { settings: AppSettings };
 let settings: AppSettings = data.settings;
 let isAdmin = false;
-let reproLimit = settings.reprogramacions_limit ?? 3;
+const reproLimit = REPROGRAMACIONS_LIMIT;
 
 onMount(async () => {
   isAdmin = await checkIsAdmin();

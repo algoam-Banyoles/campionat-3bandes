@@ -7,10 +7,13 @@ export type AppSettings = {
   dies_acceptar_repte: number;
   dies_jugar_despres_acceptar: number;
   ranking_max_jugadors: number;
-  reprogramacions_limit: number;
+  pre_inactiu_setmanes: number;
+  inactiu_setmanes: number;
   updated_at?: string;
   id?: string;
 };
+
+export const REPROGRAMACIONS_LIMIT = 3;
 
 const DEFAULT_SETTINGS: AppSettings = {
   caramboles_objectiu: 20,
@@ -21,7 +24,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   dies_acceptar_repte: 7,
   dies_jugar_despres_acceptar: 7,
   ranking_max_jugadors: 20,
-  reprogramacions_limit: 3
+  pre_inactiu_setmanes: 3,
+  inactiu_setmanes: 6
 };
 
 let cache: AppSettings | null = null;
@@ -37,14 +41,31 @@ export async function getSettings(): Promise<AppSettings> {
       .limit(1)
       .maybeSingle();
     if (error) throw error;
-    cache = data ?? DEFAULT_SETTINGS;
+    cache = { ...DEFAULT_SETTINGS, ...(data ?? {}) };
   } catch {
     cache = DEFAULT_SETTINGS;
   }
-    return cache as AppSettings;
+  return cache as AppSettings;
 }
 
 export function invalidate() {
   cache = null;
+}
+
+export async function adminUpdateSettings(
+  diesAcceptar: number,
+  diesJugar: number,
+  preInact: number,
+  inact: number
+) {
+  const { supabase } = await import('$lib/supabaseClient');
+  const { error } = await supabase.rpc('admin_update_settings', {
+    diesAcceptar,
+    diesJugar,
+    preInact,
+    inact
+  });
+  if (error) throw error;
+  invalidate();
 }
 

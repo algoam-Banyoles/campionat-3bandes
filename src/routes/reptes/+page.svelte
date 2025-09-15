@@ -3,7 +3,7 @@
     import { user } from '$lib/stores/auth';
     import type { SupabaseClient } from '@supabase/supabase-js';
     import { acceptChallenge, refuseChallenge, scheduleChallenge } from '$lib/challenges';
-    import { getSettings, type AppSettings } from '$lib/settings';
+    import { REPROGRAMACIONS_LIMIT } from '$lib/settings';
 
 
   type Challenge = {
@@ -35,8 +35,7 @@
   let myPlayerId: string | null = null;
   let supabase: SupabaseClient;
   let dateDrafts: Record<string, string> = {};
-  let settings: AppSettings | null = null;
-  let reproLimit = 3;
+  const reproLimit = REPROGRAMACIONS_LIMIT;
 
   const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : '—');
   const parseLocalToIso = (local: string) => {
@@ -49,9 +48,6 @@
       loading = true;
       const mod = await import('$lib/supabaseClient');
       supabase = mod.supabase;
-
-      settings = await getSettings();
-      reproLimit = settings?.reprogramacions_limit ?? 3;
 
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {
