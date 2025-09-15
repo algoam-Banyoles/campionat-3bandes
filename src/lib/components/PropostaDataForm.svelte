@@ -1,9 +1,7 @@
 <script lang="ts">
   import { supabase } from '$lib/supabaseClient';
   import Banner from '$lib/components/Banner.svelte';
-  import { onMount } from 'svelte';
-  import { getSettings, type AppSettings } from '$lib/settings';
-
+  import { isParticipant } from '$lib/challenges';
   import { authFetch } from '$lib/utils/http';
   import { isParticipant } from '$lib/challenges';
 
@@ -17,13 +15,8 @@
   let submitting = false;
   let err: string | null = null;
   let ok: string | null = null;
-  let settings: AppSettings | null = null;
-  let limit = 3;
-
-  onMount(async () => {
-    settings = await getSettings();
-    limit = settings?.reprogramacions_limit ?? 3;
-  });
+  const REPROGRAM_LIMIT = 3;
+  let limit = REPROGRAM_LIMIT;
 
   async function ensureChallengeParties() {
     // Si no han arribat per props, els busquem

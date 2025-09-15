@@ -2,11 +2,11 @@
 
         import { onMount } from 'svelte';
         import { user } from '$lib/stores/auth';
-        import { checkIsAdmin } from '$lib/roles';
-        import Banner from '$lib/components/Banner.svelte';
-        import Loader from '$lib/components/Loader.svelte';
+      import { checkIsAdmin } from '$lib/roles';
+      import Banner from '$lib/components/Banner.svelte';
+      import Loader from '$lib/components/Loader.svelte';
       import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
-      import { getSettings, type AppSettings } from '$lib/settings';
+      import { authFetch } from '$lib/utils/http';
       import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
       import { authFetch } from '$lib/utils/http';
 
@@ -35,8 +35,8 @@
   let rows: ChallengeRow[] = [];
   let busy: string | null = null; // id en acció
   let isAdmin = false;
-  let settings: AppSettings | null = null;
-  let reproLimit = 3;
+  const REPRO_LIMIT = 3;
+  let reproLimit = REPRO_LIMIT;
 
   const challengeStateLabel = (state: string): string =>
     CHALLENGE_STATE_LABEL[state] ?? state.replace('_', ' ');
@@ -72,8 +72,6 @@
         isAdmin = true;
 
       const { supabase } = await import('$lib/supabaseClient');
-      settings = await getSettings();
-      reproLimit = settings?.reprogramacions_limit ?? 3;
 
       const { data: ch, error: e1 } = await supabase
         .from('challenges')
