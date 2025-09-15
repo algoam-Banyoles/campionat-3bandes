@@ -2,6 +2,18 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { canCreateChallenge } from '$lib/canCreateChallenge';
+  import type { VPlayerBadges } from '$lib/server/daoAdmin';
+
+  export let data: { badges?: VPlayerBadges[] | null } | undefined;
+  export let badges: VPlayerBadges[] | null | undefined;
+
+  const initialBadges = (badges ?? data?.badges ?? null) as VPlayerBadges[] | null;
+  const preloadedBadgeMap =
+    initialBadges === null
+      ? undefined
+      : new Map<string, VPlayerBadges>(
+          initialBadges.map((badge) => [badge.playerId, badge])
+        );
 
   type Row = {
     event_id: string;
@@ -66,7 +78,7 @@
         }));
 
         const eventId = base[0]?.event_id as string | undefined;
-        await evaluateBadges(supabase, rows, eventId, myPlayerId);
+        await evaluateBadges(supabase, rows, eventId, myPlayerId, preloadedBadgeMap);
 
         // trigger reactivity after in-place badge updates
         rows = [...rows];
@@ -83,7 +95,8 @@
     supabase: any,
     rows: Row[],
     eventId: string | undefined,
-    myPlayerId: string | null
+    myPlayerId: string | null,
+    preloadedBadges?: Map<string, VPlayerBadges>
   ): Promise<void> {
     if (!eventId) return;
 
@@ -93,46 +106,59 @@
     const byId = new Map<string, Row>();
     rows.forEach((r) => byId.set(r.player_id, r));
 
-    // Active challenges
-    const { data: active } = await supabase
-      .from('challenges')
-      .select('challenger_id, challenged_id')
-      .eq('event_id', eventId)
-      .in('status', ['PENDING', 'ACCEPTED']);
-    const activeIds = new Set<string>();
-    (active as any[] ?? []).forEach((c) => {
-      activeIds.add((c as any).challenger_id);
-      activeIds.add((c as any).challenged_id);
-    });
-    activeIds.forEach((id) => {
-      const row = byId.get(id);
-      if (row) row.hasActiveChallenge = true;
-    });
+    if (preloadedBadges) {
+      for (const [playerId, badge] of preloadedBadges) {
+        const row = byId.get(playerId);
+        if (!row) continue;
+        row.hasActiveChallenge = badge.hasActiveChallenge ?? false;
+        row.cooldownToChallenge = badge.cooldownToChallenge ?? false;
+        row.cooldownToBeChallenged = badge.cooldownToBeChallenged ?? false;
+      }
+    } else {
+      const { data: active } = await supabase
+        .from('challenges')
+        .select('challenger_id, challenged_id')
+        .eq('event_id', eventId)
+        .in('status', ['PENDING', 'ACCEPTED']);
+      const activeIds = new Set<string>();
+      (active as any[] ?? []).forEach((c) => {
+        const challengerId = (c as any)?.challenger_id as string | undefined;
+        const challengedId = (c as any)?.challenged_id as string | undefined;
+        if (challengerId) activeIds.add(challengerId);
+        if (challengedId) activeIds.add(challengedId);
+      });
+      activeIds.forEach((id) => {
+        const row = byId.get(id);
+        if (row) row.hasActiveChallenge = true;
+      });
 
-    // Last challenge info
-    const { data: last } = await supabase
-      .from('player_last_challenge')
-      .select('player_id, last_challenge_date, last_challenge_outcome, was_challenger')
-      .eq('event_id', eventId);
-    const lastMap = new Map<string, any>();
-    (last as any[] ?? []).forEach((l) => lastMap.set(l.player_id, l));
+      const { data: last } = await supabase
+        .from('player_last_challenge')
+        .select('player_id, last_challenge_date, last_challenge_outcome, was_challenger')
+        .eq('event_id', eventId);
+      const lastMap = new Map<string, any>();
+      (last as any[] ?? []).forEach((l) => lastMap.set(l.player_id, l));
 
-    const now = Date.now();
-    rows.forEach((r) => {
-      const lc = lastMap.get(r.player_id);
-      r.cooldownToChallenge = false;
-      r.cooldownToBeChallenged = false;
-      if (lc?.last_challenge_date) {
-        const dt = new Date(lc.last_challenge_date);
-        const diff = (now - dt.getTime()) / (1000 * 60 * 60 * 24);
-        if (diff < COOLDOWN_DAYS) {
-          r.cooldownToChallenge = true;
-          r.cooldownToBeChallenged = true;
-          if (lc.last_challenge_outcome === 'REFUSED' && lc.was_challenger) {
-            r.cooldownToChallenge = false;
+      const now = Date.now();
+      rows.forEach((r) => {
+        const lc = lastMap.get(r.player_id);
+        r.cooldownToChallenge = false;
+        r.cooldownToBeChallenged = false;
+        if (lc?.last_challenge_date) {
+          const dt = new Date(lc.last_challenge_date);
+          const diff = (now - dt.getTime()) / (1000 * 60 * 60 * 24);
+          if (diff < COOLDOWN_DAYS) {
+            r.cooldownToChallenge = true;
+            r.cooldownToBeChallenged = true;
+            if (lc.last_challenge_outcome === 'REFUSED' && lc.was_challenger) {
+              r.cooldownToChallenge = false;
+            }
           }
         }
-      }
+      });
+    }
+
+    rows.forEach((r) => {
       r.protected =
         r.cooldownToBeChallenged && !r.hasActiveChallenge && !r.cooldownToChallenge;
     });

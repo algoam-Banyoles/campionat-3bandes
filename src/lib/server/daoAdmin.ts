@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { serverSupabase } from './supabaseAdmin';
 
 export type VChallengePending = {
   /** Identificador del repte */
@@ -96,6 +97,17 @@ export type VMaintenanceRunDetail = {
   metadata: Record<string, unknown> | null;
 };
 
+export type VPlayerBadges = {
+  /** Identificador del jugador. */
+  playerId: string;
+  /** Indica si el jugador té algun repte actiu. */
+  hasActiveChallenge: boolean;
+  /** Indica si el jugador està en cooldown per reptar. */
+  cooldownToChallenge: boolean;
+  /** Indica si el jugador està en cooldown per ser reptat. */
+  cooldownToBeChallenged: boolean;
+};
+
 export type UpdateSettingsInput = {
   diesAcceptar: number;
   diesJugar: number;
@@ -175,4 +187,90 @@ export async function getMaintenanceRunDetails(
     .order('creat_el', { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as VMaintenanceRunDetail[];
+}
+
+export async function getPlayerBadges(): Promise<VPlayerBadges[]> {
+  const supabase = serverSupabase();
+
+  const { data: event, error: eventError } = await supabase
+    .from('events')
+    .select('id')
+    .eq('actiu', true)
+    .order('creat_el', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (eventError) throw new Error(eventError.message);
+
+  const eventId = (event as { id?: string } | null)?.id;
+  if (!eventId) return [];
+
+  const ensureEntry = (playerId: string, target: Map<string, VPlayerBadges>) => {
+    if (!target.has(playerId)) {
+      target.set(playerId, {
+        playerId,
+        hasActiveChallenge: false,
+        cooldownToChallenge: false,
+        cooldownToBeChallenged: false
+      });
+    }
+    return target.get(playerId) as VPlayerBadges;
+  };
+
+  const badgeMap = new Map<string, VPlayerBadges>();
+
+  const { data: active, error: activeError } = await supabase
+    .from('challenges')
+    .select('challenger_id, challenged_id')
+    .eq('event_id', eventId)
+    .in('status', ['PENDING', 'ACCEPTED']);
+  if (activeError) throw new Error(activeError.message);
+
+  for (const record of (active ?? []) as any[]) {
+    const challengerId = (record?.challenger_id as string | undefined) ?? null;
+    const challengedId = (record?.challenged_id as string | undefined) ?? null;
+    if (challengerId) {
+      ensureEntry(challengerId, badgeMap).hasActiveChallenge = true;
+    }
+    if (challengedId) {
+      ensureEntry(challengedId, badgeMap).hasActiveChallenge = true;
+    }
+  }
+
+  const { data: lastChallenges, error: lastError } = await supabase
+    .from('player_last_challenge')
+    .select('player_id, last_challenge_date, last_challenge_outcome, was_challenger')
+    .eq('event_id', eventId);
+  if (lastError) throw new Error(lastError.message);
+
+  const now = Date.now();
+  const COOLDOWN_DAYS = 7;
+
+  for (const entry of (lastChallenges ?? []) as any[]) {
+    const playerId = (entry?.player_id as string | undefined) ?? null;
+    if (!playerId) continue;
+    const badge = ensureEntry(playerId, badgeMap);
+
+    badge.cooldownToChallenge = false;
+    badge.cooldownToBeChallenged = false;
+
+    const lastChallengeDate = entry?.last_challenge_date as string | null;
+    if (!lastChallengeDate) continue;
+
+    const parsed = new Date(lastChallengeDate);
+    if (Number.isNaN(parsed.getTime())) continue;
+
+    const diffDays = (now - parsed.getTime()) / (1000 * 60 * 60 * 24);
+    if (diffDays >= COOLDOWN_DAYS) continue;
+
+    badge.cooldownToChallenge = true;
+    badge.cooldownToBeChallenged = true;
+
+    const outcome = entry?.last_challenge_outcome as string | null;
+    const wasChallenger = Boolean(entry?.was_challenger);
+    if (outcome === 'REFUSED' && wasChallenger) {
+      badge.cooldownToChallenge = false;
+    }
+  }
+
+  return Array.from(badgeMap.values());
 }
