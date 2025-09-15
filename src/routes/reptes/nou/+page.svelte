@@ -1,24 +1,22 @@
 <script lang="ts">
-
-    import { onMount } from 'svelte';
-    import { page } from '$app/stores';
-    import { get } from 'svelte/store';
-    import { getSettings } from '$lib/settings';
-    import Banner from '$lib/components/Banner.svelte';
-    import Loader from '$lib/components/Loader.svelte';
-    import { ok as okMsg, err as errMsg } from '$lib/ui/alerts';
-    import { supabase } from '$lib/supabaseClient';
-    import { canCreateChallengeDetail } from '$lib/canCreateChallengeDetail';
-    import { canCreateAccessChallenge } from '$lib/canCreateAccessChallenge';
-
+  import { onMount } from 'svelte';
+  import { page } from '$app/stores';
+  import { get } from 'svelte/store';
+  import { getSettings } from '$lib/settings';
+  import Banner from '$lib/components/Banner.svelte';
+  import Loader from '$lib/components/Loader.svelte';
+  import { ok as okMsg, err as errMsg } from '$lib/ui/alerts';
+  import { supabase } from '$lib/supabaseClient';
+  import { canCreateChallengeDetail } from '$lib/canCreateChallengeDetail';
+  import { canCreateAccessChallenge } from '$lib/canCreateAccessChallenge';
 
   type RankedPlayer = { posicio: number; player_id: string; nom: string };
   type NotReptable = RankedPlayer & { motiu: string };
 
-    let loading = true;
-    let err: string | null = null;
-    let ok: string | null = null;
-    let info: string | null = null;
+  let loading = true;
+  let err: string | null = null;
+  let ok: string | null = null;
+  let info: string | null = null;
 
   let myPlayerId: string | null = null;
   let myPos: number | null = null;
@@ -38,6 +36,20 @@
   let dateInputs: string[] = [
     toLocalInput(new Date().toISOString())
   ];
+
+  /**
+   * Obté l'header Authorization Bearer des de la sessió de Supabase.
+   * S'utilitza a les crides fetch del client perquè el backend rebi el JWT.
+   */
+  async function getAuthHeader(): Promise<Record<string, string>> {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token ?? null;
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    } catch {
+      return {};
+    }
+  }
 
   onMount(async () => {
     try {
@@ -107,7 +119,11 @@
         }
         selectedOpponent = oppId;
       } else {
-        const res = await fetch('/reptes/nou/eligibles', { credentials: 'include' });
+        // >>>>>>>>>> CANVI IMPORTANT: injectem Authorization al fetch
+        const res = await fetch('/reptes/nou/eligibles', {
+          credentials: 'include',
+          headers: await getAuthHeader()
+        });
         const data = await res.json();
         if (!res.ok || !data.ok) {
           err = errMsg(data.error || 'Error en carregar dades.');
@@ -218,10 +234,14 @@
         .map(v => parseLocalToIso(v || null))
         .filter(Boolean) as string[];
 
+      // >>>>>>>>>> CANVI IMPORTANT: injectem Authorization al POST
       const res = await fetch('/reptes/nou', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(await getAuthHeader())
+        },
         body: JSON.stringify({
           event_id: eventId,
           reptador_id: myPlayerId,
@@ -234,28 +254,28 @@
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || 'Error en crear repte');
 
-        ok = okMsg('Repte creat correctament. S’han enviat les teves propostes de data.');
+      ok = okMsg('Repte creat correctament. S’han enviat les teves propostes de data.');
       // Reseteja el formulari
       selectedOpponent = null;
       notes = '';
       dateInputs = [toLocalInput(new Date().toISOString())];
-      } catch (e: any) {
-        err = errMsg(e?.message || 'Error en crear repte');
-      }
+    } catch (e: any) {
+      err = errMsg(e?.message || 'Error en crear repte');
     }
-  </script>
+  }
+</script>
 
 <svelte:head><title>Nou repte</title></svelte:head>
 
 <h1 class="text-2xl font-semibold mb-4">Nou repte</h1>
 
 {#if loading}
-      <Loader />
+  <Loader />
 {:else}
-    {#if err}<Banner type="error" message={err} class="mb-3" />{/if}
-    {#if ok}<Banner type="success" message={ok} class="mb-3" />{/if}
-    {#if info}<Banner type="info" message={info} class="mb-3" />{/if}
-    {#if canChk && !canChk.ok}<Banner type="error" message={canChk.reason || 'Repte no permès'} class="mb-3" />{/if}
+  {#if err}<Banner type="error" message={err} class="mb-3" />{/if}
+  {#if ok}<Banner type="success" message={ok} class="mb-3" />{/if}
+  {#if info}<Banner type="info" message={info} class="mb-3" />{/if}
+  {#if canChk && !canChk.ok}<Banner type="error" message={canChk.reason || 'Repte no permès'} class="mb-3" />{/if}
 
   {#if myPos}
     <div class="rounded-2xl border bg-white p-4 shadow-sm mb-4">
@@ -329,9 +349,9 @@
         <textarea id="notes" class="rounded-xl border px-3 py-2" rows="3" bind:value={notes}></textarea>
       </div>
 
-        {#if valMsg}
-          <Banner type="warn" message={valMsg} class="p-2 text-sm" />
-        {/if}
+      {#if valMsg}
+        <Banner type="warn" message={valMsg} class="p-2 text-sm" />
+      {/if}
 
       <div class="flex items-center gap-3 pt-1">
         <button class="rounded-2xl bg-slate-900 text-white px-4 py-2 disabled:opacity-60"
