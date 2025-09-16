@@ -244,7 +244,19 @@
                 >
                   {r.nom}
                 </button>
-                {#if badgeView}
+                {#if badge?.in_cooldown}
+                  {@const daysLeft = badge?.cooldown_days_left ?? 0}
+                  {@const article = daysLeft === 1 ? 'a' : 'en'}
+                  {@const unit = daysLeft === 1 ? 'dia' : 'dies'}
+                  {@const cooldownText = `No es pot reptar (falt${article} ${daysLeft} ${unit})`}
+                  <span
+                    class="px-2 py-0.5 text-xs rounded bg-orange-100 text-orange-700"
+                    aria-label={cooldownText}
+                    title={badgeTooltip(badge) ?? undefined}
+                  >
+                    {cooldownText}
+                  </span>
+                {:else if badgeView}
                   <span
                     class={badgeView.className}
                     aria-label={badgeView.label}
