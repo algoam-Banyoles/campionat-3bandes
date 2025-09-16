@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { VPlayerBadges } from '$lib/playerBadges';
+import { serverSupabase } from './supabaseAdmin';
 
 export type VChallengePending = {
   /** Identificador del repte */
@@ -95,6 +97,13 @@ export type VMaintenanceRunDetail = {
   /** Informació addicional del pas. */
   metadata: Record<string, unknown> | null;
 };
+
+export async function getPlayerBadges(): Promise<VPlayerBadges[]> {
+  const supabase = serverSupabase();
+  const { data, error } = await supabase.from('v_player_badges').select('*');
+  if (error) throw new Error(error.message);
+  return (data ?? []) as VPlayerBadges[];
+}
 
 export type UpdateSettingsInput = {
   diesAcceptar: number;
