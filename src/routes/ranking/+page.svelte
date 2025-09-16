@@ -9,6 +9,9 @@
     import { adminStore } from '$lib/stores/auth';
     import { applyDisagreementDrop } from '$lib/applyDisagreementDrop';
 
+  export let badges: VPlayerBadges[] = [];
+  export let badgesLoaded = false;
+
   type RowState = RankingRow & {
     canChallenge: boolean;
     reason: string | null;
@@ -30,7 +33,13 @@
   let penaltyError: string | null = null;
   let penaltyBusy = false;
   let highlightIds = new Set<string>();
+  let shouldFetchBadges = !badgesLoaded;
   let badgeMap = new Map<string, VPlayerBadges>();
+
+  $: if (badgesLoaded) {
+    badgeMap = new Map(badges.map((b) => [b.player_id, b]));
+    shouldFetchBadges = false;
+  }
 
   onMount(async () => {
     try {
@@ -115,9 +124,19 @@
     }
   }
 
-  async function loadBadges(): Promise<void> {
-    const list = await getPlayerBadges();
-    badgeMap = new Map<string, VPlayerBadges>(list.map((b) => [b.player_id, b]));
+  async function loadBadges(force = false): Promise<void> {
+    if (!force && !shouldFetchBadges) {
+      return;
+    }
+    try {
+      const list = await getPlayerBadges();
+      badgeMap = new Map<string, VPlayerBadges>(list.map((b) => [b.player_id, b]));
+      shouldFetchBadges = false;
+    } catch {
+      if (force || shouldFetchBadges) {
+        shouldFetchBadges = true;
+      }
+    }
   }
 
   const badgeTooltip = (badge: VPlayerBadges | undefined): string | undefined => {
@@ -149,7 +168,7 @@
       if (!(playerA && playerB)) throw new Error('Selecció invàlida');
       await applyDisagreementDrop(supabaseClient, eventId, playerA, playerB);
       await refreshRanking();
-      await loadBadges();
+      await loadBadges(true);
       const after = get(ranking);
       const beforeMap = new Map(before.map((r) => [r.player_id, r.posicio]));
       highlightIds = new Set(
