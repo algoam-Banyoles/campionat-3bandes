@@ -3,15 +3,11 @@
 
   type Row = {
     ordre: number;
+    player_id: string;
     nom: string;
-    data_inscripcio: string;
   };
 
-  const fmtDate = (iso: string | null): string => {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    return isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
-  };
+  // Eliminat fmtDate perquè data_inscripcio ja no es mostra
 
   let loading = true;
   let error: string | null = null;
@@ -50,7 +46,6 @@
         <tr>
           <th class="px-3 py-2 text-left font-semibold">Ordre</th>
           <th class="px-3 py-2 text-left font-semibold">Nom</th>
-          <th class="px-3 py-2 text-left font-semibold">Data inscripció</th>
         </tr>
       </thead>
       <tbody>
@@ -58,7 +53,6 @@
           <tr class="border-t">
             <td class="px-3 py-2">{r.ordre}</td>
             <td class="px-3 py-2">{r.nom}</td>
-            <td class="px-3 py-2">{fmtDate(r.data_inscripcio)}</td>
           </tr>
         {/each}
       </tbody>

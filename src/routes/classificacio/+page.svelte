@@ -2,13 +2,9 @@
   import { onMount } from 'svelte';
 
   type Row = {
-    event_id: string;
     posicio: number;
     player_id: string;
     nom: string;
-    mitjana: number | null;
-    estat: string;
-    assignat_el: string | null;
   };
 
   const fmtSafe = (iso: string | null): string => {
@@ -53,9 +49,6 @@
         <tr>
           <th class="px-3 py-2 text-left font-semibold">Pos.</th>
           <th class="px-3 py-2 text-left font-semibold">Jugador</th>
-          <th class="px-3 py-2 text-left font-semibold">Mitjana</th>
-          <th class="px-3 py-2 text-left font-semibold">Estat</th>
-          <th class="px-3 py-2 text-left font-semibold">Assignat</th>
         </tr>
       </thead>
       <tbody>
@@ -63,9 +56,6 @@
           <tr class="border-t">
             <td class="px-3 py-2">{r.posicio}</td>
             <td class="px-3 py-2">{r.nom}</td>
-            <td class="px-3 py-2">{r.mitjana ?? '-'}</td>
-            <td class="px-3 py-2 capitalize">{r.estat.replace('_', ' ')}</td>
-            <td class="px-3 py-2">{fmtSafe(r.assignat_el)}</td>
           </tr>
         {/each}
       </tbody>
