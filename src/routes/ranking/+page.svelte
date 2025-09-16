@@ -233,6 +233,7 @@
       <tbody>
         {#each rows as r}
           {@const badge = badgeMap.get(r.player_id)}
+          {@const badgeView = getBadgeView(badge)}
           <tr class="border-t" class:bg-yellow-100={r.moved}>
             <td class="px-3 py-2">{r.posicio}</td>
             <td class="px-3 py-2">
@@ -243,7 +244,6 @@
                 >
                   {r.nom}
                 </button>
-                {@const badgeView = getBadgeView(badge)}
                 {#if badgeView}
                   <span
                     class={badgeView.className}
