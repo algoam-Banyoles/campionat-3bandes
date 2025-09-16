@@ -4,7 +4,8 @@
     import { get } from 'svelte/store';
     import { canCreateChallenge } from '$lib/canCreateChallenge';
     import { ranking, refreshRanking, type RankingRow } from '$lib/rankingStore';
-    import { getPlayerBadges, type VPlayerBadges } from '$lib/playerBadges';
+    import { type VPlayerBadges } from '$lib/playerBadges';
+    import { fetchBadgeMap, getBadgeView } from '$lib/badgeView';
     import PlayerEvolutionModal from '$lib/components/PlayerEvolutionModal.svelte';
     import { adminStore } from '$lib/stores/auth';
     import { applyDisagreementDrop } from '$lib/applyDisagreementDrop';
@@ -129,8 +130,7 @@
       return;
     }
     try {
-      const list = await getPlayerBadges();
-      badgeMap = new Map<string, VPlayerBadges>(list.map((b) => [b.player_id, b]));
+      badgeMap = await fetchBadgeMap();
       shouldFetchBadges = false;
     } catch {
       if (force || shouldFetchBadges) {
@@ -243,26 +243,14 @@
                 >
                   {r.nom}
                 </button>
-                {#if badge?.has_active_challenge}
+                {@const badgeView = getBadgeView(badge)}
+                {#if badgeView}
                   <span
-                    class="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700"
+                    class={badgeView.className}
+                    aria-label={badgeView.label}
                     title={badgeTooltip(badge) ?? undefined}
                   >
-                    Repte actiu
-                  </span>
-                {:else if badge?.in_cooldown}
-                  <span
-                    class="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-medium text-orange-700"
-                    title={badgeTooltip(badge) ?? undefined}
-                  >
-                    Cooldown
-                  </span>
-                {:else if badge?.can_be_challenged}
-                  <span
-                    class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700"
-                    title={badgeTooltip(badge) ?? undefined}
-                  >
-                    Es pot reptar
+                    {badgeView.text}
                   </span>
                 {/if}
               </div>
