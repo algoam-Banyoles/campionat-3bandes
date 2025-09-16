@@ -8,7 +8,6 @@
       import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
       import { authFetch } from '$lib/utils/http';
       import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
-      import { authFetch } from '$lib/utils/http';
 
 
 
