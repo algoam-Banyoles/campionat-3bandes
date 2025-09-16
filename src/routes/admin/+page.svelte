@@ -1,11 +1,13 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { goto, invalidateAll, invalidate } from '$app/navigation';
-  import { user } from '$lib/authStore';
-  import { checkIsAdmin, adminStore } from '$lib/roles';
+    import { onMount } from 'svelte';
+    import { goto, invalidateAll, invalidate } from '$app/navigation';
+    import { user, adminStore } from '$lib/stores/auth';
+    import { checkIsAdmin } from '$lib/roles';
   import Banner from '$lib/components/Banner.svelte';
   import Loader from '$lib/components/Loader.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
+  import { runDeadlines, type RunDeadlinesResult } from '$lib/deadlinesService';
+  import { authFetch } from '$lib/utils/http';
 
   let loading = true;
   let error: string | null = null;
@@ -31,6 +33,10 @@
   let captureBusy = false;
   let captureOk: string | null = null;
   let captureErr: string | null = null;
+
+  let deadlinesBusy = false;
+  let deadlinesRes: RunDeadlinesResult | null = null;
+  let deadlinesErr: string | null = null;
 
   type Change = {
     creat_el: string;
@@ -78,10 +84,8 @@
       penaltyBusy = true;
       penaltyOk = null;
       penaltyErr = null;
-      const res = await fetch('/reptes/penalitzacions', {
+      const res = await authFetch('/reptes/penalitzacions', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ challenge_id, tipus })
       });
       const js = await res.json();
@@ -132,6 +136,22 @@
     }
   }
 
+
+  async function processDeadlines() {
+    try {
+      deadlinesBusy = true;
+      deadlinesErr = null;
+      deadlinesRes = null;
+      const { supabase } = await import('$lib/supabaseClient');
+      const res = await runDeadlines(supabase, $user?.email ?? null);
+      deadlinesRes = res;
+      await Promise.all([invalidate('/reptes'), invalidate('/admin/reptes')]);
+    } catch (e) {
+      deadlinesErr = formatSupabaseError(e);
+    } finally {
+      deadlinesBusy = false;
+    }
+  }
   async function captureInitialRanking() {
     try {
       captureBusy = true;
@@ -156,9 +176,8 @@
       resetBusy = true;
       resetOk = null;
       resetErr = null;
-      const res = await fetch('/admin/reset', {
-        method: 'POST',
-        credentials: 'include'
+      const res = await authFetch('/admin/reset', {
+        method: 'POST'
       });
       const js = await res.json();
       if (!res.ok || js.error || !js.ok)
@@ -172,7 +191,7 @@
       await Promise.all([
         invalidate('/reptes'),
         invalidate('/admin/reptes'),
-        invalidate('/classificacio'),
+        invalidate('/ranking'),
         invalidate('/llista-espera'),
         invalidateAll()
       ]);
@@ -349,6 +368,33 @@
           {#if inactBusy}Executant…{:else}Executa inactivitat (42 dies){/if}
         </button>
       </div>
+    </div>
+
+    <!-- Targeta: terminis reptes -->
+    <div class="rounded-2xl border p-4">
+      <h2 class="font-semibold">⏰ Terminis reptes</h2>
+      {#if deadlinesRes}
+        <div class="mt-2 space-y-1 text-sm">
+          <p>Reptes processats: <strong>{deadlinesRes.challengesProcessed}</strong></p>
+          <p>Inactivitats processades: <strong>{deadlinesRes.inactivityProcessed}</strong></p>
+          {#if deadlinesRes.raw.length > 0}
+            <details class="text-xs">
+              <summary class="cursor-pointer text-slate-600">Detall complet</summary>
+              <pre class="mt-1 max-h-48 overflow-auto rounded-xl bg-slate-100 p-2">{JSON.stringify(deadlinesRes.raw, null, 2)}</pre>
+            </details>
+          {/if}
+        </div>
+      {/if}
+      {#if deadlinesErr}
+        <Banner type="error" message={deadlinesErr} class="mb-2" />
+      {/if}
+      <button
+        class="mt-2 rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
+        on:click={processDeadlines}
+        disabled={deadlinesBusy}
+      >
+        {#if deadlinesBusy}Processant…{:else}Processar terminis{/if}
+      </button>
     </div>
 
     <!-- Targeta: reset campionat -->

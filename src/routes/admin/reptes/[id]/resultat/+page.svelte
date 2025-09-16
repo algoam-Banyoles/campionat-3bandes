@@ -1,9 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { page } from '$app/stores';
-  import { user } from '$lib/authStore';
-  import { checkIsAdmin } from '$lib/roles';
+    import { page } from '$app/stores';
+    import { user } from '$lib/stores/auth';
+    import { checkIsAdmin } from '$lib/roles';
   import { getSettings, type AppSettings } from '$lib/settings';
+  import { refreshRanking } from '$lib/rankingStore';
+  import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
 
   type Challenge = {
     id: string;
@@ -32,7 +34,8 @@
   let carR: number | '' = 0;
   let carT: number | '' = 0;
   let entrades: number | '' = 0;
-  let tiebreak = false;
+  let serieR: number | '' = 0;
+  let serieT: number | '' = 0;
   let tbR: number | '' = '';
   let tbT: number | '' = '';
   let tipusResultat: 'normal' | 'incompareixenca_reptador' | 'incompareixenca_reptat' = 'normal';
@@ -47,7 +50,8 @@
     | 'empat_tiebreak_reptat' {
     if (tipusResultat === 'incompareixenca_reptador') return 'guanya_reptat';
     if (tipusResultat === 'incompareixenca_reptat') return 'guanya_reptador';
-    if (tiebreak) return Number(tbR) > Number(tbT) ? 'empat_tiebreak_reptador' : 'empat_tiebreak_reptat';
+    if (Number(carR) === Number(carT))
+      return Number(tbR) > Number(tbT) ? 'empat_tiebreak_reptador' : 'empat_tiebreak_reptat';
     return Number(carR) > Number(carT) ? 'guanya_reptador' : 'guanya_reptat';
   }
 
@@ -135,24 +139,25 @@
 
   let parsedIso: string | null = null;
   $: parsedIso = parseLocalToIso(data_joc_local);
-  $: if (tipusResultat !== 'normal') tiebreak = false;
 
   function validate(parsed: string | null, tipus: 'normal' | 'incompareixenca_reptador' | 'incompareixenca_reptat'): string | null {
     if (!parsed) return 'Cal indicar la data de joc.';
     if (tipus !== 'normal') return null;
     const _carR = toNum(carR), _carT = toNum(carT), _entr = toNum(entrades);
+    const _serR = toNum(serieR), _serT = toNum(serieT);
     if (!isInt(carR) || _carR < 0) return 'Caràmboles (reptador) ha de ser un enter ≥ 0.';
     if (!isInt(carT) || _carT < 0) return 'Caràmboles (reptat) ha de ser un enter ≥ 0.';
     if (!isInt(entrades) || _entr < 0) return 'Entrades ha de ser un enter ≥ 0.';
+    if (!isInt(serieR) || _serR < 0) return 'Sèrie màxima (reptador) ha de ser un enter ≥ 0.';
+    if (!isInt(serieT) || _serT < 0) return 'Sèrie màxima (reptat) ha de ser un enter ≥ 0.';
+    if (_serR > _carR) return 'Sèrie màxima (reptador) no pot superar les caràmboles.';
+    if (_serT > _carT) return 'Sèrie màxima (reptat) no pot superar les caràmboles.';
     if (_carR > settings.caramboles_objectiu || _carT > settings.caramboles_objectiu) {
       return `Caràmboles màximes: ${settings.caramboles_objectiu}.`;
     }
     if (_entr > settings.max_entrades) return `Entrades màximes: ${settings.max_entrades}.`;
     if (_carR === _carT) {
       if (!settings.allow_tiebreak) return 'Empat de caràmboles i el tie-break està desactivat a Configuració.';
-      if (!tiebreak) return 'Empat de caràmboles: activa tie-break i informa el resultat.';
-    }
-    if (tiebreak) {
       const _tbR = toNum(tbR), _tbT = toNum(tbT);
       if (!isInt(tbR) || !isInt(tbT)) return 'Resultat de tie-break ha de ser enter.';
       if (_tbR < 0 || _tbT < 0) return 'Els resultats del tie-break no poden ser negatius.';
@@ -178,7 +183,7 @@
       const { supabase } = await import('$lib/supabaseClient');
 
       const isWalkover = tipusResultat !== 'normal';
-      const hasTB = tipusResultat === 'normal' && tiebreak;
+      const isTie = tipusResultat === 'normal' && Number(carR) === Number(carT);
       const resEnum = resultEnum();
 
       const insertRow: any = {
@@ -187,21 +192,19 @@
         caramboles_reptador: isWalkover ? 0 : Number(carR),
         caramboles_reptat:   isWalkover ? 0 : Number(carT),
         entrades:            isWalkover ? 0 : Number(entrades),
+        serie_max_reptador: isWalkover ? 0 : Number(serieR),
+        serie_max_reptat:   isWalkover ? 0 : Number(serieT),
         resultat: resEnum,
-        tiebreak: hasTB
-
+        tiebreak: isTie,
+        tiebreak_reptador: isTie ? Number(tbR) : null,
+        tiebreak_reptat:   isTie ? Number(tbT) : null
       };
 
-      if (tiebreak) {
-        insertRow.tiebreak_reptador = Number(tbR);
-        insertRow.tiebreak_reptat   = Number(tbT);
-      } else {
-        // Respectar el CHECK: sense tiebreak, aquests camps han de ser NULL
-        insertRow.tiebreak_reptador = null;
-        insertRow.tiebreak_reptat   = null;
-      }
-
-      const { error: e1 } = await supabase.from('matches').insert(insertRow);
+      const { error: e1 } = await supabase
+        .from('matches')
+        .insert(insertRow)
+        .select('id')
+        .single();
       if (e1) throw e1;
 
       const { data: upd, error: e2 } = await supabase
@@ -222,7 +225,8 @@
         if (r?.swapped) rpcMsg = 'Rànquing actualitzat: intercanvi de posicions fet.';
         else rpcMsg = `Rànquing sense canvis${r?.reason ? ' (' + r.reason + ')' : ''}.`;
       }
-      okMsg = 'Resultat desat correctament. Repte marcat com a "jugat".';
+      okMsg = `Resultat desat correctament. Repte marcat com a "${CHALLENGE_STATE_LABEL.jugat.toLowerCase()}".`;
+      await refreshRanking();
     } catch (e:any) {
       error = e?.message ?? 'No s’ha pogut desar el resultat';
     } finally {
@@ -315,7 +319,6 @@
               </label>
             </div>
           </div>
-
           <div class="rounded-2xl border bg-white p-4 shadow-sm">
             <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Entrades i Tie-break</div>
             <label class="grid gap-1">
@@ -324,13 +327,8 @@
                      class="rounded-xl border px-3 py-2"
                      bind:value={entrades}/>
             </label>
-            <div class="mt-4 flex items-center gap-2">
-              <input id="tiebreak" type="checkbox" class="rounded border" bind:checked={tiebreak} disabled={!settings.allow_tiebreak} />
-              <label for="tiebreak" class="text-sm">Hi ha hagut tie-break</label>
-            </div>
-
-            {#if tiebreak}
-              <div class="mt-3 grid grid-cols-2 gap-3">
+            {#if Number(carR) === Number(carT) && settings.allow_tiebreak}
+              <div class="mt-4 grid grid-cols-2 gap-3">
                 <label class="grid gap-1">
                   <span class="text-sm text-slate-700">Tie-break (reptador)</span>
                   <input type="number" min="0" class="rounded-xl border px-3 py-2" bind:value={tbR} />
@@ -341,6 +339,20 @@
                 </label>
               </div>
             {/if}
+          </div>
+
+          <div class="rounded-2xl border bg-white p-4 shadow-sm">
+            <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Sèrie màxima</div>
+            <div class="grid grid-cols-1 gap-3">
+              <label class="grid gap-1">
+                <span class="text-sm text-slate-700">Reptador</span>
+                <input type="number" min="0" class="rounded-xl border px-3 py-2" bind:value={serieR} />
+              </label>
+              <label class="grid gap-1">
+                <span class="text-sm text-slate-700">Reptat</span>
+                <input type="number" min="0" class="rounded-xl border px-3 py-2" bind:value={serieT} />
+              </label>
+            </div>
           </div>
         </div>
       {/if}

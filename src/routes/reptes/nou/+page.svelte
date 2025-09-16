@@ -1,21 +1,23 @@
 <script lang="ts">
-
-    import { onMount } from 'svelte';
-    import { getSettings } from '$lib/settings';
-    import Banner from '$lib/components/Banner.svelte';
-    import Loader from '$lib/components/Loader.svelte';
-    import { ok as okMsg, err as errMsg } from '$lib/ui/alerts';
-    import { supabase } from '$lib/supabaseClient';
-    import { canCreateChallenge, type CanCreateChallengeResult } from '$lib/canCreateChallenge';
-
+  import { onMount } from 'svelte';
+  import { page } from '$app/stores';
+  import { get } from 'svelte/store';
+  import { getSettings } from '$lib/settings';
+  import Banner from '$lib/components/Banner.svelte';
+  import Loader from '$lib/components/Loader.svelte';
+  import { ok as okMsg, err as errMsg } from '$lib/ui/alerts';
+  import { supabase } from '$lib/supabaseClient';
+  import { canCreateChallengeDetail } from '$lib/canCreateChallengeDetail';
+  import { canCreateAccessChallenge } from '$lib/canCreateAccessChallenge';
+  import { authFetch } from '$lib/utils/http';
 
   type RankedPlayer = { posicio: number; player_id: string; nom: string };
   type NotReptable = RankedPlayer & { motiu: string };
 
-    let loading = true;
-    let err: string | null = null;
-    let ok: string | null = null;
-    let info: string | null = null;
+  let loading = true;
+  let err: string | null = null;
+  let ok: string | null = null;
+  let info: string | null = null;
 
   let myPlayerId: string | null = null;
   let myPos: number | null = null;
@@ -25,14 +27,17 @@
   let noReptables: NotReptable[] = [];
 
   let selectedOpponent: string | null = null;
+  let opponentName: string | null = null;
   let notes = '';
 
-  let canChk: CanCreateChallengeResult | null = null;
+  let canChk: { ok: boolean; reason?: string | null } | null = null;
+  let isAccess = false;
 
   // Dates proposades (en format local del <input>)
   let dateInputs: string[] = [
     toLocalInput(new Date().toISOString())
   ];
+
 
   onMount(async () => {
     try {
@@ -42,20 +47,86 @@
       info = null;
       await getSettings();
 
-      const res = await fetch('/reptes/nou/eligibles', { credentials: 'include' });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        err = errMsg(data.error || 'Error en carregar dades.');
+      const params = get(page).url.searchParams;
+      isAccess = params.get('access') === '1';
+
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth?.user?.email) {
+        err = errMsg('Sessió no iniciada.');
         return;
       }
 
-      myPlayerId = data.my_player_id;
-      myPos = data.my_pos;
-      eventId = data.event_id;
-      reptables = data.reptables ?? [];
-      noReptables = data.no_reptables ?? [];
-      if (reptables.length === 0) {
-        info = 'Ara mateix no pots reptar cap jugador.';
+      const { data: player, error: pErr } = await supabase
+        .from('players')
+        .select('id')
+        .eq('email', auth.user.email)
+        .maybeSingle();
+      if (pErr) {
+        err = errMsg(pErr.message);
+        return;
+      }
+      myPlayerId = (player as any)?.id ?? null;
+
+      const { data: ev, error: eErr } = await supabase
+        .from('events')
+        .select('id')
+        .eq('actiu', true)
+        .order('creat_el', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (eErr || !ev) {
+        err = errMsg(eErr?.message || 'No hi ha cap esdeveniment actiu.');
+        return;
+      }
+      eventId = (ev as any).id;
+
+      if (isAccess) {
+        let oppId = params.get('opponent');
+        if (!oppId) {
+          const { data: pos20, error: p20Err } = await supabase
+            .from('ranking_positions')
+            .select('player_id, players!inner(nom)')
+            .eq('event_id', eventId)
+            .eq('posicio', 20)
+            .maybeSingle();
+          if (p20Err) {
+            err = errMsg(p20Err.message);
+            return;
+          }
+          if (pos20) {
+            oppId = (pos20 as any).player_id;
+            opponentName = (pos20 as any).players.nom ?? '';
+          }
+        } else {
+          const { data: opp } = await supabase
+            .from('players')
+            .select('nom')
+            .eq('id', oppId)
+            .maybeSingle();
+          opponentName = (opp as any)?.nom ?? '';
+        }
+        selectedOpponent = oppId;
+      } else {
+        // >>>>>>>>>> CANVI IMPORTANT: injectem Authorization al fetch
+        const res = await authFetch('/reptes/nou/eligibles');
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          err = errMsg(data.error || 'Error en carregar dades.');
+          return;
+        }
+
+        myPlayerId = data.my_player_id;
+        myPos = data.my_pos;
+        eventId = data.event_id;
+        reptables = data.reptables ?? [];
+        noReptables = data.no_reptables ?? [];
+        if (reptables.length === 0) {
+          info = 'Ara mateix no pots reptar cap jugador.';
+        }
+        const preSel = params.get('opponent');
+        if (preSel && reptables.some((r) => r.player_id === preSel)) {
+          selectedOpponent = preSel;
+        }
       }
     } catch (e: any) {
       err = errMsg(e?.message || 'Error en carregar dades.');
@@ -104,10 +175,21 @@
   function validate(): string | null {
     if (!eventId || !myPlayerId) return 'Error d’estat intern: falta event o jugador.';
     if (!selectedOpponent) return 'Cal triar oponent.';
-    const parsed = dateInputs
-      .map(v => parseLocalToIso(v || null))
-      .filter(Boolean) as string[];
-    if (parsed.length === 0) return 'Has de proposar almenys una data.';
+
+    const parsed = dateInputs.map((v) => parseLocalToIso(v || null));
+    const valid = parsed.filter(Boolean) as string[];
+
+    // Totes les dates han de ser vàlides
+    if (valid.length !== dateInputs.length) return 'Formats de data invàlids.';
+    // Entre 1 i 3 dates
+    if (valid.length < 1 || valid.length > 3) return 'Has de proposar entre 1 i 3 dates.';
+    // Sense duplicats
+    const uniq = new Set(valid);
+    if (uniq.size !== valid.length) return 'Les dates han de ser diferents.';
+    // Futures
+    const now = Date.now();
+    if (valid.some((iso) => new Date(iso).getTime() <= now)) return 'Les dates han de ser futures.';
+
     return null;
   }
 
@@ -116,7 +198,9 @@
 
   $: (async () => {
     if (selectedOpponent && eventId && myPlayerId) {
-      canChk = await canCreateChallenge(supabase, eventId, myPlayerId, selectedOpponent);
+      canChk = isAccess
+        ? await canCreateAccessChallenge(supabase, eventId, myPlayerId, selectedOpponent)
+        : await canCreateChallengeDetail(supabase, eventId, myPlayerId, selectedOpponent);
     } else {
       canChk = null;
     }
@@ -135,43 +219,43 @@
         .map(v => parseLocalToIso(v || null))
         .filter(Boolean) as string[];
 
-      const res = await fetch('/reptes/nou', {
+      // >>>>>>>>>> CANVI IMPORTANT: injectem Authorization al POST
+      const res = await authFetch('/reptes/nou', {
         method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           event_id: eventId,
+          reptador_id: myPlayerId,
           reptat_id: selectedOpponent,
           dates_proposades: datesIso,
           observacions: notes || null,
-          tipus: 'normal'
+          tipus: isAccess ? 'access' : 'normal'
         })
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || 'Error en crear repte');
 
-        ok = okMsg('Repte creat correctament. S’han enviat les teves propostes de data.');
+      ok = okMsg('Repte creat correctament. S’han enviat les teves propostes de data.');
       // Reseteja el formulari
       selectedOpponent = null;
       notes = '';
       dateInputs = [toLocalInput(new Date().toISOString())];
-      } catch (e: any) {
-        err = errMsg(e?.message || 'Error en crear repte');
-      }
+    } catch (e: any) {
+      err = errMsg(e?.message || 'Error en crear repte');
     }
-  </script>
+  }
+</script>
 
 <svelte:head><title>Nou repte</title></svelte:head>
 
 <h1 class="text-2xl font-semibold mb-4">Nou repte</h1>
 
 {#if loading}
-      <Loader />
+  <Loader />
 {:else}
-    {#if err}<Banner type="error" message={err} class="mb-3" />{/if}
-    {#if ok}<Banner type="success" message={ok} class="mb-3" />{/if}
-    {#if info}<Banner type="info" message={info} class="mb-3" />{/if}
-    {#if canChk && !canChk.ok}<Banner type="error" message={canChk.reason || 'Repte no permès'} class="mb-3" />{/if}
+  {#if err}<Banner type="error" message={err} class="mb-3" />{/if}
+  {#if ok}<Banner type="success" message={ok} class="mb-3" />{/if}
+  {#if info}<Banner type="info" message={info} class="mb-3" />{/if}
+  {#if canChk && !canChk.ok}<Banner type="error" message={canChk.reason || 'Repte no permès'} class="mb-3" />{/if}
 
   {#if myPos}
     <div class="rounded-2xl border bg-white p-4 shadow-sm mb-4">
@@ -181,25 +265,31 @@
 
   <div class="rounded-2xl border bg-white p-4 shadow-sm max-w-xl">
     <div class="grid gap-4">
-      <div class="grid gap-1">
-        <label for="opponent" class="text-sm text-slate-700">Tria oponent (posicions permeses)</label>
-        <select id="opponent" class="rounded-xl border px-3 py-2" bind:value={selectedOpponent} disabled={reptables.length === 0}>
-          <option value="" disabled selected>— Selecciona jugador —</option>
-          {#each reptables as r}
-            <option value={r.player_id}>#{r.posicio} — {r.nom}</option>
-          {/each}
-        </select>
-      </div>
-
-      {#if noReptables.length}
-        <details class="text-sm text-slate-700">
-          <summary class="cursor-pointer select-none">Oponents no disponibles</summary>
-          <ul class="mt-2 list-disc pl-6 text-slate-600">
-            {#each noReptables as nr}
-              <li>#{nr.posicio} — {nr.nom} ({nr.motiu})</li>
+      {#if !isAccess}
+        <div class="grid gap-1">
+          <label for="opponent" class="text-sm text-slate-700">Tria oponent (posicions permeses)</label>
+          <select id="opponent" class="rounded-xl border px-3 py-2" bind:value={selectedOpponent} disabled={reptables.length === 0}>
+            <option value="" disabled selected>— Selecciona jugador —</option>
+            {#each reptables as r}
+              <option value={r.player_id}>#{r.posicio} — {r.nom}</option>
             {/each}
-          </ul>
-        </details>
+          </select>
+        </div>
+
+        {#if noReptables.length}
+          <details class="text-sm text-slate-700">
+            <summary class="cursor-pointer select-none">Oponents no disponibles</summary>
+            <ul class="mt-2 list-disc pl-6 text-slate-600">
+              {#each noReptables as nr}
+                <li>#{nr.posicio} — {nr.nom} ({nr.motiu})</li>
+              {/each}
+            </ul>
+          </details>
+        {/if}
+      {:else}
+        <div class="grid gap-1 text-sm text-slate-700">
+          Oponent: {opponentName || 'Jugador #20'}
+        </div>
       {/if}
 
       <div class="grid gap-2">
@@ -239,9 +329,9 @@
         <textarea id="notes" class="rounded-xl border px-3 py-2" rows="3" bind:value={notes}></textarea>
       </div>
 
-        {#if valMsg}
-          <Banner type="warn" message={valMsg} class="p-2 text-sm" />
-        {/if}
+      {#if valMsg}
+        <Banner type="warn" message={valMsg} class="p-2 text-sm" />
+      {/if}
 
       <div class="flex items-center gap-3 pt-1">
         <button class="rounded-2xl bg-slate-900 text-white px-4 py-2 disabled:opacity-60"

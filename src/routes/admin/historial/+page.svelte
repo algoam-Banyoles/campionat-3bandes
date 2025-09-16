@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import Loader from '$lib/components/Loader.svelte';
-  import Banner from '$lib/components/Banner.svelte';
-  import { supabase } from '$lib/supabaseClient';
-  import { formatSupabaseError } from '$lib/ui/alerts';
-  import { adminStore } from '$lib/roles';
+    import Loader from '$lib/components/Loader.svelte';
+    import Banner from '$lib/components/Banner.svelte';
+    import { supabase } from '$lib/supabaseClient';
+    import { formatSupabaseError } from '$lib/ui/alerts';
+    import { adminStore } from '$lib/stores/auth';
 
   type Change = {
     creat_el: string;

@@ -1,13 +1,13 @@
 <script lang="ts">
 
-      import { onMount } from 'svelte';
-      import { user } from '$lib/authStore';
+        import { onMount } from 'svelte';
+        import { user } from '$lib/stores/auth';
       import { checkIsAdmin } from '$lib/roles';
       import Banner from '$lib/components/Banner.svelte';
       import Loader from '$lib/components/Loader.svelte';
-    import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
-
-
+      import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
+      import { authFetch } from '$lib/utils/http';
+      import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
   type ChallengeRow = {
     id: string;
     event_id: string;
@@ -31,14 +31,14 @@
   let rows: ChallengeRow[] = [];
   let busy: string | null = null; // id en acció
   let isAdmin = false;
+  const REPRO_LIMIT = 3;
+  let reproLimit = REPRO_LIMIT;
+
+  const challengeStateLabel = (state: string): string =>
+    CHALLENGE_STATE_LABEL[state] ?? state.replace('_', ' ');
 
   
   onMount(load);
-
-  // Funció temporal de penalització pendent d'implementació
-  function penalitza(r: ChallengeRow) {
-    console.warn('penalitza no implementat', r);
-  }
 
   function toLocalInput(iso: string | null) {
     if (!iso) return '';
@@ -130,7 +130,7 @@
   function programInfo(r: ChallengeRow) {
     if (r.estat === 'proposat') return { allowed: true };
     if (['acceptat', 'programat'].includes(r.estat)) {
-      if (!isAdmin && r.estat === 'programat' && r.reprogram_count >= 1) {
+      if (!isAdmin && r.estat === 'programat' && r.reprogram_count >= reproLimit) {
         return { allowed: false, reason: 'límit de reprogramació assolit' };
       }
       return { allowed: true };
@@ -153,10 +153,8 @@
       busy = r.id;
       error = null;
       okMsg = null;
-        const res = await fetch('/reptes/accepta', {
+        const res = await authFetch('/reptes/accepta', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
           body: JSON.stringify({ id: r.id, data_iso: null })
         });
       const out = await res.json();
@@ -240,6 +238,7 @@
           <th class="px-3 py-2 text-left">Reptador</th>
           <th class="px-3 py-2 text-left">Reptat</th>
           <th class="px-3 py-2 text-left">Estat</th>
+          <th class="px-3 py-2 text-left">Reprog.</th>
           <th class="px-3 py-2 text-left">Accions</th>
         </tr>
       </thead>
@@ -254,8 +253,9 @@
             <td class="px-3 py-2">#{r.pos_reptador ?? '—'} — {r.reptador_nom}</td>
             <td class="px-3 py-2">#{r.pos_reptat ?? '—'} — {r.reptat_nom}</td>
             <td class="px-3 py-2">
-              <span class={`text-xs rounded px-2 py-0.5 capitalize ${estatClass(r.estat)}`}>{r.estat.replace('_',' ')}</span>
+              <span class={`text-xs rounded px-2 py-0.5 ${estatClass(r.estat)}`}>{challengeStateLabel(r.estat)}</span>
             </td>
+            <td class="px-3 py-2">{r.reprogram_count} / {reproLimit}</td>
             <td class="px-3 py-2">
               {#if isFrozen(r)}
                 <span class="text-slate-500 text-xs">Sense accions</span>

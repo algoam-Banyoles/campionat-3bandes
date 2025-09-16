@@ -2,6 +2,9 @@ import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 import { serverSupabase } from '$lib/server/supabaseAdmin';
 
+// Si s'usen cookies cal `credentials: 'include'` i, amb JWT,
+// enviar `Authorization: Bearer <token>`
+
 function isRlsError(e: any): boolean {
   const msg = String(e?.message || '').toLowerCase();
   return msg.includes('row level security') || msg.includes('permission') || msg.includes('policy');
@@ -11,6 +14,7 @@ export const POST: RequestHandler = async ({ request }) => {
   try {
     let body: {
       event_id?: string;
+      reptador_id?: string;
       reptat_id?: string;
       dates_proposades?: string[];
       observacions?: string | null;
@@ -23,6 +27,7 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     const event_id = body?.event_id;
+    const reptador_id = body?.reptador_id;
     const reptat_id = body?.reptat_id;
     const dates_proposades = Array.isArray(body?.dates_proposades)
       ? body!.dates_proposades
@@ -30,7 +35,7 @@ export const POST: RequestHandler = async ({ request }) => {
     const observacions = body?.observacions ?? null;
     const tipus = body?.tipus ?? 'normal';
 
-    if (!event_id || !reptat_id || dates_proposades.length === 0) {
+    if (!event_id || !reptador_id || !reptat_id || dates_proposades.length === 0) {
       return json({ ok: false, error: 'Falten camps obligatoris' }, { status: 400 });
     }
 
@@ -38,23 +43,42 @@ export const POST: RequestHandler = async ({ request }) => {
 
     const { data: auth, error: authErr } = await supabase.auth.getUser();
     if (authErr || !auth?.user?.email) {
-      return json({ ok: false, error: 'Sessió invàlida' }, { status: 400 });
+      return json({ ok: false, error: 'Sessió no iniciada' }, { status: 401 });
     }
 
-    const { data: player, error: pErr } = await supabase
-      .from('players')
-      .select('id')
+    const { data: adminRow, error: admErr } = await supabase
+      .from('admins')
+      .select('email')
       .eq('email', auth.user.email)
+      .limit(1)
       .maybeSingle();
-    if (pErr) {
-      if (isRlsError(pErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
-      return json({ ok: false, error: pErr.message }, { status: 400 });
+    if (admErr) {
+      return json({ ok: false, error: admErr.message }, { status: 400 });
     }
-    if (!player) {
-      return json({ ok: false, error: 'Usuari sense jugador associat' }, { status: 400 });
-    }
+    const isAdmin = !!adminRow;
 
-    const reptador_id = player.id;
+    let reptadorId = reptador_id;
+    if (!isAdmin) {
+      const { data: player, error: pErr } = await supabase
+        .from('players')
+        .select('id')
+        .eq('email', auth.user.email)
+        .maybeSingle();
+      if (pErr) {
+        if (isRlsError(pErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
+        return json({ ok: false, error: pErr.message }, { status: 400 });
+      }
+      if (!player) {
+        return json({ ok: false, error: 'Usuari sense jugador associat' }, { status: 400 });
+      }
+      if (player.id !== reptador_id) {
+        return json(
+          { ok: false, error: "No pots crear reptes en nom d'altres" },
+          { status: 403 }
+        );
+      }
+      reptadorId = player.id;
+    }
     const statuses = ['proposat', 'acceptat', 'programat'];
 
     const { count: c1, error: e1 } = await supabase
@@ -62,7 +86,7 @@ export const POST: RequestHandler = async ({ request }) => {
       .select('id', { count: 'exact', head: true })
       .eq('event_id', event_id)
       .in('estat', statuses)
-      .or(`reptador_id.eq.${reptador_id},reptat_id.eq.${reptador_id}`);
+      .or(`reptador_id.eq.${reptadorId},reptat_id.eq.${reptadorId}`);
     if (e1) {
       if (isRlsError(e1)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
       return json({ ok: false, error: e1.message }, { status: 400 });
@@ -86,9 +110,10 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     // Valida que el repte compleix la normativa
-    const { data: chk, error: chkErr } = await supabase.rpc('can_create_challenge', {
+    const rpc = tipus === 'access' ? 'can_create_access_challenge' : 'can_create_challenge';
+    const { data: chk, error: chkErr } = await supabase.rpc(rpc, {
       p_event: event_id,
-      p_reptador: reptador_id,
+      p_reptador: reptadorId,
       p_reptat: reptat_id
     });
     if (chkErr) {
@@ -102,7 +127,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     const { error: insErr } = await supabase.from('challenges').insert({
       event_id,
-      reptador_id,
+      reptador_id: reptadorId,
       reptat_id,
       tipus,
       estat: 'proposat',

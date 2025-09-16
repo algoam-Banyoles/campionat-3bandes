@@ -1,10 +1,11 @@
 <script lang="ts">
       import { onMount } from 'svelte';
-      import { page } from '$app/stores';
-      import { user } from '$lib/authStore';
-      import { checkIsAdmin } from '$lib/roles';
+    import { page } from '$app/stores';
+    import { user } from '$lib/stores/auth';
+    import { checkIsAdmin } from '$lib/roles';
     import Banner from '$lib/components/Banner.svelte';
     import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
+    import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
 
   type Challenge = {
     id: string;
@@ -28,6 +29,9 @@
   let data_local = '';
 
   const id = $page.params.id;
+
+  const challengeStateLabel = (state: string): string =>
+    CHALLENGE_STATE_LABEL[state] ?? state.replace('_', ' ');
 
   onMount(load);
 
@@ -165,7 +169,7 @@
     <div class="mb-4 space-y-1">
       <div>Reptador: #{chal.pos_reptador ?? '—'} — {reptadorNom}</div>
       <div>Reptat: #{chal.pos_reptat ?? '—'} — {reptatNom}</div>
-      <div>Estat actual: <span class="capitalize">{chal.estat.replace('_', ' ')}</span></div>
+    <div>Estat actual: <span>{challengeStateLabel(chal.estat)}</span></div>
       <div>Data programada actual: {fmt(chal.data_programada)}</div>
     </div>
 
@@ -190,7 +194,7 @@
         </div>
       </form>
     {:else if frozen}
-      <p class="text-slate-500">El repte està en estat «{chal.estat}» i no es pot programar.</p>
+      <p class="text-slate-500">El repte està en estat «{challengeStateLabel(chal.estat)}» i no es pot programar.</p>
     {/if}
   {/if}
 

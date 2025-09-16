@@ -1,12 +1,11 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { supabase } from '$lib/supabaseClient';
-  import { goto } from '$app/navigation';
+    import { onMount } from 'svelte';
+    import { goto } from '$app/navigation';
+    import { signOut } from '$lib/utils/auth-client';
 
   onMount(async () => {
-    await supabase.auth.signOut();
-    await fetch('/api/session', { method: 'DELETE', credentials: 'include' });
-    goto('/');
+      await signOut();
+      goto('/');
   });
 </script>
 

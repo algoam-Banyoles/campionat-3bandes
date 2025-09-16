@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { wrapRpc } from '../errors';
 
 function tokenFromEvent(event: Parameters<import('@sveltejs/kit').RequestHandler>[0]) {
   return (
@@ -13,10 +14,12 @@ export function serverSupabase(
   token?: string | null
 ) {
   const t = token ?? tokenFromEvent(event) ?? undefined;
-  return createClient(
-    import.meta.env.PUBLIC_SUPABASE_URL,
-    import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
-    { global: { headers: t ? { Authorization: `Bearer ${t}` } : {} } }
+  return wrapRpc(
+    createClient(
+      import.meta.env.PUBLIC_SUPABASE_URL,
+      import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+      { global: { headers: t ? { Authorization: `Bearer ${t}` } : {} } }
+    )
   );
 }
 
@@ -36,7 +39,12 @@ export async function requireAdmin(event: Parameters<import('@sveltejs/kit').Req
   if (!email) {
     return new Response(JSON.stringify({ error: 'No autenticat' }), { status: 401 });
   }
-  const { data, error } = await supabase.rpc('is_admin', { p_email: email });
+  const { data, error } = await supabase
+    .from('admins')
+    .select('email')
+    .eq('email', email)
+    .limit(1)
+    .maybeSingle();
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }

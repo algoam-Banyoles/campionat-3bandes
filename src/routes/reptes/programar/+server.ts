@@ -31,7 +31,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
     const { data: auth, error: authErr } = await supabase.auth.getUser();
     if (authErr || !auth?.user?.email) {
-      return json({ ok: false, error: 'Sessió invàlida' }, { status: 400 });
+      return json({ ok: false, error: 'Sessió invàlida' }, { status: 401 });
     }
 
     const { data: out, error: rpcErr } = await supabase.rpc('programar_repte', {

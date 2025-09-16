@@ -1,8 +1,12 @@
 <script lang="ts">
-import { onMount } from 'svelte';
-import { user, adminStore } from '$lib/authStore';
+  import { onMount } from 'svelte';
+  import { user, adminStore } from '$lib/stores/auth';
+
 import { getSettings, type AppSettings } from '$lib/settings';
 import { checkIsAdmin } from '$lib/roles';
+import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
+import { authFetch } from '$lib/utils/http';
+
 
 type Challenge = {
   id: string;
@@ -28,9 +32,22 @@ let rows: Challenge[] = [];
 let myPlayerId: string | null = null;
 let busy: string | null = null;
 let scheduleLocal: Map<string, string> = new Map();
+let acceptDate: Map<string, string> = new Map();
+let refuseReason: Map<string, string> = new Map();
+let contraLocal: Map<string, [string, string, string]> = new Map();
+let tab: 'enviats' | 'rebuts' | 'programats' | 'jugats' = 'enviats';
+let current: Challenge[] = [];
 export let data: { settings: AppSettings };
 let settings: AppSettings = data.settings;
 let isAdmin = false;
+const REPRO_LIMIT = 3;
+let reproLimit = REPRO_LIMIT;
+
+const challengeStateLabel = (state: string): string => CHALLENGE_STATE_LABEL[state] ?? state;
+const challengeStatePluralLabel = (state: string): string => {
+  const label = challengeStateLabel(state);
+  return label.endsWith('s') ? label : `${label}s`;
+};
 
 onMount(async () => {
   isAdmin = await checkIsAdmin();
@@ -90,11 +107,20 @@ async function load() {
     }));
 
     scheduleLocal = new Map();
+    acceptDate = new Map();
+    refuseReason = new Map();
+    contraLocal = new Map();
     const now = toLocalInput(new Date().toISOString());
     for (const r of rows) {
       scheduleLocal.set(r.id, toLocalInput(r.data_programada) || now);
+      acceptDate.set(r.id, '');
+      refuseReason.set(r.id, '');
+      contraLocal.set(r.id, ['', '', '']);
     }
     scheduleLocal = new Map(scheduleLocal);
+    acceptDate = new Map(acceptDate);
+    refuseReason = new Map(refuseReason);
+    contraLocal = new Map(contraLocal);
   } catch (e: any) {
     error = e?.message ?? 'Error desconegut carregant reptes';
   } finally {
@@ -128,6 +154,15 @@ function addDays(date: Date, days: number) {
   return d;
 }
 
+function deadlineAccept(r: Challenge) {
+  return fmt(addDays(new Date(r.data_proposta), settings.dies_acceptar_repte).toISOString());
+}
+
+function deadlinePlay(r: Challenge) {
+  const base = r.data_programada ?? r.data_proposta;
+  return fmt(addDays(new Date(base), settings.dies_jugar_despres_acceptar).toISOString());
+}
+
 let maxScheduleLocal = '';
 $: maxScheduleLocal = toLocalInput(addDays(new Date(), settings.dies_jugar_despres_acceptar).toISOString());
 
@@ -139,6 +174,20 @@ function isMeReptador(r: Challenge) {
   return myPlayerId === r.reptador_id;
 }
 
+$: enviats = rows.filter((r) => r.estat === 'proposat' && isMeReptador(r));
+$: rebuts = rows.filter((r) => r.estat === 'proposat' && isMeReptat(r));
+$: programats = rows.filter((r) => ['acceptat', 'programat'].includes(r.estat));
+$: jugats = rows.filter((r) => r.estat === 'jugat');
+$:
+  current =
+    tab === 'enviats'
+      ? enviats
+      : tab === 'rebuts'
+        ? rebuts
+        : tab === 'programats'
+          ? programats
+          : jugats;
+
 function canAccept(r: Challenge) {
   return r.estat === 'proposat' && isMeReptat(r);
 }
@@ -148,7 +197,6 @@ function canRefuse(r: Challenge) {
 }
 
 function canProgram(r: Challenge) {
-  if (r.estat === 'proposat') return isMeReptat(r);
   if (['acceptat', 'programat'].includes(r.estat)) return isMeReptat(r) || isMeReptador(r);
   return false;
 }
@@ -164,13 +212,16 @@ function canSetResult(r: Challenge) {
 async function accept(r: Challenge) {
   error = null;
   okMsg = null;
+  const sel = acceptDate.get(r.id);
+  if (!sel) {
+    error = 'Cal triar una data.';
+    return;
+  }
   try {
     busy = r.id;
-    const res = await fetch('/reptes/accepta', {
+    const res = await authFetch('/reptes/accepta', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ id: r.id, data_iso: null })
+      body: JSON.stringify({ id: r.id, data_iso: sel })
     });
     const out = await res.json();
     if (!out.ok) throw new Error(out.error || 'No s\u2019ha pogut acceptar el repte');
@@ -187,18 +238,44 @@ async function refuse(r: Challenge) {
   error = null;
   okMsg = null;
   try {
+    const motiu = (refuseReason.get(r.id) ?? '').trim() || null;
     busy = r.id;
-    const { supabase } = await import('$lib/supabaseClient');
-    const { error: e } = await supabase
-      .from('challenges')
-      .update({ estat: 'refusat' })
-      .eq('id', r.id)
-      .eq('estat', 'proposat');
-    if (e) throw e;
+    const res = await authFetch('/reptes/refusa', {
+      method: 'POST',
+      body: JSON.stringify({ id: r.id, motiu })
+    });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error || 'No s\u2019ha pogut refusar el repte');
     okMsg = 'Repte refusat correctament.';
     await load();
   } catch (e: any) {
     error = e?.message ?? 'No s\u2019ha pogut refusar el repte';
+  } finally {
+    busy = null;
+  }
+}
+
+async function counter(r: Challenge) {
+  error = null;
+  okMsg = null;
+  const arr = contraLocal.get(r.id) ?? ['', '', ''];
+  const dates = arr.map((l) => parseLocalToIso(l)).filter((d): d is string => !!d);
+  if (dates.length === 0) {
+    error = 'Cal indicar almenys una data.';
+    return;
+  }
+  try {
+    busy = r.id;
+    const res = await authFetch('/reptes/contraproposta', {
+      method: 'POST',
+      body: JSON.stringify({ id: r.id, dates_iso: dates })
+    });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error || 'No s\u2019ha pogut enviar la contraproposta');
+    okMsg = 'Contraproposta enviada correctament.';
+    await load();
+  } catch (e: any) {
+    error = e?.message ?? 'No s\u2019ha pogut enviar la contraproposta';
   } finally {
     busy = null;
   }
@@ -270,27 +347,61 @@ async function saveSchedule(r: Challenge) {
     <div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-3">{okMsg}</div>
   {/if}
 
-  {#if !error && rows.length === 0}
-    <p class="text-slate-600">No tens reptes registrats.</p>
+  <div class="mb-4 border-b flex gap-4">
+    <button
+      class={`pb-1 border-b-2 ${tab === 'enviats' ? 'border-slate-800 font-semibold' : 'border-transparent text-slate-500'}`}
+      on:click={() => (tab = 'enviats')}
+    >
+      Enviats ({enviats.length})
+    </button>
+    <button
+      class={`pb-1 border-b-2 ${tab === 'rebuts' ? 'border-slate-800 font-semibold' : 'border-transparent text-slate-500'}`}
+      on:click={() => (tab = 'rebuts')}
+    >
+      Rebuts ({rebuts.length})
+    </button>
+    <button
+      class={`pb-1 border-b-2 ${tab === 'programats' ? 'border-slate-800 font-semibold' : 'border-transparent text-slate-500'}`}
+      on:click={() => (tab = 'programats')}
+    >
+      {challengeStatePluralLabel('programat')} ({programats.length})
+    </button>
+    <button
+      class={`pb-1 border-b-2 ${tab === 'jugats' ? 'border-slate-800 font-semibold' : 'border-transparent text-slate-500'}`}
+      on:click={() => (tab = 'jugats')}
+    >
+      {challengeStatePluralLabel('jugat')} ({jugats.length})
+    </button>
+  </div>
+
+  {#if !error && current.length === 0}
+    <p class="text-slate-600">No tens reptes en aquesta pestanya.</p>
   {/if}
 
-  {#if rows.length > 0}
+  {#if current.length > 0}
     <div class="space-y-3">
-      {#each rows as r}
+      {#each current as r}
         <div class="rounded border p-3 space-y-2">
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-xs rounded bg-slate-800 text-white px-2 py-0.5">{r.tipus}</span>
-            <span class="text-xs rounded bg-slate-100 px-2 py-0.5 capitalize">{r.estat}</span>
-            <span class="text-xs text-slate-500 ml-auto">Proposat: {fmt(r.data_proposta)}</span>
+            <span class="text-xs rounded bg-slate-100 px-2 py-0.5">{challengeStateLabel(r.estat)}</span>
+            <span class="text-xs text-slate-500 ml-auto">{CHALLENGE_STATE_LABEL.proposat}: {fmt(r.data_proposta)}</span>
             {#if r.data_programada}
-              <span class="text-xs text-slate-500">Programat: {fmt(r.data_programada)}</span>
+              <span class="text-xs text-slate-500">{CHALLENGE_STATE_LABEL.programat}: {fmt(r.data_programada)}</span>
             {/if}
           </div>
+
+          {#if r.estat === 'proposat'}
+            <div class="text-xs text-red-600">Acceptar abans de: {deadlineAccept(r)}</div>
+          {:else if ['acceptat', 'programat'].includes(r.estat)}
+            <div class="text-xs text-red-600">Jugar abans de: {deadlinePlay(r)}</div>
+          {/if}
 
           <div class="text-sm">
             <div><strong>Reptador:</strong> #{r.pos_reptador ?? '—'} — {r.reptador_nom}</div>
             <div><strong>Reptat:</strong> #{r.pos_reptat ?? '—'} — {r.reptat_nom}</div>
           </div>
+          <div class="text-sm text-slate-600">Reprogramacions: {r.reprogram_count} / {reproLimit}</div>
 
           {#if r.dates_proposades?.length}
             <div class="text-sm">
@@ -302,21 +413,79 @@ async function saveSchedule(r: Challenge) {
           {/if}
 
           {#if canAccept(r)}
-            <div class="flex gap-2 mb-2">
-              <button
-                class="rounded bg-green-600 text-white px-3 py-1 disabled:opacity-60"
-                on:click={() => accept(r)}
-                disabled={busy === r.id}
-              >
-                {busy === r.id ? 'Processant…' : 'Accepta'}
-              </button>
-              <button
-                class="rounded bg-red-600 text-white px-3 py-1 disabled:opacity-60"
-                on:click={() => refuse(r)}
-                disabled={busy === r.id}
-              >
-                {busy === r.id ? 'Processant…' : 'Refusa'}
-              </button>
+            <div class="space-y-2 mb-2">
+              {#if r.dates_proposades?.length}
+                <div class="flex items-center gap-2">
+                  <select
+                    class="border rounded px-2 py-1 flex-1"
+                    on:change={(e) => {
+                      acceptDate.set(r.id, (e.target as HTMLSelectElement).value);
+                      acceptDate = new Map(acceptDate);
+                    }}
+                    value={acceptDate.get(r.id) ?? ''}
+                  >
+                    <option value="">-- Selecciona data --</option>
+                    {#each r.dates_proposades as d}
+                      <option value={d}>{fmt(d)}</option>
+                    {/each}
+                  </select>
+                  <button
+                    class="rounded bg-green-600 text-white px-3 py-1 disabled:opacity-60"
+                    on:click={() => accept(r)}
+                    disabled={busy === r.id || !acceptDate.get(r.id)}
+                  >
+                    {busy === r.id ? 'Processant…' : 'Accepta'}
+                  </button>
+                </div>
+              {:else}
+                <div class="text-sm text-slate-500">No hi ha dates proposades.</div>
+              {/if}
+
+              <div class="flex items-center gap-2">
+                <input
+                  class="flex-1 border rounded px-2 py-1"
+                  placeholder="Motiu (opcional)"
+                  value={refuseReason.get(r.id) ?? ''}
+                  on:input={(e) => {
+                    refuseReason.set(r.id, (e.target as HTMLInputElement).value);
+                    refuseReason = new Map(refuseReason);
+                  }}
+                />
+                <button
+                  class="rounded bg-red-600 text-white px-3 py-1 disabled:opacity-60"
+                  on:click={() => refuse(r)}
+                  disabled={busy === r.id}
+                >
+                  {busy === r.id ? 'Processant…' : 'Refusa'}
+                </button>
+              </div>
+
+              <div class="space-y-1">
+                <div class="text-sm">Contra-proposa:</div>
+                <div class="flex flex-wrap gap-2">
+                  {#each [0, 1, 2] as i}
+                    <input
+                      type="datetime-local"
+                      step="60"
+                      class="border rounded px-2 py-1"
+                      value={contraLocal.get(r.id)?.[i] ?? ''}
+                      on:input={(e) => {
+                        const arr = contraLocal.get(r.id) ?? ['', '', ''];
+                        arr[i] = (e.target as HTMLInputElement).value;
+                        contraLocal.set(r.id, arr);
+                        contraLocal = new Map(contraLocal);
+                      }}
+                    />
+                  {/each}
+                </div>
+                <button
+                  class="rounded bg-yellow-600 text-white px-3 py-1 disabled:opacity-60"
+                  on:click={() => counter(r)}
+                  disabled={busy === r.id}
+                >
+                  {busy === r.id ? 'Processant…' : 'Contra-proposa'}
+                </button>
+              </div>
             </div>
           {/if}
 
@@ -336,14 +505,14 @@ async function saveSchedule(r: Challenge) {
                   on:input={(e) => scheduleLocal.set(r.id, (e.target as HTMLInputElement).value)}
                   disabled={
                     busy === r.id ||
-                    (!$adminStore && r.estat === 'programat' && r.reprogram_count >= 1)
+                    (!$adminStore && r.estat === 'programat' && r.reprogram_count >= reproLimit)
                   }
                 />
                 <p class="text-xs text-slate-500 mt-1">
                   La data ha d'estar dins de {settings.dies_jugar_despres_acceptar} dies.
                 </p>
-                {#if r.estat === 'programat' && r.reprogram_count >= 1 && !$adminStore}
-                  <p class="text-xs text-slate-500 mt-1">Ja has reprogramat un cop; cal administrador.</p>
+                {#if r.estat === 'programat' && r.reprogram_count >= reproLimit && !$adminStore}
+                  <p class="text-xs text-slate-500 mt-1">Límit de reprogramacions assolit; cal administrador.</p>
                 {/if}
               </div>
               <button
@@ -351,7 +520,7 @@ async function saveSchedule(r: Challenge) {
                 on:click={() => saveSchedule(r)}
                 disabled={
                   busy === r.id ||
-                  (!$adminStore && r.estat === 'programat' && r.reprogram_count >= 1)
+                  (!$adminStore && r.estat === 'programat' && r.reprogram_count >= reproLimit)
                 }
               >
                 {busy === r.id ? 'Desant…' : 'Desa data'}

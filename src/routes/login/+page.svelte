@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { supabase } from '$lib/supabaseClient';
-  import { authReady, user } from '$lib/authStore';
+    import { goto } from '$app/navigation';
+    import { supabase } from '$lib/supabaseClient';
+    import { status, user } from '$lib/stores/auth';
+    import { authFetch } from '$lib/utils/http';
 
   let mode: 'login' | 'signup' = 'login';
   let email = '';
@@ -24,10 +25,8 @@
         if (error) throw error;
         const session = data?.session;
         if (session) {
-          await fetch('/api/session', {
+          await authFetch('/api/session', {
             method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            credentials: 'include',
             body: JSON.stringify({
               access_token: session.access_token,
               refresh_token: session.refresh_token,
@@ -82,7 +81,7 @@
   <div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-3">{okMsg}</div>
 {/if}
 
-{#if $authReady && $user}
+  {#if $status === 'authenticated' && $user}
   <p class="text-slate-600">Ja has iniciat sessió com <strong>{$user.email}</strong>.</p>
 {:else}
   <form class="max-w-sm space-y-3" on:submit|preventDefault={onSubmit}>
