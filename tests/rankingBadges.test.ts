@@ -12,7 +12,8 @@ describe('badge rendering', () => {
       days_since_last: 0,
       has_active_challenge: true,
       in_cooldown: false,
-      can_be_challenged: false
+      can_be_challenged: false,
+      cooldown_days_left: 0
     },
     {
       event_id: 'event-1',
@@ -22,7 +23,8 @@ describe('badge rendering', () => {
       days_since_last: 1,
       has_active_challenge: false,
       in_cooldown: true,
-      can_be_challenged: false
+      can_be_challenged: false,
+      cooldown_days_left: 3
     },
     {
       event_id: 'event-1',
@@ -32,7 +34,8 @@ describe('badge rendering', () => {
       days_since_last: 2,
       has_active_challenge: false,
       in_cooldown: false,
-      can_be_challenged: true
+      can_be_challenged: true,
+      cooldown_days_left: 0
     }
   ];
 
@@ -44,16 +47,17 @@ describe('badge rendering', () => {
     expect(mockGetBadges).toHaveBeenCalledTimes(1);
 
     const activeView = getBadgeView(map.get('p1'));
-    const cooldownView = getBadgeView(map.get('p2'));
+    const cooldown = map.get('p2');
     const challengeableView = getBadgeView(map.get('p3'));
 
     expect(activeView).not.toBeNull();
     expect(activeView?.text).toBe('Repte actiu');
     expect(activeView?.label).toBe('Repte actiu');
 
-    expect(cooldownView).not.toBeNull();
-    expect(cooldownView?.text).toBe('Cooldown');
-    expect(cooldownView?.label).toBe('Cooldown');
+    expect(cooldown).not.toBeNull();
+    expect(cooldown?.in_cooldown).toBe(true);
+    expect(cooldown?.cooldown_days_left).toBe(3);
+    expect(getBadgeView(cooldown)).toBeNull();
 
     expect(challengeableView).not.toBeNull();
     expect(challengeableView?.text).toBe('Es pot reptar');
@@ -64,6 +68,12 @@ describe('badge rendering', () => {
     const map = await fetchBadgeMap(async () => badgeFixtures);
     const html = badgeFixtures
       .map((badge) => {
+        if (badge.in_cooldown) {
+          const days = badge.cooldown_days_left;
+          const article = days === 1 ? 'a' : 'en';
+          const unit = days === 1 ? 'dia' : 'dies';
+          return `<span class="px-2 py-0.5 text-xs rounded bg-orange-100 text-orange-700">No es pot reptar (falt${article} ${days} ${unit})</span>`;
+        }
         const view = getBadgeView(map.get(badge.player_id));
         if (!view) return '';
         return `<span class="${view.className}" aria-label="${view.label}">${view.text}</span>`;

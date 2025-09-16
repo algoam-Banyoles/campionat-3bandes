@@ -101,11 +101,11 @@
     if (!Number.isInteger(form.max_entrades) || form.max_entrades <= 0)
       return 'Entrades màximes han de ser un enter > 0';
     if (!Number.isInteger(form.cooldown_min_dies) || form.cooldown_min_dies < 0)
-      return 'Cooldown mínim ha de ser un enter ≥ 0';
+      return 'El temps d'espera mínim ha de ser un enter ≥ 0';
     if (!Number.isInteger(form.cooldown_max_dies) || form.cooldown_max_dies < 0)
-      return 'Cooldown màxim ha de ser un enter ≥ 0';
+      return 'El temps d'espera màxim ha de ser un enter ≥ 0';
     if (form.cooldown_min_dies > form.cooldown_max_dies)
-      return 'Cooldown mínim no pot superar el màxim';
+      return 'El temps d'espera mínim no pot superar el màxim';
     if (!Number.isInteger(form.dies_acceptar_repte) || form.dies_acceptar_repte <= 0)
       return 'Dies per acceptar repte han de ser un enter > 0';
     if (
@@ -243,7 +243,7 @@
 
           <div class="flex gap-4">
             <div class="flex-1">
-              <label for="cooldown_min_dies" class="block text-sm mb-1">Cooldown mínim (dies)</label>
+              <label for="cooldown_min_dies" class="block text-sm mb-1">Temps d'espera mínim (dies)</label>
               <input
                 id="cooldown_min_dies"
                 type="number"
@@ -253,7 +253,7 @@
               />
             </div>
             <div class="flex-1">
-              <label for="cooldown_max_dies" class="block text-sm mb-1">Cooldown màxim (dies)</label>
+              <label for="cooldown_max_dies" class="block text-sm mb-1">Temps d'espera màxim (dies)</label>
               <input
                 id="cooldown_max_dies"
                 type="number"

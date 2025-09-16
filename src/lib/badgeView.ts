@@ -12,12 +12,6 @@ const ACTIVE_BADGE: BadgeView = {
   className: 'rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700'
 };
 
-const COOLDOWN_BADGE: BadgeView = {
-  label: 'Cooldown',
-  text: 'Cooldown',
-  className: 'rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-medium text-orange-700'
-};
-
 const CHALLENGEABLE_BADGE: BadgeView = {
   label: 'Es pot reptar',
   text: 'Es pot reptar',
@@ -30,7 +24,7 @@ export function getBadgeView(badge: VPlayerBadges | undefined | null): BadgeView
     return ACTIVE_BADGE;
   }
   if (badge.in_cooldown) {
-    return COOLDOWN_BADGE;
+    return null;
   }
   if (badge.can_be_challenged) {
     return CHALLENGEABLE_BADGE;

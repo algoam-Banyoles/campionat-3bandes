@@ -7,6 +7,7 @@ export type VPlayerBadges = {
   has_active_challenge: boolean;
   in_cooldown: boolean;
   can_be_challenged: boolean;
+  cooldown_days_left: number;
 };
 
 export async function getPlayerBadges(): Promise<VPlayerBadges[]> {

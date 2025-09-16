@@ -28,7 +28,8 @@ describe('getPlayerBadges', () => {
         days_since_last: 2,
         has_active_challenge: true,
         in_cooldown: false,
-        can_be_challenged: false
+        can_be_challenged: false,
+        cooldown_days_left: 0
       }
     ];
     selectMock.mockResolvedValue({ data: sample, error: null });

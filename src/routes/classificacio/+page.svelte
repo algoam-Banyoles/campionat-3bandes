@@ -252,8 +252,8 @@
               {:else if r.cooldownToChallenge}
                 <span
                   class="ml-1 inline-block rounded-full bg-yellow-300 px-2.5 py-1 text-xs font-medium text-gray-900 align-middle"
-                  title="En cooldown fins passats 7 dies del darrer repte disputat."
-                  aria-label="En cooldown fins passats 7 dies del darrer repte disputat."
+                  title="En període d'espera fins passats 7 dies del darrer repte disputat."
+                  aria-label="En període d'espera fins passats 7 dies del darrer repte disputat."
                   >No pot reptar</span
                 >
               {:else if r.isMe}
@@ -277,8 +277,8 @@
               {#if r.protected}
                 <span
                   class="ml-1 inline-block rounded-full bg-gray-400 px-2.5 py-1 text-xs font-medium text-white align-middle"
-                  title="Protegit (cooldown de ser reptat)"
-                  aria-label="Protegit (cooldown de ser reptat)"
+                  title="Protegit (període d'espera per ser reptat)"
+                  aria-label="Protegit (període d'espera per ser reptat)"
                   >Protegit</span
                 >
               {/if}
@@ -306,7 +306,7 @@
     </div>
     <div class="flex items-center gap-1">
       <span class="inline-block rounded-full bg-yellow-300 px-2.5 py-1 text-xs font-medium text-gray-900">No pot reptar</span>
-      <span>no pot reptar (cooldown)</span>
+      <span>no pot reptar (període d'espera)</span>
     </div>
     <div class="flex items-center gap-1">
       <span class="inline-block rounded-full bg-green-600 px-2.5 py-1 text-xs font-medium text-white">Pot reptar</span>
