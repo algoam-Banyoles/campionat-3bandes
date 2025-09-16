@@ -7,7 +7,7 @@
     ordre: number;
     player_id: string;
     nom: string;
-
+  };
 
   // Eliminat fmtDate perquè data_inscripcio ja no es mostra
 
