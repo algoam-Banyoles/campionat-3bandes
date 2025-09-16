@@ -5,13 +5,9 @@
 
   type Row = {
     posicio: number;
-    event_id: string;
-    posicio: number | null;
     player_id: string;
     nom: string;
-    mitjana: number | null;
-    estat: string;
-    assignat_el: string | null;
+    // Si vols afegir camps extra, afegeix-los aquí i a la funció SQL
     isMe?: boolean;
     hasActiveChallenge?: boolean;
     cooldownToChallenge?: boolean;
@@ -231,69 +227,6 @@
           <tr class="border-t">
             <td class="px-3 py-2">{r.posicio}</td>
             <td class="px-3 py-2">{r.nom}</td>
-            <td class="px-3 py-2">{r.posicio ?? '-'}</td>
-            <td class="px-3 py-2">
-              {r.nom}
-              {#if r.isMe}
-                <span
-                  class="ml-1 inline-block rounded-full bg-yellow-400 px-2.5 py-1 text-xs font-medium text-gray-900 align-middle"
-                  title="Tu"
-                  aria-label="Tu"
-                  >Tu</span
-                >
-              {/if}
-              {#if r.hasActiveChallenge}
-                <span
-                  class="ml-1 inline-block rounded-full bg-red-600 px-2.5 py-1 text-xs font-medium text-white align-middle"
-                  title="Aquest jugador té un repte actiu (no pot iniciar-ne cap altre)."
-                  aria-label="Aquest jugador té un repte actiu (no pot iniciar-ne cap altre)."
-                  >Té repte actiu</span
-                >
-              {:else if r.cooldownToChallenge}
-                <span
-                  class="ml-1 inline-block rounded-full bg-yellow-300 px-2.5 py-1 text-xs font-medium text-gray-900 align-middle"
-                  title="En període d'espera fins passats 7 dies del darrer repte disputat."
-                  aria-label="En període d'espera fins passats 7 dies del darrer repte disputat."
-                  >No pot reptar</span
-                >
-              {:else if r.isMe}
-                <span
-                  class="ml-1 inline-block rounded-full bg-green-600 px-2.5 py-1 text-xs font-medium text-white align-middle"
-                  title="Pots reptar fins a 2 posicions per sobre teu."
-                  aria-label="Pots reptar fins a 2 posicions per sobre teu."
-                  >Pot reptar</span
-                >
-              {:else if r.reptable}
-                <button
-                  class="ml-1 rounded-full bg-blue-600 px-2.5 py-1 text-xs font-medium text-white align-middle disabled:opacity-50"
-                  title={r.canChallenge ? 'Aquest jugador és reptable per tu ara mateix.' : r.reason || 'No pots reptar'}
-                  aria-label={r.canChallenge ? 'Aquest jugador és reptable per tu ara mateix.' : r.reason || 'No pots reptar'}
-                  disabled={!r.canChallenge}
-                  on:click={() => reptar(r.player_id)}
-                >
-                  Reptable
-                </button>
-              {/if}
-              {#if r.protected}
-                <span
-                  class="ml-1 inline-block rounded-full bg-gray-400 px-2.5 py-1 text-xs font-medium text-white align-middle"
-                  title="Protegit (període d'espera per ser reptat)"
-                  aria-label="Protegit (període d'espera per ser reptat)"
-                  >Protegit</span
-                >
-              {/if}
-              {#if r.outside}
-                <span
-                  class="ml-1 inline-block rounded-full bg-gray-200 px-2.5 py-1 text-xs font-medium text-gray-800 align-middle"
-                  title="Fora de rànquing actiu"
-                  aria-label="Fora de rànquing actiu"
-                  >Fora de rànquing actiu</span
-                >
-              {/if}
-            </td>
-            <td class="px-3 py-2">{r.mitjana ?? '-'}</td>
-            <td class="px-3 py-2 capitalize">{r.estat.replace('_', ' ')}</td>
-            <td class="px-3 py-2">{fmtSafe(r.assignat_el)}</td>
           </tr>
         {/each}
       </tbody>
