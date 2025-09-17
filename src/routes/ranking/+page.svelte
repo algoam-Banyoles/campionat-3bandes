@@ -95,9 +95,9 @@
       eventId = event.id as string;
 
       await refreshRanking();
-      await loadBadges();
+      void loadBadges();
       myPos = get(ranking).find((r) => r.player_id === myPlayerId)?.posicio ?? null;
-      await evaluateChallenges(supabaseClient);
+      void evaluateChallenges(supabaseClient);
     } catch (e: any) {
       error = e?.message ?? 'Error desconegut';
     } finally {
