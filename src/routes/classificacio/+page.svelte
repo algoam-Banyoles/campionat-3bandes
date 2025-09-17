@@ -7,6 +7,7 @@
     posicio: number;
     player_id: string;
     nom: string;
+    event_id?: string;
     // Si vols afegir camps extra, afegeix-los aquí i a la funció SQL
     isMe?: boolean;
     hasActiveChallenge?: boolean;

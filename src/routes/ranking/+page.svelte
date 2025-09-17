@@ -155,7 +155,7 @@
   }
 
   const fmtMitjana = (m: number | null) => (m == null ? '-' : String(m));
-  const fmtEstat = (e: string) => e.replace('_', ' ');
+  const fmtEstat = (e: string | undefined | null) => (e ? e.replace('_', ' ') : '');
 
   async function applyPenalty() {
     if (!(eventId && selA && selB && Math.abs(selA - selB) === 1)) return;

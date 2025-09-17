@@ -7,11 +7,11 @@
     ordre: number;
     player_id: string;
     nom: string;
-
+  };
 
   // Eliminat fmtDate perquè data_inscripcio ja no es mostra
 
-  let loading = true;
+let loading = true;
   let error: string | null = null;
   let rows: Row[] = [];
   let myPlayerId: string | null = null;
@@ -73,7 +73,7 @@
 {#if rows.length && myPlayerId === rows[0].player_id}
   <Banner
     type="info"
-    message={`Tens ${countdown} per reptar la posició 20${player20 ? ` — ${player20.nom}` : ''}`}
+    message={`Tens ${countdown} per reptar la posició 20${player20 ? ` — ${player20}` : ''}`}
     class="mb-3"
   />
   {#if player20}

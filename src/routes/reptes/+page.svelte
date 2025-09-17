@@ -35,6 +35,35 @@
   let myPlayerId: string | null = null;
   let supabase: SupabaseClient;
   let dateDrafts: Record<string, string> = {};
+  let resultDrafts: Record<string, { data_joc: string; caramboles_reptador: number; caramboles_reptat: number }> = {};
+  async function submitResult(ch: Challenge) {
+    try {
+      error = null;
+      const draft = resultDrafts[ch.id];
+      if (!draft || !draft.data_joc || draft.caramboles_reptador == null || draft.caramboles_reptat == null) {
+        error = 'Cal omplir tots els camps.';
+        return;
+      }
+      const mod = await import('$lib/supabaseClient');
+      const supabase = mod.supabase;
+      // Desa el resultat com a provisional (pendent de validació)
+      const { error: err } = await supabase.from('matches').insert({
+        challenge_id: ch.id,
+        data_joc: draft.data_joc,
+        caramboles_reptador: draft.caramboles_reptador,
+        caramboles_reptat: draft.caramboles_reptat,
+        validat: false // camp que indica si la Junta ha validat
+      });
+      if (err) {
+        error = err.message;
+        return;
+      }
+      resultDrafts[ch.id] = { data_joc: '', caramboles_reptador: 0, caramboles_reptat: 0 };
+      await load();
+    } catch (e: any) {
+      error = e?.message ?? 'Error enviant resultat';
+    }
+  }
   const REPRO_LIMIT = 3;
   let reproLimit = REPRO_LIMIT;
 
@@ -180,6 +209,7 @@
       }
       ch.data_programada = iso;
       dateDrafts[ch.id] = '';
+      await load(); // Refresca la llista de reptes
     } catch (e: any) {
       error = e?.message ?? 'Error programant repte';
     }
@@ -228,20 +258,67 @@
               </div>
             {/if}
             {#if r.estat !== 'refusat' && myPlayerId && (myPlayerId === r.reptador_id || myPlayerId === r.reptat_id)}
-              <div class="mt-2 flex gap-2 items-center">
-                <input
-                  type="datetime-local"
-                  step="60"
-                  class="border rounded px-2 py-1"
-                  bind:value={dateDrafts[r.id]}
-                />
-                <button
-                  class="rounded border px-3 py-1 text-sm"
-                  on:click={() => propose(r)}
-                >
-                  Proposa data
-                </button>
-              </div>
+              {#if !(r.reprogramacions != null && r.reprogramacions >= reproLimit)}
+                <div class="mt-2 flex gap-2 items-center">
+                  <input
+                    type="datetime-local"
+                    step="60"
+                    class="border rounded px-2 py-1"
+                    bind:value={dateDrafts[r.id]}
+                  />
+                  <button
+                    class="rounded border px-3 py-1 text-sm"
+                    on:click={() => propose(r)}
+                  >
+                    Proposa data
+                  </button>
+                </div>
+              {/if}
+              {#if r.estat === 'programat'}
+                {#if !resultDrafts[r.id]}
+                  {@html (() => { resultDrafts[r.id] = { data_joc: '', caramboles_reptador: '', caramboles_reptat: '' }; return ''; })()}
+                {/if}
+                <form class="mt-2 flex flex-col gap-2 p-3 border rounded bg-slate-50" on:submit|preventDefault={() => submitResult(r)}>
+                  <div class="font-semibold mb-2">Data Partida</div>
+                  <div class="mb-2">
+                    <label class="block text-sm mb-1">Data</label>
+                    <input type="date" class="border rounded px-2 py-1 w-40" bind:value={resultDrafts[r.id].data_joc} required />
+                  </div>
+                  <div class="mb-2">
+                    <label class="block text-sm mb-1">Caramboles</label>
+                    <div class="flex gap-2">
+                      <div class="flex flex-col">
+                        <span class="text-xs text-slate-600">{r.reptador_nom}</span>
+                        <input type="number" min="0" class="border rounded px-2 py-1 w-24" bind:value={resultDrafts[r.id].caramboles_reptador} required />
+                      </div>
+                      <div class="flex flex-col">
+                        <span class="text-xs text-slate-600">{r.reptat_nom}</span>
+                        <input type="number" min="0" class="border rounded px-2 py-1 w-24" bind:value={resultDrafts[r.id].caramboles_reptat} required />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mb-2">
+                    <label class="block text-sm mb-1">Entrades</label>
+                    <input type="number" min="0" class="border rounded px-2 py-1 w-24" bind:value={resultDrafts[r.id].entrades} />
+                  </div>
+                  {#if Number(resultDrafts[r.id].caramboles_reptador) === Number(resultDrafts[r.id].caramboles_reptat) && resultDrafts[r.id].caramboles_reptador !== ''}
+                    <div class="mb-2">
+                      <label class="block text-sm mb-1">Tiebreak</label>
+                      <div class="flex gap-2">
+                        <div class="flex flex-col">
+                          <span class="text-xs text-slate-600">{r.reptador_nom}</span>
+                          <input type="number" min="0" class="border rounded px-2 py-1 w-24" bind:value={resultDrafts[r.id].tiebreak_reptador} />
+                        </div>
+                        <div class="flex flex-col">
+                          <span class="text-xs text-slate-600">{r.reptat_nom}</span>
+                          <input type="number" min="0" class="border rounded px-2 py-1 w-24" bind:value={resultDrafts[r.id].tiebreak_reptat} />
+                        </div>
+                      </div>
+                    </div>
+                  {/if}
+                  <button class="rounded bg-blue-600 text-white px-3 py-1 self-start mt-2" type="submit">Envia resultat</button>
+                </form>
+              {/if}
             {/if}
           </li>
         {/each}
