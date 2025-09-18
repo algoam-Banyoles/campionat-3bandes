@@ -1,25 +1,29 @@
 name: Supabase - Remote commit (sync from Dashboard)
 
 on:
-  workflow_dispatch: {}        # Manual
+  workflow_dispatch: {}
   schedule:
-    - cron: "0 */6 * * *"      # Cada 6 hores (UTC). Ajusta-ho si vols.
+    - cron: "0 */6 * * *"  # cada 6 hores
 
 jobs:
   remote-commit:
     runs-on: ubuntu-latest
     permissions:
-      contents: write          # per poder crear la PR
+      contents: write
       pull-requests: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Supabase CLI
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Supabase CLI (npm)
         run: |
-          curl -fsSL https://get.supabase.com/install | sh
-          echo "$HOME/.supabase/bin" >> $GITHUB_PATH
+          npm i -g supabase@latest
           supabase --version
 
       - name: Link project (Cloud)
@@ -32,8 +36,17 @@ jobs:
         run: |
           supabase db remote commit -f sync_from_dashboard || true
 
-      # Si hi ha canvis (migració nova), obrim PR
-      - name: Create Pull Request
+      - name: Check for changes
+        id: git-diff
+        run: |
+          if git diff --quiet --exit-code; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request (only if changed)
+        if: steps.git-diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
           branch: supabase/remote-commit-${{ github.run_id }}
