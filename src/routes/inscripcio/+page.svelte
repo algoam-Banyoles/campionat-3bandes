@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { user } from '$lib/stores/auth';
+  import { user, adminStore } from '$lib/stores/auth';
   import { invalidate } from '$app/navigation';
   import { onMount } from 'svelte';
 
@@ -11,7 +11,19 @@
   let inRanking = false;
   let inWaiting = false;
 
+  // Per a la inscripció de socis (Junta)
+  let socis: Array<{ numero_soci: number; cognoms: string; nom: string; email: string }> = [];
+  let selectedSoci: number | null = null;
+  let mitjana: number | null = null;
+
   onMount(async () => {
+    // Carrega socis si admin
+    if ($adminStore) {
+      const { supabase } = await import('$lib/supabaseClient');
+      const { data, error: err } = await supabase.from('socis').select('*');
+      if (err) error = err.message;
+      else socis = data ?? [];
+    }
     try {
       const u = $user;
       if (!u?.email) return;
