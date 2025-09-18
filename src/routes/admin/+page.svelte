@@ -106,8 +106,11 @@
       preOk = null;
       preErr = null;
       const { supabase } = await import('$lib/supabaseClient');
+      // TODO: Demana l'eventId (UUID) a l'usuari o selecciona'l d'alguna manera
+      const eventId = prompt('Introdueix el UUID de l\'event:');
+      if (!eventId) throw new Error('Cal indicar el UUID de l\'event');
       const { error } = await supabase.rpc('apply_pre_inactivity', {
-        p_event_id: null
+        p_event: eventId
       });
       if (error) throw error;
       preOk = 'Pre-inactivitat executada';
@@ -124,8 +127,11 @@
       inactOk = null;
       inactErr = null;
       const { supabase } = await import('$lib/supabaseClient');
+      // TODO: Demana l'eventId (UUID) a l'usuari o selecciona'l d'alguna manera
+      const eventId = prompt('Introdueix el UUID de l\'event:');
+      if (!eventId) throw new Error('Cal indicar el UUID de l\'event');
       const { error } = await supabase.rpc('apply_inactivity', {
-        p_event_id: null
+        p_event: eventId
       });
       if (error) throw error;
       inactOk = 'Inactivitat executada';
