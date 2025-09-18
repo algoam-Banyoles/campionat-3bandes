@@ -227,7 +227,17 @@
         {#each rows as r}
           <tr class="border-t">
             <td class="px-3 py-2">{r.posicio}</td>
-            <td class="px-3 py-2">{r.nom}</td>
+            <td class="px-3 py-2 flex items-center gap-2">
+              {r.nom}
+              {#if r.reptable}
+                <button
+                  class="ml-2 px-2 py-1 rounded bg-green-600 text-white text-xs disabled:bg-gray-300 disabled:text-gray-500"
+                  disabled={!r.canChallenge}
+                  title={r.canChallenge ? (r.reason ?? 'Reptar') : (r.reason ?? 'No pots reptar aquest jugador')}
+                  on:click={() => reptar(r.player_id)}
+                >Reptar</button>
+              {/if}
+            </td>
           </tr>
         {/each}
       </tbody>

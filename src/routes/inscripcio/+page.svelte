@@ -136,13 +136,30 @@
   {:else if inWaiting}
     <p>Ja estàs a la llista d'espera.</p>
   {:else}
-    <button
-      class="rounded bg-slate-800 px-4 py-2 text-white disabled:opacity-50"
-      disabled={loading}
-      on:click={inscriure}
-    >
-      {loading ? 'Processant…' : 'Inscriu-me'}
-    </button>
+    {#if $adminStore}
+      <form on:submit|preventDefault={inscriure} class="space-y-4">
+        <label for="soci">Selecciona el soci:</label>
+        <select id="soci" bind:value={selectedSoci} required>
+          <option value="">-- Selecciona --</option>
+          {#each socis as soci}
+            <option value={soci.numero_soci}>{soci.nom} {soci.cognoms} ({soci.email})</option>
+          {/each}
+        </select>
+        <label for="mitjana">Mitjana inicial (opcional):</label>
+        <input id="mitjana" type="number" step="0.01" bind:value={mitjana} min="0" />
+        <button type="submit" class="mt-2 px-4 py-2 bg-blue-600 text-white rounded" disabled={loading}>
+          {loading ? 'Processant…' : 'Inscriure'}
+        </button>
+      </form>
+    {:else}
+      <button
+        class="rounded bg-slate-800 px-4 py-2 text-white disabled:opacity-50"
+        disabled={loading}
+        on:click={inscriure}
+      >
+        {loading ? 'Processant…' : 'Inscriu-me'}
+      </button>
+    {/if}
   {/if}
   {#if error}
     <div class="mt-4 rounded border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>

@@ -106,14 +106,15 @@
       preOk = null;
       preErr = null;
       const { supabase } = await import('$lib/supabaseClient');
-      // TODO: Demana l'eventId (UUID) a l'usuari o selecciona'l d'alguna manera
-      const eventId = prompt('Introdueix el UUID de l\'event:');
-      if (!eventId) throw new Error('Cal indicar el UUID de l\'event');
-      const { error } = await supabase.rpc('apply_pre_inactivity', {
-        p_event: eventId
-      });
-      if (error) throw error;
-      preOk = 'Pre-inactivitat executada';
+      const { data: events, error: eventsError } = await supabase.from('events').select('id');
+      if (eventsError) throw eventsError;
+      for (const event of events) {
+        const { error } = await supabase.rpc('apply_pre_inactivity', {
+          p_event: event.id
+        });
+        if (error) throw error;
+      }
+      preOk = 'Pre-inactivitat executada per a tots els esdeveniments.';
     } catch (e) {
       preErr = formatSupabaseError(e);
     } finally {
@@ -127,14 +128,15 @@
       inactOk = null;
       inactErr = null;
       const { supabase } = await import('$lib/supabaseClient');
-      // TODO: Demana l'eventId (UUID) a l'usuari o selecciona'l d'alguna manera
-      const eventId = prompt('Introdueix el UUID de l\'event:');
-      if (!eventId) throw new Error('Cal indicar el UUID de l\'event');
-      const { error } = await supabase.rpc('apply_inactivity', {
-        p_event: eventId
-      });
-      if (error) throw error;
-      inactOk = 'Inactivitat executada';
+      const { data: events, error: eventsError } = await supabase.from('events').select('id');
+      if (eventsError) throw eventsError;
+      for (const event of events) {
+        const { error } = await supabase.rpc('apply_inactivity', {
+          p_event: event.id
+        });
+        if (error) throw error;
+      }
+      inactOk = 'Inactivitat executada per a tots els esdeveniments.';
     } catch (e) {
       inactErr = formatSupabaseError(e);
     } finally {
