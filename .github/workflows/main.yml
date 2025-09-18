@@ -1,17 +1,15 @@
-name: Supabase - Remote commit (sync from Dashboard)
+name: Supabase – Validate PR (apply to Staging)
 
 on:
-  workflow_dispatch: {}
-  schedule:
-    - cron: "0 */6 * * *"  # cada 6 hores
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
 
 jobs:
-  remote-commit:
+  apply-migrations-staging:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
-
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,37 +19,17 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Supabase CLI (npm)
+      - name: Install Supabase CLI
         run: |
           npm i -g supabase@latest
           supabase --version
 
-      - name: Link project (Cloud)
+      - name: Link to STAGING project
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF_STAGING }}
 
-      - name: Remote commit (generate migration if schema changed)
+      - name: Apply migrations to STAGING
         run: |
-          supabase db remote commit -f sync_from_dashboard || true
-
-      - name: Check for changes
-        id: git-diff
-        run: |
-          if git diff --quiet --exit-code; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create Pull Request (only if changed)
-        if: steps.git-diff.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: supabase/remote-commit-${{ github.run_id }}
-          title: "Supabase: sync migrations from Dashboard"
-          body: "Automated `supabase db remote commit` captured changes from the Supabase Dashboard."
-          commit-message: "chore(supabase): remote commit (sync from dashboard)"
-          add-paths: |
-            supabase/migrations/**
+          supabase db push
