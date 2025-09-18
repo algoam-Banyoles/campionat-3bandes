@@ -1,0 +1,44 @@
+name: Supabase - Remote commit (sync from Dashboard)
+
+on:
+  workflow_dispatch: {}        # Manual
+  schedule:
+    - cron: "0 */6 * * *"      # Cada 6 hores (UTC). Ajusta-ho si vols.
+
+jobs:
+  remote-commit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # per poder crear la PR
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        run: |
+          curl -fsSL https://get.supabase.com/install | sh
+          echo "$HOME/.supabase/bin" >> $GITHUB_PATH
+          supabase --version
+
+      - name: Link project (Cloud)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: Remote commit (generate migration if schema changed)
+        run: |
+          supabase db remote commit -f sync_from_dashboard || true
+
+      # Si hi ha canvis (migració nova), obrim PR
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: supabase/remote-commit-${{ github.run_id }}
+          title: "Supabase: sync migrations from Dashboard"
+          body: "Automated `supabase db remote commit` captured changes from the Supabase Dashboard."
+          commit-message: "chore(supabase): remote commit (sync from dashboard)"
+          add-paths: |
+            supabase/migrations/**
