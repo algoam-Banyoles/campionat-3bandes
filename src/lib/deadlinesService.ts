@@ -59,15 +59,7 @@ function extractCount(entry: MaintenanceLogEntry, keys: string[]): number {
   return 0;
 }
 
-export async function runOverdueSweep(
-  supabase: SupabaseClient
-): Promise<MaintenanceLogEntry[]> {
-  const { data, error } = await supabase.rpc(
-    'sweep_overdue_challenges_from_settings_mvp2'
-  );
-  if (error) throw new Error(error.message);
-  return ensureArray<MaintenanceLogEntry>(data);
-}
+
 
 export async function runDeadlines(
   supabase: SupabaseClient,
