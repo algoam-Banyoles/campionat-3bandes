@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
+import type { RequestEvent } from '@sveltejs/kit';
 
-export async function POST(event) {
+export async function POST(event: RequestEvent) {
   let body: { access_token?: string; refresh_token?: string; expires_at?: number };
   try {
     body = await event.request.json();
@@ -20,7 +21,7 @@ export async function POST(event) {
   return json({ ok: true });
 }
 
-export function DELETE(event) {
+export function DELETE(event: RequestEvent) {
   const secure = event.url.protocol === 'https:';
   const opts = { path: '/', secure, httpOnly: true, sameSite: 'lax' as const };
   event.cookies.delete('sb-access-token', opts);

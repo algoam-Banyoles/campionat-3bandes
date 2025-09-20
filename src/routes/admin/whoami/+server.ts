@@ -1,7 +1,7 @@
-import { json } from '@sveltejs/kit';
+import { json, type RequestEvent } from '@sveltejs/kit';
 import { serverSupabase, requireAdmin } from '$lib/server/adminGuard';
 
-export async function GET(event) {
+export async function GET(event: RequestEvent) {
   const guard = await requireAdmin(event);
   if (guard) return guard; // 401/403/500
 

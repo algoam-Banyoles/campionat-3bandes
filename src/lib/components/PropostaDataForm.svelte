@@ -3,7 +3,6 @@
   import Banner from '$lib/components/Banner.svelte';
   import { isParticipant } from '$lib/challenges';
   import { authFetch } from '$lib/utils/http';
-  import { isParticipant } from '$lib/challenges';
 
 
   export let challengeId: string;

@@ -21,3 +21,16 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Database backups and temporary SQL files
+backup_local_*.sql
+mitjanes_*.sql
+*.log
+
+# PowerShell cache
+*.ps1xml
+
+# Temporary files
+*.tmp
+*.bak
+*.old

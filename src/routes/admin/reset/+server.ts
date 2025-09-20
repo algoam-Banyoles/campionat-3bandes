@@ -1,11 +1,11 @@
-import { json } from '@sveltejs/kit';
+import { json, type RequestEvent } from '@sveltejs/kit';
 import { serverSupabase, requireAdmin } from '$lib/server/adminGuard';
 
 export function GET() {
   return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
 }
 
-export async function POST(event) {
+export async function POST(event: RequestEvent) {
   const guard = await requireAdmin(event);
   if (guard) return guard; // 401/403/500
 
