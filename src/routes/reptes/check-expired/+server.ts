@@ -8,16 +8,19 @@ export const POST: RequestHandler = async ({ request }) => {
     const supabase = serverSupabase(request);
     // Get app settings for deadlines
     const { data: settings, error: sErr } = await supabase
-      .from('app_settings')
-      .select('dies_acceptar_repte, dies_jugar_despres_acceptar')
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (sErr || !settings) {
-      return json({ ok: false, error: 'No settings found' }, { status: 500 });
-    }
-    const acceptDays = settings.dies_acceptar_repte ?? 3;
-    const playDays = settings.dies_jugar_despres_acceptar ?? 7;
+        .from('app_settings')
+        .select('dies_acceptar_repte, dies_jugar_despres_acceptar')
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      if (sErr) {
+        return json({ ok: false, error: `Error consulta settings: ${sErr.message}` }, { status: 500 });
+      }
+      if (!settings || !settings.length) {
+        return json({ ok: false, error: 'No s’ha trobat cap configuració a app_settings.' }, { status: 500 });
+      }
+      const config = settings[0];
+      const acceptDays = config.dies_acceptar_repte ?? 3;
+      const playDays = config.dies_jugar_despres_acceptar ?? 7;
     // Find challenges past acceptance deadline
     const { data: expiredAccept, error: eAcc } = await supabase
       .from('challenges')
