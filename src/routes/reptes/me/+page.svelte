@@ -205,6 +205,19 @@ function isFrozen(r: Challenge) {
   return ['anullat', 'jugat', 'refusat', 'caducat'].includes(r.estat);
 }
 
+function isExpiredAccept(r: Challenge) {
+  if (r.estat !== 'proposat') return false;
+  const deadline = addDays(new Date(r.data_proposta), settings.dies_acceptar_repte);
+  return new Date() > deadline;
+}
+
+function isExpiredPlay(r: Challenge) {
+  if (!['acceptat', 'programat'].includes(r.estat)) return false;
+  const base = r.data_programada ?? r.data_proposta;
+  const deadline = addDays(new Date(base), settings.dies_jugar_despres_acceptar);
+  return new Date() > deadline;
+}
+
 function canSetResult(r: Challenge) {
   return isAdmin && ['acceptat', 'programat'].includes(r.estat);
 }
@@ -393,8 +406,14 @@ async function saveSchedule(r: Challenge) {
 
           {#if r.estat === 'proposat'}
             <div class="text-xs text-red-600">Acceptar abans de: {deadlineAccept(r)}</div>
+              {#if isExpiredAccept(r)}
+                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Repte caducat per no acceptar a temps. Penalització automàtica aplicada.</div>
+              {/if}
           {:else if ['acceptat', 'programat'].includes(r.estat)}
             <div class="text-xs text-red-600">Jugar abans de: {deadlinePlay(r)}</div>
+              {#if isExpiredPlay(r)}
+                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Repte caducat per no jugar a temps. Penalització automàtica aplicada.</div>
+              {/if}
           {/if}
 
           <div class="text-sm">
@@ -413,7 +432,10 @@ async function saveSchedule(r: Challenge) {
           {/if}
 
           {#if canAccept(r)}
-            <div class="space-y-2 mb-2">
+              {#if isExpiredAccept(r)}
+                <div class="text-sm text-red-600">No pots acceptar: repte caducat.</div>
+              {:else}
+                <div class="space-y-2 mb-2">
               {#if r.dates_proposades?.length}
                 <div class="flex items-center gap-2">
                   <select
@@ -486,11 +508,15 @@ async function saveSchedule(r: Challenge) {
                   {busy === r.id ? 'Processant…' : 'Contra-proposa'}
                 </button>
               </div>
-            </div>
+                </div>
+              {/if}
           {/if}
 
           {#if canProgram(r)}
-            <div class="flex flex-wrap items-end gap-2">
+              {#if isExpiredPlay(r)}
+                <div class="text-sm text-red-600">No pots programar/jugar: repte caducat.</div>
+              {:else}
+                <div class="flex flex-wrap items-end gap-2">
               <div>
                 <label class="text-sm" for={`schedule-${r.id}`}>
                   {r.estat === 'proposat' ? 'Programar' : '(Re)programar'}
@@ -531,7 +557,8 @@ async function saveSchedule(r: Challenge) {
                   href={`/admin/reptes/${r.id}/resultat`}
                 >Posar resultat</a>
               {/if}
-            </div>
+                </div>
+              {/if}
           {:else if isFrozen(r)}
             <div class="text-sm text-slate-500">Sense accions.</div>
           {/if}

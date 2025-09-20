@@ -91,6 +91,25 @@
   };
   const challengeStateLabel = (state: string): string => CHALLENGE_STATE_LABEL[state] ?? state;
 
+  function addDays(date: Date, days: number) {
+    const d = new Date(date);
+    d.setDate(d.getDate() + days);
+    return d;
+  }
+
+  function isExpiredAccept(r: Challenge) {
+    if (r.estat !== 'proposat') return false;
+    const deadline = addDays(new Date(r.data_proposta), reproLimit ?? 3);
+    return new Date() > deadline;
+  }
+
+  function isExpiredPlay(r: Challenge) {
+    if (!['acceptat', 'programat'].includes(r.estat)) return false;
+    const base = r.data_programada ?? r.data_proposta;
+    const deadline = addDays(new Date(base), reproLimit ?? 7);
+    return new Date() > deadline;
+  }
+
   async function load() {
     try {
       loading = true;
@@ -258,6 +277,12 @@
               {/if}
             </div>
             <div class="text-sm text-slate-600">Reprogramacions: {r.reprogramacions ?? 0} / {reproLimit}</div>
+              {#if isExpiredAccept(r)}
+                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Repte caducat per no acceptar a temps. Penalització automàtica aplicada.</div>
+              {/if}
+              {#if isExpiredPlay(r)}
+                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Repte caducat per no jugar a temps. Penalització automàtica aplicada.</div>
+              {/if}
             {#if myPlayerId === r.reptat_id && r.estat === 'proposat'}
               <div class="mt-2 flex gap-2">
                 <button
