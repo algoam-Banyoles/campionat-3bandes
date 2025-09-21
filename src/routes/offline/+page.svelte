@@ -48,7 +48,7 @@
 		<div class="container">
 			<h1>📶 Sense connexió</h1>
 			<p>No hi ha connexió a internet. Comprova la teva connexió i torna-ho a intentar.</p>
-			<button onclick="window.location.reload()">Tornar a intentar</button>
+			<button onclick={() => window.location.reload()}>Tornar a intentar</button>
 		</div>
 	</body>
 </html>
