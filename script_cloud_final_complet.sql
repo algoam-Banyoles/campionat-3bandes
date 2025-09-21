@@ -3,7 +3,7 @@
 -- =================================================================
 -- Data: 2025-09-21 12:39:57
 -- Registres: 1998 (exclou capçalera)
--- IDs exsocis: 1-34 (integrats a la taula socis amb estat 'baixa')
+-- IDs exsocis: 14-34 (integrats a la taula socis amb estat 'baixa')
 -- IDs socis actius: 8748+ (evita conflictes)
 -- =================================================================
 
@@ -1137,7 +1137,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (684
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7618, 2015, '3 BANDES', 0.260);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (5935, 2015, '3 BANDES', 0.260);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (3049, 2015, '3 BANDES', 0.244);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (0035, 2015, '3 BANDES', 0.244);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (35, 2015, '3 BANDES', 0.244);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7807, 2015, '3 BANDES', 0.237);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7189, 2015, '3 BANDES', 0.225);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (8482, 2015, '3 BANDES', 0.223);
@@ -1178,7 +1178,6 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (719
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (8482, 2014, '3 BANDES', 0.252);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7618, 2014, '3 BANDES', 0.247);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (3049, 2014, '3 BANDES', 0.226);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (0036, 2014, '3 BANDES', 0.222);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7439, 2014, '3 BANDES', 0.221);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7189, 2014, '3 BANDES', 0.217);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7308, 2014, '3 BANDES', 0.212);
@@ -1189,7 +1188,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (274
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7586, 2014, '3 BANDES', 0.158);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7279, 2014, '3 BANDES', 0.149);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7417, 2014, '3 BANDES', 0.147);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7586, 2014, '3 BANDES', 0.134);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (38, 2014, '3 BANDES', 0.134);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7139, 2014, '3 BANDES', 0.128);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7044, 2014, '3 BANDES', 0.123);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6855, 2014, '3 BANDES', 0.041);
@@ -1222,7 +1221,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (713
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7586, 2014, 'BANDA', 0.449);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (1381, 2014, 'BANDA', 0.447);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7543, 2014, 'BANDA', 0.434);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7586, 2014, 'BANDA', 0.432);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (38, 2014, 'BANDA', 0.432);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7417, 2014, 'BANDA', 0.363);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6550, 2014, 'BANDA', 0.336);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7279, 2014, 'BANDA', 0.322);
@@ -1255,7 +1254,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (730
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7586, 2014, 'LLIURE', 0.716);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (5818, 2014, 'LLIURE', 0.715);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7139, 2014, 'LLIURE', 0.701);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7586, 2014, 'LLIURE', 0.692);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (38, 2014, 'LLIURE', 0.692);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7009, 2014, 'LLIURE', 0.676);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (1381, 2014, 'LLIURE', 0.648);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7044, 2014, 'LLIURE', 0.596);
@@ -1280,7 +1279,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (633
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (3049, 2013, '3 BANDES', 0.214);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7189, 2013, '3 BANDES', 0.214);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6685, 2013, '3 BANDES', 0.212);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7026, 2013, '3 BANDES', 0.206);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (35, 2013, '3 BANDES', 0.206);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7543, 2013, '3 BANDES', 0.201);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7618, 2013, '3 BANDES', 0.199);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7308, 2013, '3 BANDES', 0.193);
@@ -1293,7 +1292,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (727
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7139, 2013, '3 BANDES', 0.144);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7586, 2013, '3 BANDES', 0.138);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7417, 2013, '3 BANDES', 0.135);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7586, 2013, '3 BANDES', 0.131);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (38, 2013, '3 BANDES', 0.131);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7044, 2013, '3 BANDES', 0.130);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (2749, 2013, '3 BANDES', 0.108);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (3463, 2013, '3 BANDES', 0.059);
@@ -1324,7 +1323,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (758
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7543, 2013, 'BANDA', 0.462);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6855, 2013, 'BANDA', 0.460);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (2749, 2013, 'BANDA', 0.460);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7586, 2013, 'BANDA', 0.449);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (38, 2013, 'BANDA', 0.449);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7139, 2013, 'BANDA', 0.427);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7279, 2013, 'BANDA', 0.377);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7417, 2013, 'BANDA', 0.336);
@@ -1356,7 +1355,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (754
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7417, 2013, 'LLIURE', 0.550);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7139, 2013, 'LLIURE', 0.541);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7044, 2013, 'LLIURE', 0.523);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7586, 2013, 'LLIURE', 0.497);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (38, 2013, 'LLIURE', 0.497);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7279, 2013, 'LLIURE', 0.446);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6550, 2013, 'LLIURE', 0.443);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (5655, 2012, '3 BANDES', 0.458);
@@ -1372,7 +1371,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (593
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (8542, 2012, '3 BANDES', 0.294);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (8186, 2012, '3 BANDES', 0.290);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7193, 2012, '3 BANDES', 0.288);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7026, 2012, '3 BANDES', 0.287);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (35, 2012, '3 BANDES', 0.287);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6332, 2012, '3 BANDES', 0.286);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (3049, 2012, '3 BANDES', 0.272);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (263, 2012, '3 BANDES', 0.249);
@@ -1461,7 +1460,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (20,
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6685, 2011, '3 BANDES', 0.282);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (5818, 2011, '3 BANDES', 0.259);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6811, 2011, '3 BANDES', 0.258);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7026, 2011, '3 BANDES', 0.244);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (35, 2011, '3 BANDES', 0.244);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (407, 2011, '3 BANDES', 0.234);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7308, 2011, '3 BANDES', 0.233);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6332, 2011, '3 BANDES', 0.229);
@@ -1484,7 +1483,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (565
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (8186, 2011, 'BANDA', 1.052);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (3019, 2011, 'BANDA', 0.975);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7026, 2011, 'BANDA', 0.949);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7026, 2011, 'BANDA', 0.939);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (35, 2011, 'BANDA', 0.939);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (1988, 2011, 'BANDA', 0.928);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (20, 2011, 'BANDA', 0.912);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6844, 2011, 'BANDA', 0.815);
@@ -1523,7 +1522,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (1, 
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6685, 2011, 'LLIURE', 1.198);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (20, 2011, 'LLIURE', 1.197);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7308, 2011, 'LLIURE', 1.181);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7026, 2011, 'LLIURE', 1.174);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (35, 2011, 'LLIURE', 1.174);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7193, 2011, 'LLIURE', 1.105);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (263, 2011, 'LLIURE', 1.085);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6811, 2011, 'LLIURE', 1.063);
@@ -1557,7 +1556,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (806
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (34, 2009, '3 BANDES', 0.280);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (17, 2009, '3 BANDES', 0.271);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6844, 2009, '3 BANDES', 0.261);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7026, 2009, '3 BANDES', 0.253);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (35, 2009, '3 BANDES', 0.253);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6685, 2009, '3 BANDES', 0.252);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6953, 2009, '3 BANDES', 0.231);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (3049, 2009, '3 BANDES', 0.228);
@@ -1646,7 +1645,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (263
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (17, 2008, '3 BANDES', 0.300);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (8062, 2008, '3 BANDES', 0.280);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (34, 2008, '3 BANDES', 0.274);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7026, 2008, '3 BANDES', 0.272);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (35, 2008, '3 BANDES', 0.272);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (5655, 2008, '3 BANDES', 0.271);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (20, 2008, '3 BANDES', 0.260);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (5818, 2008, '3 BANDES', 0.240);
@@ -1695,7 +1694,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (565
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6203, 2008, 'LLIURE', 2.010);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6110, 2008, 'LLIURE', 1.650);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (20, 2008, 'LLIURE', 1.500);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6110, 2008, 'LLIURE', 1.440);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (37, 2008, 'LLIURE', 1.440);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6844, 2008, 'LLIURE', 1.400);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (7026, 2008, 'LLIURE', 1.320);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (34, 2008, 'LLIURE', 1.230);
@@ -1863,7 +1862,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (254
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (261, 2005, '3 BANDES', 0.186);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (32, 2005, '3 BANDES', 0.174);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (4166, 2005, '3 BANDES', 0.120);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (407, 2005, '3 BANDES', 0.082);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (36, 2005, '3 BANDES', 0.082);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (3, 2005, '3 BANDES', 0.070);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (5655, 2005, 'BANDA', 1.430);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6203, 2005, 'BANDA', 1.300);
@@ -1881,7 +1880,7 @@ INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (254
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (5818, 2005, 'BANDA', 0.651);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (261, 2005, 'BANDA', 0.590);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6670, 2005, 'BANDA', 0.520);
-INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (407, 2005, 'BANDA', 0.510);
+INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (36, 2005, 'BANDA', 0.510);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (1908, 2005, 'BANDA', 0.500);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (6512, 2005, 'BANDA', 0.380);
 INSERT INTO mitjanes_historiques (soci_id, year, modalitat, mitjana) VALUES (3, 2005, 'BANDA', 0.290);
@@ -2053,7 +2052,7 @@ COMMIT;
 -- RESUM FINAL
 -- =================================================================
 -- ✅ Mitjanes històriques: 1998 registres inserits
--- ✅ Exsocis integrats: numero_soci 1-34 a la taula socis
+-- ✅ Exsocis integrats: numero_soci 14-34 a la taula socis
 -- ✅ Integritat referencial: Tots els soci_id existeixen a socis.numero_soci
 -- ✅ Gestió de baixes: camp de_baixa (boolean) i data_baixa (date)
 -- ✅ IDs futurs: 8748+ per a nous socis (sense conflictes)
