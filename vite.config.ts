@@ -10,7 +10,11 @@ export default defineConfig({
     sveltekit(),
     SvelteKitPWA({
       registerType: 'autoUpdate',
-      mode: 'development',
+      mode: 'production', // Canviat a production per generar SW
+      devOptions: {
+        enabled: true, // Habilitar en development
+        type: 'module'
+      },
       base: '/',
       scope: '/',
       injectRegister: 'auto',

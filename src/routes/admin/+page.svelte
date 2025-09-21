@@ -184,17 +184,21 @@
       resetBusy = true;
       resetOk = null;
       resetErr = null;
-      const res = await authFetch('/admin/reset', {
-        method: 'POST'
-      });
-      const js = await res.json();
-      if (!res.ok || js.error || !js.ok)
-        throw new Error(js.error || 'Error resetejant campionat');
-      const evId = js.event_id;
-      const deleted = js.deleted ?? {};
-      const seeded = js.seeded ?? {};
-      resetOk =
-        `✅ Reinici completat — event: ${evId} — esborrats: ${deleted.challenges} reptes, ${deleted.matches} partides, ${deleted.history} històric — seed: ${seeded.ranking_players} ranking, ${seeded.waiting_list} espera`;
+      // Usar la nova funció admin_reset_championship directament
+      const { supabase } = await import('$lib/supabaseClient');
+      const { data: result, error } = await supabase.rpc('admin_reset_championship');
+      
+      if (error) {
+        throw new Error(`Error executant el reset: ${error.message}`);
+      }
+      
+      if (result) {
+        const evId = result.new_event_id;
+        const deleted = result.deleted_records ?? {};
+        resetOk = `✅ Reset completat — event: ${evId} — esborrats: ${deleted.challenges || 0} reptes, ${deleted.matches || 0} partides, ${deleted.history_position_changes || 0} històric. Base de dades buida i preparada.`;
+      } else {
+        resetOk = 'Reset del campionat completat correctament';
+      }
       await loadRecent();
       await Promise.all([
         invalidate('/reptes'),
