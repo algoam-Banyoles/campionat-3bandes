@@ -1,73 +1,37 @@
-name: Supabase – Deploy to Prod (on main)name: Supabase – Deploy to Prod (on main)
+name: Supabase – Deploy to Prod (on main)
 
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'supabase/migrations/**'
 
+jobs:
+  apply-migrations-prod:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-on:on:
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
-  push:  push:
+      - name: Install Supabase CLI
+        run: |
+          npm install supabase --save-dev
+          npx supabase --version
 
-    branches: [ main ]    branches: [ main ]
+      - name: Link to PROD project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          npx supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF_PROD }}
 
-    paths:    paths:
-
-      - 'supabase/migrations/**'      - 'supabase/migrations/**'
-
-
-
-jobs:jobs:
-
-  apply-migrations-prod:  apply-migrations-prod:
-
-    runs-on: ubuntu-latest    runs-on: ubuntu-latest
-
-    environment: production    environment: production
-
-    permissions:    permissions:
-
-      contents: read      contents: read
-
-    steps:    steps:
-
-      - name: Checkout      - name: Checkout
-
-        uses: actions/checkout@v4        uses: actions/checkout@v4
-
-
-
-      - name: Setup Node      - name: Setup Node
-
-        uses: actions/setup-node@v4        uses: actions/setup-node@v4
-
-        with:        with:
-
-          node-version: 20          node-version: 20
-
-
-
-      - name: Install Supabase CLI      - name: Install Supabase CLI
-
-        run: |        run: |
-
-          npm install supabase --save-dev          npm install supabase --save-dev
-
-          npx supabase --version          npx supabase --version
-
-
-
-      - name: Link to PROD project      - name: Link to PROD project
-
-        env:        env:
-
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-
-        run: |        run: |
-
-          npx supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF_PROD }}          npx supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF_PROD }}
-
-
-
-      - name: Apply migrations to PROD      - name: Apply migrations to PROD
-
-        run: |        run: |
-
-          npx supabase db push          npx supabase db push
+      - name: Apply migrations to PROD
+        run: |
+          npx supabase db push
