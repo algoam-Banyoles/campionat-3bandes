@@ -5,43 +5,41 @@ import { requireAdmin } from '$lib/server/adminGuard';
 export const load: PageServerLoad = async (event) => {
   await requireAdmin(event);
   
-  const supabase = serverSupabase(event.request);
+  const supabase = serverSupabase(event.request, true); // Use service role for admin operations
 
   try {
-    // Carregar mitjanes amb informació del soci (si existeix)
+    // Carregar mitjanes històriques
     const { data: mitjanesList, error: mitjError } = await supabase
       .from('mitjanes_historiques')
-      .select(`
-        id,
-        soci_id,
-        year,
-        modalitat,
-        mitjana,
-        socis (
-          numero_soci,
-          nom,
-          cognoms
-        )
-      `)
+      .select('*')
       .order('year', { ascending: false })
       .order('mitjana', { ascending: false });
 
     if (mitjError) throw mitjError;
 
-    // Processar les dades per incloure informació del soci
-    const mitjanes = (mitjanesList || []).map(m => ({
-      ...m,
-      nom_soci: m.socis?.[0]?.nom || null,
-      cognoms_soci: m.socis?.[0]?.cognoms || null
-    }));
-
-    // Carregar tots els socis per al dropdown
+    // Carregar tots els socis
     const { data: socisList, error: socisError } = await supabase
       .from('socis')
       .select('numero_soci, nom, cognoms, email')
       .order('cognoms');
 
     if (socisError) throw socisError;
+
+    // Crear un mapa de socis per optimitzar les cerques
+    const socisMap = new Map();
+    (socisList || []).forEach(soci => {
+      socisMap.set(soci.numero_soci, soci);
+    });
+
+    // Processar les mitjanes per incloure informació del soci
+    const mitjanes = (mitjanesList || []).map(m => {
+      const soci = socisMap.get(m.soci_id);
+      return {
+        ...m,
+        nom_soci: soci?.nom || null,
+        cognoms_soci: soci?.cognoms || null
+      };
+    });
 
     return {
       mitjanes,

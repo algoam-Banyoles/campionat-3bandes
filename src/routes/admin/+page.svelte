@@ -289,6 +289,22 @@
       </p>
     </a>
 
+    <!-- Targeta: crear rànquing inicial -->
+    <a href="/admin/ranking-inicial" class="block rounded-2xl border p-4 hover:shadow-sm bg-green-50 border-green-200">
+      <h2 class="font-semibold text-green-800">🏆 Crear Rànquing Inicial</h2>
+      <p class="text-sm text-green-700 mt-1">
+        Configura el rànquing inicial del campionat seleccionant 20 jugadors basant-te en les seves mitjanes històriques.
+      </p>
+    </a>
+
+    <!-- Targeta: mitjanes històriques -->
+    <a href="/admin/mitjanes-historiques" class="block rounded-2xl border p-4 hover:shadow-sm bg-purple-50 border-purple-200">
+      <h2 class="font-semibold text-purple-800">📊 Mitjanes Històriques</h2>
+      <p class="text-sm text-purple-700 mt-1">
+        Visualitza, filtra i gestiona les mitjanes històriques dels jugadors. Assigna mitjanes als socis corresponents.
+      </p>
+    </a>
+
     <!-- Widget: moviments recents -->
     <div class="rounded-2xl border p-4">
       <h2 class="font-semibold">Moviments recents</h2>

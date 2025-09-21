@@ -7,6 +7,9 @@ export default defineConfig({
     sveltekit(),
     SvelteKitPWA({
       registerType: 'autoUpdate',
+      mode: 'development',
+      base: '/',
+      scope: '/',
       manifest: {
         name: 'Campionat 3 Bandes',
         short_name: 'C3B',
@@ -21,6 +24,9 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // Simplement deixar que PWA decideixi què fer
+        cleanupOutdatedCaches: true,
+        navigateFallback: null,
         runtimeCaching: [
           {
             urlPattern: ({ request }) =>

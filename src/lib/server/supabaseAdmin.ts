@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { getSupabaseEnv } from './env';
 import { wrapRpc } from '../errors';
 
-export function serverSupabase(req?: Request) {
-  const { url, key } = getSupabaseEnv();
+export function serverSupabase(req?: Request, useServiceRole = false) {
+  const { url, key } = getSupabaseEnv(useServiceRole);
 
   const authHeader =
     req?.headers.get('authorization') ||

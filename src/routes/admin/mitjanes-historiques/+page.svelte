@@ -33,6 +33,10 @@
 	let tempSociId = '';
 	let saving = false;
 
+	// Ordenació
+	let sortBy = 'year';
+	let sortOrder: 'asc' | 'desc' = 'desc';
+
 	// Filtres disponibles
 	let modalitats: string[] = [];
 	let years: number[] = [];
@@ -101,18 +105,83 @@
 		}
 	}
 
-	// Filtrar mitjanes
-	$: filteredMitjanes = mitjanes.filter(m => {
-		const matchesSearch = !searchTerm || 
-			m.soci_id?.toString().includes(searchTerm) ||
-			m.nom_soci?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			m.cognoms_soci?.toLowerCase().includes(searchTerm.toLowerCase());
-		
-		const matchesModalitat = !selectedModalitat || m.modalitat === selectedModalitat;
-		const matchesYear = !selectedYear || m.year.toString() === selectedYear;
-		
-		return matchesSearch && matchesModalitat && matchesYear;
-	});
+	function changeSorting(newSortBy: string) {
+		if (sortBy === newSortBy) {
+			// Si ja estem ordenant per aquest camp, canviem l'ordre
+			sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+		} else {
+			// Nou camp d'ordenació
+			sortBy = newSortBy;
+			// Per dates i mitjanes, per defecte desc; per noms, asc
+			sortOrder = ['year', 'mitjana', 'soci_id'].includes(newSortBy) ? 'desc' : 'asc';
+		}
+	}
+
+	// Funció d'ordenació
+	function sortMitjanes(mitjanes: MitjanaHistorica[], sortBy: string, sortOrder: 'asc' | 'desc') {
+		return [...mitjanes].sort((a, b) => {
+			let aVal, bVal;
+			
+			switch (sortBy) {
+				case 'year':
+					aVal = a.year;
+					bVal = b.year;
+					break;
+				case 'modalitat':
+					aVal = a.modalitat;
+					bVal = b.modalitat;
+					break;
+				case 'mitjana':
+					aVal = a.mitjana;
+					bVal = b.mitjana;
+					break;
+				case 'nom':
+					aVal = a.nom_soci || '';
+					bVal = b.nom_soci || '';
+					break;
+				case 'cognoms':
+					aVal = a.cognoms_soci || '';
+					bVal = b.cognoms_soci || '';
+					break;
+				case 'soci_id':
+					aVal = a.soci_id || 0;
+					bVal = b.soci_id || 0;
+					break;
+				case 'assignacio':
+					aVal = a.soci_id ? 1 : 0; // Assignats primer
+					bVal = b.soci_id ? 1 : 0;
+					break;
+				default:
+					aVal = a.year;
+					bVal = b.year;
+			}
+			
+			if (typeof aVal === 'string' && typeof bVal === 'string') {
+				const comparison = aVal.localeCompare(bVal);
+				return sortOrder === 'asc' ? comparison : -comparison;
+			} else {
+				const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+				return sortOrder === 'asc' ? comparison : -comparison;
+			}
+		});
+	}
+
+	// Filtrar i ordenar mitjanes
+	$: filteredAndSortedMitjanes = sortMitjanes(
+		mitjanes.filter(m => {
+			const matchesSearch = !searchTerm || 
+				m.soci_id?.toString().includes(searchTerm) ||
+				m.nom_soci?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+				m.cognoms_soci?.toLowerCase().includes(searchTerm.toLowerCase());
+			
+			const matchesModalitat = !selectedModalitat || m.modalitat === selectedModalitat;
+			const matchesYear = !selectedYear || m.year.toString() === selectedYear;
+			
+			return matchesSearch && matchesModalitat && matchesYear;
+		}),
+		sortBy,
+		sortOrder
+	);
 
 	// Estadístiques
 	$: stats = {
@@ -202,6 +271,85 @@
 		</div>
 	</div>
 
+	<!-- Controls d'ordenació -->
+	<div class="bg-white rounded-lg shadow p-4 mb-6">
+		<div class="flex flex-wrap items-center gap-2">
+			<span class="text-sm font-medium text-gray-700 mr-2">Ordenar per:</span>
+			
+			<button
+				on:click={() => changeSorting('year')}
+				class="px-3 py-1 text-sm rounded-md border transition-colors {sortBy === 'year' 
+					? 'bg-blue-100 border-blue-300 text-blue-700' 
+					: 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'}"
+			>
+				Any
+				{#if sortBy === 'year'}
+					<span class="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+				{/if}
+			</button>
+			
+			<button
+				on:click={() => changeSorting('modalitat')}
+				class="px-3 py-1 text-sm rounded-md border transition-colors {sortBy === 'modalitat' 
+					? 'bg-blue-100 border-blue-300 text-blue-700' 
+					: 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'}"
+			>
+				Modalitat
+				{#if sortBy === 'modalitat'}
+					<span class="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+				{/if}
+			</button>
+			
+			<button
+				on:click={() => changeSorting('mitjana')}
+				class="px-3 py-1 text-sm rounded-md border transition-colors {sortBy === 'mitjana' 
+					? 'bg-blue-100 border-blue-300 text-blue-700' 
+					: 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'}"
+			>
+				Mitjana
+				{#if sortBy === 'mitjana'}
+					<span class="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+				{/if}
+			</button>
+			
+			<button
+				on:click={() => changeSorting('nom')}
+				class="px-3 py-1 text-sm rounded-md border transition-colors {sortBy === 'nom' 
+					? 'bg-blue-100 border-blue-300 text-blue-700' 
+					: 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'}"
+			>
+				Nom
+				{#if sortBy === 'nom'}
+					<span class="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+				{/if}
+			</button>
+			
+			<button
+				on:click={() => changeSorting('cognoms')}
+				class="px-3 py-1 text-sm rounded-md border transition-colors {sortBy === 'cognoms' 
+					? 'bg-blue-100 border-blue-300 text-blue-700' 
+					: 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'}"
+			>
+				Cognoms
+				{#if sortBy === 'cognoms'}
+					<span class="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+				{/if}
+			</button>
+			
+			<button
+				on:click={() => changeSorting('assignacio')}
+				class="px-3 py-1 text-sm rounded-md border transition-colors {sortBy === 'assignacio' 
+					? 'bg-blue-100 border-blue-300 text-blue-700' 
+					: 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'}"
+			>
+				Assignació
+				{#if sortBy === 'assignacio'}
+					<span class="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+				{/if}
+			</button>
+		</div>
+	</div>
+
 	{#if loading}
 		<div class="flex justify-center items-center py-12">
 			<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -235,7 +383,7 @@
 						</tr>
 					</thead>
 					<tbody class="bg-white divide-y divide-gray-200">
-						{#each filteredMitjanes as mitjana (mitjana.id)}
+						{#each filteredAndSortedMitjanes as mitjana (mitjana.id)}
 							<tr class:bg-orange-50={!mitjana.soci_id}>
 								<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
 									{mitjana.soci_id || 'No assignat'}
@@ -315,7 +463,7 @@
 				</table>
 			</div>
 
-			{#if filteredMitjanes.length === 0}
+			{#if filteredAndSortedMitjanes.length === 0}
 				<div class="text-center py-12">
 					<div class="text-gray-500 text-lg">No s'han trobat mitjanes amb els filtres aplicats</div>
 				</div>
@@ -323,9 +471,9 @@
 		</div>
 
 		<!-- Paginació (si cal) -->
-		{#if filteredMitjanes.length > 0}
+		{#if filteredAndSortedMitjanes.length > 0}
 			<div class="mt-4 text-sm text-gray-600 text-center">
-				Mostrant {filteredMitjanes.length} de {mitjanes.length} mitjanes històriques
+				Mostrant {filteredAndSortedMitjanes.length} de {mitjanes.length} mitjanes històriques
 			</div>
 		{/if}
 	{/if}

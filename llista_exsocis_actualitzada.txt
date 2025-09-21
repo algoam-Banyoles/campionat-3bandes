@@ -1,0 +1,48 @@
+# LLISTA D'EXSOCIS ACTUALITZADA
+# Inclou tots els jugadors no identificats originalment marcats com "Nosoci"
+# Aquests jugadors reben números de soci 00XX per evitar conflictes futurs
+
+# Exsocis identificats de les mitjanes històriques (2003-2025)
+# Format: NumeroSoci | NomJugador | PrimeraAparicio | UltimaAparicio
+
+0001 | A. ALUJA | 2011 | 2011
+0002 | A. FERNÁNDEZ | 2024 | 2024  
+0003 | A. MARTÍ | 2005 | 2009
+0004 | ALBARRACIN | 2007 | 2009
+0005 | ALCARAZ | 2005 | 2008
+0006 | BARRIENTOS | 2007 | 2009
+0007 | BARRIERE | 2003 | 2004
+0008 | C. GIRÓ | 2012 | 2012
+0009 | CASBAS | 2003 | 2004
+0010 | DOMÉNECH | 2017 | 2017
+0011 | DONADEU | 2003 | 2003
+0012 | DURAN | 2008 | 2009
+0013 | E. GIRÓ | 2012 | 2012
+0014 | E. LLORENTE | 2021 | 2021
+0015 | ERRA | 2008 | 2008
+0016 | J. LAHOZ | 2017 | 2017
+0017 | J. ROVIROSA | 2009 | 2011
+0018 | JUAN  GÓMEZ | 2018 | 2018
+0019 | M. ALMIRALL | 2009 | 2011
+0020 | M. PALAU | 2007 | 2011
+0021 | M. PRAT | 2009 | 2012
+0022 | MAGRIÑA | 2003 | 2003
+0023 | P. RUIZ | 2005 | 2023
+0024 | PEÑA | 2005 | 2006
+0025 | PUIG | 2003 | 2007
+0026 | REAL | 2006 | 2007
+0027 | RODRÍGUEZ | 2007 | 2009
+0028 | S. BASCÓN | 2019 | 2020
+0029 | SOLANES | 2009 | 2009
+0030 | SOLANS | 2008 | 2008
+0031 | SUÑE | 2007 | 2008
+0032 | TABERNER | 2004 | 2005
+0033 | TALAVERA | 2004 | 2004
+0034 | VIVAS | 2003 | 2009
+
+# NOTES:
+# - Aquests números (00XX) estan reservats per exsocis no identificats
+# - Els nous socis reals començaran des de número mínim lliure en el rang normal
+# - P. RUIZ té el període més llarg d'activitat registrat (2005-2023)
+# - Total exsocis identificats: 34 jugadors
+# - Total aparicions processades: 143 registres històrics
