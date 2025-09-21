@@ -44,6 +44,45 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 };
 
 /**
+ * Serialitza un error de forma segura
+ */
+function serializeErrorForFactory(error: unknown): string {
+	if (error === null || error === undefined) {
+		return 'Unknown error';
+	}
+	
+	if (typeof error === 'string') {
+		return error;
+	}
+	
+	if (error instanceof Error) {
+		return error.message || error.toString();
+	}
+	
+	if (typeof error === 'object') {
+		try {
+			// Per errors de Supabase o altres APIs
+			if ('message' in error && typeof (error as any).message === 'string') {
+				return (error as any).message;
+			}
+			
+			// Intentar serialitzar com JSON
+			const serialized = JSON.stringify(error, null, 2);
+			return serialized;
+		} catch {
+			// Si falla, usar toString() o descripció
+			if (error.toString && typeof error.toString === 'function') {
+				const str = error.toString();
+				return str !== '[object Object]' ? str : `Error object with keys: ${Object.keys(error as Record<string, unknown>).join(', ')}`;
+			}
+			return `Error object with keys: ${Object.keys(error as Record<string, unknown>).join(', ')}`;
+		}
+	}
+	
+	return String(error);
+}
+
+/**
  * Factory per crear errors específics
  */
 export class ErrorFactory {
@@ -52,7 +91,7 @@ export class ErrorFactory {
 		originalError?: Error,
 		context?: ErrorContext
 	): AppError {
-		const message = originalError?.message || 'Unknown error';
+		const message = originalError?.message || serializeErrorForFactory(originalError) || 'Unknown error';
 		const errorMessage = getErrorMessage(code, context?.component || context?.page);
 		
 		// Detectar tipus d'error per código
@@ -175,9 +214,23 @@ export class ErrorHandler {
 		} else {
 			// Detectar error automàticament si no es proporciona code
 			const detectedCode = code || this.detectErrorCode(error);
+			
+			// Crear Error proper si no ho és
+			let errorInstance: Error;
+			if (error instanceof Error) {
+				errorInstance = error;
+			} else {
+				// Serialitzar l'error de forma segura
+				const serializedMessage = this.serializeErrorSafely(error);
+				errorInstance = new Error(serializedMessage);
+				
+				// Preservar l'error original com a propietat
+				(errorInstance as any).originalData = error;
+			}
+			
 			appError = ErrorFactory.createError(
 				detectedCode,
-				error instanceof Error ? error : new Error(String(error)),
+				errorInstance,
 				fullContext
 			);
 		}
@@ -289,6 +342,55 @@ export class ErrorHandler {
 		}
 
 		return ERROR_CODES.UNKNOWN_ERROR;
+	}
+
+	/**
+	 * Serialitza un error de forma segura per crear missatges legibles
+	 */
+	private serializeErrorSafely(error: unknown): string {
+		if (error === null || error === undefined) {
+			return 'Unknown error';
+		}
+		
+		if (typeof error === 'string') {
+			return error;
+		}
+		
+		if (error instanceof Error) {
+			return error.message || error.toString();
+		}
+		
+		if (typeof error === 'object') {
+			try {
+				// Per errors de Supabase o altres APIs
+				if ('message' in error && typeof (error as any).message === 'string') {
+					return (error as any).message;
+				}
+				
+				// Per errors de Supabase amb detalls
+				if ('details' in error && typeof (error as any).details === 'string') {
+					return (error as any).details;
+				}
+				
+				// Per errors de Supabase amb hint
+				if ('hint' in error && typeof (error as any).hint === 'string') {
+					return (error as any).hint;
+				}
+				
+				// Intentar serialitzar com JSON
+				const serialized = JSON.stringify(error, null, 2);
+				return serialized;
+			} catch {
+				// Si falla, usar toString() o descripció
+				if (error.toString && typeof error.toString === 'function') {
+					const str = error.toString();
+					return str !== '[object Object]' ? str : `Error object with keys: ${Object.keys(error as Record<string, unknown>).join(', ')}`;
+				}
+				return `Error object with keys: ${Object.keys(error as Record<string, unknown>).join(', ')}`;
+			}
+		}
+		
+		return String(error);
 	}
 
 	/**

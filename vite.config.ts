@@ -6,18 +6,20 @@ import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  server: {
+    hmr: true
+  },
   plugins: [
     sveltekit(),
     SvelteKitPWA({
       registerType: 'autoUpdate',
-      mode: 'production', // Canviat a production per generar SW
       devOptions: {
         enabled: true, // Habilitar en development
         type: 'module'
       },
       base: '/',
       scope: '/',
-      injectRegister: 'auto',
+      injectRegister: false, // Desactivar injecció automàtica
       includeAssets: ['favicon.ico', 'robots.txt', 'icons/*.png'],
       manifest: false, // Usarem el nostre manifest.json personalitzat
       workbox: {

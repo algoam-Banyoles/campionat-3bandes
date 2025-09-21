@@ -43,14 +43,27 @@
         const { supabase } = await import('$lib/supabaseClient');
         settings = await getSettings();
 
-        const { data: p, error: e1 } = await supabase
-          .from('players')
-          .select('id')
+        // Primer trobar el soci per email
+        const { data: s, error: e1 } = await supabase
+          .from('socis')
+          .select('numero_soci')
           .eq('email', (u as any).email)
           .maybeSingle();
         if (e1) throw e1;
+        if (!s) {
+          error = 'El teu email no està vinculat a cap soci.';
+          return;
+        }
+        
+        // Després trobar el player corresponent
+        const { data: p, error: e2 } = await supabase
+          .from('players')
+          .select('id')
+          .eq('numero_soci', s.numero_soci)
+          .maybeSingle();
+        if (e2) throw e2;
         if (!p) {
-          error = 'El teu email no està vinculat a cap jugador.';
+          error = 'No tens un perfil de jugador creat.';
           return;
         }
         const myId = p.id;

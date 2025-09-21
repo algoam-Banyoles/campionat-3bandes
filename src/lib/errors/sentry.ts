@@ -122,6 +122,39 @@ export function addBreadcrumb(
 }
 
 /**
+ * Serialitza un error de forma segura per logging
+ */
+function serializeError(error: unknown): string {
+	if (error === null || error === undefined) {
+		return 'null/undefined';
+	}
+	
+	if (typeof error === 'string') {
+		return error;
+	}
+	
+	if (error instanceof Error) {
+		return error.message || error.toString();
+	}
+	
+	if (typeof error === 'object') {
+		try {
+			// Intentar serialitzar com JSON
+			return JSON.stringify(error, null, 2);
+		} catch {
+			// Si falla JSON.stringify, usar toString() o descripció
+			if (error.toString && typeof error.toString === 'function') {
+				const str = error.toString();
+				return str !== '[object Object]' ? str : `Object: ${Object.keys(error as Record<string, unknown>).join(', ')}`;
+			}
+			return `Object with keys: ${Object.keys(error as Record<string, unknown>).join(', ')}`;
+		}
+	}
+	
+	return String(error);
+}
+
+/**
  * Log d'error estructurat amb Sentry
  */
 export function logError(error: AppError | Error): void {
@@ -129,14 +162,14 @@ export function logError(error: AppError | Error): void {
 	if (error instanceof Error && 'code' in error && 'userMessage' in error && 'severity' in error) {
 		const appError = error as AppError;
 		console.group(`🔴 ${appError.severity?.toUpperCase() || 'ERROR'}: ${appError.code}`);
-		console.error('Message:', appError.message);
+		console.error('Message:', serializeError(appError.message));
 		console.error('User Message:', appError.userMessage);
 		console.error('Context:', appError.context);
-		console.error('Original Error:', appError.originalError);
+		console.error('Original Error:', serializeError(appError.originalError));
 		console.error('Stack:', appError.stack);
 		console.groupEnd();
 	} else {
-		console.error('Error:', error);
+		console.error('Error:', serializeError(error));
 	}
 
 	// Enviar a Sentry si està configurat
