@@ -8,6 +8,8 @@
       import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
       import { authFetch } from '$lib/utils/http';
       import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
+      import { refreshActiveChallenges, activeChallenges, invalidateChallengeCaches } from '$lib/challengeStore';
+      import { performanceMonitor } from '$lib/monitoring/performance';
   type ChallengeRow = {
     id: string;
     event_id: string;
@@ -69,12 +71,18 @@
 
       const { supabase } = await import('$lib/supabaseClient');
 
+      // Usar el store optimitzat per obtenir challenges
+      await refreshActiveChallenges();
+      
+      // Per l'admin, obtenir tots els challenges, no només els actius
       const { data: ch, error: e1 } = await supabase
         .from('challenges')
         .select(
           `id,event_id,tipus,reptador_id,reptat_id,estat,dates_proposades,data_proposta,data_programada,reprogram_count,pos_reptador,pos_reptat`
         )
-        .order('data_proposta', { ascending: false });
+        .order('data_proposta', { ascending: false })
+        .limit(100); // Limitar per rendiment
+        
       if (e1) throw e1;
 
       const ids = Array.from(
@@ -184,6 +192,9 @@
       if (e) throw e;
       if (!data || data.length === 0) throw new Error('Estat no permès');
       okMsg = okText('Repte refusat.');
+      
+      // Invalidar caches i recarregar
+      invalidateChallengeCaches();
       await load();
     } catch (e) {
       error = formatSupabaseError(e);
@@ -204,6 +215,9 @@
       });
       if (e) throw e;
       okMsg = okText('Penalització aplicada.');
+      
+      // Invalidar caches i recarregar
+      invalidateChallengeCaches();
       await load();
     } catch (e) {
       error = formatSupabaseError(e);

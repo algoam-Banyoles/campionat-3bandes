@@ -1,34 +1,43 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
+	import { withRetry, handleError } from '$lib/errors/handler';
+	import { ERROR_CODES } from '$lib/errors/types';
+	import { toastStore } from '$lib/stores/toastStore';
+	import { logAction, logSuccess } from '$lib/errors/sentry';
+	import ToastContainer from './ToastContainer.svelte';
 
 	type Soci = {
-		id: string;
+		id?: string;
 		numero_soci: number;
 		nom: string;
 		cognoms: string;
 		email: string | null;
-		telefon: string | null;
-		actiu: boolean;
-		creat_el: string;
-		actualitzat_el: string;
+		telefon?: string | null;
+		de_baixa?: boolean | null;
+		creat_el?: string;
+		actualitzat_el?: string;
 	};
 
 	type MitjanaHistorica = {
 		id: string;
 		soci_id: number | null;
-		year: number;
+		year: number | null;
 		modalitat: string;
 		mitjana: number | null;
 		partides: number | null;
-		creat_el: string;
+		creat_el: string | null;
 	};
 
 	let socis: Soci[] = [];
 	let mitjanes: (MitjanaHistorica & { soci: Soci })[] = [];
 	let socisSeleccionats: number[] = [];
 	let carregant = false;
-	let error = '';
+	let filtreText = '';
+	
+	// Any actual i anterior per mostrar en la UI
+	const anyActual = new Date().getFullYear();
+	const anyAnterior = anyActual - 1;
 
 	onMount(async () => {
 		await carregarDades();
@@ -36,103 +45,271 @@
 
 	async function carregarDades() {
 		carregant = true;
+		logAction('carregar_dades_ranquing_inicial');
 		
-		// Carregar socis actius
-		const { data: socisData } = await supabase
-			.from('socis')
-			.select('*')
-			.eq('actiu', true);
-		
-		if (socisData) socis = socisData;
+		try {
+			await withRetry(async () => {
+				// 1. Carregar tots els socis actius
+				const { data: socisActius, error: socisError } = await supabase
+					.from('socis')
+					.select('numero_soci, nom, cognoms, email, de_baixa')
+					.or('de_baixa.is.null,de_baixa.eq.false');
 
-		// Carregar mitjanes més recents per soci
-		const { data: mitjanaData } = await supabase
-			.from('mitjanes_historiques')
-			.select(`
-				*,
-				socis:soci_id (*)
-			`)
-			.not('soci_id', 'is', null)
-			.order('year', { ascending: false });
-
-		if (mitjanaData) {
-			// Agafar només la mitjana més recent de cada soci
-			const mitjanesPorSoci = new Map();
-			mitjanaData.forEach(m => {
-				if (!mitjanesPorSoci.has(m.soci_id)) {
-					mitjanesPorSoci.set(m.soci_id, {
-						...m,
-						soci: Array.isArray(m.socis) ? m.socis[0] : m.socis
+				if (socisError) {
+					throw handleError(socisError, ERROR_CODES.DATABASE_QUERY_ERROR, {
+						component: 'CrearRanquingInicial',
+						action: 'carregar_socis_actius'
 					});
 				}
+
+				// 2. Carregar mitjanes de 3 BANDES dels darrers 2 anys
+				const anyActual = new Date().getFullYear();
+				const anyAnterior = anyActual - 1;
+
+				const { data: mitjanaData, error: mitjanaError } = await supabase
+					.from('mitjanes_historiques')
+					.select('*')
+					.eq('modalitat', '3 BANDES')
+					.not('soci_id', 'is', null)
+					.in('year', [anyActual, anyAnterior]) // Només any actual i anterior
+					.order('soci_id', { ascending: true }); // Ordenar per soci per facilitar agrupació
+
+				if (mitjanaError) {
+					throw handleError(mitjanaError, ERROR_CODES.DATABASE_QUERY_ERROR, {
+						component: 'CrearRanquingInicial',
+						action: 'carregar_mitjanes_historiques'
+					});
+				}
+
+				// 3. Processar dades
+				if (socisActius && mitjanaData) {
+				// Crear mapa de mitjanes per soci (millor dels darrers 2 anys)
+				const mitjanesPorSoci = new Map();
+				
+				// Agrupar per soci i trobar la millor mitjana dels darrers 2 anys
+				const socisAmbMitjanes = new Map();
+				mitjanaData.forEach(m => {
+					if (m.mitjana && m.mitjana > 0) {
+						if (!socisAmbMitjanes.has(m.soci_id)) {
+							socisAmbMitjanes.set(m.soci_id, []);
+						}
+						socisAmbMitjanes.get(m.soci_id).push(m);
+					}
+				});
+
+				// Per cada soci, trobar la millor mitjana
+				socisAmbMitjanes.forEach((mitjanes, sociId) => {
+					const millorMitjana = mitjanes.reduce((millor: MitjanaHistorica, actual: MitjanaHistorica) => {
+						return (actual.mitjana || 0) > (millor.mitjana || 0) ? actual : millor;
+					});
+					mitjanesPorSoci.set(sociId, millorMitjana);
+				});
+
+				// Crear llista combinada: socis amb mitjana + socis sense mitjana
+				const socisAmbMitjana: (MitjanaHistorica & { soci: Soci })[] = [];
+				const socisSenseMitjana: (MitjanaHistorica & { soci: Soci })[] = [];
+
+				socisActius.forEach(soci => {
+					const mitjana = mitjanesPorSoci.get(soci.numero_soci);
+					
+					if (mitjana) {
+						// Soci amb mitjana
+						socisAmbMitjana.push({
+							...mitjana,
+							soci: soci,
+							soci_id: soci.numero_soci
+						});
+					} else {
+						// Soci sense mitjana
+						socisSenseMitjana.push({
+							id: `no-mitjana-${soci.numero_soci}`,
+							soci_id: soci.numero_soci,
+							year: null,
+							modalitat: '3 BANDES',
+							mitjana: null,
+							partides: null,
+							creat_el: null,
+							soci: soci
+						});
+					}
+				});
+
+				// Ordenar: primers els amb mitjana (millor a pitjor), després els sense mitjana (alfabètic)
+				socisAmbMitjana.sort((a, b) => (b.mitjana || 0) - (a.mitjana || 0));
+				socisSenseMitjana.sort((a, b) => {
+					const nomA = `${a.soci.cognoms} ${a.soci.nom}`.toLowerCase();
+					const nomB = `${b.soci.cognoms} ${b.soci.nom}`.toLowerCase();
+					return nomA.localeCompare(nomB);
+				});
+
+					// Combinar les dues llistes
+					mitjanes = [...socisAmbMitjana, ...socisSenseMitjana];
+					logSuccess('dades_carregades', {
+						socisTotal: socisActius.length,
+						socisAmbMitjana: socisAmbMitjana.length,
+						socisSenseMitjana: socisSenseMitjana.length
+					});
+				}
+			}, {
+				component: 'CrearRanquingInicial',
+				action: 'carregar_dades_completes'
 			});
-			mitjanes = Array.from(mitjanesPorSoci.values())
-				.sort((a, b) => (b.mitjana || 0) - (a.mitjana || 0));
+		} catch (error) {
+			const appError = handleError(error, ERROR_CODES.UNKNOWN_ERROR, {
+				component: 'CrearRanquingInicial',
+				action: 'carregar_dades'
+			});
+			toastStore.showAppError(appError);
 		}
 
 		carregant = false;
 	}
 
 	function toggleSoci(numeroSoci: number) {
-		if (socisSeleccionats.includes(numeroSoci)) {
-			socisSeleccionats = socisSeleccionats.filter(id => id !== numeroSoci);
-		} else if (socisSeleccionats.length < 20) {
-			socisSeleccionats = [...socisSeleccionats, numeroSoci];
+		try {
+			if (socisSeleccionats.includes(numeroSoci)) {
+				socisSeleccionats = socisSeleccionats.filter(id => id !== numeroSoci);
+				logAction('soci_desseleccionat', { numeroSoci });
+			} else if (socisSeleccionats.length < 20) {
+				socisSeleccionats = [...socisSeleccionats, numeroSoci];
+				logAction('soci_seleccionat', { numeroSoci, totalSeleccionats: socisSeleccionats.length + 1 });
+			} else {
+				const error = handleError(
+					new Error('Màxim de jugadors assolit'),
+					ERROR_CODES.VALIDATION_INVALID_RANGE,
+					{
+						component: 'CrearRanquingInicial',
+						action: 'seleccionar_soci',
+						data: { numeroSoci, actualSeleccionats: socisSeleccionats.length }
+					}
+				);
+				toastStore.showWarning('Màxim 20 jugadors per al rànquing inicial. Els altres aniran a llista d\'espera.');
+			}
+		} catch (error) {
+			const appError = handleError(error, ERROR_CODES.UNKNOWN_ERROR, {
+				component: 'CrearRanquingInicial',
+				action: 'toggle_soci'
+			});
+			toastStore.showAppError(appError);
 		}
 	}
 
 	async function crearRanquing() {
-		if (socisSeleccionats.length !== 20) {
-			error = 'Has de seleccionar exactament 20 jugadors';
+		// Validació - mínim 1 jugador
+		if (socisSeleccionats.length === 0) {
+			const error = handleError(
+				new Error('Cal seleccionar almenys un jugador'),
+				ERROR_CODES.VALIDATION_REQUIRED_FIELD,
+				{
+					component: 'CrearRanquingInicial',
+					action: 'crear_ranquing',
+					data: { seleccionats: socisSeleccionats.length }
+				}
+			);
+			toastStore.showAppError(error);
 			return;
 		}
 
 		carregant = true;
-		error = '';
+		logAction('crear_ranquing_inicial', { jugadorsSeleccionats: socisSeleccionats.length });
 
 		try {
-			// Netejar rànquing actual
-			await supabase.from('ranking').delete().neq('id', 0);
+			await withRetry(async () => {
+				// Netejar rànquing actual
+				const { error: deleteError } = await supabase.from('ranking').delete().neq('id', 0);
+				
+				if (deleteError) {
+					throw handleError(deleteError, ERROR_CODES.DATABASE_QUERY_ERROR, {
+						component: 'CrearRanquingInicial',
+						action: 'netejar_ranquing_actual'
+					});
+				}
 
-			// Crear noves posicions ordenades per mitjana
+			// Crear noves posicions ordenades: primer per mitjana, després sense mitjana
 			const socisOrdenats = socisSeleccionats
 				.map(numeroSoci => {
 					const mitjana = mitjanes.find(m => m.soci_id === numeroSoci);
 					return {
 						numero_soci: numeroSoci,
 						mitjana_referencia: mitjana?.mitjana || 0,
+						te_mitjana: !!mitjana?.mitjana,
 						soci: mitjana?.soci
 					};
 				})
-				.sort((a, b) => (b.mitjana_referencia || 0) - (a.mitjana_referencia || 0));
+				.sort((a, b) => {
+					// Primer ordenar per si té mitjana o no
+					if (a.te_mitjana && !b.te_mitjana) return -1;
+					if (!a.te_mitjana && b.te_mitjana) return 1;
+					// Si tots dos tenen mitjana, ordenar per mitjana
+					if (a.te_mitjana && b.te_mitjana) {
+						return (b.mitjana_referencia || 0) - (a.mitjana_referencia || 0);
+					}
+					// Si cap té mitjana, ordenar alfabèticament
+					const nomA = `${a.soci?.cognoms} ${a.soci?.nom}`.toLowerCase();
+					const nomB = `${b.soci?.cognoms} ${b.soci?.nom}`.toLowerCase();
+					return nomA.localeCompare(nomB);
+				});
 
-			// Inserir al rànquing
-			const ranquingData = socisOrdenats.map((soci, index) => ({
-				posicio: index + 1,
-				soci_id: soci.numero_soci,
-				mitjana_referencia: soci.mitjana_referencia,
-				data_entrada: new Date().toISOString().split('T')[0]
-			}));
+				// Inserir al rànquing
+				const ranquingData = socisOrdenats.map((soci, index) => ({
+					posicio: index + 1,
+					soci_id: soci.numero_soci,
+					mitjana_referencia: soci.mitjana_referencia,
+					data_entrada: new Date().toISOString().split('T')[0]
+				}));
 
-			const { error: insertError } = await supabase
-				.from('ranking')
-				.insert(ranquingData);
+				const { error: insertError } = await supabase
+					.from('ranking')
+					.insert(ranquingData);
 
-			if (insertError) throw insertError;
+				if (insertError) {
+					throw handleError(insertError, ERROR_CODES.DATABASE_QUERY_ERROR, {
+						component: 'CrearRanquingInicial',
+						action: 'inserir_ranquing_dades'
+					});
+				}
 
-			alert('Rànquing inicial creat correctament!');
+				logSuccess('ranquing_inicial_creat', {
+					jugadors: ranquingData.length,
+					ambMitjana: socisOrdenats.filter(s => s.te_mitjana).length,
+					senseMitjana: socisOrdenats.filter(s => !s.te_mitjana).length
+				});
+			}, {
+				component: 'CrearRanquingInicial',
+				action: 'crear_ranquing_complet'
+			});
+			
+			toastStore.showSuccess('Rànquing inicial creat correctament!');
 			socisSeleccionats = [];
 			
-		} catch (err) {
-			error = `Error creant el rànquing: ${err}`;
+		} catch (error) {
+			const appError = handleError(error, ERROR_CODES.RANKING_UPDATE_ERROR, {
+				component: 'CrearRanquingInicial',
+				action: 'crear_ranquing',
+				data: { socisSeleccionats: socisSeleccionats.length }
+			});
+			toastStore.showAppError(appError);
 		}
 
 		carregant = false;
 	}
 
-	$: socisDisponibles = mitjanes.filter(m => 
-		!socisSeleccionats.includes(m.soci_id!) && m.soci
-	);
+	$: socisDisponibles = mitjanes.filter(m => {
+		if (!m.soci || socisSeleccionats.includes(m.soci_id!)) {
+			return false;
+		}
+		
+		// Aplicar filtre de text si hi ha
+		if (filtreText.trim()) {
+			const textCerca = filtreText.toLowerCase().trim();
+			const nomComplet = `${m.soci.nom} ${m.soci.cognoms}`.toLowerCase();
+			const numeroSoci = m.soci.numero_soci.toString();
+			
+			return nomComplet.includes(textCerca) || numeroSoci.includes(textCerca);
+		}
+		
+		return true;
+	});
 	
 	$: socisSeleccionatsData = socisSeleccionats
 		.map(id => mitjanes.find(m => m.soci_id === id))
@@ -142,54 +319,112 @@
 
 <div class="max-w-6xl mx-auto p-6">
 	<h1 class="text-3xl font-bold mb-6">Crear Rànquing Inicial</h1>
-
-	{#if error}
-		<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-			{error}
+	<div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+		<div class="flex">
+			<div class="ml-3">
+				<p class="text-sm text-blue-700">
+					<strong>Nou:</strong> Pots crear el rànquing amb qualsevol nombre de jugadors (1-20). 
+					Els futurs inscrits s'afegiran automàticament fins completar els 20 places.
+				</p>
+			</div>
 		</div>
-	{/if}
+	</div>
 
 	<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
 		<!-- Llista de jugadors disponibles -->
 		<div>
 			<h2 class="text-xl font-semibold mb-4">
-				Jugadors Disponibles (ordenats per mitjana)
+				Socis Actius ({socisDisponibles.length} {filtreText.trim() ? 'filtrats' : 'disponibles'})
 			</h2>
+			<p class="text-sm text-gray-600 mb-4">
+				Millor mitjana de 3 BANDES de {anyActual} i {anyAnterior} primer, després socis sense mitjana
+			</p>
+			
+			<!-- Camp de cerca -->
+			<div class="mb-4">
+				<div class="relative">
+					<input
+						type="text"
+						placeholder="Cerca per nom, cognoms o número de soci..."
+						bind:value={filtreText}
+						class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+					/>
+					<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+						<svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-6-6m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/>
+						</svg>
+					</div>
+					{#if filtreText.trim()}
+						<button
+							on:click={() => filtreText = ''}
+							class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+							aria-label="Netejar cerca"
+						>
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+							</svg>
+						</button>
+					{/if}
+				</div>
+				{#if filtreText.trim() && socisDisponibles.length === 0}
+					<p class="text-sm text-gray-500 mt-2">
+						No s'han trobat jugadors que coincideixin amb "{filtreText}"
+					</p>
+				{/if}
+			</div>
 			
 			<div class="bg-white rounded-lg shadow max-h-96 overflow-y-auto">
-				{#each socisDisponibles as mitjana}
-					<button
-						class="w-full p-3 text-left border-b hover:bg-gray-50 disabled:opacity-50"
-						disabled={socisSeleccionats.length >= 20}
-						on:click={() => toggleSoci(mitjana.soci_id!)}
-					>
-						<div class="flex justify-between items-center">
-							<div>
-								<span class="font-medium">
-									{mitjana.soci?.nom} {mitjana.soci?.cognoms}
-								</span>
-								<span class="text-sm text-gray-500 ml-2">
-									(#{mitjana.soci?.numero_soci})
-								</span>
-							</div>
-							<div class="text-right">
-								<div class="font-semibold text-blue-600">
-									{mitjana.mitjana?.toFixed(3) || 'N/A'}
+				{#if carregant}
+					<div class="p-8 text-center text-gray-500">
+						<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+						Carregant socis amb millors mitjanes de {anyActual} i {anyAnterior}...
+					</div>
+				{:else if socisDisponibles.length === 0}
+					<div class="p-8 text-center text-gray-500">
+						<div class="text-2xl mb-4">📊</div>
+						<p class="font-medium mb-2">No s'han trobat socis actius</p>
+						<p class="text-sm">
+							Cal que hi hagi socis actius per crear el rànquing inicial
+						</p>
+					</div>
+				{:else}
+					{#each socisDisponibles as mitjana}
+						<button
+							class="w-full p-3 text-left border-b hover:bg-gray-50 disabled:opacity-50"
+							disabled={socisSeleccionats.length >= 20}
+							on:click={() => toggleSoci(mitjana.soci_id!)}
+						>
+							<div class="flex justify-between items-center">
+								<div>
+									<span class="font-medium">
+										{mitjana.soci?.nom} {mitjana.soci?.cognoms}
+									</span>
+									<span class="text-sm text-gray-500 ml-2">
+										(#{mitjana.soci?.numero_soci})
+									</span>
 								</div>
-								<div class="text-xs text-gray-500">
-									{mitjana.year} - {mitjana.modalitat}
+								<div class="text-right">
+									<div class="font-semibold text-blue-600">
+										{mitjana.mitjana?.toFixed(3) || 'N/A'}
+									</div>
+									<div class="text-xs text-gray-500">
+										Millor mitjana: {mitjana.year}
+									</div>
+									<div class="text-xs text-green-600 font-medium">
+										3 BANDES
+									</div>
 								</div>
 							</div>
-						</div>
-					</button>
-				{/each}
+						</button>
+					{/each}
+				{/if}
 			</div>
 		</div>
 
 		<!-- Rànquing seleccionat -->
 		<div>
 			<h2 class="text-xl font-semibold mb-4">
-				Rànquing Seleccionat ({socisSeleccionats.length}/20)
+				Rànquing Inicial ({socisSeleccionats.length} de màx. 20)
 			</h2>
 			
 			<div class="bg-white rounded-lg shadow">
@@ -204,7 +439,7 @@
 									{mitjana?.soci?.nom} {mitjana?.soci?.cognoms}
 								</span>
 								<div class="text-xs text-gray-500">
-									Mitjana: {mitjana?.mitjana?.toFixed(3) || 'N/A'}
+									Mitjana: {mitjana?.mitjana?.toFixed(3) || 'Sense mitjana'}
 								</div>
 							</div>
 						</div>
@@ -217,7 +452,11 @@
 					</div>
 				{:else}
 					<div class="p-8 text-center text-gray-500">
-						Selecciona jugadors per formar el rànquing inicial
+						<div class="text-2xl mb-4">🎯</div>
+						<p class="font-medium mb-2">Selecciona jugadors per formar el rànquing inicial</p>
+						<p class="text-sm">
+							Pots començar amb qualsevol nombre de jugadors. Els altres s'afegiran després.
+						</p>
 					</div>
 				{/each}
 			</div>
@@ -225,9 +464,15 @@
 			{#if socisSeleccionats.length > 0}
 				<div class="mt-4 p-4 bg-blue-50 rounded-lg">
 					<p class="text-sm text-blue-800 mb-2">
-						<strong>Nota:</strong> Els jugadors seran ordenats automàticament per mitjana, 
-						amb la millor mitjana a la posició #1.
+						<strong>Criteris aplicats:</strong>
 					</p>
+					<ul class="text-xs text-blue-700 space-y-1">
+						<li>✓ Tots els socis actius (no de baixa)</li>
+						<li>✓ Amb mitjana de 3 BANDES van primer</li>
+						<li>✓ Sense mitjana van últims (ordenats alfabèticament)</li>
+						<li>✓ Millor mitjana entre {anyActual} i {anyAnterior} de cada soci</li>
+						<li>✓ Es poden afegir més jugadors després fins arribar als 20</li>
+					</ul>
 				</div>
 			{/if}
 		</div>
@@ -237,20 +482,33 @@
 	<div class="mt-8 flex justify-center">
 		<button
 			class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-			disabled={socisSeleccionats.length !== 20 || carregant}
+			disabled={socisSeleccionats.length === 0 || carregant}
 			on:click={crearRanquing}
 		>
 			{#if carregant}
 				Creant...
+			{:else if socisSeleccionats.length === 0}
+				Selecciona jugadors per començar
 			{:else}
-				Crear Rànquing Inicial (20 jugadors)
+				Crear Rànquing Inicial ({socisSeleccionats.length} jugador{socisSeleccionats.length !== 1 ? 's' : ''})
 			{/if}
 		</button>
 	</div>
 
-	{#if socisSeleccionats.length < 20}
+	{#if socisSeleccionats.length === 0}
 		<p class="text-center mt-4 text-gray-600">
-			Necessites seleccionar {20 - socisSeleccionats.length} jugadors més
+			Selecciona jugadors per crear el rànquing inicial. Es poden afegir més jugadors després.
+		</p>
+	{:else if socisSeleccionats.length < 20}
+		<p class="text-center mt-4 text-blue-600">
+			Pots afegir {20 - socisSeleccionats.length} jugadors més al rànquing. Els futurs inscrits s'afegiran automàticament.
+		</p>
+	{:else}
+		<p class="text-center mt-4 text-orange-600">
+			Rànquing complet amb 20 jugadors. Els futurs inscrits aniran a la llista d'espera.
 		</p>
 	{/if}
 </div>
+
+<!-- Contenidor de toasts per mostrar errors i notificacions -->
+<ToastContainer />

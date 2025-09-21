@@ -3,7 +3,9 @@
     import { goto } from '$app/navigation';
     import { get } from 'svelte/store';
     import { canCreateChallenge } from '$lib/canCreateChallenge';
-    import { ranking, refreshRanking, type RankingRow } from '$lib/rankingStore';
+    import { ranking, refreshRanking, invalidateRankingCache, type RankingRow } from '$lib/rankingStore';
+    import { activeChallenges, refreshActiveChallenges } from '$lib/challengeStore';
+    import { performanceMonitor } from '$lib/monitoring/performance';
     import { type VPlayerBadges } from '$lib/playerBadges';
     import { fetchBadgeMap, getBadgeView } from '$lib/badgeView';
     import PlayerEvolutionModal from '$lib/components/PlayerEvolutionModal.svelte';
@@ -36,6 +38,7 @@
   let highlightIds = new Set<string>();
   let shouldFetchBadges = !badgesLoaded;
   let badgeMap = new Map<string, VPlayerBadges>();
+  let intervalRef: NodeJS.Timeout;
 
   $: if (badgesLoaded) {
     badgeMap = new Map(badges.map((b) => [b.player_id, b]));
@@ -43,10 +46,13 @@
   }
 
   onMount(async () => {
+    const refreshId = performanceMonitor.startMeasurement('ranking_page_load', 'component');
+    
     try {
       const { supabase } = await import('$lib/supabaseClient');
       supabaseClient = supabase;
 
+      // Subscriure's al store optimitzat
       unsub = ranking.subscribe((base) => {
         const rdata = base.slice(0, 20);
         rows = rdata.map((r) => ({
@@ -59,7 +65,7 @@
         void loadBadges();
       });
 
-      // Auth & player (opcional)
+      // Auth & player (optimal amb cache)
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {
         const { data: player, error: pErr } = await supabase
@@ -94,19 +100,35 @@
       }
       eventId = event.id as string;
 
-      await refreshRanking();
+      // Carregar dades inicials amb cache optimitzat
+      await Promise.all([
+        refreshRanking(),
+        refreshActiveChallenges()
+      ]);
+      
       void loadBadges();
       myPos = get(ranking).find((r) => r.player_id === myPlayerId)?.posicio ?? null;
       void evaluateChallenges(supabaseClient);
+
+      // Configurar refresh automàtic cada 5 minuts
+      intervalRef = setInterval(async () => {
+        await refreshRanking();
+        await refreshActiveChallenges();
+      }, 5 * 60 * 1000);
+
     } catch (e: any) {
       error = e?.message ?? 'Error desconegut';
     } finally {
       loading = false;
+      performanceMonitor.endMeasurement(refreshId, 'ranking_page_load', 'component');
     }
   });
 
   onDestroy(() => {
     unsub?.();
+    if (typeof intervalRef !== 'undefined') {
+      clearInterval(intervalRef);
+    }
   });
 
   async function evaluateChallenges(supabase: any) {
@@ -136,6 +158,29 @@
       if (force || shouldFetchBadges) {
         shouldFetchBadges = true;
       }
+    }
+  }
+
+  // Forçar refresh complet amb invalidació de cache
+  async function forceRefresh(): Promise<void> {
+    try {
+      loading = true;
+      error = null;
+      
+      // Invalidar tots els caches relacionats
+      invalidateRankingCache();
+      
+      // Actualitzar dades
+      await Promise.all([
+        refreshRanking(true), // Force refresh
+        refreshActiveChallenges(),
+        loadBadges(true)
+      ]);
+      
+    } catch (e: any) {
+      error = e?.message ?? 'Error actualitzant dades';
+    } finally {
+      loading = false;
     }
   }
 

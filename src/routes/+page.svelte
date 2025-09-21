@@ -5,6 +5,8 @@
     import { getSettings, type AppSettings } from '$lib/settings';
     import { get } from 'svelte/store';
     import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
+    import { refreshUserChallenges, userChallenges } from '$lib/challengeStore';
+    import { performanceMonitor } from '$lib/monitoring/performance';
 
   type Challenge = {
     id: string;
@@ -53,25 +55,9 @@
         }
         const myId = p.id;
 
-        const { data: ch, error: e2 } = await supabase
-          .from('challenges')
-          .select('id,reptador_id,reptat_id,estat,data_proposta,data_programada')
-          .or(`reptador_id.eq.${myId},reptat_id.eq.${myId}`)
-          .order('data_proposta', { ascending: false });
-        if (e2) throw e2;
-
-        const ids = Array.from(
-          new Set([...(ch ?? []).map((c) => c.reptador_id), ...(ch ?? []).map((c) => c.reptat_id)])
-        );
-        let nameById = new Map<string, string>();
-        if (ids.length) {
-          const { data: players, error: e3 } = await supabase
-            .from('players')
-            .select('id,nom')
-            .in('id', ids);
-          if (e3) throw e3;
-          nameById = new Map(players?.map((pl) => [pl.id, pl.nom]) ?? []);
-        }
+        // Utilitzar el store optimitzat per obtenir challenges de l'usuari
+        await refreshUserChallenges(myId);
+        const ch = get(userChallenges);
 
         active = [];
         pending = [];
@@ -82,8 +68,9 @@
         for (const c of ch ?? []) {
           const item: Challenge = {
             ...c,
-            reptador_nom: nameById.get(c.reptador_id) ?? '—',
-            reptat_nom: nameById.get(c.reptat_id) ?? '—'
+            data_programada: c.data_programada ?? null,
+            reptador_nom: c.reptador_nom || 'Desconegut',
+            reptat_nom: c.reptat_nom || 'Desconegut'
           };
           if (['acceptat', 'programat'].includes(c.estat)) {
             active.push(item);
