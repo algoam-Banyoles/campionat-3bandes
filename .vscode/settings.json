@@ -36,5 +36,16 @@
   ],
   "editor.quickSuggestions": {
     "strings": true
-  }
+  },
+  "typescript.preferences.includePackageJsonAutoImports": "off",
+  "typescript.validate.enable": true,
+  "typescript.reportStyleChecksAsWarnings": false,
+  "svelte.enable-ts-plugin": true,
+  "svelte.plugin.svelte.diagnostics.enable": false,
+  "typescript.preferences.suppressDiagnostic": [
+    "2306",
+    "2304"
+  ],
+  "typescript.suggest.autoImports": false,
+  "typescript.surveys.enabled": false
 }

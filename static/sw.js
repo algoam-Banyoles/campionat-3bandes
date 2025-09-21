@@ -30,7 +30,7 @@ const STATIC_ASSETS = [
   // Pàgines essencials
   '/login',
   '/ranking',
-  '/challenges'
+  '/reptes'
 ];
 
 // URLs d'API que s'han de cachear per funcionament offline
@@ -230,7 +230,7 @@ async function handleCacheFirst(request, cacheName, strategy) {
     // Cache miss o expirat - fetch from network
     const networkResponse = await fetch(request);
     
-    if (networkResponse.ok) {
+    if (networkResponse.ok && request.method === 'GET') {
       const responseToCache = networkResponse.clone();
       await cache.put(request, responseToCache);
     }
@@ -261,7 +261,7 @@ async function handleNetworkFirst(request, cacheName, strategy) {
   try {
     const networkResponse = await fetch(request);
     
-    if (networkResponse.ok) {
+    if (networkResponse.ok && request.method === 'GET') {
       const cache = await caches.open(cacheName);
       const responseToCache = networkResponse.clone();
       await cache.put(request, responseToCache);
@@ -295,7 +295,7 @@ async function handleStaleWhileRevalidate(request, cacheName, strategy) {
   
   // Sempre intentar actualitzar en background
   const fetchPromise = fetch(request).then(response => {
-    if (response.ok) {
+    if (response.ok && request.method === 'GET') {
       cache.put(request, response.clone());
     }
     return response;

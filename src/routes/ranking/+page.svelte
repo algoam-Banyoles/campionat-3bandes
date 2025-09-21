@@ -117,7 +117,7 @@
       ]);
       
       void loadBadges();
-      myPos = get(ranking).find((r) => r.player_id === myPlayerId)?.posicio ?? null;
+      myPos = (get(ranking) as any).find((r: any) => r.player_id === myPlayerId)?.posicio ?? null;
       
       // Ara que tenim myPlayerId, podem evaluar els challenges
       if (myPlayerId) {
@@ -233,20 +233,20 @@
     penaltyError = null;
     try {
       const before = get(ranking);
-      const playerA = before.find((r) => r.posicio === selA)?.player_id;
-      const playerB = before.find((r) => r.posicio === selB)?.player_id;
+      const playerA = (before as any).find((r: any) => r.posicio === selA)?.player_id;
+      const playerB = (before as any).find((r: any) => r.posicio === selB)?.player_id;
       if (!(playerA && playerB)) throw new Error('Selecció invàlida');
       await applyDisagreementDrop(supabaseClient, eventId, playerA, playerB);
       await refreshRanking();
       await loadBadges(true);
       const after = get(ranking);
-      const beforeMap = new Map(before.map((r) => [r.player_id, r.posicio]));
+      const beforeMap = new Map((before as any).map((r: any) => [r.player_id, r.posicio]));
       highlightIds = new Set(
-        after
-          .filter((r) => beforeMap.get(r.player_id) !== r.posicio)
+        (after as any)
+          .filter((r: any) => beforeMap.get(r.player_id) !== r.posicio)
           .map((r) => r.player_id)
       );
-      rows = after.slice(0, 20).map((r) => ({
+      rows = (after as any).slice(0, 20).map((r: any) => ({
         ...r,
         canChallenge: false,
         reason: null,

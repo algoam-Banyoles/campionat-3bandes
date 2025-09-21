@@ -120,9 +120,9 @@ class SyncManager {
     try {
       const state = get(this.syncState);
       localStorage.setItem('campionat_sync_state', JSON.stringify({
-        lastSync: state.lastSync,
-        autoSyncEnabled: state.autoSyncEnabled,
-        syncStrategy: state.syncStrategy
+        lastSync: (state as any).lastSync,
+        autoSyncEnabled: (state as any).autoSyncEnabled,
+        syncStrategy: (state as any).syncStrategy
       }));
     } catch (error) {
       console.error('Error saving sync state:', error);
@@ -166,7 +166,7 @@ class SyncManager {
       const state = get(this.syncState);
       const connected = get(connectionManager.isConnected());
       
-      if (state.autoSyncEnabled && connected && !state.isSyncing) {
+      if ((state as any).autoSyncEnabled && connected && !(state as any).isSyncing) {
         this.performSync('auto');
       }
     }, 5 * 60 * 1000);
@@ -181,13 +181,13 @@ class SyncManager {
     }
 
     // Trigger sync if auto-sync is enabled
-    if (state.autoSyncEnabled && !state.isSyncing) {
+    if ((state as any).autoSyncEnabled && !(state as any).isSyncing) {
       await this.performSync('connection_restored');
     }
   }
 
   private async performSelectiveSync(table: string, change: any) {
-    if (get(this.syncState).isSyncing) return;
+    if ((get(this.syncState) as any).isSyncing) return;
 
     try {
       await this.syncTable(table, [change]);
@@ -393,7 +393,7 @@ class SyncManager {
   // Public API
   async performSync(trigger: 'manual' | 'auto' | 'connection_restored' = 'manual'): Promise<void> {
     const state = get(this.syncState);
-    if (state.isSyncing) return;
+    if ((state as any).isSyncing) return;
 
     const connected = get(connectionManager.isConnected());
     if (!connected) {
@@ -467,8 +467,8 @@ class SyncManager {
   }
 
   async resolveConflictManually(conflictId: string, resolution: 'use_local' | 'use_remote' | 'merge', mergedData?: any) {
-    const conflicts = get(this.pendingConflicts);
-    const conflict = conflicts.find(c => c.id === conflictId);
+    const conflicts = get(this.pendingConflicts) as any;
+    const conflict = conflicts.find((c: any) => c.id === conflictId);
     
     if (!conflict) {
       throw new Error('Conflict not found');

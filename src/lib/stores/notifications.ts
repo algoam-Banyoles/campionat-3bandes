@@ -55,8 +55,8 @@ export const notificationHistory = writable<NotificationHistoryItem[]>([]);
 export const notificationsLoading = writable<boolean>(false);
 export const notificationsError = writable<string | null>(null);
 
-// Clau pública VAPID (cal generar-la)
-const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa40HI80NqIUHI80NqIUHI80NqIUHI80NqIUHI80Nq';
+// Clau pública VAPID (carregada des de variables d'entorn)
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_PUBLIC_VAPID_KEY || 'BLXGAD3N80WkTysFnwXi-ZMQ69ebDFw2Y-JphkJQ0ibugLfYPm4Cr8flV05HLHuUA1oGDKK5w33nVpscCEUnZ0M';
 
 // Derived store per comprovar si les notificacions estan habilitades
 export const notificationsEnabled = derived(
@@ -135,22 +135,39 @@ async function checkExistingSubscription(): Promise<void> {
 // Sol·licitar permisos de notificació
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!browser || !get(pushSupported)) {
+    console.warn('⚠️ Notificacions no suportades o no estem al navegador');
     return false;
   }
 
   try {
-    const permission = await Notification.requestPermission();
+    console.log('🔔 Sol·licitant permisos de notificació...');
+    console.log('Estat actual:', Notification.permission);
+    
+    // Intentar múltiples vegades si cal
+    let permission = Notification.permission;
+    
+    if (permission === 'default') {
+      permission = await Notification.requestPermission();
+      console.log('📝 Nou permís rebut:', permission);
+    }
+    
     pushPermission.set(permission);
     
     if (permission === 'granted') {
-      await subscribeToPush();
-      return true;
+      console.log('✅ Permisos concedits, subscrivint a push...');
+      const subscribed = await subscribeToPush();
+      console.log('📨 Subscripció completa:', subscribed);
+      return subscribed;
+    } else {
+      console.warn('❌ Permisos denegats o no concedits:', permission);
+      if (permission === 'denied') {
+        notificationsError.set('Les notificacions han estat bloquejades. Cal habilitar-les manualment al navegador.');
+      }
+      return false;
     }
-    
-    return false;
   } catch (error) {
-    console.error('Error sol·licitant permisos de notificació:', error);
-    notificationsError.set('Error sol·licitant permisos de notificació');
+    console.error('💥 Error sol·licitant permisos de notificació:', error);
+    notificationsError.set('Error sol·licitant permisos de notificació: ' + error.message);
     return false;
   }
 }
@@ -162,7 +179,7 @@ export async function subscribeToPush(): Promise<boolean> {
   }
 
   const currentUser = get(user);
-  if (!user) {
+  if (!currentUser) {
     notificationsError.set('Cal estar autenticat per subscriure\'s a notificacions');
     return false;
   }
@@ -187,7 +204,7 @@ export async function subscribeToPush(): Promise<boolean> {
     const { data, error } = await supabase
       .from('push_subscriptions')
       .insert({
-        user_id: currentUser?.id || '',
+        user_id: (currentUser as any)?.id || '',
         endpoint: subscription.endpoint,
         p256dh_key: p256dhKey,
         auth_key: authKey,
@@ -237,7 +254,7 @@ export async function unsubscribeFromPush(): Promise<boolean> {
     const { error } = await supabase
       .from('push_subscriptions')
       .update({ activa: false })
-      .eq('id', currentSubscription.id);
+      .eq('id', (currentSubscription as any).id);
 
     if (error) {
       throw error;
@@ -268,7 +285,7 @@ export async function loadNotificationPreferences(): Promise<void> {
     const { data, error } = await supabase
       .from('notification_preferences')
       .select('*')
-      .eq('user_id', currentUser?.id || '')
+      .eq('user_id', (currentUser as any)?.id || '')
       .single();
 
     if (error && error.code !== 'PGRST116') {
@@ -296,7 +313,7 @@ export async function updateNotificationPreferences(preferences: Partial<Notific
     const { data, error } = await supabase
       .from('notification_preferences')
       .upsert({
-        user_id: currentUser?.id || '',
+        user_id: (currentUser as any)?.id || '',
         ...preferences
       })
       .select()
@@ -329,7 +346,7 @@ export async function loadNotificationHistory(): Promise<void> {
     const { data, error } = await supabase
       .from('notification_history')
       .select('*')
-      .eq('user_id', currentUser?.id || '')
+      .eq('user_id', (currentUser as any)?.id || '')
       .order('enviada_el', { ascending: false })
       .limit(50);
 

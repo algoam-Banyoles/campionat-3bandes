@@ -97,7 +97,7 @@ class ConnectionManager {
     // Periodic health checks every 30 seconds when online
     this.healthCheckInterval = window.setInterval(() => {
       const state = get(this.connectionState);
-      if (state.isOnline && !state.isRetrying) {
+      if ((state as any).isOnline && !(state as any).isRetrying) {
         this.checkConnection();
       }
     }, 30000);
@@ -251,7 +251,7 @@ class ConnectionManager {
     const state = get(this.connectionState);
 
     // If offline and no immediate retry, throw immediately
-    if (!state.isOnline && !options.immediateRetry) {
+    if (!(state as any).isOnline && !options.immediateRetry) {
       throw new Error('OFFLINE_MODE');
     }
 

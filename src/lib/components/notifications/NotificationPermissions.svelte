@@ -25,7 +25,30 @@
   });
 
   async function handleEnableNotifications() {
+    console.log('🔔 Intentant habilitar notificacions...');
+    console.log('Permís actual:', Notification.permission);
+    
+    // Intentar sol·licitar permisos directament primer
+    if (Notification.permission === 'default') {
+      try {
+        const directPermission = await Notification.requestPermission();
+        console.log('Permís directe:', directPermission);
+        
+        if (directPermission === 'granted') {
+          // Procedir amb la subscripció
+          const success = await requestNotificationPermission();
+          console.log('Subscripció exitosa:', success);
+          return;
+        }
+      } catch (error) {
+        console.error('Error sol·licitant permisos directament:', error);
+      }
+    }
+    
+    // Si no funciona, usar el mètode del store
     const success = await requestNotificationPermission();
+    console.log('Resultat del store:', success);
+    
     if (!success) {
       showExplanation = true;
     }

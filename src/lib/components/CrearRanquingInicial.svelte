@@ -88,7 +88,7 @@
 				
 				// Agrupar per soci i trobar la millor mitjana dels darrers 2 anys
 				const socisAmbMitjanes = new Map();
-				mitjanaData.forEach(m => {
+				mitjanaData.forEach((m: any) => {
 					if (m.mitjana && m.mitjana > 0) {
 						if (!socisAmbMitjanes.has(m.soci_id)) {
 							socisAmbMitjanes.set(m.soci_id, []);
@@ -109,7 +109,7 @@
 				const socisAmbMitjana: (MitjanaHistorica & { soci: Soci })[] = [];
 				const socisSenseMitjana: (MitjanaHistorica & { soci: Soci })[] = [];
 
-				socisActius.forEach(soci => {
+				socisActius.forEach((soci: any) => {
 					const mitjana = mitjanesPorSoci.get(soci.numero_soci);
 					
 					if (mitjana) {

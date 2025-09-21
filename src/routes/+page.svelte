@@ -33,7 +33,7 @@
       const unsub = status.subscribe(async (s) => {
         if (s === 'loading') return;
         const u = get(user);
-        if (s === 'anonymous' || !u?.email) {
+        if (s === 'anonymous' || !(u as any)?.email) {
           goto('/ranking');
           loading = false;
           unsub();
@@ -46,7 +46,7 @@
         const { data: p, error: e1 } = await supabase
           .from('players')
           .select('id')
-          .eq('email', u.email)
+          .eq('email', (u as any).email)
           .maybeSingle();
         if (e1) throw e1;
         if (!p) {
@@ -65,7 +65,7 @@
         warnings = [];
 
         const now = new Date();
-        for (const c of ch ?? []) {
+        for (const c of (ch as any) ?? []) {
           const item: Challenge = {
             ...c,
             data_programada: c.data_programada ?? null,

@@ -8,6 +8,9 @@ declare global {
 		// interface PageState {}
 		// interface Platform {}
 	}
+	
+	// Fix for Svelte 5 svelteHTML namespace issues
+	var svelteHTML: any;
 }
 
 export {};

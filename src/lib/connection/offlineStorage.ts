@@ -528,8 +528,8 @@ class OfflineStorage {
     const stats = get(this.storageStats);
     
     return {
-      isReady: ready,
-      stats,
+      isReady: ready as boolean,
+      stats: stats as any,
       tableConfigs: this.tableConfigs
     };
   }

@@ -5,7 +5,7 @@
 	export let position: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' = 'top-right';
 	export let maxToasts: number = 5;
 
-	$: toasts = $toastStore.toasts.slice(-maxToasts); // Només mostrar els últims N toasts
+	$: toasts = ($toastStore as any)?.toasts?.slice(-maxToasts) || []; // Només mostrar els últims N toasts
 
 	function handleToastClose(toastId: string) {
 		toastStore.removeToast(toastId);
