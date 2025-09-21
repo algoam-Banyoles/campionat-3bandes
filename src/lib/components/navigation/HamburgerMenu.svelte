@@ -37,7 +37,7 @@
     { href: '/reptes', label: 'Reptes', icon: '⚔️' },
     { href: '/calendari', label: 'Calendari', icon: '📅' },
     { href: '/historial', label: 'Historial', icon: '📊' },
-    { href: '/configuracio/notificacions', label: 'Notificacions', icon: '🔔' }
+    { href: '/configuracio/notificacions', label: 'Notificacions', icon: '' }
   ];
 </script>
 

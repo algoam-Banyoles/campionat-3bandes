@@ -6,7 +6,29 @@
   import Banner from '$lib/components/Banner.svelte';
   import Loader from '$lib/components/Loader.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
-  import { runDeadlines, type RunDeadlinesResult } from '$lib/deadlinesService';
+  import { runDeadlines, type RunDead    </div>
+
+    <!-- Targeta: Reset complet del campionat -->
+    <a href="/admin/reset-campionat?email={$user?.email || ''}" class="block rounded-2xl border-2 border-red-200 bg-red-50 p-4 hover:shadow-sm">
+      <h2 class="font-semibold text-red-800">⚠️ Reset Complet del Campionat</h2>
+      <p class="text-sm text-red-700 mt-1">
+        <strong>ACCIÓ IRREVERSIBLE:</strong> Esborra totes les dades del campionat actual (reptes, partits, rànquing, historial). 
+        Es preserven només els socis i mitjanes històriques. Crea un nou esdeveniment de campionat.
+      </p>
+      <div class="mt-2 text-xs text-red-600">
+        ⚠️ Aquesta acció no es pot desfer. Utilitza amb precaució.
+      </div>
+    </a>
+
+    <!-- (espai per futures seccions d'admin) -->
+    <div class="rounded-2xl border p-4 opacity-70">
+      <h2 class="font-semibold">📈 Rànquing / Penes (properament)</h2>
+      <p class="text-sm text-slate-600 mt-1">
+        Històric de moviments, aplicació de penes i ajustos de posició segons normativa.
+      </p>
+    </div>
+  </div>
+{/if} } from '$lib/deadlinesService';
   import { authFetch } from '$lib/utils/http';
 
   let loading = true;
@@ -303,18 +325,6 @@
       <p class="text-sm text-purple-700 mt-1">
         Visualitza, filtra i gestiona les mitjanes històriques dels jugadors. Assigna mitjanes als socis corresponents.
       </p>
-    </a>
-
-    <!-- Targeta: Reset complet del campionat -->
-    <a href="/admin/reset-campionat?email={$user?.email || ''}" class="block rounded-2xl border-2 border-red-200 bg-red-50 p-4 hover:shadow-sm">
-      <h2 class="font-semibold text-red-800">⚠️ Reset Complet del Campionat</h2>
-      <p class="text-sm text-red-700 mt-1">
-        <strong>ACCIÓ IRREVERSIBLE:</strong> Esborra totes les dades del campionat actual (reptes, partits, rànquing, historial). 
-        Es preserven només els socis i mitjanes històriques. Crea un nou esdeveniment de campionat.
-      </p>
-      <div class="mt-2 text-xs text-red-600">
-        ⚠️ Aquesta acció no es pot desfer. Utilitza amb precaució.
-      </div>
     </a>
 
     <!-- Widget: moviments recents -->

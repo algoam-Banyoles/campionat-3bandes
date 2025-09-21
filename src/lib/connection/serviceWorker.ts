@@ -30,12 +30,11 @@ class CampionatServiceWorker implements ServiceWorkerManager {
     }
 
     try {
-      this.registration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/',
-        updateViaCache: 'none'
-      });
+      // Vite-PWA registra automàticament el Service Worker
+      // Només obtenim la registració existent
+      this.registration = await navigator.serviceWorker.ready;
 
-      console.log('[SW] Service Worker registered successfully');
+      console.log('[SW] Service Worker ready (managed by Vite-PWA)');
 
       // Handle updates
       this.registration.addEventListener('updatefound', () => {

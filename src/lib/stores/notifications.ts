@@ -86,17 +86,16 @@ export function initializeNotifications(): void {
   }
 }
 
-// Registrar service worker
+// Usar el service worker generat per Vite-PWA
 async function registerServiceWorker(): Promise<void> {
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js');
-    console.log('Service Worker registrat:', registration);
-    
-    // Esperar que el service worker estigui actiu
+    // Vite-PWA ja registra automàticament el Service Worker
+    // Només esperem que estigui llest
     await navigator.serviceWorker.ready;
+    console.log('Service Worker llest (gestionat per Vite-PWA)');
   } catch (error) {
-    console.error('Error registrant Service Worker:', error);
-    notificationsError.set('Error registrant Service Worker');
+    console.error('Error esperant Service Worker:', error);
+    notificationsError.set('Error amb Service Worker');
   }
 }
 

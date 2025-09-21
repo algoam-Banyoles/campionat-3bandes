@@ -1,5 +1,8 @@
+/// <reference types="vite/client" />
 import { sveltekit } from '@sveltejs/kit/vite';
+// @ts-ignore - Tipus no detectats correctament
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
+// @ts-ignore - Tipus no detectats correctament  
 import { defineConfig } from 'vite';
 
 export default defineConfig({
@@ -19,32 +22,28 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api/, /^\/admin/],
         runtimeCaching: [
           {
-            urlPattern: ({ request }) =>
-              request.destination === 'document',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'pages-cache',
-              networkTimeoutSeconds: 3
-            }
-          },
-          {
-            urlPattern: ({ request }) =>
-              ['style', 'script', 'worker'].includes(request.destination),
-            handler: 'StaleWhileRevalidate',
-            options: { 
-              cacheName: 'assets-cache'
-            }
-          },
-          {
-            urlPattern: ({ request }) =>
-              ['image', 'font'].includes(request.destination),
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/,
             handler: 'CacheFirst',
-            options: { 
-              cacheName: 'media-cache',
+            options: {
+              cacheName: 'google-fonts-stylesheets'
+            }
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-webfonts',
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 30 * 24 * 60 * 60 // 30 dies
+                maxEntries: 30,
+                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 any
               }
+            }
+          },
+          {
+            urlPattern: /\.(js|css)$/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'static-resources'
             }
           }
         ]
