@@ -17,10 +17,6 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         navigateFallback: '/offline',
         navigateFallbackDenylist: [/^\/api/, /^\/admin/],
-        globPatterns: [
-          'client/**/*.{js,css,ico,png,svg,webp,webmanifest}',
-          'prerendered/**/*.{html,json}'
-        ],
         runtimeCaching: [
           {
             urlPattern: ({ request }) =>
@@ -36,10 +32,7 @@ export default defineConfig({
               ['style', 'script', 'worker'].includes(request.destination),
             handler: 'StaleWhileRevalidate',
             options: { 
-              cacheName: 'assets-cache',
-              cacheKeyWillBeUsed: async ({ request }) => {
-                return `${request.url}?v=${Date.now()}`;
-              }
+              cacheName: 'assets-cache'
             }
           },
           {
@@ -51,18 +44,6 @@ export default defineConfig({
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 30 * 24 * 60 * 60 // 30 dies
-              }
-            }
-          },
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\//,
-            handler: 'NetworkFirst',
-            options: { 
-              cacheName: 'supabase-api-cache',
-              networkTimeoutSeconds: 5,
-              expiration: {
-                maxEntries: 20,
-                maxAgeSeconds: 5 * 60 // 5 minuts
               }
             }
           }

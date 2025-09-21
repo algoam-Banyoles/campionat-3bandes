@@ -1,13 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   
+  import type { Snippet } from 'svelte';
+  
   interface Props {
     onRefresh: () => Promise<void>;
     threshold?: number;
     disabled?: boolean;
+    children: Snippet;
   }
   
-  let { onRefresh, threshold = 80, disabled = false }: Props = $props();
+  let { onRefresh, threshold = 80, disabled = false, children }: Props = $props();
   
   let containerElement: HTMLElement;
   let refreshElement: HTMLElement;
@@ -129,7 +132,7 @@
   </div>
   
   <div class="content">
-    <slot />
+    {@render children?.()}
   </div>
 </div>
 

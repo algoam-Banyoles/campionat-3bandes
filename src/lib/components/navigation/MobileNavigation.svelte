@@ -2,8 +2,6 @@
   import { onMount } from 'svelte';
   import HamburgerMenu from './HamburgerMenu.svelte';
   import BottomTabBar from './BottomTabBar.svelte';
-  import '../../styles/mobile.css';
-  import '../../styles/gestures.css';
   
   let isMobile = $state(false);
   let showBottomBar = $state(false);

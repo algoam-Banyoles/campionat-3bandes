@@ -1,3 +1,7 @@
+/* Import mobile and gesture styles */
+@import './styles/mobile.css';
+@import './styles/gestures.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
