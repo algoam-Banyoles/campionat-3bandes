@@ -1,5 +1,8 @@
 // Service Worker per al Campionat de 3 Bandes
-// Implementa cache estratègic per a funcionament offline
+// Implementa cache estratègic per a funcionament offline i notificacions push
+
+// Importar funcionalitat de notificacions
+importScripts('./service-worker/notifications.js');
 
 const CACHE_NAME = 'campionat-3bandes-v1';
 const STATIC_CACHE_NAME = 'campionat-static-v1';

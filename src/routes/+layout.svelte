@@ -162,6 +162,9 @@
         {/if}
         <a href="/reptes/me" class={isActive("/reptes/me", $page.url.pathname)}>Els meus reptes</a>
         <a href="/reptes/nou" class={isActive("/reptes/nou", $page.url.pathname)}>Crear repte</a>
+        <a href="/configuracio/notificacions" class={isActive("/configuracio/notificacions", $page.url.pathname)}>
+          📱 Notificacions
+        </a>
       {/if}
 
         {#if $status === 'authenticated' && $adminStore}
@@ -210,6 +213,9 @@
         {/if}
         <a href="/reptes/me" class={isActive("/reptes/me", $page.url.pathname)}>Els meus reptes</a>
         <a href="/reptes/nou" class={isActive("/reptes/nou", $page.url.pathname)}>Crear repte</a>
+        <a href="/configuracio/notificacions" class={isActive("/configuracio/notificacions", $page.url.pathname)}>
+          📱 Notificacions
+        </a>
       {/if}
 
         {#if $status === 'authenticated' && $adminStore}
