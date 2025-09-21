@@ -1,10 +1,10 @@
 import type { HandleFetch } from '@sveltejs/kit';
 import { get } from 'svelte/store';
-import { authState } from '$lib/stores/auth';
+import { authState, type AuthState } from '$lib/stores/auth';
 import { ensureFreshToken, signOut } from '$lib/utils/auth-client';
 
 export const handleFetch: HandleFetch = async ({ request, fetch }) => {
-  const st = get(authState);
+  const st: AuthState = get(authState);
   const headers = new Headers(request.headers);
   if (st.status === 'authenticated' && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${st.session.access_token}`);

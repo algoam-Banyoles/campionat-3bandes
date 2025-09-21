@@ -215,71 +215,55 @@
 
 		try {
 			await withRetry(async () => {
-				// Netejar rànquing actual
-				const { error: deleteError } = await supabase.from('ranking').delete().neq('id', 0);
-				
-				if (deleteError) {
-					throw handleError(deleteError, ERROR_CODES.DATABASE_QUERY_ERROR, {
+				// Crear array de socis ordenats segons la selecció i ordre actual
+				const socisOrdenats = socisSeleccionatsData.map(mitjana => mitjana!.soci_id!);
+
+				// Cridar la funció SQL per crear el rànquing inicial
+				const { data: result, error: functionError } = await supabase.rpc(
+					'create_initial_ranking_from_ordered_socis',
+					{
+						p_event_id: null, // Usar event actiu
+						p_socis_ordered: socisOrdenats
+					}
+				);
+
+				if (functionError) {
+					throw handleError(functionError, ERROR_CODES.DATABASE_QUERY_ERROR, {
 						component: 'CrearRanquingInicial',
-						action: 'netejar_ranquing_actual'
+						action: 'cridar_funcio_crear_ranquing'
 					});
 				}
 
-			// Crear noves posicions ordenades: primer per mitjana, després sense mitjana
-			const socisOrdenats = socisSeleccionats
-				.map(numeroSoci => {
-					const mitjana = mitjanes.find(m => m.soci_id === numeroSoci);
-					return {
-						numero_soci: numeroSoci,
-						mitjana_referencia: mitjana?.mitjana || 0,
-						te_mitjana: !!mitjana?.mitjana,
-						soci: mitjana?.soci
-					};
-				})
-				.sort((a, b) => {
-					// Primer ordenar per si té mitjana o no
-					if (a.te_mitjana && !b.te_mitjana) return -1;
-					if (!a.te_mitjana && b.te_mitjana) return 1;
-					// Si tots dos tenen mitjana, ordenar per mitjana
-					if (a.te_mitjana && b.te_mitjana) {
-						return (b.mitjana_referencia || 0) - (a.mitjana_referencia || 0);
-					}
-					// Si cap té mitjana, ordenar alfabèticament
-					const nomA = `${a.soci?.cognoms} ${a.soci?.nom}`.toLowerCase();
-					const nomB = `${b.soci?.cognoms} ${b.soci?.nom}`.toLowerCase();
-					return nomA.localeCompare(nomB);
-				});
-
-				// Inserir al rànquing
-				const ranquingData = socisOrdenats.map((soci, index) => ({
-					posicio: index + 1,
-					soci_id: soci.numero_soci,
-					mitjana_referencia: soci.mitjana_referencia,
-					data_entrada: new Date().toISOString().split('T')[0]
-				}));
-
-				const { error: insertError } = await supabase
-					.from('ranking')
-					.insert(ranquingData);
-
-				if (insertError) {
-					throw handleError(insertError, ERROR_CODES.DATABASE_QUERY_ERROR, {
-						component: 'CrearRanquingInicial',
-						action: 'inserir_ranquing_dades'
-					});
+				// Verificar el resultat de la funció
+				if (!result.success) {
+					throw handleError(
+						new Error(result.error || 'Error desconegut creant el rànquing'),
+						ERROR_CODES.DATABASE_QUERY_ERROR,
+						{
+							component: 'CrearRanquingInicial',
+							action: 'verificar_resultat_funcio',
+							data: result
+						}
+					);
 				}
 
 				logSuccess('ranquing_inicial_creat', {
-					jugadors: ranquingData.length,
-					ambMitjana: socisOrdenats.filter(s => s.te_mitjana).length,
-					senseMitjana: socisOrdenats.filter(s => !s.te_mitjana).length
+					jugadors: result.inserted_count,
+					totalRequestat: result.total_requested,
+					eventId: result.event_id,
+					errors: result.errors
 				});
+
+				if (result.errors && result.errors.length > 0) {
+					toastStore.showWarning(`Rànquing creat amb ${result.errors.length} advertències: ${result.errors.join(', ')}`);
+				} else {
+					toastStore.showSuccess(`Rànquing inicial creat correctament amb ${result.inserted_count} jugadors!`);
+				}
 			}, {
 				component: 'CrearRanquingInicial',
 				action: 'crear_ranquing_complet'
 			});
 			
-			toastStore.showSuccess('Rànquing inicial creat correctament!');
 			socisSeleccionats = [];
 			
 		} catch (error) {
