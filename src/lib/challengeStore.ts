@@ -122,6 +122,12 @@ export async function refreshActiveChallenges(): Promise<void> {
                   .order('data_proposta', { ascending: false });
 
                 if (error) {
+                  // Si és un error d'autenticació, gestionar-lo de forma especial
+                  if (error.code === 'PGRST301' || error.message?.includes('JWT')) {
+                    console.warn('[challengeStore] Auth error - user might need to login');
+                    throw new Error('AUTHENTICATION_REQUIRED');
+                  }
+                  
                   console.warn('[challengeStore] refreshActiveChallenges error:', error.message);
                   throw new Error(error.message);
                 }
@@ -257,6 +263,12 @@ export async function refreshUserChallenges(playerId: string): Promise<void> {
               .limit(50); // Limitar per rendiment
 
             if (error) {
+              // Si és un error d'autenticació, gestionar-lo de forma especial
+              if (error.code === 'PGRST301' || error.message?.includes('JWT')) {
+                console.warn('[challengeStore] Auth error in refreshUserChallenges - user might need to login');
+                throw new Error('AUTHENTICATION_REQUIRED');
+              }
+              
               console.warn('[challengeStore] refreshUserChallenges error:', error.message);
               throw new Error(error.message);
             }
@@ -387,6 +399,9 @@ export async function acceptChallenge(challengeId: string, playerId?: string): P
           .eq('id', challengeId);
 
         if (error) {
+          if (error.code === 'PGRST301' || error.message?.includes('JWT')) {
+            throw new Error('AUTHENTICATION_REQUIRED');
+          }
           throw new Error(error.message);
         }
       },
@@ -467,6 +482,9 @@ export async function refuseChallenge(challengeId: string, playerId?: string): P
           .eq('id', challengeId);
 
         if (error) {
+          if (error.code === 'PGRST301' || error.message?.includes('JWT')) {
+            throw new Error('AUTHENTICATION_REQUIRED');
+          }
           throw new Error(error.message);
         }
       },

@@ -81,19 +81,23 @@ class SyncManager {
   };
 
   constructor() {
-    this.initializeRealtimeSync();
-    this.startAutoSync();
-    this.loadSyncState();
+    if (typeof window !== 'undefined') {
+      this.initializeRealtimeSync();
+      this.startAutoSync();
+      this.loadSyncState();
 
-    // Subscribe to connection changes
-    connectionManager.isConnected().subscribe(connected => {
-      if (connected) {
-        this.handleConnectionRestored();
-      }
-    });
+      // Subscribe to connection changes
+      connectionManager.isConnected().subscribe(connected => {
+        if (connected) {
+          this.handleConnectionRestored();
+        }
+      });
+    }
   }
 
   private loadSyncState() {
+    if (typeof localStorage === 'undefined') return;
+
     try {
       const stored = localStorage.getItem('campionat_sync_state');
       if (stored) {
@@ -111,6 +115,8 @@ class SyncManager {
   }
 
   private saveSyncState() {
+    if (typeof localStorage === 'undefined') return;
+
     try {
       const state = get(this.syncState);
       localStorage.setItem('campionat_sync_state', JSON.stringify({
@@ -153,6 +159,8 @@ class SyncManager {
   }
 
   private startAutoSync() {
+    if (typeof window === 'undefined') return;
+
     // Auto-sync every 5 minutes when enabled and connected
     this.syncInterval = window.setInterval(() => {
       const state = get(this.syncState);

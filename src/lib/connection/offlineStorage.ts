@@ -90,12 +90,19 @@ class OfflineStorage {
   };
 
   constructor() {
-    this.initializeDB();
-    this.startPeriodicCleanup();
-    this.updateStorageStats();
+    if (typeof window !== 'undefined' && 'indexedDB' in window) {
+      this.initializeDB();
+      this.startPeriodicCleanup();
+      this.updateStorageStats();
+    }
   }
 
   private async initializeDB(): Promise<void> {
+    if (typeof indexedDB === 'undefined') {
+      console.warn('IndexedDB not available');
+      return Promise.resolve();
+    }
+
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, this.dbVersion);
 
@@ -147,6 +154,8 @@ class OfflineStorage {
   }
 
   private startPeriodicCleanup() {
+    if (typeof setInterval === 'undefined') return;
+
     // Clean up expired items every hour
     setInterval(() => {
       this.cleanupExpiredItems();
@@ -498,8 +507,10 @@ class OfflineStorage {
 
   private async waitForReady(): Promise<void> {
     return new Promise((resolve) => {
-      const unsubscribe = this.storageReady.subscribe(ready => {
-        if (ready) {
+      let unsubscribe: (() => void) | undefined;
+      
+      unsubscribe = this.storageReady.subscribe(ready => {
+        if (ready && unsubscribe) {
           unsubscribe();
           resolve();
         }

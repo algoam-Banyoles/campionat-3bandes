@@ -280,7 +280,6 @@
               <ChallengeCardSkeleton 
                 challengeType={(['pending', 'active', 'completed'] as const)[index]}
                 theme={challengeConfig.theme}
-                urgency={challengeConfig.urgency}
                 offline={challengeConfig.offline}
                 compact={challengeConfig.compact}
                 daysRemaining={[7, 3, 0][index]}

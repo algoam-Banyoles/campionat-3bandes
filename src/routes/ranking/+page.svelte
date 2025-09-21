@@ -61,8 +61,18 @@
           reason: null,
           moved: highlightIds.has(r.player_id),
         }));
-        void evaluateChallenges(supabaseClient);
+        
+        // Si tenim dades, ja no estem carregant
+        if (base.length > 0) {
+          loading = false;
+        }
+        
         void loadBadges();
+        
+        // Si ja tenim myPlayerId, evaluar challenges
+        if (myPlayerId && supabaseClient) {
+          void evaluateChallenges(supabaseClient);
+        }
       });
 
       // Auth & player (optimal amb cache)
@@ -108,7 +118,11 @@
       
       void loadBadges();
       myPos = get(ranking).find((r) => r.player_id === myPlayerId)?.posicio ?? null;
-      void evaluateChallenges(supabaseClient);
+      
+      // Ara que tenim myPlayerId, podem evaluar els challenges
+      if (myPlayerId) {
+        void evaluateChallenges(supabaseClient);
+      }
 
       // Configurar refresh automàtic cada 5 minuts
       intervalRef = setInterval(async () => {
@@ -134,13 +148,24 @@
   async function evaluateChallenges(supabase: any) {
     myPos = rows.find((r) => r.player_id === myPlayerId)?.posicio ?? null;
     if (!(myPlayerId && myPos && eventId)) return;
+    
     for (const r of rows) {
       if (r.player_id === myPlayerId) continue;
-      if (r.posicio >= myPos || myPos - r.posicio > 2) {
+      
+      // Verificar restriccions de posició
+      if (r.posicio >= myPos) {
+        r.canChallenge = false;
+        r.reason = 'Només pots reptar jugadors per sobre teu al rànquing';
+        continue;
+      }
+      
+      if (myPos - r.posicio > 2) {
         r.canChallenge = false;
         r.reason = 'Només fins a 2 posicions per sobre';
         continue;
       }
+      
+      // Verificar altres restriccions (cooldown, etc.)
       const chk = await canCreateChallenge(supabase, eventId, myPlayerId, r.player_id);
       r.canChallenge = chk.ok;
       r.reason = chk.ok ? chk.warning : chk.reason;
@@ -317,9 +342,9 @@
             <td class="px-3 py-2">
               {#if myPlayerId && r.player_id !== myPlayerId}
                 <button
-                  class="rounded-2xl border px-3 py-1 text-sm disabled:opacity-50"
+                  class="rounded-2xl border px-3 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={!r.canChallenge}
-                  title={r.canChallenge ? '' : r.reason || 'No pots reptar'}
+                  title={r.canChallenge ? 'Clic per reptar aquest jugador' : r.reason || 'No pots reptar aquest jugador'}
                   on:click={() => reptar(r.player_id)}
                 >
                   Reptar

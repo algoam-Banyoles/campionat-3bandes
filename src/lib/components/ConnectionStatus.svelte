@@ -19,11 +19,11 @@
   let intervalId: number | null = null;
   let relativeTimeText = '';
 
-  const unsubscribers: (() => void)[] = [];
+  let unsubscribers: (() => void)[] = [];
 
   onMount(() => {
     // Subscribe to all relevant stores
-    unsubscribers.push(
+    unsubscribers = [
       connectionState.subscribe(state => connectionStatus = state),
       connectionQuality.subscribe(q => quality = q),
       lastSync.subscribe((time: Date | null) => {
@@ -33,14 +33,14 @@
       isSyncing.subscribe(s => syncing = s),
       queueStats.subscribe(stats => queueInfo = stats),
       syncState.subscribe(state => currentSyncState = state)
-    );
+    ];
 
     // Update relative time every minute
     intervalId = window.setInterval(updateRelativeTime, 60000);
   });
 
   onDestroy(() => {
-    unsubscribers.forEach(unsub => unsub());
+    unsubscribers.forEach(unsub => unsub?.());
     if (intervalId) clearInterval(intervalId);
   });
 

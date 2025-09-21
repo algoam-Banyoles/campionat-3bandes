@@ -22,8 +22,11 @@ export function useConnectionFallbacks() {
     };
     initServiceWorker();
 
+    let unsubscribeConnection: (() => void) | undefined;
+    let unsubscribeQuality: (() => void) | undefined;
+
     // Listen for connection changes
-    const unsubscribeConnection = isConnected.subscribe(connected => {
+    unsubscribeConnection = isConnected.subscribe(connected => {
       if (connected) {
         console.log('🟢 Connection restored');
         // Trigger manual sync if there are queued operations
@@ -36,14 +39,14 @@ export function useConnectionFallbacks() {
     });
 
     // Listen for connection quality changes
-    const unsubscribeQuality = connectionQuality.subscribe(quality => {
+    unsubscribeQuality = connectionQuality.subscribe(quality => {
       console.log(`📶 Connection quality: ${quality}`);
     });
 
     // Cleanup
     return () => {
-      unsubscribeConnection();
-      unsubscribeQuality();
+      if (unsubscribeConnection) unsubscribeConnection();
+      if (unsubscribeQuality) unsubscribeQuality();
     };
   });
 }

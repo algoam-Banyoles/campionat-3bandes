@@ -14,39 +14,104 @@ export function getAccessTokenSync(): string | null {
 }
 
 export async function hydrateSession() {
-  const { data, error } = await supabase.auth.getSession();
-  if (error || !data.session) {
-    authState.set({ status: 'anonymous', session: null, user: null });
-    return;
-  }
-  // Obtain roles
-  const roles: string[] = [];
   try {
-    invalidateAdminCache();
-    const adm = await checkIsAdmin();
-    if (adm) roles.push('admin');
-  } catch (e) {
-    console.warn('checkIsAdmin failed', e);
+    const { data, error } = await supabase.auth.getSession();
+    
+    // Si hi ha error o no hi ha sessió, establir com a anònim
+    if (error) {
+      console.warn('Auth session error:', error.message);
+      authState.set({ status: 'anonymous', session: null, user: null });
+      return;
+    }
+    
+    if (!data.session) {
+      authState.set({ status: 'anonymous', session: null, user: null });
+      return;
+    }
+
+    // Verificar que el token no hagi expirat
+    const now = Math.floor(Date.now() / 1000);
+    if (data.session.expires_at && data.session.expires_at < now) {
+      console.warn('Session expired, signing out');
+      await signOut();
+      return;
+    }
+
+    // Obtain roles
+    const roles: string[] = [];
+    try {
+      invalidateAdminCache();
+      const adm = await checkIsAdmin();
+      if (adm) roles.push('admin');
+    } catch (e) {
+      console.warn('checkIsAdmin failed', e);
+      // Si falla checkIsAdmin, potser és un problema d'autenticació
+      // Intentem refrescar el token
+      try {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          console.warn('Token refresh failed:', refreshError.message);
+          await signOut();
+          return;
+        }
+      } catch (refreshErr) {
+        console.warn('Token refresh error:', refreshErr);
+        await signOut();
+        return;
+      }
+    }
+    
+    const me: UserProfile = {
+      id: data.session.user.id,
+      email: data.session.user.email ?? '',
+      roles
+    };
+    
+    authState.set({ 
+      status: 'authenticated', 
+      session: { access_token: data.session.access_token }, 
+      user: me 
+    });
+    
+  } catch (error) {
+    console.error('Unexpected error in hydrateSession:', error);
+    authState.set({ status: 'anonymous', session: null, user: null });
   }
-  const me: UserProfile = {
-    id: data.session.user.id,
-    email: data.session.user.email ?? '',
-    roles
-  };
-  authState.set({ status: 'authenticated', session: { access_token: data.session.access_token }, user: me });
 }
 
 export function initAuthClient() {
   if (initialized) return;
   initialized = true;
-  hydrateSession();
-  supabase.auth.onAuthStateChange(async (evt) => {
-    if (evt === 'SIGNED_IN' || evt === 'TOKEN_REFRESHED') await hydrateSession();
-    if (evt === 'SIGNED_OUT') authState.set({ status: 'anonymous', session: null, user: null });
+  
+  // Hydrate initial session
+  hydrateSession().catch(error => {
+    console.error('Initial session hydration failed:', error);
   });
+  
+  // Listen to auth state changes
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log('Auth state change:', event, session?.user?.email || 'no user');
+    
+    try {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        await hydrateSession();
+      } else if (event === 'SIGNED_OUT') {
+        authState.set({ status: 'anonymous', session: null, user: null });
+      } else if (event === 'USER_UPDATED') {
+        await hydrateSession();
+      }
+    } catch (error) {
+      console.error('Error handling auth state change:', error);
+      authState.set({ status: 'anonymous', session: null, user: null });
+    }
+  });
+  
+  // Listen to storage events for cross-tab sync
   if (typeof window !== 'undefined') {
     window.addEventListener('storage', (e) => {
-      if (e.key && e.key.includes('auth')) hydrateSession();
+      if (e.key && e.key.includes('auth')) {
+        hydrateSession().catch(console.error);
+      }
     });
   }
 }

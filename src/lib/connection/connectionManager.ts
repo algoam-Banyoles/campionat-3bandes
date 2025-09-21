@@ -29,7 +29,7 @@ export interface ConnectionEvent {
 
 class ConnectionManager {
   private connectionState = writable<ConnectionState>({
-    isOnline: navigator.onLine,
+    isOnline: typeof navigator !== 'undefined' ? navigator.onLine : false,
     isConnected: false,
     lastConnected: null,
     retryCount: 0,
@@ -68,11 +68,16 @@ class ConnectionManager {
   };
 
   constructor() {
-    this.initializeConnectionMonitoring();
-    this.startHealthChecks();
+    // Only initialize in browser environment
+    if (typeof window !== 'undefined') {
+      this.initializeConnectionMonitoring();
+      this.startHealthChecks();
+    }
   }
 
   private initializeConnectionMonitoring() {
+    if (typeof window === 'undefined') return;
+
     // Monitor browser online/offline events
     window.addEventListener('online', () => {
       this.handleOnlineEvent();
@@ -87,6 +92,8 @@ class ConnectionManager {
   }
 
   private startHealthChecks() {
+    if (typeof window === 'undefined') return;
+
     // Periodic health checks every 30 seconds when online
     this.healthCheckInterval = window.setInterval(() => {
       const state = get(this.connectionState);
@@ -125,18 +132,26 @@ class ConnectionManager {
     const pingStart = performance.now();
     
     try {
-      // Simple health check query
-      const { error } = await supabase
-        .from('socis')
-        .select('id')
-        .limit(1)
-        .single();
+      // Use a simple HTTP request to check Supabase availability
+      // This avoids auth issues but still checks if Supabase is reachable
+      const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
+      const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${supabaseUrl}/rest/v1/`, {
+        method: 'HEAD',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`
+        }
+      });
 
       const pingTime = performance.now() - pingStart;
       this.lastPingTime = pingTime;
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows found", which is OK
-        throw error;
+      // If we get any response (even 401/400), it means Supabase is reachable
+      // We just want to know if the service is up, not if we're authenticated
+      if (!response.ok && response.status >= 500) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       // Connection successful
@@ -183,7 +198,7 @@ class ConnectionManager {
   }
 
   private determineErrorType(error: any): 'network' | 'server' | 'auth' {
-    if (!navigator.onLine) {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
       return 'network';
     }
 
@@ -344,8 +359,10 @@ class ConnectionManager {
       clearInterval(this.healthCheckInterval);
     }
 
-    window.removeEventListener('online', this.handleOnlineEvent);
-    window.removeEventListener('offline', this.handleOfflineEvent);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('online', this.handleOnlineEvent);
+      window.removeEventListener('offline', this.handleOfflineEvent);
+    }
   }
 }
 
