@@ -10,34 +10,61 @@ export default defineConfig({
       mode: 'development',
       base: '/',
       scope: '/',
-      manifest: {
-        name: 'Campionat 3 Bandes',
-        short_name: 'C3B',
-        start_url: '/',
-        display: 'standalone',
-        background_color: '#ffffff',
-        theme_color: '#0f172a',
-        icons: [
-          // Pots afegir icones reals a /static/icons/ si vols
-          // { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          // { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' }
-        ]
-      },
+      injectRegister: 'auto',
+      includeAssets: ['favicon.ico', 'robots.txt', 'icons/*.png'],
+      manifest: false, // Usarem el nostre manifest.json personalitzat
       workbox: {
-        // Simplement deixar que PWA decideixi què fer
         cleanupOutdatedCaches: true,
-        navigateFallback: null,
+        navigateFallback: '/offline',
+        navigateFallbackDenylist: [/^\/api/, /^\/admin/],
+        globPatterns: [
+          'client/**/*.{js,css,ico,png,svg,webp,webmanifest}',
+          'prerendered/**/*.{html,json}'
+        ],
         runtimeCaching: [
           {
             urlPattern: ({ request }) =>
-              ['style', 'script', 'image', 'font'].includes(request.destination),
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'assets-cache' }
+              request.destination === 'document',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'pages-cache',
+              networkTimeoutSeconds: 3
+            }
           },
           {
-            urlPattern: ({ url }) => url.pathname.startsWith('/api'),
+            urlPattern: ({ request }) =>
+              ['style', 'script', 'worker'].includes(request.destination),
+            handler: 'StaleWhileRevalidate',
+            options: { 
+              cacheName: 'assets-cache',
+              cacheKeyWillBeUsed: async ({ request }) => {
+                return `${request.url}?v=${Date.now()}`;
+              }
+            }
+          },
+          {
+            urlPattern: ({ request }) =>
+              ['image', 'font'].includes(request.destination),
+            handler: 'CacheFirst',
+            options: { 
+              cacheName: 'media-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 30 * 24 * 60 * 60 // 30 dies
+              }
+            }
+          },
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\//,
             handler: 'NetworkFirst',
-            options: { cacheName: 'api-cache' }
+            options: { 
+              cacheName: 'supabase-api-cache',
+              networkTimeoutSeconds: 5,
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 5 * 60 // 5 minuts
+              }
+            }
           }
         ]
       }
