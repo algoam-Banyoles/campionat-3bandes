@@ -11,6 +11,7 @@
     import PlayerEvolutionModal from '$lib/components/PlayerEvolutionModal.svelte';
     import { adminStore } from '$lib/stores/auth';
     import { applyDisagreementDrop } from '$lib/applyDisagreementDrop';
+    import PullToRefresh from '$lib/components/gestures/PullToRefresh.svelte';
 
   export let badges: VPlayerBadges[] = [];
   export let badgesLoaded = false;
@@ -220,6 +221,14 @@
     goto(`/reptes/nou?opponent=${id}`);
   }
 
+  async function handleRefresh() {
+    await Promise.all([
+      refreshRanking(true), // Force refresh
+      refreshActiveChallenges(),
+      loadBadges(true)
+    ]);
+  }
+
   function openEvolution(id: string, name: string) {
     modalPlayer = { id, name };
   }
@@ -268,6 +277,7 @@
 
 <svelte:head><title>Rànquing</title></svelte:head>
 
+<PullToRefresh onRefresh={handleRefresh}>
 <h1 class="text-xl font-semibold mb-4">Rànquing</h1>
 {#if $adminStore}
   <button
@@ -405,3 +415,4 @@
     </div>
   {/if}
 {/if}
+</PullToRefresh>

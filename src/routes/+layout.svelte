@@ -4,6 +4,7 @@
   import { user, status, adminStore, isLoading } from "$lib/stores/auth";
   import { initAuthClient, signOut } from "$lib/utils/auth-client";
   import Toasts from '$lib/components/Toasts.svelte';
+  import MobileNavigation from '$lib/components/navigation/MobileNavigation.svelte';
 
   let showInscripcio = false;
 
@@ -246,6 +247,7 @@
 </main>
 
 <Toasts />
+<MobileNavigation />
 
 <!-- DEBUG opcional: treu-ho quan vulguis -->
   {#if $status !== 'loading'}
