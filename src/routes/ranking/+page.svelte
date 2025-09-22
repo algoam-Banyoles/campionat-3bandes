@@ -237,10 +237,24 @@
   const fmtEstat = (e: string | undefined | null) => (e ? e.replace('_', ' ') : '');
 
   // Funció per escurçar noms: inicials + primer cognom
-  const shortenName = (fullName: string): string => {
-    if (!fullName) return '';
+  const shortenName = (nom: string, cognoms: string | null): string => {
+    if (!nom) return '';
 
-    const parts = fullName.trim().split(/\s+/);
+    // Si tenim cognoms separats, usar-los
+    if (cognoms) {
+      // Agafar les inicials dels noms
+      const nameInitials = nom.trim().split(/\s+/)
+        .map(name => name.charAt(0).toUpperCase())
+        .join('.');
+
+      // Agafar el primer cognom
+      const firstSurname = cognoms.trim().split(/\s+/)[0];
+
+      return `${nameInitials}. ${firstSurname}`;
+    }
+
+    // Fallback: usar el nom complet com abans
+    const parts = nom.trim().split(/\s+/);
     if (parts.length === 1) return parts[0]; // Només un nom
 
     // Assumim que l'últim element és el cognom principal
@@ -337,11 +351,11 @@
               <div class="flex flex-wrap items-center gap-1 sm:gap-2">
                 <button
                   class="text-blue-600 hover:underline text-xs sm:text-sm"
-                  on:click={() => openEvolution(r.player_id, r.nom)}
+                  on:click={() => openEvolution(r.player_id, r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom)}
                   class:font-bold={r.player_id === myPlayerId}
-                  title={r.nom}
+                  title={r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom}
                 >
-                  {shortenName(r.nom)}
+                  {shortenName(r.nom, r.cognoms)}
                 </button>
 
                 <!-- Badge per identificar el jugador logat -->
@@ -419,7 +433,9 @@
           <select id="penal-a" bind:value={selA} class="w-full rounded border p-1">
             <option value={null} disabled selected>Selecciona posició</option>
             {#each rows as r}
-              <option value={r.posicio} title={r.nom}>{r.posicio} - {shortenName(r.nom)}</option>
+              <option value={r.posicio} title={r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom}>
+                {r.posicio} - {shortenName(r.nom, r.cognoms)}
+              </option>
             {/each}
           </select>
         </div>
@@ -428,7 +444,9 @@
           <select id="penal-b" bind:value={selB} class="w-full rounded border p-1">
             <option value={null} disabled selected>Selecciona posició</option>
             {#each rows as r}
-              <option value={r.posicio} title={r.nom}>{r.posicio} - {shortenName(r.nom)}</option>
+              <option value={r.posicio} title={r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom}>
+                {r.posicio} - {shortenName(r.nom, r.cognoms)}
+              </option>
             {/each}
           </select>
         </div>
