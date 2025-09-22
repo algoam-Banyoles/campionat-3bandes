@@ -162,13 +162,13 @@
     // Active challenges
     const { data: active } = await supabase
       .from('challenges')
-      .select('challenger_id, challenged_id')
+      .select('reptador_id, reptat_id')
       .eq('event_id', eventId)
-      .in('status', ['PENDING', 'ACCEPTED']);
+      .in('estat', ['proposat', 'acceptat']);
     const activeIds = new Set<string>();
     (active as any[] ?? []).forEach((c) => {
-      activeIds.add((c as any).challenger_id);
-      activeIds.add((c as any).challenged_id);
+      activeIds.add((c as any).reptador_id);
+      activeIds.add((c as any).reptat_id);
     });
     activeIds.forEach((id) => {
       const row = byId.get(id);

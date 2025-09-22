@@ -1,4 +1,4 @@
--- Fix v_player_badges view to use current schema (challenger_id, challenged_id, status)
+-- Fix v_player_badges view - view exists but uses correct schema (reptador_id, reptat_id, estat)
 DROP VIEW IF EXISTS public.v_player_badges;
 
 create or replace view public.v_player_badges as
@@ -30,18 +30,18 @@ lp as (
     join active_event ae on ae.id = rp.event_id
     left join challenges c
       on c.event_id = rp.event_id
-     and (c.challenger_id = rp.player_id or c.challenged_id = rp.player_id)
+     and (c.reptador_id = rp.player_id or c.reptat_id = rp.player_id)
     left join matches m on m.challenge_id = c.id
    group by rp.event_id, rp.player_id
 ),
 active as (
-  select event_id, challenger_id as player_id
+  select event_id, reptador_id as player_id
     from challenges
-   where status in ('PENDING', 'ACCEPTED', 'SCHEDULED')
+   where estat in ('proposat', 'acceptat', 'programat')
   union
-  select event_id, challenged_id as player_id
+  select event_id, reptat_id as player_id
     from challenges
-   where status in ('PENDING', 'ACCEPTED', 'SCHEDULED')
+   where estat in ('proposat', 'acceptat', 'programat')
 )
 select rp.event_id,
        rp.player_id,
