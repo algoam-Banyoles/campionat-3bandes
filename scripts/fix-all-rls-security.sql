@@ -70,14 +70,15 @@ WITH CHECK (true);
 -- STEP 3: FIX SECURITY DEFINER VIEWS
 -- ===================================
 
--- Drop and recreate as SECURITY INVOKER (default)
-DROP VIEW IF EXISTS public.v_challenges_pending;
-DROP VIEW IF EXISTS public.v_player_timeline;
-DROP VIEW IF EXISTS public.v_maintenance_runs;
-DROP VIEW IF EXISTS public.v_maintenance_run_details;
+-- Drop and recreate explicitly as SECURITY INVOKER
+DROP VIEW IF EXISTS public.v_challenges_pending CASCADE;
+DROP VIEW IF EXISTS public.v_player_timeline CASCADE;
+DROP VIEW IF EXISTS public.v_maintenance_runs CASCADE;
+DROP VIEW IF EXISTS public.v_maintenance_run_details CASCADE;
 
--- Recreate views (SECURITY INVOKER by default)
-CREATE VIEW public.v_challenges_pending AS
+-- Recreate views explicitly as SECURITY INVOKER
+CREATE VIEW public.v_challenges_pending 
+WITH (security_invoker=on) AS
 SELECT 
     c.id,
     c.event_id,
@@ -93,7 +94,8 @@ JOIN players p1 ON p1.id = c.reptador_id
 JOIN players p2 ON p2.id = c.reptat_id
 WHERE c.estat IN ('proposat', 'acceptat', 'programat');
 
-CREATE VIEW public.v_player_timeline AS
+CREATE VIEW public.v_player_timeline 
+WITH (security_invoker=on) AS
 SELECT 
     p.id as player_id,
     p.nom,
@@ -114,7 +116,8 @@ JOIN challenges c ON (c.reptador_id = p.id OR c.reptat_id = p.id)
 JOIN matches m ON m.challenge_id = c.id
 ORDER BY event_date DESC;
 
-CREATE VIEW public.v_maintenance_runs AS
+CREATE VIEW public.v_maintenance_runs 
+WITH (security_invoker=on) AS
 SELECT 
     id,
     started_at,
@@ -125,7 +128,8 @@ SELECT
 FROM maintenance_runs
 ORDER BY started_at DESC;
 
-CREATE VIEW public.v_maintenance_run_details AS
+CREATE VIEW public.v_maintenance_run_details 
+WITH (security_invoker=on) AS
 SELECT 
     mr.id as run_id,
     mr.started_at,
@@ -166,3 +170,13 @@ FROM pg_policies
 WHERE schemaname = 'public'
     AND tablename IN ('socis', 'maintenance_runs', 'maintenance_run_items')
 ORDER BY tablename, policyname;
+
+-- Verify views are now SECURITY INVOKER (should return empty if fixed)
+SELECT 
+    schemaname,
+    viewname,
+    definition
+FROM pg_views 
+WHERE schemaname = 'public' 
+    AND viewname IN ('v_challenges_pending', 'v_player_timeline', 'v_maintenance_runs', 'v_maintenance_run_details')
+    AND definition LIKE '%SECURITY DEFINER%';
