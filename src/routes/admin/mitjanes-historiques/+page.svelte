@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
 	import type { PageData } from './$types';
 
@@ -25,6 +26,10 @@
 
 	let mitjanes: MitjanaHistorica[] = data.mitjanes || [];
 	let socis: Soci[] = data.socis || [];
+	 // Pagination from server
+	let serverPage: number = data.page ?? 1;
+	let serverLimit: number = data.limit ?? 200;
+	let serverTotal: number | null = data.total ?? null;
 	let loading = false;
 	let searchTerm = '';
 	let selectedModalitat = '';
@@ -115,6 +120,15 @@
 			// Per dates i mitjanes, per defecte desc; per noms, asc
 			sortOrder = ['year', 'mitjana', 'soci_id'].includes(newSortBy) ? 'desc' : 'asc';
 		}
+	}
+
+async function gotoPage(p: number) {
+		if (!p || p < 1) return;
+		loading = true;
+		const params = new URLSearchParams(location.search);
+		params.set('page', String(p));
+ 		if (serverLimit) params.set('limit', String(serverLimit));
+		await goto(`${location.pathname}?${params.toString()}`, { replaceState: false });
 	}
 
 	// Funció d'ordenació
@@ -472,9 +486,16 @@
 
 		<!-- Paginació (si cal) -->
 		{#if filteredAndSortedMitjanes.length > 0}
-			<div class="mt-4 text-sm text-gray-600 text-center">
-				Mostrant {filteredAndSortedMitjanes.length} de {mitjanes.length} mitjanes històriques
-			</div>
+				<div class="mt-4 text-sm text-gray-600 text-center">
+					Mostrant {filteredAndSortedMitjanes.length} de {serverTotal ?? mitjanes.length} mitjanes històriques
+				</div>
+				{#if serverPage}
+					<div class="mt-3 flex items-center justify-center space-x-3">
+						<button on:click={() => gotoPage(serverPage! - 1)} disabled={serverPage <= 1} class="px-3 py-1 border rounded">Anterior</button>
+						<span>Pàgina {serverPage} {#if serverTotal !== null}de {Math.ceil(serverTotal / (serverLimit || 1))}{/if}</span>
+						<button on:click={() => gotoPage(serverPage! + 1)} disabled={serverTotal !== null && serverPage! >= Math.ceil(serverTotal / (serverLimit || 1))} class="px-3 py-1 border rounded">Següent</button>
+					</div>
+				{/if}
 		{/if}
 	{/if}
 </div>
