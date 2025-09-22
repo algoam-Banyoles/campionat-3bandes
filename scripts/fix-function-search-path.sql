@@ -196,25 +196,21 @@ WHERE n.nspname = 'public'
         'admin_run_all_sweeps', 'reset_event_to_initial'
     )
     AND prosecdef = false  -- Functions without SECURITY DEFINER
-    AND NOT EXISTS (
-        SELECT 1 FROM pg_proc_config pc 
-        WHERE pc.oid = p.oid 
-        AND pc.proconfig::text LIKE '%search_path=%'
-    );
+    AND (p.proconfig IS NULL OR NOT p.proconfig::text LIKE '%search_path=%');
 
 -- Show functions that now have fixed search_path
 SELECT 
     p.proname as function_name,
     'SEARCH_PATH FIXED' as status,
-    pc.proconfig as search_path_setting
+    p.proconfig as search_path_setting
 FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
-LEFT JOIN pg_proc_config pc ON pc.oid = p.oid AND pc.proconfig::text LIKE '%search_path=%'
 WHERE n.nspname = 'public' 
     AND p.proname IN (
         'trg_challenges_accept', 'admin_update_settings', '_set_search_path',
         'promote_first_waiting', 'schedule_challenge_expiry_notifications',
         'waitlist_append', 'waitlist_pop_first', 'sweep_overdue_challenges_mvp'
     )
-    AND pc.proconfig IS NOT NULL
+    AND p.proconfig IS NOT NULL 
+    AND p.proconfig::text LIKE '%search_path=%'
 ORDER BY p.proname;
