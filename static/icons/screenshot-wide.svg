@@ -1,0 +1,58 @@
+<svg width="1280" height="720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e40af;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  
+  <!-- Header -->
+  <rect x="0" y="0" width="1280" height="80" fill="#ffffff" opacity="0.95"/>
+  <text x="50" y="50" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#1e40af">Campionat 3 Bandes</text>
+  
+  <!-- Main content area -->
+  <rect x="50" y="120" width="1180" height="520" fill="#ffffff" rx="10" opacity="0.95"/>
+  
+  <!-- Classification table mockup -->
+  <text x="80" y="170" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#374151">Classificació</text>
+  
+  <!-- Table header -->
+  <rect x="80" y="190" width="1120" height="50" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="100" y="220" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#374151">Pos.</text>
+  <text x="200" y="220" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#374151">Jugador</text>
+  <text x="600" y="220" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#374151">Mitjana</text>
+  <text x="800" y="220" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#374151">Estat</text>
+  
+  <!-- Table rows -->
+  <rect x="80" y="240" width="1120" height="40" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="100" y="265" font-family="Arial, sans-serif" font-size="16" fill="#374151">1</text>
+  <text x="200" y="265" font-family="Arial, sans-serif" font-size="16" fill="#374151">Joan Garcia</text>
+  <text x="600" y="265" font-family="Arial, sans-serif" font-size="16" fill="#374151">1.234</text>
+  <rect x="800" y="248" width="60" height="24" fill="#fbbf24" rx="12"/>
+  <text x="815" y="263" font-family="Arial, sans-serif" font-size="12" fill="#000000">Tu</text>
+  
+  <rect x="80" y="280" width="1120" height="40" fill="#f9fafb" stroke="#e2e8f0"/>
+  <text x="100" y="305" font-family="Arial, sans-serif" font-size="16" fill="#374151">2</text>
+  <text x="200" y="305" font-family="Arial, sans-serif" font-size="16" fill="#374151">Pere Martí</text>
+  <text x="600" y="305" font-family="Arial, sans-serif" font-size="16" fill="#374151">1.156</text>
+  <rect x="800" y="288" width="80" height="24" fill="#3b82f6" rx="12"/>
+  <text x="815" y="303" font-family="Arial, sans-serif" font-size="12" fill="#ffffff">Reptable</text>
+  
+  <rect x="80" y="320" width="1120" height="40" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="100" y="345" font-family="Arial, sans-serif" font-size="16" fill="#374151">3</text>
+  <text x="200" y="345" font-family="Arial, sans-serif" font-size="16" fill="#374151">Anna López</text>
+  <text x="600" y="345" font-family="Arial, sans-serif" font-size="16" fill="#374151">1.089*</text>
+  
+  <!-- App features -->
+  <text x="80" y="420" font-family="Arial, sans-serif" font-size="20" font-weight="600" fill="#374151">Funcionalitats:</text>
+  <text x="100" y="450" font-family="Arial, sans-serif" font-size="16" fill="#374151">• Classificació en temps real</text>
+  <text x="100" y="475" font-family="Arial, sans-serif" font-size="16" fill="#374151">• Sistema de reptes</text>
+  <text x="100" y="500" font-family="Arial, sans-serif" font-size="16" fill="#374151">• Històric de mitjanes</text>
+  <text x="100" y="525" font-family="Arial, sans-serif" font-size="16" fill="#374151">• Gestió d'esdeveniments</text>
+  
+  <!-- Footer -->
+  <text x="640" y="680" font-family="Arial, sans-serif" font-size="14" fill="#ffffff" text-anchor="middle">Club de Billar - Campionat 3 Bandes 2025</text>
+</svg>

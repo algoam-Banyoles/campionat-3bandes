@@ -1,0 +1,60 @@
+<svg width="390" height="844" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e40af;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="390" height="844" fill="url(#bg)"/>
+  
+  <!-- Mobile Header -->
+  <rect x="0" y="0" width="390" height="60" fill="#ffffff" opacity="0.95"/>
+  <text x="20" y="40" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#1e40af">3 Bandes</text>
+  
+  <!-- Main content area -->
+  <rect x="20" y="80" width="350" height="720" fill="#ffffff" rx="10" opacity="0.95"/>
+  
+  <!-- Classification mobile -->
+  <text x="40" y="120" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#374151">Classificació</text>
+  
+  <!-- Mobile list items -->
+  <rect x="40" y="140" width="310" height="60" fill="#f8fafc" rx="8"/>
+  <text x="50" y="160" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#374151">1. Joan Garcia</text>
+  <text x="50" y="180" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">Mitjana: 1.234</text>
+  <rect x="250" y="150" width="30" height="16" fill="#fbbf24" rx="8"/>
+  <text x="257" y="160" font-family="Arial, sans-serif" font-size="10" fill="#000000">Tu</text>
+  
+  <rect x="40" y="210" width="310" height="60" fill="#ffffff" rx="8"/>
+  <text x="50" y="230" font-family="Arial, sans-serif" font-size="14" fill="#374151">2. Pere Martí</text>
+  <text x="50" y="250" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">Mitjana: 1.156</text>
+  <rect x="250" y="220" width="50" height="16" fill="#3b82f6" rx="8"/>
+  <text x="257" y="230" font-family="Arial, sans-serif" font-size="10" fill="#ffffff">Reptable</text>
+  
+  <rect x="40" y="280" width="310" height="60" fill="#f8fafc" rx="8"/>
+  <text x="50" y="300" font-family="Arial, sans-serif" font-size="14" fill="#374151">3. Anna López</text>
+  <text x="50" y="320" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">Mitjana: 1.089*</text>
+  
+  <!-- Challenge button -->
+  <rect x="40" y="360" width="310" height="50" fill="#10b981" rx="25"/>
+  <text x="195" y="390" font-family="Arial, sans-serif" font-size="16" font-weight="600" fill="#ffffff" text-anchor="middle">Crear Repte</text>
+  
+  <!-- Features -->
+  <text x="50" y="440" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#374151">Funcionalitats:</text>
+  <text x="60" y="465" font-family="Arial, sans-serif" font-size="12" fill="#374151">• Reptes en temps real</text>
+  <text x="60" y="485" font-family="Arial, sans-serif" font-size="12" fill="#374151">• Notificacions push</text>
+  <text x="60" y="505" font-family="Arial, sans-serif" font-size="12" fill="#374151">• Històric complet</text>
+  <text x="60" y="525" font-family="Arial, sans-serif" font-size="12" fill="#374151">• Interface intuïtiva</text>
+  
+  <!-- Navigation bar mockup -->
+  <rect x="20" y="760" width="350" height="60" fill="#ffffff" opacity="0.95" rx="10"/>
+  <rect x="50" y="775" width="30" height="30" fill="#3b82f6" rx="4"/>
+  <rect x="120" y="775" width="30" height="30" fill="#e5e7eb" rx="4"/>
+  <rect x="190" y="775" width="30" height="30" fill="#e5e7eb" rx="4"/>
+  <rect x="260" y="775" width="30" height="30" fill="#e5e7eb" rx="4"/>
+  <rect x="330" y="775" width="30" height="30" fill="#e5e7eb" rx="4"/>
+  
+  <!-- Footer -->
+  <text x="195" y="830" font-family="Arial, sans-serif" font-size="10" fill="#ffffff" text-anchor="middle">Campionat 3 Bandes 2025</text>
+</svg>

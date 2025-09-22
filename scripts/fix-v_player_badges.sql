@@ -1,3 +1,6 @@
+-- Fix v_player_badges view to use current schema (challenger_id, challenged_id, status)
+DROP VIEW IF EXISTS public.v_player_badges;
+
 create or replace view public.v_player_badges as
 with active_event as (
   select id
@@ -61,3 +64,6 @@ select rp.event_id,
   join active_event ae on ae.id = rp.event_id
   left join lp on lp.event_id = rp.event_id and lp.player_id = rp.player_id
   left join active ac on ac.event_id = rp.event_id and ac.player_id = rp.player_id;
+
+-- Grant permissions
+GRANT SELECT ON public.v_player_badges TO authenticated;
