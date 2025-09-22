@@ -56,7 +56,7 @@ export const notificationsLoading = writable<boolean>(false);
 export const notificationsError = writable<string | null>(null);
 
 // Clau pública VAPID (carregada des de variables d'entorn)
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_PUBLIC_VAPID_KEY || 'BLXGAD3N80WkTysFnwXi-ZMQ69ebDFw2Y-JphkJQ0ibugLfYPm4Cr8flV05HLHuUA1oGDKK5w33nVpscCEUnZ0M';
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_PUBLIC_VAPID_KEY;
 
 // Derived store per comprovar si les notificacions estan habilitades
 export const notificationsEnabled = derived(
@@ -86,16 +86,43 @@ export function initializeNotifications(): void {
   }
 }
 
-// Usar el service worker generat per Vite-PWA
+// Registrar service worker personalitzat per notificacions push
 async function registerServiceWorker(): Promise<void> {
   try {
-    // Vite-PWA ja registra automàticament el Service Worker
-    // Només esperem que estigui llest
-    await navigator.serviceWorker.ready;
-    console.log('Service Worker llest (gestionat per Vite-PWA)');
+    // Registrar el nostre service worker personalitzat
+    let registration: ServiceWorkerRegistration;
+
+    if ('serviceWorker' in navigator) {
+      // Intentar registrar el service worker
+      registration = await navigator.serviceWorker.register('/sw.js', {
+        scope: '/'
+      });
+
+      console.log('[Notifications] Service Worker registrat:', registration.scope);
+
+      // Gestionar actualitzacions del service worker
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        if (newWorker) {
+          console.log('[Notifications] Nova versió del Service Worker disponible');
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[Notifications] Service Worker actualitzat i llest');
+            }
+          });
+        }
+      });
+
+      // Esperar que estigui actiu
+      await navigator.serviceWorker.ready;
+      console.log('[Notifications] Service Worker llest per notificacions push');
+
+    } else {
+      throw new Error('Service Workers no compatibles');
+    }
   } catch (error) {
-    console.error('Error esperant Service Worker:', error);
-    notificationsError.set('Error amb Service Worker');
+    console.error('[Notifications] Error registrant Service Worker:', error);
+    notificationsError.set('Error amb Service Worker: ' + (error instanceof Error ? error.message : 'Error desconegut'));
   }
 }
 
@@ -187,8 +214,13 @@ export async function subscribeToPush(): Promise<boolean> {
     notificationsLoading.set(true);
     notificationsError.set(null);
 
+    // Verificar que la clau VAPID està configurada
+    if (!VAPID_PUBLIC_KEY) {
+      throw new Error('Clau VAPID no configurada. Contacta amb l\'administrador.');
+    }
+
     const registration = await navigator.serviceWorker.ready;
-    
+
     // Crear nova subscripció
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,

@@ -22,6 +22,12 @@ export default defineConfig({
       injectRegister: false, // Desactivar injecció automàtica
       includeAssets: ['favicon.ico', 'robots.txt', 'icons/*.png'],
       manifest: false, // Usarem el nostre manifest.json personalitzat
+      strategies: 'injectManifest',
+      srcDir: 'static',
+      filename: 'sw.js',
+      injectManifest: {
+        injectionPoint: undefined // Evitar injecció automàtica
+      },
       workbox: {
         cleanupOutdatedCaches: true,
         navigateFallback: '/offline',

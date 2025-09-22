@@ -3,6 +3,7 @@
   import { onMount } from "svelte";
   import { user, status, adminStore, isLoading } from "$lib/stores/auth";
   import { initAuthClient, signOut } from "$lib/utils/auth-client";
+  import { initializeNotifications } from '$lib/stores/notifications';
   import Toasts from '$lib/components/Toasts.svelte';
   import MobileNavigation from '$lib/components/navigation/MobileNavigation.svelte';
 
@@ -128,6 +129,9 @@
   onMount(() => {
     // Inicialitza sessió + rol admin en muntar el layout
     initAuthClient();
+
+    // Inicialitza sistema de notificacions push
+    initializeNotifications();
   });
 
   // helper d’estils opcionals per remarcar link actiu
@@ -138,6 +142,16 @@
   let menuOpen = false;
   const toggleMenu = () => (menuOpen = !menuOpen);
 
+  // Tancar menú quan es fa clic fora
+  function handleClickOutside(event: MouseEvent) {
+    if (menuOpen && event.target instanceof Element) {
+      const nav = event.target.closest('nav');
+      if (!nav) {
+        menuOpen = false;
+      }
+    }
+  }
+
     $: if ($status === 'authenticated') {
       void refreshInscripcioVisibility($user);
     }
@@ -146,6 +160,8 @@
 {#if $isLoading}
   <div class="fullpage-spinner">Carregant sessió…</div>
 {:else}
+<!-- Detectar clics fora del menú per tancar-lo -->
+<svelte:window on:click={handleClickOutside} />
 <nav class="bg-slate-900 text-white">
   <div class="mx-auto max-w-5xl px-4 py-3 flex items-center gap-6">
     <a href="/" class="font-semibold">Campionat 3 Bandes</a>
@@ -190,37 +206,61 @@
     </div>
 
     <button
-      class="ml-auto md:hidden p-2 rounded hover:bg-slate-800 transition-colors"
+      class="ml-auto md:hidden p-3 rounded-lg hover:bg-slate-700 transition-all duration-200 relative"
+      class:bg-slate-700={menuOpen}
       on:click={toggleMenu}
-      aria-label="Obrir menú"
+      aria-label={menuOpen ? "Tancar menú" : "Obrir menú"}
+      aria-expanded={menuOpen}
     >
-      <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+      <svg class="h-6 w-6 transition-transform duration-200" class:rotate-90={menuOpen} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {#if menuOpen}
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        {:else}
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        {/if}
       </svg>
     </button>
   </div>
 
   {#if menuOpen}
-    <div class="md:hidden px-4 pb-4 bg-slate-800 border-t border-slate-700">
+    <div
+      class="md:hidden px-4 pb-4 bg-slate-800 border-t border-slate-700 animate-slideDown"
+    >
       <!-- Navegació principal -->
-      <div class="flex flex-col gap-3 py-3">
-        <a href="/calendari" class="block py-2 px-3 rounded {isActive('/calendari', $page.url.pathname)}" on:click={() => menuOpen = false}>Calendari</a>
-        <a href="/ranking" class="block py-2 px-3 rounded {isActive('/ranking', $page.url.pathname)}" on:click={() => menuOpen = false}>Classificació</a>
-        <a href="/reptes" class="block py-2 px-3 rounded {isActive('/reptes', $page.url.pathname)}" on:click={() => menuOpen = false}>Reptes</a>
-        <a href="/llista-espera" class="block py-2 px-3 rounded {isActive('/llista-espera', $page.url.pathname)}" on:click={() => menuOpen = false}>Llista d'espera</a>
-        <a href="/historial" class="block py-2 px-3 rounded {isActive('/historial', $page.url.pathname)}" on:click={() => menuOpen = false}>Historial</a>
+      <div class="flex flex-col gap-2 py-3">
+        <a href="/calendari" class="block py-3 px-4 rounded-lg text-white hover:bg-slate-700 transition-colors {isActive('/calendari', $page.url.pathname) ? 'bg-slate-600' : ''}" on:click={() => menuOpen = false}>
+          📅 Calendari
+        </a>
+        <a href="/ranking" class="block py-3 px-4 rounded-lg text-white hover:bg-slate-700 transition-colors {isActive('/ranking', $page.url.pathname) ? 'bg-slate-600' : ''}" on:click={() => menuOpen = false}>
+          🏆 Classificació
+        </a>
+        <a href="/reptes" class="block py-3 px-4 rounded-lg text-white hover:bg-slate-700 transition-colors {isActive('/reptes', $page.url.pathname) ? 'bg-slate-600' : ''}" on:click={() => menuOpen = false}>
+          ⚔️ Reptes
+        </a>
+        <a href="/llista-espera" class="block py-3 px-4 rounded-lg text-white hover:bg-slate-700 transition-colors {isActive('/llista-espera', $page.url.pathname) ? 'bg-slate-600' : ''}" on:click={() => menuOpen = false}>
+          ⏳ Llista d'espera
+        </a>
+        <a href="/historial" class="block py-3 px-4 rounded-lg text-white hover:bg-slate-700 transition-colors {isActive('/historial', $page.url.pathname) ? 'bg-slate-600' : ''}" on:click={() => menuOpen = false}>
+          📜 Historial
+        </a>
       </div>
 
       <!-- Secció d'usuari autenticat -->
       {#if $status === 'authenticated' && $user}
-        <div class="border-t border-slate-700 pt-3 flex flex-col gap-3">
+        <div class="border-t border-slate-700 pt-3 flex flex-col gap-2">
           {#if showInscripcio}
-            <a href="/inscripcio" class="block py-2 px-3 rounded {isActive('/inscripcio', $page.url.pathname)}" on:click={() => menuOpen = false}>Inscripció</a>
+            <a href="/inscripcio" class="block py-3 px-4 rounded-lg text-white hover:bg-slate-700 transition-colors {isActive('/inscripcio', $page.url.pathname) ? 'bg-slate-600' : ''}" on:click={() => menuOpen = false}>
+              ✍️ Inscripció
+            </a>
           {/if}
-          <a href="/reptes/me" class="block py-2 px-3 rounded {isActive('/reptes/me', $page.url.pathname)}" on:click={() => menuOpen = false}>Els meus reptes</a>
-          <a href="/reptes/nou" class="block py-2 px-3 rounded {isActive('/reptes/nou', $page.url.pathname)}" on:click={() => menuOpen = false}>Crear repte</a>
-          <a href="/configuracio/notificacions" class="block py-2 px-3 rounded {isActive('/configuracio/notificacions', $page.url.pathname)}" on:click={() => menuOpen = false}>
-            Notificacions
+          <a href="/reptes/me" class="block py-3 px-4 rounded-lg text-white hover:bg-slate-700 transition-colors {isActive('/reptes/me', $page.url.pathname) ? 'bg-slate-600' : ''}" on:click={() => menuOpen = false}>
+            👤 Els meus reptes
+          </a>
+          <a href="/reptes/nou" class="block py-3 px-4 rounded-lg text-white hover:bg-slate-700 transition-colors {isActive('/reptes/nou', $page.url.pathname) ? 'bg-slate-600' : ''}" on:click={() => menuOpen = false}>
+            ➕ Crear repte
+          </a>
+          <a href="/configuracio/notificacions" class="block py-3 px-4 rounded-lg text-white hover:bg-slate-700 transition-colors {isActive('/configuracio/notificacions', $page.url.pathname) ? 'bg-slate-600' : ''}" on:click={() => menuOpen = false}>
+            🔔 Notificacions
           </a>
         </div>
       {/if}
@@ -228,7 +268,9 @@
       <!-- Secció admin -->
       {#if $status === 'authenticated' && $adminStore}
         <div class="border-t border-slate-700 pt-3">
-          <a href="/admin" class="block py-2 px-3 rounded {isActive('/admin', $page.url.pathname)}" on:click={() => menuOpen = false}>Admin</a>
+          <a href="/admin" class="block py-3 px-4 rounded-lg text-white hover:bg-slate-700 transition-colors {isActive('/admin', $page.url.pathname) ? 'bg-slate-600' : ''}" on:click={() => menuOpen = false}>
+            ⚙️ Admin
+          </a>
         </div>
       {/if}
 
@@ -269,10 +311,4 @@
 <Toasts />
 <!-- <MobileNavigation /> -->
 
-<!-- DEBUG opcional: treu-ho quan vulguis -->
-  {#if $status !== 'loading'}
-  <div class="fixed bottom-2 right-2 text-xs bg-slate-800 text-white px-2 py-1 rounded">
-    {$user?.email ?? "anònim"} | admin: {$adminStore ? "sí" : "no"}
-  </div>
-{/if}
 {/if}
