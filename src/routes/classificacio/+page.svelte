@@ -7,6 +7,8 @@
     posicio: number;
     player_id: string;
     nom: string;
+    mitjana: number | null;
+    estat: string;
     event_id?: string;
     // Si vols afegir camps extra, afegeix-los aquí i a la funció SQL
     isMe?: boolean;
@@ -18,6 +20,7 @@
     reason?: string | null;
     protected?: boolean;
     outside?: boolean;
+    mitjanaHistorica?: number | null; // Mitjana d'accés (millor entre 2024-2025)
   };
 
   const fmtSafe = (iso: string | null): string => {
@@ -64,6 +67,10 @@
         }));
 
         const eventId = base[0]?.event_id as string | undefined;
+
+        // Carregar mitjanes històriques per jugadors sense mitjana actual
+        await loadHistoricalAverages(supabase, rows);
+        
         await evaluateBadges(supabase, rows, eventId, myPlayerId);
 
         // trigger reactivity after in-place badge updates
@@ -75,6 +82,67 @@
       loading = false;
     }
   });
+
+  
+  async function loadHistoricalAverages(supabase: any, rows: Row[]): Promise<void> {
+    // Jugadors sense mitjana actual que necessiten mitjana històrica
+    const playersNeedingHistory = rows
+      .filter(r => r.mitjana === null)
+      .map(r => r.player_id);
+
+    if (playersNeedingHistory.length === 0) return;
+
+    // Obtenir numero_soci per cada player_id
+    const { data: playerSocis } = await supabase
+      .from('players')
+      .select('id, numero_soci')
+      .in('id', playersNeedingHistory);
+
+    if (!playerSocis) return;
+
+    const sociIds = playerSocis
+      .filter(p => p.numero_soci)
+      .map(p => p.numero_soci);
+
+    if (sociIds.length === 0) return;
+
+    // Obtenir la millor mitjana de 3 bandes entre 2024 i 2025
+    const { data: mitjanes } = await supabase
+      .from('mitjanes_historiques')
+      .select('soci_id, mitjana')
+      .in('soci_id', sociIds)
+      .eq('modalitat', '3 Bandes')
+      .in('year', [2024, 2025])
+      .not('mitjana', 'is', null)
+      .order('mitjana', { ascending: false });
+
+    if (!mitjanes) return;
+
+    // Crear mapa de soci_id -> millor mitjana
+    const millorsMyitjanes = new Map<number, number>();
+    mitjanes.forEach(m => {
+      const currentBest = millorsMyitjanes.get(m.soci_id);
+      if (!currentBest || m.mitjana > currentBest) {
+        millorsMyitjanes.set(m.soci_id, m.mitjana);
+      }
+    });
+
+    // Crear mapa de player_id -> numero_soci
+    const playerToSoci = new Map<string, number>();
+    playerSocis.forEach(p => {
+      if (p.numero_soci) playerToSoci.set(p.id, p.numero_soci);
+    });
+
+    // Assignar mitjanes històriques als jugadors
+    rows.forEach(r => {
+      if (r.mitjana === null) {
+        const sociId = playerToSoci.get(r.player_id);
+        if (sociId) {
+          r.mitjanaHistorica = millorsMyitjanes.get(sociId) || null;
+        }
+      }
+    });
+  }
 
 
   async function evaluateBadges(
@@ -221,21 +289,57 @@
         <tr>
           <th class="px-3 py-2 text-left font-semibold">Pos.</th>
           <th class="px-3 py-2 text-left font-semibold">Jugador</th>
+          <th class="px-3 py-2 text-left font-semibold">Mitjana</th>
         </tr>
       </thead>
       <tbody>
         {#each rows as r}
           <tr class="border-t">
             <td class="px-3 py-2">{r.posicio}</td>
-            <td class="px-3 py-2 flex items-center gap-2">
-              {r.nom}
-              {#if r.reptable}
-                <button
-                  class="ml-2 px-2 py-1 rounded bg-green-600 text-white text-xs disabled:bg-gray-300 disabled:text-gray-500"
-                  disabled={!r.canChallenge}
-                  title={r.canChallenge ? (r.reason ?? 'Reptar') : (r.reason ?? 'No pots reptar aquest jugador')}
-                  on:click={() => reptar(r.player_id)}
-                >Reptar</button>
+            <td class="px-3 py-2">
+              <div class="flex items-center gap-2">
+                <span class="font-medium text-gray-900">{r.nom}</span>
+                
+                <!-- Badges d'estat -->
+                {#if r.isMe}
+                  <span class="inline-block rounded-full bg-yellow-400 px-2 py-0.5 text-xs font-medium text-gray-900">Tu</span>
+                {/if}
+                {#if r.hasActiveChallenge}
+                  <span class="inline-block rounded-full bg-red-600 px-2 py-0.5 text-xs font-medium text-white">Repte actiu</span>
+                {/if}
+                {#if r.cooldownToChallenge}
+                  <span class="inline-block rounded-full bg-yellow-300 px-2 py-0.5 text-xs font-medium text-gray-900">Cooldown</span>
+                {/if}
+                {#if r.protected}
+                  <span class="inline-block rounded-full bg-gray-400 px-2 py-0.5 text-xs font-medium text-white">Protegit</span>
+                {/if}
+                {#if r.outside}
+                  <span class="inline-block rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-800">Fora rànquing</span>
+                {/if}
+                {#if r.reptable && r.canChallenge}
+                  <span class="inline-block rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">Reptable</span>
+                {/if}
+
+                <!-- Botó reptar -->
+                {#if r.reptable}
+                  <button
+                    class="ml-1 px-2 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+                    disabled={!r.canChallenge}
+                    title={r.canChallenge ? (r.reason ?? 'Reptar aquest jugador') : (r.reason ?? 'No pots reptar aquest jugador')}
+                    on:click={() => reptar(r.player_id)}
+                  >Reptar</button>
+                {/if}
+              </div>
+            </td>
+            <td class="px-3 py-2">
+              {#if r.mitjana !== null}
+                <span class="font-mono text-sm">{r.mitjana.toFixed(3)}</span>
+              {:else if r.mitjanaHistorica !== null}
+                <span class="font-mono text-sm text-gray-600" title="Mitjana d'accés (millor entre 2024-2025)">
+                  {r.mitjanaHistorica.toFixed(3)}*
+                </span>
+              {:else}
+                <span class="text-gray-400 text-sm">—</span>
               {/if}
             </td>
           </tr>
@@ -243,6 +347,14 @@
       </tbody>
     </table>
   </div>
+  
+  <div class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+    <p class="text-sm text-blue-800">
+      <strong>Llegenda mitjanes:</strong> Les mitjanes marcades amb * són mitjanes d'accés 
+      (millor mitjana entre 2024-2025 a 3 Bandes que va permetre l'entrada al rànquing).
+    </p>
+  </div>
+
   <div class="mt-2 flex flex-wrap gap-4 text-sm">
     <div class="flex items-center gap-1">
       <span class="inline-block rounded-full bg-red-600 px-2.5 py-1 text-xs font-medium text-white">Té repte actiu</span>
