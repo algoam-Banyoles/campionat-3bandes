@@ -190,7 +190,7 @@
     </div>
 
     <button
-      class="ml-auto md:hidden"
+      class="ml-auto md:hidden p-2 rounded hover:bg-slate-800 transition-colors"
       on:click={toggleMenu}
       aria-label="Obrir menú"
     >
@@ -201,41 +201,61 @@
   </div>
 
   {#if menuOpen}
-    <div class="md:hidden px-4 pb-4 flex flex-col gap-2">
-      <a href="/calendari" class={isActive("/calendari", $page.url.pathname)}>Calendari</a>
-      <a href="/ranking" class={isActive("/ranking", $page.url.pathname)}>Classificació</a>
-      <a href="/reptes" class={isActive("/reptes", $page.url.pathname)}>Reptes</a>
-      <a href="/llista-espera" class={isActive("/llista-espera", $page.url.pathname)}>Llista d'espera</a>
-      <a href="/historial" class={isActive("/historial", $page.url.pathname)}>Historial</a>
+    <div class="md:hidden px-4 pb-4 bg-slate-800 border-t border-slate-700">
+      <!-- Navegació principal -->
+      <div class="flex flex-col gap-3 py-3">
+        <a href="/calendari" class="block py-2 px-3 rounded {isActive('/calendari', $page.url.pathname)}" on:click={() => menuOpen = false}>Calendari</a>
+        <a href="/ranking" class="block py-2 px-3 rounded {isActive('/ranking', $page.url.pathname)}" on:click={() => menuOpen = false}>Classificació</a>
+        <a href="/reptes" class="block py-2 px-3 rounded {isActive('/reptes', $page.url.pathname)}" on:click={() => menuOpen = false}>Reptes</a>
+        <a href="/llista-espera" class="block py-2 px-3 rounded {isActive('/llista-espera', $page.url.pathname)}" on:click={() => menuOpen = false}>Llista d'espera</a>
+        <a href="/historial" class="block py-2 px-3 rounded {isActive('/historial', $page.url.pathname)}" on:click={() => menuOpen = false}>Historial</a>
+      </div>
 
-        {#if $status === 'authenticated' && $user}
-        {#if showInscripcio}
-          <a href="/inscripcio" class={isActive("/inscripcio", $page.url.pathname)}>Inscripció</a>
-        {/if}
-        <a href="/reptes/me" class={isActive("/reptes/me", $page.url.pathname)}>Els meus reptes</a>
-        <a href="/reptes/nou" class={isActive("/reptes/nou", $page.url.pathname)}>Crear repte</a>
-        <a href="/configuracio/notificacions" class={isActive("/configuracio/notificacions", $page.url.pathname)}>
-          Notificacions
-        </a>
+      <!-- Secció d'usuari autenticat -->
+      {#if $status === 'authenticated' && $user}
+        <div class="border-t border-slate-700 pt-3 flex flex-col gap-3">
+          {#if showInscripcio}
+            <a href="/inscripcio" class="block py-2 px-3 rounded {isActive('/inscripcio', $page.url.pathname)}" on:click={() => menuOpen = false}>Inscripció</a>
+          {/if}
+          <a href="/reptes/me" class="block py-2 px-3 rounded {isActive('/reptes/me', $page.url.pathname)}" on:click={() => menuOpen = false}>Els meus reptes</a>
+          <a href="/reptes/nou" class="block py-2 px-3 rounded {isActive('/reptes/nou', $page.url.pathname)}" on:click={() => menuOpen = false}>Crear repte</a>
+          <a href="/configuracio/notificacions" class="block py-2 px-3 rounded {isActive('/configuracio/notificacions', $page.url.pathname)}" on:click={() => menuOpen = false}>
+            Notificacions
+          </a>
+        </div>
       {/if}
 
-        {#if $status === 'authenticated' && $adminStore}
-        <a href="/admin" class={isActive("/admin", $page.url.pathname)}>Admin</a>
+      <!-- Secció admin -->
+      {#if $status === 'authenticated' && $adminStore}
+        <div class="border-t border-slate-700 pt-3">
+          <a href="/admin" class="block py-2 px-3 rounded {isActive('/admin', $page.url.pathname)}" on:click={() => menuOpen = false}>Admin</a>
+        </div>
       {/if}
 
-        <div class="pt-2 flex flex-col gap-2">
-          {#if $status === 'loading'}
-            <span class="text-sm opacity-80">…</span>
-          {:else if $user}
-          <span class="text-sm opacity-80">{$user.email}</span>
-          <button
-            class="w-fit rounded border px-3 py-1 text-sm hover:bg-slate-800"
-            on:click={() => { signOut(); menuOpen = false; }}
-          >
-            Sortir
-          </button>
+      <!-- Secció d'autenticació -->
+      <div class="border-t border-slate-700 pt-3 flex flex-col gap-3">
+        {#if $status === 'loading'}
+          <span class="text-sm opacity-80 px-3">Carregant…</span>
+        {:else if $user}
+          <div class="px-3">
+            <span class="text-sm opacity-80 block mb-2">{$user.email}</span>
+            <button
+              class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors"
+              on:click={() => { signOut(); menuOpen = false; }}
+            >
+              Sortir
+            </button>
+          </div>
         {:else}
-          <a class="w-fit rounded border px-3 py-1 text-sm hover:bg-slate-800" href="/login">Entra</a>
+          <div class="px-3">
+            <a
+              class="block w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-center transition-colors"
+              href="/login"
+              on:click={() => menuOpen = false}
+            >
+              Entra
+            </a>
+          </div>
         {/if}
       </div>
     </div>
@@ -247,7 +267,7 @@
 </main>
 
 <Toasts />
-<MobileNavigation />
+<!-- <MobileNavigation /> -->
 
 <!-- DEBUG opcional: treu-ho quan vulguis -->
   {#if $status !== 'loading'}

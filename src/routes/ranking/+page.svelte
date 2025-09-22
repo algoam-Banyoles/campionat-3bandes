@@ -321,14 +321,25 @@
                 <button
                   class="text-blue-600 hover:underline"
                   on:click={() => openEvolution(r.player_id, r.nom)}
+                  class:font-bold={r.player_id === myPlayerId}
                 >
                   {r.nom}
                 </button>
+
+                <!-- Badge per identificar el jugador logat -->
+                {#if r.player_id === myPlayerId}
+                  <span
+                    class="px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-700 font-medium"
+                    title="Aquest ets tu"
+                  >
+                    Tu
+                  </span>
+                {/if}
+
                 {#if badge?.in_cooldown}
                   {@const daysLeft = badge?.cooldown_days_left ?? 0}
-                  {@const article = daysLeft === 1 ? 'a' : 'en'}
                   {@const unit = daysLeft === 1 ? 'dia' : 'dies'}
-                  {@const cooldownText = `No es pot reptar (falt${article} ${daysLeft} ${unit})`}
+                  {@const cooldownText = `${daysLeft} ${unit} per poder reptar`}
                   <span
                     class="px-2 py-0.5 text-xs rounded bg-orange-100 text-orange-700"
                     aria-label={cooldownText}

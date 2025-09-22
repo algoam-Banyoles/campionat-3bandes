@@ -12,17 +12,54 @@
   let inWaiting = false;
 
   // Per a la inscripció de socis (Junta)
-  let socis: Array<{ numero_soci: number; cognoms: string; nom: string; email: string }> = [];
-  let selectedSoci: number | null = null;
+  let socis: Array<{ id: string; nom: string; email: string }> = [];
+  let selectedSoci: string | null = null;
   let mitjana: number | null = null;
 
   onMount(async () => {
     // Carrega socis si admin
     if ($adminStore) {
       const { supabase } = await import('$lib/supabaseClient');
-      const { data, error: err } = await supabase.from('socis').select('*');
-      if (err) error = err.message;
-      else socis = data ?? [];
+
+      // Obtenir event actiu
+      const { data: event, error: eventError } = await supabase
+        .from('events')
+        .select('id')
+        .eq('actiu', true)
+        .limit(1)
+        .maybeSingle();
+
+      if (eventError) {
+        error = eventError.message;
+      } else if (event) {
+        // Obtenir jugadors ja inscrits
+        const { data: rankingPlayers } = await supabase
+          .from('ranking_positions')
+          .select('player_id')
+          .eq('event_id', event.id);
+
+        const { data: waitingPlayers } = await supabase
+          .from('waiting_list')
+          .select('player_id')
+          .eq('event_id', event.id);
+
+        const inscritIds = new Set([
+          ...(rankingPlayers?.map(r => r.player_id) || []),
+          ...(waitingPlayers?.map(w => w.player_id) || [])
+        ]);
+
+        // Obtenir tots els jugadors i filtrar els no inscrits
+        const { data: allPlayers, error: playersError } = await supabase
+          .from('players')
+          .select('id, nom, email')
+          .order('nom');
+
+        if (playersError) {
+          error = playersError.message;
+        } else {
+          socis = (allPlayers || []).filter(player => !inscritIds.has(player.id));
+        }
+      }
     }
     try {
       const u = $user;
@@ -46,7 +83,7 @@
       if (!pl) return;
       const { data: rp, error: eRp } = await supabase
         .from('ranking_positions')
-        .select('id')
+        .select('posicio')
         .eq('event_id', eventId)
         .eq('player_id', pl.id)
         .maybeSingle();
@@ -57,7 +94,7 @@
       }
       const { data: wl, error: eWl } = await supabase
         .from('waiting_list')
-        .select('id')
+        .select('ordre')
         .eq('event_id', eventId)
         .eq('player_id', pl.id)
         .maybeSingle();
@@ -77,10 +114,13 @@
       ok = null;
       const u = $user;
       if (!u?.email) {
-        error = 'Has d’iniciar sessió.';
+        error = 'Has d\'iniciar sessio.';
         return;
       }
+
       const { supabase } = await import('$lib/supabaseClient');
+
+      // Obtenir event actiu
       const { data: ev, error: eEv } = await supabase
         .from('events')
         .select('id')
@@ -93,33 +133,132 @@
         error = 'No hi ha cap campionat actiu.';
         return;
       }
-      const { data: pl, error: ePl } = await supabase
-        .from('players')
-        .select('id')
-        .eq('email', u.email)
-        .maybeSingle();
-      if (ePl) throw ePl;
-      if (!pl) {
-        error = 'Email sense jugador associat.';
-        return;
-      }
-      const { data: res, error: eRpc } = await supabase.rpc('register_player', {
-        p_event: eventId,
-        p_player: pl.id
-      });
-      if (eRpc) throw eRpc;
-      const r: any = res;
-      if (!r?.ok) {
-        error = r?.error || 'Error desconegut';
-        return;
-      }
-      if (r.waiting) {
-        ok = `Inscrit a la llista d’espera (ordre ${r.ordre})`;
-        inWaiting = true;
+
+      let playerId: string;
+      let playerName: string;
+
+      if ($adminStore && selectedSoci) {
+        // Mode admin: inscriure el jugador seleccionat
+        const selectedPlayer = socis.find(s => s.id === selectedSoci);
+        if (!selectedPlayer) {
+          error = 'Jugador no trobat.';
+          return;
+        }
+
+        playerId = selectedPlayer.id;
+        playerName = selectedPlayer.nom;
       } else {
-        ok = `Inscrit al rànquing (posició ${r.posicio})`;
-        inRanking = true;
+        // Mode usuari normal: inscriure's a si mateix
+        const { data: pl, error: ePl } = await supabase
+          .from('players')
+          .select('id, nom')
+          .eq('email', u.email)
+          .maybeSingle();
+        if (ePl) throw ePl;
+        if (!pl) {
+          error = 'Email sense jugador associat.';
+          return;
+        }
+        playerId = pl.id;
+        playerName = pl.nom;
       }
+
+      // Inscriure el jugador directament
+      // Comprovar si ja està inscrit
+      const { data: existingRanking } = await supabase
+        .from('ranking_positions')
+        .select('posicio')
+        .eq('event_id', eventId)
+        .eq('player_id', playerId)
+        .maybeSingle();
+
+      if (existingRanking) {
+        error = `${playerName} ja està inscrit al rànquing (posició ${existingRanking.posicio})`;
+        return;
+      }
+
+      const { data: existingWaiting } = await supabase
+        .from('waiting_list')
+        .select('ordre')
+        .eq('event_id', eventId)
+        .eq('player_id', playerId)
+        .maybeSingle();
+
+      if (existingWaiting) {
+        error = `${playerName} ja està en llista d'espera (ordre ${existingWaiting.ordre})`;
+        return;
+      }
+
+      // Comptar posicions ocupades al rànquing
+      const { count: rankingCount } = await supabase
+        .from('ranking_positions')
+        .select('*', { count: 'exact', head: true })
+        .eq('event_id', eventId);
+
+      if ((rankingCount || 0) < 20) {
+        // Hi ha espai al rànquing - trobar primera posició lliure
+        const { data: occupiedPositions } = await supabase
+          .from('ranking_positions')
+          .select('posicio')
+          .eq('event_id', eventId)
+          .order('posicio');
+
+        let posicioLliure = 1;
+        const ocupades = (occupiedPositions || []).map(p => p.posicio).sort((a, b) => a - b);
+
+        for (let i = 1; i <= 20; i++) {
+          if (!ocupades.includes(i)) {
+            posicioLliure = i;
+            break;
+          }
+        }
+
+        // Inserir al rànquing
+        const { error: insertError } = await supabase
+          .from('ranking_positions')
+          .insert({
+            event_id: eventId,
+            player_id: playerId,
+            posicio: posicioLliure,
+            assignat_el: new Date().toISOString()
+          });
+
+        if (insertError) throw insertError;
+
+        ok = `${playerName} inscrit al rànquing (posició ${posicioLliure})`;
+        if (!$adminStore) inRanking = true;
+      } else {
+        // Rànquing ple - afegir a llista d'espera
+        const { count: waitingCount } = await supabase
+          .from('waiting_list')
+          .select('*', { count: 'exact', head: true })
+          .eq('event_id', eventId);
+
+        const nouOrdre = (waitingCount || 0) + 1;
+
+        const { error: insertError } = await supabase
+          .from('waiting_list')
+          .insert({
+            event_id: eventId,
+            player_id: playerId,
+            ordre: nouOrdre,
+            data_inscripcio: new Date().toISOString()
+          });
+
+        if (insertError) throw insertError;
+
+        ok = `${playerName} inscrit a la llista d'espera (ordre ${nouOrdre})`;
+        if (!$adminStore) inWaiting = true;
+      }
+
+      // Netejar formulari admin i actualitzar llista
+      if ($adminStore) {
+        selectedSoci = null;
+        mitjana = null;
+        // Eliminar el jugador inscrit de la llista de socis disponibles
+        socis = socis.filter(s => s.id !== playerId);
+      }
+
       await Promise.all([
         invalidate('/ranking'),
         invalidate('/llista-espera')
@@ -143,27 +282,83 @@
     <p class="text-slate-500">Comprovant inscripció…</p>
   {:else if preError}
     <div class="rounded border border-red-200 bg-red-50 p-3 text-red-700">{preError}</div>
-  {:else if inRanking}
-    <p>Ja estàs inscrit al rànquing.</p>
-  {:else if inWaiting}
-    <p>Ja estàs a la llista d'espera.</p>
   {:else}
+    <!-- Estat actual de l'usuari -->
+    {#if inRanking}
+      <div class="mb-4 rounded border border-green-200 bg-green-50 p-3 text-green-700">
+        ✅ Ja estàs inscrit al rànquing.
+      </div>
+    {:else if inWaiting}
+      <div class="mb-4 rounded border border-blue-200 bg-blue-50 p-3 text-blue-700">
+        ⏳ Ja estàs a la llista d'espera.
+      </div>
+    {/if}
     {#if $adminStore}
-      <form on:submit|preventDefault={inscriure} class="space-y-4">
-        <label for="soci">Selecciona el soci:</label>
-        <select id="soci" bind:value={selectedSoci} required>
-          <option value="">-- Selecciona --</option>
-          {#each socis as soci}
-            <option value={soci.numero_soci}>{soci.nom} {soci.cognoms} ({soci.email})</option>
-          {/each}
-        </select>
-        <label for="mitjana">Mitjana inicial (opcional):</label>
-        <input id="mitjana" type="number" step="0.01" bind:value={mitjana} min="0" />
-        <button type="submit" class="mt-2 px-4 py-2 bg-blue-600 text-white rounded" disabled={loading}>
-          {loading ? 'Processant…' : 'Inscriure'}
-        </button>
-      </form>
-    {:else}
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+        <h2 class="text-lg font-semibold text-blue-800 mb-3">Mode Administrador</h2>
+        <p class="text-blue-700 text-sm mb-4">Pots inscriure qualsevol soci al campionat.</p>
+
+        <form on:submit|preventDefault={inscriure} class="space-y-4">
+          <div>
+            <label for="soci" class="block text-sm font-medium text-gray-700 mb-1">
+              Selecciona el soci a inscriure:
+            </label>
+            <select
+              id="soci"
+              bind:value={selectedSoci}
+              required
+              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">-- Selecciona un jugador --</option>
+              {#each socis as soci}
+                <option value={soci.id}>
+                  {soci.nom} ({soci.email})
+                </option>
+              {/each}
+            </select>
+          </div>
+
+          <div>
+            <label for="mitjana" class="block text-sm font-medium text-gray-700 mb-1">
+              Mitjana inicial (opcional):
+            </label>
+            <input
+              id="mitjana"
+              type="number"
+              step="0.01"
+              bind:value={mitjana}
+              min="0"
+              placeholder="Ex: 1.25"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p class="text-xs text-gray-500 mt-1">
+              Si no s'especifica, el jugador s'assignarà a la primera posició lliure
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            disabled={loading || !selectedSoci}
+          >
+            {loading ? 'Processant…' : 'Inscriure soci al campionat'}
+          </button>
+        </form>
+      </div>
+
+      {#if !inRanking && !inWaiting}
+        <div class="border-t pt-4">
+          <h3 class="text-md font-medium text-gray-700 mb-2">O pots inscriure't tu mateix:</h3>
+          <button
+            class="rounded bg-slate-800 px-4 py-2 text-white disabled:opacity-50 hover:bg-slate-700 transition-colors"
+            disabled={loading}
+            on:click={inscriure}
+          >
+            {loading ? 'Processant…' : 'Inscriu-me a mi'}
+          </button>
+        </div>
+      {/if}
+    {:else if !inRanking && !inWaiting}
       <button
         class="rounded bg-slate-800 px-4 py-2 text-white disabled:opacity-50"
         disabled={loading}

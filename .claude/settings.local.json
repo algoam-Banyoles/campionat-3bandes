@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/install-github-app)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(npx supabase:*)",
+      "Bash(node:*)",
+      "Bash(psql:*)",
+      "Bash(pnpm dev:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

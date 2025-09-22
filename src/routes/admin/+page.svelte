@@ -268,11 +268,19 @@
   <Banner type="error" message={error} />
 {:else if $adminStore}
   <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <!-- Targeta: inscriure jugadors -->
+    <a href="/inscripcio" class="block rounded-2xl border p-4 hover:shadow-sm bg-green-50 border-green-200">
+      <h2 class="font-semibold text-green-800">👥 Inscriure Jugadors</h2>
+      <p class="text-sm text-green-700 mt-1">
+        Inscriu nous socis al campionat. Pots seleccionar qualsevol soci de la llista i assignar-li una mitjana inicial.
+      </p>
+    </a>
+
     <!-- Targeta: crear repte -->
     <a href="/admin/reptes/nou" class="block rounded-2xl border p-4 hover:shadow-sm">
       <h2 class="font-semibold">➕ Crear repte</h2>
       <p class="text-sm text-slate-600 mt-1">
-        Dona d’alta un repte entre dos jugadors. Pots forçar excepcions i programar-lo directament.
+        Dona d'alta un repte entre dos jugadors. Pots forçar excepcions i programar-lo directament.
       </p>
     </a>
 
@@ -280,7 +288,7 @@
     <a href="/admin/reptes" class="block rounded-2xl border p-4 hover:shadow-sm">
       <h2 class="font-semibold">🗂️ Reptes — Gestió</h2>
       <p class="text-sm text-slate-600 mt-1">
-        Visualitza, filtra i actualitza l’estat dels reptes (proposats, acceptats, programats, jugats…).
+        Visualitza, filtra i actualitza l'estat dels reptes (proposats, acceptats, programats, jugats…).
       </p>
     </a>
 
@@ -306,6 +314,14 @@
       <h2 class="font-semibold text-purple-800">📊 Mitjanes Històriques</h2>
       <p class="text-sm text-purple-700 mt-1">
         Visualitza, filtra i gestiona les mitjanes històriques dels jugadors. Assigna mitjanes als socis corresponents.
+      </p>
+    </a>
+
+    <!-- Targeta: configuració del campionat -->
+    <a href="/admin/configuracio" class="block rounded-2xl border p-4 hover:shadow-sm bg-blue-50 border-blue-200">
+      <h2 class="font-semibold text-blue-800">⚙️ Configuració del Campionat</h2>
+      <p class="text-sm text-blue-700 mt-1">
+        Configura els paràmetres del campionat: caramboles, entrades, terminis d'acceptació, programació, cooldowns i inactivitat.
       </p>
     </a>
 
