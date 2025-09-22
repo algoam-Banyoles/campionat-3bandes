@@ -17,11 +17,12 @@
 
 ## 📁 **FITXERS PREPARATS**
 
-### **Script Principal (Recomanat)**
+### **Script Principal (Verificat amb Esquema Real)**
 ```bash
-scripts/apply-indexes-corrected.sql
+scripts/apply-indexes-final.sql
 ```
-**Contingut:** 20+ índexs optimitzats amb noms correctes de columnes
+**Contingut:** 25+ índexs optimitzats verificats amb l'esquema real de Supabase
+**Correcció:** `soci` → `soci_id`, afegits índexs per `socis` i notificacions
 
 ### **Scripts Auxiliars**
 - `scripts/apply-performance-optimizations.sh` - Execució automàtica via CLI
@@ -32,9 +33,9 @@ scripts/apply-indexes-corrected.sql
 
 ### **Pas 1: Aplicar Índexs (5 minuts)**
 1. Obre [Supabase Dashboard](https://app.supabase.com) > SQL Editor
-2. Copia **tot** el contingut de `scripts/apply-indexes-corrected.sql`
-3. Executa-ho (hauria de completar-se sense errors)
-4. Verifica resultats amb les queries de verificació incloses
+2. Copia **tot** el contingut de `scripts/apply-indexes-final.sql`
+3. Executa-ho (verificat amb esquema real, sense errors)
+4. Verifica els missatges de confirmació i estadístiques incloses
 
 ### **Pas 2: Configurar Automatitzacions (Opcional)**
 1. Dashboard > Functions > Deploy Edge Functions
