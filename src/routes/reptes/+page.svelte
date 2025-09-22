@@ -83,6 +83,10 @@
   }
   const REPRO_LIMIT = 3;
   let reproLimit = REPRO_LIMIT;
+  const DEFAULT_ACCEPT_DAYS = 7;
+  const DEFAULT_PLAY_DAYS = 7;
+  let acceptDeadlineDays = DEFAULT_ACCEPT_DAYS;
+  let playDeadlineDays = DEFAULT_PLAY_DAYS;
 
   const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : '—');
   const parseLocalToIso = (local: string) => {
@@ -99,14 +103,14 @@
 
   function isExpiredAccept(r: Challenge) {
     if (r.estat !== 'proposat') return false;
-    const deadline = addDays(new Date(r.data_proposta), reproLimit ?? 3);
+    const deadline = addDays(new Date(r.data_proposta), acceptDeadlineDays ?? DEFAULT_ACCEPT_DAYS);
     return new Date() > deadline;
   }
 
   function isExpiredPlay(r: Challenge) {
     if (!['acceptat', 'programat'].includes(r.estat)) return false;
     const base = r.data_programada ?? r.data_proposta;
-    const deadline = addDays(new Date(base), reproLimit ?? 7);
+    const deadline = addDays(new Date(base), playDeadlineDays ?? DEFAULT_PLAY_DAYS);
     return new Date() > deadline;
   }
 
@@ -115,6 +119,20 @@
       loading = true;
       const mod = await import('$lib/supabaseClient');
       supabase = mod.supabase;
+
+      const { data: settingsRow, error: settingsErr } = await supabase
+        .from('app_settings')
+        .select('dies_acceptar_repte, dies_jugar_despres_acceptar')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!settingsErr && settingsRow) {
+        acceptDeadlineDays = settingsRow.dies_acceptar_repte ?? DEFAULT_ACCEPT_DAYS;
+        playDeadlineDays = settingsRow.dies_jugar_despres_acceptar ?? DEFAULT_PLAY_DAYS;
+      } else {
+        acceptDeadlineDays = DEFAULT_ACCEPT_DAYS;
+        playDeadlineDays = DEFAULT_PLAY_DAYS;
+      }
 
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {

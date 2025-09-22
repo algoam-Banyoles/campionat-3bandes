@@ -17,7 +17,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   caramboles_objectiu: 20,
   max_entrades: 50,
   allow_tiebreak: true,
-  cooldown_min_dies: 3,
+  cooldown_min_dies: 7,
   cooldown_max_dies: 7,
   dies_acceptar_repte: 7,
   dies_jugar_despres_acceptar: 7,
@@ -80,4 +80,3 @@ export async function updateSettingsValues({
   if (error) throw error;
   invalidate();
 }
-

@@ -52,7 +52,7 @@
 				// 1. Carregar tots els socis actius
 				const { data: socisActius, error: socisError } = await supabase
 					.from('socis')
-					.select('numero_soci, nom, cognoms, email, de_baixa')
+					.select('numero_soci, nom, cognoms, email, de_baixa, creat_el')
 					.or('de_baixa.is.null,de_baixa.eq.false');
 
 				if (socisError) {
@@ -136,11 +136,16 @@
 
 				// Ordenar: primers els amb mitjana (millor a pitjor), després els sense mitjana (alfabètic)
 				socisAmbMitjana.sort((a, b) => (b.mitjana || 0) - (a.mitjana || 0));
-				socisSenseMitjana.sort((a, b) => {
-					const nomA = `${a.soci.cognoms} ${a.soci.nom}`.toLowerCase();
-					const nomB = `${b.soci.cognoms} ${b.soci.nom}`.toLowerCase();
-					return nomA.localeCompare(nomB);
-				});
+					socisSenseMitjana.sort((a, b) => {
+						const parsedA = a.soci.creat_el ? Date.parse(a.soci.creat_el) : Number.NaN;
+						const parsedB = b.soci.creat_el ? Date.parse(b.soci.creat_el) : Number.NaN;
+						const timeA = Number.isFinite(parsedA) ? parsedA : Number.MAX_SAFE_INTEGER;
+						const timeB = Number.isFinite(parsedB) ? parsedB : Number.MAX_SAFE_INTEGER;
+						if (timeA !== timeB) {
+							return timeA - timeB;
+						}
+						return a.soci.numero_soci - b.soci.numero_soci;
+					});
 
 					// Combinar les dues llistes
 					mitjanes = [...socisAmbMitjana, ...socisSenseMitjana];
