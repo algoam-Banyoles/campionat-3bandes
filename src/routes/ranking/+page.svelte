@@ -320,11 +320,11 @@
     <table class="min-w-full text-sm">
       <thead class="bg-slate-50">
         <tr>
-          <th class="px-3 py-2 text-left font-semibold">Pos.</th>
-          <th class="px-3 py-2 text-left font-semibold">Jugador</th>
-          <th class="px-3 py-2 text-left font-semibold">Mitjana</th>
-          <th class="px-3 py-2 text-left font-semibold">Estat</th>
-          <th class="px-3 py-2 text-left font-semibold"></th>
+          <th class="px-2 sm:px-3 py-2 text-left font-semibold text-xs sm:text-sm">Pos.</th>
+          <th class="px-2 sm:px-3 py-2 text-left font-semibold text-xs sm:text-sm">Jugador</th>
+          <th class="px-2 sm:px-3 py-2 text-left font-semibold text-xs sm:text-sm hidden sm:table-cell">Mitjana</th>
+          <th class="px-2 sm:px-3 py-2 text-left font-semibold text-xs sm:text-sm hidden sm:table-cell">Estat</th>
+          <th class="px-2 sm:px-3 py-2 text-left font-semibold text-xs sm:text-sm"></th>
         </tr>
       </thead>
       <tbody>
@@ -332,11 +332,11 @@
           {@const badge = badgeMap.get(r.player_id)}
           {@const badgeView = getBadgeView(badge)}
           <tr class="border-t" class:bg-yellow-100={r.moved}>
-            <td class="px-3 py-2">{r.posicio}</td>
-            <td class="px-3 py-2">
-              <div class="flex flex-wrap items-center gap-2">
+            <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm">{r.posicio}</td>
+            <td class="px-2 sm:px-3 py-2">
+              <div class="flex flex-wrap items-center gap-1 sm:gap-2">
                 <button
-                  class="text-blue-600 hover:underline"
+                  class="text-blue-600 hover:underline text-xs sm:text-sm"
                   on:click={() => openEvolution(r.player_id, r.nom)}
                   class:font-bold={r.player_id === myPlayerId}
                   title={r.nom}
@@ -347,7 +347,7 @@
                 <!-- Badge per identificar el jugador logat -->
                 {#if r.player_id === myPlayerId}
                   <span
-                    class="px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-700 font-medium"
+                    class="px-1.5 py-0.5 text-xs rounded bg-blue-100 text-blue-700 font-medium"
                     title="Aquest ets tu"
                   >
                     Tu
@@ -358,12 +358,14 @@
                   {@const daysLeft = badge?.cooldown_days_left ?? 0}
                   {@const unit = daysLeft === 1 ? 'dia' : 'dies'}
                   {@const cooldownText = `${daysLeft} ${unit} per poder reptar`}
+                  {@const shortCooldownText = `${daysLeft}d`}
                   <span
-                    class="px-2 py-0.5 text-xs rounded bg-orange-100 text-orange-700"
+                    class="px-1.5 py-0.5 text-xs rounded bg-orange-100 text-orange-700 font-medium"
                     aria-label={cooldownText}
-                    title={badgeTooltip(badge) ?? undefined}
+                    title={cooldownText}
                   >
-                    {cooldownText}
+                    <span class="hidden sm:inline">{cooldownText}</span>
+                    <span class="sm:hidden">{shortCooldownText}</span>
                   </span>
                 {:else if badgeView}
                   <span
@@ -376,17 +378,18 @@
                 {/if}
               </div>
             </td>
-            <td class="px-3 py-2">{fmtMitjana(r.mitjana)}</td>
-            <td class="px-3 py-2 capitalize">{fmtEstat(r.estat)}</td>
-            <td class="px-3 py-2">
+            <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm hidden sm:table-cell">{fmtMitjana(r.mitjana)}</td>
+            <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm capitalize hidden sm:table-cell">{fmtEstat(r.estat)}</td>
+            <td class="px-2 sm:px-3 py-2">
               {#if myPlayerId && r.player_id !== myPlayerId}
                 <button
-                  class="rounded-2xl border px-3 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="rounded-2xl border px-2 sm:px-3 py-1 text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={!r.canChallenge}
                   title={r.canChallenge ? 'Clic per reptar aquest jugador' : r.reason || 'No pots reptar aquest jugador'}
                   on:click={() => reptar(r.player_id)}
                 >
-                  Reptar
+                  <span class="hidden sm:inline">Reptar</span>
+                  <span class="sm:hidden">⚔️</span>
                 </button>
               {/if}
             </td>

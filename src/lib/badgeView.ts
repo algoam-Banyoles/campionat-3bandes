@@ -9,13 +9,13 @@ export type BadgeView = {
 const ACTIVE_BADGE: BadgeView = {
   label: 'Repte actiu',
   text: 'Repte actiu',
-  className: 'rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700'
+  className: 'rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-700'
 };
 
 const CHALLENGEABLE_BADGE: BadgeView = {
   label: 'Es pot reptar',
   text: 'Es pot reptar',
-  className: 'rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700'
+  className: 'rounded bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-700'
 };
 
 export function getBadgeView(badge: VPlayerBadges | undefined | null): BadgeView | null {
