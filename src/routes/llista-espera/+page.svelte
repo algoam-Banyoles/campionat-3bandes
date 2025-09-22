@@ -7,6 +7,7 @@
     ordre: number;
     player_id: string;
     nom: string;
+    data_inscripcio: string; // ✅ Afegit per al countdown
   };
 
   // Eliminat fmtDate perquè data_inscripcio ja no es mostra
@@ -48,6 +49,24 @@ let loading = true;
       const { data, error: err } = await supabase.rpc('get_waiting_list');
       if (err) error = err.message;
       else rows = data ?? [];
+
+      // Jugador posició 20 (per reptar)
+      if (eventId) {
+        const { data: p20 } = await supabase
+          .from('ranking_positions')
+          .select('players!inner(id, nom)')
+          .eq('event_id', eventId)
+          .eq('posicio', 20)
+          .maybeSingle();
+        if (p20) {
+          player20 = { id: p20.players.id, nom: p20.players.nom };
+        }
+      }
+
+      // Configurar countdown si sóc el primer de la llista
+      if (rows.length > 0 && myPlayerId === rows[0].player_id) {
+        setupCountdown(rows[0].data_inscripcio);
+      }
     } catch (e: any) {
       error = e?.message ?? 'Error desconegut';
     } finally {
@@ -58,6 +77,30 @@ let loading = true;
   onDestroy(() => {
     if (timer) clearInterval(timer);
   });
+
+  function setupCountdown(dataInscripcio: string) {
+    const updateCountdown = () => {
+      const inscripcio = new Date(dataInscripcio);
+      const deadline = new Date(inscripcio.getTime() + 15 * 24 * 60 * 60 * 1000); // +15 dies
+      const now = new Date();
+      const remaining = deadline.getTime() - now.getTime();
+
+      if (remaining <= 0) {
+        countdown = 'Temps expirat';
+        if (timer) clearInterval(timer);
+        return;
+      }
+
+      const dies = Math.floor(remaining / (1000 * 60 * 60 * 24));
+      const hores = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minuts = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+      
+      countdown = `${dies}d ${hores}h ${minuts}m`;
+    };
+
+    updateCountdown(); // Actualitza immediatament
+    timer = setInterval(updateCountdown, 60000); // Cada minut
+  }
 
   function reptar() {
     if (player20) goto(`/reptes/nou?access=1&opponent=${player20.id}`);
@@ -73,7 +116,7 @@ let loading = true;
 {#if rows.length && myPlayerId === rows[0].player_id}
   <Banner
     type="info"
-    message={`Tens ${countdown} per reptar la posició 20${player20 ? ` — ${player20}` : ''}`}
+    message={`Tens ${countdown} per reptar la posició 20${player20 ? ` — ${player20.nom}` : ''}`}
     class="mb-3"
   />
   {#if player20}
