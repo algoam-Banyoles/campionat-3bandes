@@ -157,11 +157,12 @@
     }
 </script>
 
+<!-- Detectar clics fora del menú per tancar-lo -->
+<svelte:window on:click={handleClickOutside} />
+
 {#if $isLoading}
   <div class="fullpage-spinner">Carregant sessió…</div>
 {:else}
-<!-- Detectar clics fora del menú per tancar-lo -->
-<svelte:window on:click={handleClickOutside} />
 <nav class="bg-slate-900 text-white">
   <div class="mx-auto max-w-5xl px-4 py-3 flex items-center gap-6">
     <a href="/" class="font-semibold">Campionat 3 Bandes</a>

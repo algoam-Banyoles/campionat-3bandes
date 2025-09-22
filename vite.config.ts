@@ -14,24 +14,29 @@ export default defineConfig({
     SvelteKitPWA({
       registerType: 'autoUpdate',
       devOptions: {
-        enabled: true, // Habilitar en development
+        enabled: true,
         type: 'module'
       },
       base: '/',
       scope: '/',
-      injectRegister: false, // Desactivar injecció automàtica
+      injectRegister: false,
       includeAssets: ['favicon.ico', 'robots.txt', 'icons/*.png'],
       manifest: false, // Usarem el nostre manifest.json personalitzat
-      strategies: 'injectManifest',
-      srcDir: 'static',
+      strategies: 'generateSW',
       filename: 'sw.js',
-      injectManifest: {
-        injectionPoint: undefined // Evitar injecció automàtica
-      },
       workbox: {
         cleanupOutdatedCaches: true,
-        navigateFallback: '/offline',
+        navigateFallback: '/offline.html',
         navigateFallbackDenylist: [/^\/api/, /^\/admin/],
+        globPatterns: [
+          'client/**/*.{js,css,ico,png,svg,webp,woff,woff2}',
+          '*.{html,json,ico,png,svg,webp}'
+        ],
+        globIgnores: [
+          '**/service-worker.*',
+          'server/**',
+          '**/workbox-*.js'
+        ],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/,
