@@ -236,6 +236,23 @@
   const fmtMitjana = (m: number | null) => (m == null ? '-' : String(m));
   const fmtEstat = (e: string | undefined | null) => (e ? e.replace('_', ' ') : '');
 
+  // Funció per escurçar noms: inicials + primer cognom
+  const shortenName = (fullName: string): string => {
+    if (!fullName) return '';
+
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0]; // Només un nom
+
+    // Assumim que l'últim element és el cognom principal
+    const surname = parts[parts.length - 1];
+
+    // Els elements anteriors són noms
+    const firstNames = parts.slice(0, -1);
+    const initials = firstNames.map(name => name.charAt(0).toUpperCase()).join('.');
+
+    return `${initials}. ${surname}`;
+  };
+
   async function applyPenalty() {
     if (!(eventId && selA && selB && Math.abs(selA - selB) === 1)) return;
     penaltyBusy = true;
@@ -322,8 +339,9 @@
                   class="text-blue-600 hover:underline"
                   on:click={() => openEvolution(r.player_id, r.nom)}
                   class:font-bold={r.player_id === myPlayerId}
+                  title={r.nom}
                 >
-                  {r.nom}
+                  {shortenName(r.nom)}
                 </button>
 
                 <!-- Badge per identificar el jugador logat -->
@@ -398,7 +416,7 @@
           <select id="penal-a" bind:value={selA} class="w-full rounded border p-1">
             <option value={null} disabled selected>Selecciona posició</option>
             {#each rows as r}
-              <option value={r.posicio}>{r.posicio} - {r.nom}</option>
+              <option value={r.posicio} title={r.nom}>{r.posicio} - {shortenName(r.nom)}</option>
             {/each}
           </select>
         </div>
@@ -407,7 +425,7 @@
           <select id="penal-b" bind:value={selB} class="w-full rounded border p-1">
             <option value={null} disabled selected>Selecciona posició</option>
             {#each rows as r}
-              <option value={r.posicio}>{r.posicio} - {r.nom}</option>
+              <option value={r.posicio} title={r.nom}>{r.posicio} - {shortenName(r.nom)}</option>
             {/each}
           </select>
         </div>
