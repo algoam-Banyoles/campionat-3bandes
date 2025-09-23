@@ -50,10 +50,10 @@
       await refreshRanking();
       const rankingData = get(ranking);
 
-      if (rankingData.length === 0) {
+      if ((rankingData as RankingRow[]).length === 0) {
         error = 'No hi ha dades de classificació disponibles';
       } else {
-        rows = rankingData.map((r) => ({
+        rows = (rankingData as RankingRow[]).map((r) => ({
           ...r,
           isMe: myPlayerId === r.player_id,
           hasActiveChallenge: false,

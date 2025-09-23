@@ -59,7 +59,7 @@ let loading = true;
           .eq('posicio', 20)
           .maybeSingle();
         if (p20) {
-          player20 = { id: p20.players.id, nom: p20.players.nom };
+          player20 = { id: (p20 as any).players.id, nom: (p20 as any).players.nom };
         }
       }
 

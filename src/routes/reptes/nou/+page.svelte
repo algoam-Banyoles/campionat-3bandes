@@ -47,7 +47,7 @@
       info = null;
       await getSettings();
 
-      const params = get(page).url.searchParams;
+      const params = get(page).url?.searchParams;
       isAccess = params.get('access') === '1';
 
       const { data: auth } = await supabase.auth.getUser();
