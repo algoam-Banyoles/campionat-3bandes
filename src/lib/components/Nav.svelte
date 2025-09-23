@@ -2,6 +2,7 @@
     import { page } from '$app/stores';
     import { user, adminStore } from '$lib/stores/auth';
     import { signOut } from '$lib/utils/auth-client';
+    import { isDevUser } from '$lib/guards/devOnly';
 
   // enllaços sempre visibles
   const baseLinks = [
@@ -60,6 +61,20 @@
               class:text-white={isActive('/reptes/nou')}
             >
               Nou repte
+            </a>
+          </li>
+        {/if}
+
+        {#if $user && isDevUser($user?.email)}
+          <li>
+            <a
+              href="/campionats-socials"
+              class="px-2 py-1 rounded hover:bg-slate-100 bg-blue-100 text-blue-800"
+              class:bg-blue-900={isActive('/campionats-socials')}
+              class:text-white={isActive('/campionats-socials')}
+              title="Funcionalitat en desenvolupament"
+            >
+              Lligues Socials [DEV]
             </a>
           </li>
         {/if}

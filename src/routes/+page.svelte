@@ -7,6 +7,7 @@
     import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
     import { refreshUserChallenges, userChallenges } from '$lib/challengeStore';
     import { performanceMonitor } from '$lib/monitoring/performance';
+    import { isDevUser } from '$lib/guards/devOnly';
 
   type Challenge = {
     id: string;
@@ -200,4 +201,46 @@
       <p class="text-slate-600">No hi ha avisos.</p>
     {/if}
   </section>
+
+  {#if $user && isDevUser($user?.email)}
+    <section class="mb-6">
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h2 class="text-xl font-semibold mb-2 text-blue-900">🚧 Desenvolupament: Lligues Socials</h2>
+        <p class="text-blue-700 mb-3">
+          Accés especial a funcionalitats en desenvolupament per al sistema de lligues socials.
+        </p>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              ✅ Completat
+            </span>
+            <span class="text-sm">Migració base de dades</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+              🔄 En curs
+            </span>
+            <span class="text-sm">Importació històrics Excel</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+              ⏳ Pendent
+            </span>
+            <span class="text-sm">API i interfícies</span>
+          </div>
+        </div>
+        <div class="mt-4">
+          <a
+            href="/campionats-socials"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Accedir a Lligues Socials
+            <svg class="ml-2 -mr-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </a>
+        </div>
+      </div>
+    </section>
+  {/if}
 {/if}
