@@ -48,7 +48,7 @@ export const GET: RequestHandler = async ({ request }) => {
 
     const { data: rank, error: rErr } = await supabase
       .from('ranking_positions')
-      .select('posicio, player_id, players!inner(nom)')
+      .select('posicio, player_id, socis!inner(nom)')
       .eq('event_id', eventId)
       .order('posicio', { ascending: true });
     if (rErr) {
@@ -59,7 +59,7 @@ export const GET: RequestHandler = async ({ request }) => {
     const allRank = (rank ?? []).map((r: any) => ({
       posicio: r.posicio,
       player_id: r.player_id,
-      nom: r.players?.nom ?? '—'
+      nom: r.socis?.nom ?? '—'
     }));
 
     const mine = allRank.find((r) => r.player_id === myPlayerId) ?? null;

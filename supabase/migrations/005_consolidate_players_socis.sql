@@ -128,7 +128,17 @@ SET player_soci_id = s.id
 FROM public.socis s, public.players p
 WHERE waiting_list.player_id = p.id AND p.numero_soci = s.numero_soci;
 
--- 8. Drop old foreign key constraints
+-- 8. Drop views and policies that depend on the old columns (use CASCADE to drop all dependencies)
+DROP VIEW IF EXISTS public.v_challenges_pending CASCADE;
+DROP VIEW IF EXISTS public.v_player_badges CASCADE;
+DROP VIEW IF EXISTS public.v_player_timeline CASCADE;
+DROP VIEW IF EXISTS public.v_ranking CASCADE;
+DROP VIEW IF EXISTS public.v_position_changes CASCADE;
+DROP POLICY IF EXISTS "Players can insert challenges" ON public.challenges;
+DROP POLICY IF EXISTS "upd_challenges_by_reptat" ON public.challenges;
+DROP TRIGGER IF EXISTS trg_enforce_max_rank_gap ON public.challenges;
+
+-- 9. Drop old foreign key constraints
 ALTER TABLE public.challenges DROP CONSTRAINT IF EXISTS challenges_reptador_id_fkey;
 ALTER TABLE public.challenges DROP CONSTRAINT IF EXISTS challenges_reptat_id_fkey;
 ALTER TABLE public.history_position_changes DROP CONSTRAINT IF EXISTS history_position_changes_player_id_fkey;
@@ -138,7 +148,7 @@ ALTER TABLE public.player_weekly_positions DROP CONSTRAINT IF EXISTS player_week
 ALTER TABLE public.ranking_positions DROP CONSTRAINT IF EXISTS ranking_positions_player_id_fkey;
 ALTER TABLE public.waiting_list DROP CONSTRAINT IF EXISTS waiting_list_player_id_fkey;
 
--- 9. Rename columns (drop old, rename new)
+-- 10. Rename columns (drop old, rename new)
 ALTER TABLE public.challenges DROP COLUMN IF EXISTS reptador_id;
 ALTER TABLE public.challenges DROP COLUMN IF EXISTS reptat_id;
 ALTER TABLE public.challenges RENAME COLUMN reptador_soci_id TO reptador_id;
@@ -162,7 +172,7 @@ ALTER TABLE public.ranking_positions RENAME COLUMN player_soci_id TO player_id;
 ALTER TABLE public.waiting_list DROP COLUMN IF EXISTS player_id;
 ALTER TABLE public.waiting_list RENAME COLUMN player_soci_id TO player_id;
 
--- 10. Add new foreign key constraints pointing to socis
+-- 11. Add new foreign key constraints pointing to socis
 ALTER TABLE public.challenges ADD CONSTRAINT challenges_reptador_id_fkey
     FOREIGN KEY (reptador_id) REFERENCES socis(id) ON DELETE RESTRICT;
 ALTER TABLE public.challenges ADD CONSTRAINT challenges_reptat_id_fkey
@@ -186,14 +196,16 @@ ALTER TABLE public.ranking_positions ADD CONSTRAINT ranking_positions_player_id_
 ALTER TABLE public.waiting_list ADD CONSTRAINT waiting_list_player_id_fkey
     FOREIGN KEY (player_id) REFERENCES socis(id) ON DELETE CASCADE;
 
--- 11. Drop the players table
+-- 12. Drop the players table
 DROP TABLE IF EXISTS public.players CASCADE;
 
--- 12. Add constraints and indexes for the new structure
+-- 13. Add constraints and indexes for the new structure
+-- Drop the old primary key and set the new one
+ALTER TABLE public.socis DROP CONSTRAINT socis_pkey;
 ALTER TABLE public.socis ADD CONSTRAINT socis_id_pk PRIMARY KEY USING INDEX socis_id_key;
 
 -- Update email constraint to allow nulls but ensure uniqueness when not null
-DROP INDEX IF EXISTS socis_email_key;
+ALTER TABLE public.socis DROP CONSTRAINT IF EXISTS socis_email_key;
 CREATE UNIQUE INDEX socis_email_key ON public.socis (email) WHERE email IS NOT NULL;
 
 -- Create indexes for performance
@@ -203,7 +215,31 @@ CREATE INDEX IF NOT EXISTS idx_ranking_positions_data_ultim_repte ON public.rank
 CREATE INDEX IF NOT EXISTS idx_waiting_list_estat ON public.waiting_list USING btree (estat);
 CREATE INDEX IF NOT EXISTS idx_waiting_list_data_ultim_repte ON public.waiting_list USING btree (data_ultim_repte);
 
--- 13. Update player_state enum if needed (ensure it exists)
+-- 14. Recreate views and policies with the new schema
+CREATE OR REPLACE VIEW public.v_challenges_pending AS
+SELECT
+    id,
+    event_id,
+    reptador_id,
+    reptat_id,
+    estat::text AS estat,
+    data_proposta,
+    data_acceptacio,
+    data_programada,
+    CASE
+        WHEN estat = 'proposat'::challenge_state THEN EXTRACT(day FROM now() - data_proposta)::integer
+        WHEN estat = 'acceptat'::challenge_state THEN EXTRACT(day FROM now() - data_acceptacio)::integer
+        ELSE NULL::integer
+    END AS dies_transcorreguts
+FROM challenges c
+WHERE estat = ANY (ARRAY['proposat'::challenge_state, 'acceptat'::challenge_state]);
+
+-- Add back the policy (now references socis)
+CREATE POLICY "Players can insert challenges" ON public.challenges
+    FOR INSERT TO authenticated
+    WITH CHECK (auth.uid() = reptador_id);
+
+-- 15. Update player_state enum if needed (ensure it exists)
 DO $$ BEGIN
     CREATE TYPE player_state AS ENUM ('actiu', 'inactiu', 'pre_inactiu', 'baixa');
 EXCEPTION
