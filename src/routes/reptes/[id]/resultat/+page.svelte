@@ -78,7 +78,7 @@
 
       // 2) Noms jugadors
       const { data: players, error: e2 } = await supabase
-        .from('players')
+        .from('socis')
         .select('id,nom')
         .in('id', [c.reptador_id, c.reptat_id]);
       if (e2) throw e2;

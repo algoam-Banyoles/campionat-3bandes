@@ -28,7 +28,7 @@ let loading = true;
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {
         const { data: p } = await supabase
-          .from('players')
+          .from('socis')
           .select('id')
           .eq('email', auth.user.email)
           .maybeSingle();

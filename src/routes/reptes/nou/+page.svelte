@@ -57,7 +57,7 @@
       }
 
       const { data: player, error: pErr } = await supabase
-        .from('players')
+        .from('socis')
         .select('id')
         .eq('email', auth.user.email)
         .maybeSingle();
@@ -99,7 +99,7 @@
           }
         } else {
           const { data: opp } = await supabase
-            .from('players')
+            .from('socis')
             .select('nom')
             .eq('id', oppId)
             .maybeSingle();

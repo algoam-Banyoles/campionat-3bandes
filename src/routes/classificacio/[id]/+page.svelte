@@ -37,7 +37,7 @@
     const id = $page.params.id;
     try {
       const { data: player, error: pErr } = await supabase
-        .from('players')
+        .from('socis')
         .select('nom')
         .eq('id', id)
         .maybeSingle();

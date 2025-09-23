@@ -52,7 +52,7 @@
         new Set([...(ch?.map((c) => c.reptador_id) ?? []), ...(ch?.map((c) => c.reptat_id) ?? [])])
       );
       const { data: players, error: e2 } = await supabase
-        .from('players')
+        .from('socis')
         .select('id,nom')
         .in('id', ids);
       if (e2) throw e2;

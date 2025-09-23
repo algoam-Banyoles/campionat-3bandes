@@ -69,7 +69,7 @@ async function load() {
     const { supabase } = await import('$lib/supabaseClient');
 
     const { data: p, error: e1 } = await supabase
-      .from('players')
+      .from('socis')
       .select('id')
       .eq('email', u.email)
       .maybeSingle();
@@ -93,7 +93,7 @@ async function load() {
     let nameById = new Map<string, string>();
     if (ids.length) {
       const { data: players, error: e3 } = await supabase
-        .from('players')
+        .from('socis')
         .select('id,nom')
         .in('id', ids);
       if (e3) throw e3;

@@ -89,7 +89,7 @@
         const missing = ids.filter((id) => !players[id]);
         if (missing.length > 0) {
           const { data: pl, error: e2 } = await supabase
-            .from('players')
+            .from('socis')
             .select('id, nom')
             .in('id', missing);
           if (e2) throw e2;
@@ -129,7 +129,7 @@
       const missing = ids.filter((id) => !players[id]);
       if (missing.length > 0) {
         const { data: pl, error: e2 } = await supabase
-          .from('players')
+          .from('socis')
           .select('id, nom')
           .in('id', missing);
         if (e2) throw e2;

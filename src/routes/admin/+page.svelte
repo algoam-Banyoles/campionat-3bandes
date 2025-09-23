@@ -240,7 +240,7 @@
       const ids = Array.from(new Set(recent.map((r) => r.player_id)));
       if (ids.length > 0) {
         const { data: pl, error: ePl } = await supabase
-          .from('players')
+          .from('socis')
           .select('id, nom')
           .in('id', ids);
         if (ePl) throw ePl;

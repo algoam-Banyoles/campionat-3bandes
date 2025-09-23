@@ -58,7 +58,7 @@
       }
       
       const { data: pl, error: ePl } = await supabase
-        .from('players')
+        .from('socis')
         .select('id')
         .eq('email', u.email)
         .maybeSingle();

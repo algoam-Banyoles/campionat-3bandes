@@ -58,7 +58,8 @@ export async function refreshActiveChallenges(): Promise<void> {
       const offlinePlayers = await getAllOffline('socis');
       const playerMap = new Map<string, string>();
       offlinePlayers.forEach(player => {
-        playerMap.set(player.id.toString(), `${player.nom} ${player.cognom}`);
+        const fullName = player.cognoms ? `${player.nom} ${player.cognoms}` : player.nom;
+        playerMap.set(player.id.toString(), fullName);
       });
 
       const processedData: ChallengeWithPlayers[] = offlineChallenges.map(challenge => ({
@@ -143,8 +144,8 @@ export async function refreshActiveChallenges(): Promise<void> {
                 ]));
 
                 const { data: players, error: playersError } = await supabase
-                  .from('players')
-                  .select('id, nom')
+                  .from('socis')
+                  .select('id, nom, cognoms')
                   .in('id', playerIds);
 
                 if (playersError) {
@@ -154,7 +155,8 @@ export async function refreshActiveChallenges(): Promise<void> {
                 // Crear un mapa de jugadors per ID
                 const playerMap = new Map<string, string>();
                 (players || []).forEach(player => {
-                  playerMap.set(player.id, player.nom);
+                  const fullName = player.cognoms ? `${player.nom} ${player.cognoms}` : player.nom;
+                  playerMap.set(player.id, fullName);
                 });
 
                 // Processar dades per afegir noms dels jugadors
@@ -284,7 +286,7 @@ export async function refreshUserChallenges(playerId: string): Promise<void> {
             ]));
 
             const { data: players, error: playersError } = await supabase
-              .from('players')
+              .from('socis')
               .select('id, nom')
               .in('id', playerIds);
 

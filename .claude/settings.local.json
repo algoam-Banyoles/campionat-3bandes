@@ -7,7 +7,9 @@
       "Bash(npx supabase:*)",
       "Bash(node:*)",
       "Bash(psql:*)",
-      "Bash(pnpm dev:*)"
+      "Bash(pnpm dev:*)",
+      "Bash(find:*)",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": []

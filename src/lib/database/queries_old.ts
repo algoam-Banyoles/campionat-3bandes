@@ -2,7 +2,7 @@ import { supabase } from '$lib/supabaseClient';
 import { logAction, logError } from '$lib/errors/sentry';
 
 export interface RankingWithPlayers {
-	event_id: string;
+	id: string;
 	posicio: number;
 	player_id: string;
 	mitjana: number | null;
@@ -21,27 +21,6 @@ export interface RankingWithPlayers {
 		avatar_url: string | null;
 	};
 	activeChallenges?: Challenge[];
-}
-
-export interface WaitingListPlayer {
-	id: string;
-	player_id: string;
-	ordre: number;
-	estat: 'actiu' | 'inactiu' | 'pre_inactiu' | 'baixa';
-	data_ultim_repte: string | null;
-	data_inscripcio: string;
-	event_id: string;
-	player: {
-		id: string;
-		numero_soci: number;
-		nom: string;
-		cognoms: string;
-		email: string | null;
-		telefon: string | null;
-		de_baixa: boolean | null;
-		club: string | null;
-		avatar_url: string | null;
-	};
 }
 
 export interface Challenge {
@@ -97,16 +76,15 @@ export interface QueryPerformance {
 
 /**
  * Classe per optimitzar consultes SQL amb JOIN i monitorització
- * Actualitzada per la nova arquitectura socis/events
  */
 export class OptimizedQueries {
 	private performanceLog: QueryPerformance[] = [];
 	private readonly SLOW_QUERY_THRESHOLD = 500; // ms
 
 	/**
-	 * Obtenir rànquing complet amb informació de jugadors i reptes actius per un event específic
+	 * Obtenir rànquing complet amb informació de jugadors i reptes actius
 	 */
-	async getRankingWithPlayers(eventId: string, includeActiveChallenges = false): Promise<RankingWithPlayers[]> {
+	async getRankingWithPlayers(includeActiveChallenges = false): Promise<RankingWithPlayers[]> {
 		const startTime = Date.now();
 		const queryName = 'getRankingWithPlayers';
 
@@ -133,7 +111,6 @@ export class OptimizedQueries {
 						avatar_url
 					)
 				`)
-				.eq('event_id', eventId)
 				.order('posicio', { ascending: true });
 
 			const { data, error } = await query;
@@ -143,7 +120,7 @@ export class OptimizedQueries {
 			}
 
 			let rankingData: RankingWithPlayers[] = (data || []).map((item: any) => ({
-				event_id: item.event_id,
+				id: `${item.event_id}-${item.posicio}`,
 				posicio: item.posicio,
 				player_id: item.player_id,
 				mitjana: item.mitjana,
@@ -163,11 +140,12 @@ export class OptimizedQueries {
 				}
 			}));
 
-			// Afegir reptes actius si es demana
+			// Afegir reptes actius si es demana (query separada per evitar duplicació)
 			if (includeActiveChallenges && rankingData.length > 0) {
 				const playerIds = rankingData.map(r => r.player_id);
-				const activeChallenges = await this.getActiveChallengesByPlayers(playerIds, eventId);
+				const activeChallenges = await this.getActiveChallengesByPlayers(playerIds);
 
+				// Agrupar reptes per jugador
 				const challengesByPlayer = new Map<string, Challenge[]>();
 				activeChallenges.forEach(challenge => {
 					const reptadorId = challenge.reptador_id;
@@ -184,6 +162,7 @@ export class OptimizedQueries {
 					challengesByPlayer.get(reptatId)!.push(challenge);
 				});
 
+				// Afegir reptes a cada jugador
 				rankingData = rankingData.map(ranking => ({
 					...ranking,
 					activeChallenges: challengesByPlayer.get(ranking.player_id) || []
@@ -204,80 +183,9 @@ export class OptimizedQueries {
 	}
 
 	/**
-	 * Obtenir llista d'espera per un event específic
+	 * Obtenir reptes actius amb informació de jugadors
 	 */
-	async getWaitingList(eventId: string): Promise<WaitingListPlayer[]> {
-		const startTime = Date.now();
-		const queryName = 'getWaitingList';
-
-		try {
-			const { data, error } = await supabase
-				.from('waiting_list')
-				.select(`
-					id,
-					player_id,
-					ordre,
-					estat,
-					data_ultim_repte,
-					data_inscripcio,
-					event_id,
-					socis!inner (
-						id,
-						numero_soci,
-						nom,
-						cognoms,
-						email,
-						telefon,
-						de_baixa,
-						club,
-						avatar_url
-					)
-				`)
-				.eq('event_id', eventId)
-				.order('ordre', { ascending: true });
-
-			if (error) {
-				throw error;
-			}
-
-			const waitingData: WaitingListPlayer[] = (data || []).map((item: any) => ({
-				id: item.id,
-				player_id: item.player_id,
-				ordre: item.ordre,
-				estat: item.estat,
-				data_ultim_repte: item.data_ultim_repte,
-				data_inscripcio: item.data_inscripcio,
-				event_id: item.event_id,
-				player: {
-					id: item.socis.id,
-					numero_soci: item.socis.numero_soci,
-					nom: item.socis.nom,
-					cognoms: item.socis.cognoms,
-					email: item.socis.email,
-					telefon: item.socis.telefon,
-					de_baixa: item.socis.de_baixa,
-					club: item.socis.club,
-					avatar_url: item.socis.avatar_url
-				}
-			}));
-
-			const duration = Date.now() - startTime;
-			this.logPerformance(queryName, duration, false);
-
-			return waitingData;
-
-		} catch (error) {
-			const duration = Date.now() - startTime;
-			this.logPerformance(queryName, duration, false);
-			logError(error as Error);
-			throw error;
-		}
-	}
-
-	/**
-	 * Obtenir reptes actius amb informació de jugadors per un event específic
-	 */
-	async getActiveChallenges(eventId: string): Promise<Challenge[]> {
+	async getActiveChallenges(): Promise<Challenge[]> {
 		const startTime = Date.now();
 		const queryName = 'getActiveChallenges';
 
@@ -308,7 +216,6 @@ export class OptimizedQueries {
 						cognoms
 					)
 				`)
-				.eq('event_id', eventId)
 				.in('estat', ['pendent', 'acceptat'])
 				.order('data_creacio', { ascending: false });
 
@@ -347,7 +254,7 @@ export class OptimizedQueries {
 	/**
 	 * Obtenir reptes actius per llista de jugadors específics
 	 */
-	async getActiveChallengesByPlayers(playerIds: string[], eventId: string): Promise<Challenge[]> {
+	async getActiveChallengesByPlayers(playerIds: string[]): Promise<Challenge[]> {
 		const startTime = Date.now();
 		const queryName = 'getActiveChallengesByPlayers';
 
@@ -378,7 +285,6 @@ export class OptimizedQueries {
 						cognoms
 					)
 				`)
-				.eq('event_id', eventId)
 				.in('estat', ['pendent', 'acceptat'])
 				.or(`reptador_id.in.(${playerIds.join(',')}),reptat_id.in.(${playerIds.join(',')})`)
 				.order('data_creacio', { ascending: false });
@@ -418,11 +324,12 @@ export class OptimizedQueries {
 	/**
 	 * Obtenir estadístiques completes d'un jugador
 	 */
-	async getPlayerStats(playerId: string, eventId: string): Promise<PlayerStats | null> {
+	async getPlayerStats(playerId: string): Promise<PlayerStats | null> {
 		const startTime = Date.now();
 		const queryName = 'getPlayerStats';
 
 		try {
+			// Query en paral·lel per obtenir totes les dades
 			const [playerData, rankingData, challengesData, averagesData] = await Promise.all([
 				// Informació bàsica del jugador
 				supabase
@@ -436,7 +343,6 @@ export class OptimizedQueries {
 					.from('ranking_positions')
 					.select('posicio')
 					.eq('player_id', playerId)
-					.eq('event_id', eventId)
 					.single(),
 
 				// Reptes del jugador (últims 20)
@@ -453,10 +359,9 @@ export class OptimizedQueries {
 						resultat_reptador,
 						resultat_reptat,
 						comentaris,
-						reptador:reptador_id (id, numero_soci, nom, cognoms),
-						reptat:reptat_id (id, numero_soci, nom, cognoms)
+						reptador:reptador_id (numero_soci, nom, cognoms),
+						reptat:reptat_id (numero_soci, nom, cognoms)
 					`)
-					.eq('event_id', eventId)
 					.or(`reptador_id.eq.${playerId},reptat_id.eq.${playerId}`)
 					.order('data_creacio', { ascending: false })
 					.limit(20),
@@ -465,7 +370,7 @@ export class OptimizedQueries {
 				supabase
 					.from('mitjanes_historiques')
 					.select('*')
-					.eq('soci_id', playerData?.data?.numero_soci)
+					.eq('soci_id', playerId)
 					.eq('modalitat', '3 BANDES')
 					.order('year', { ascending: false })
 					.limit(5)
@@ -473,7 +378,7 @@ export class OptimizedQueries {
 
 			if (playerData.error) {
 				if (playerData.error.code === 'PGRST116') {
-					return null;
+					return null; // Jugador no trobat
 				}
 				throw playerData.error;
 			}
@@ -568,28 +473,28 @@ export class OptimizedQueries {
 
 		try {
 			const searchTerm = query.trim().toLowerCase();
-
+			
 			// Si és un número, buscar per número de soci
 			if (/^\d+$/.test(searchTerm)) {
 				const { data, error } = await supabase
 					.from('socis')
-					.select('id, numero_soci, nom, cognoms')
+					.select('numero_soci, nom, cognoms')
 					.eq('numero_soci', parseInt(searchTerm))
 					.or('de_baixa.is.null,de_baixa.eq.false')
 					.limit(1);
 
 				if (error) throw error;
-
+				
 				const duration = Date.now() - startTime;
 				this.logPerformance(queryName, duration, false);
-
+				
 				return data || [];
 			}
 
 			// Cerca per nom/cognoms
 			const { data, error } = await supabase
 				.from('socis')
-				.select('id, numero_soci, nom, cognoms')
+				.select('numero_soci, nom, cognoms')
 				.or(`nom.ilike.%${searchTerm}%,cognoms.ilike.%${searchTerm}%`)
 				.or('de_baixa.is.null,de_baixa.eq.false')
 				.order('cognoms')
@@ -635,7 +540,7 @@ export class OptimizedQueries {
 					.eq('estat', 'completat'),
 
 				supabase
-					.from('ranking_positions')
+					.from('ranking')
 					.select('*', { count: 'exact', head: true })
 			]);
 
@@ -664,11 +569,11 @@ export class OptimizedQueries {
 	 * Obtenir mètriques de rendiment
 	 */
 	getPerformanceMetrics() {
-		const recentQueries = this.performanceLog.slice(-100);
+		const recentQueries = this.performanceLog.slice(-100); // Últimes 100 queries
 		const slowQueries = recentQueries.filter(q => q.duration > this.SLOW_QUERY_THRESHOLD);
-
-		const avgDuration = recentQueries.length > 0
-			? recentQueries.reduce((sum, q) => sum + q.duration, 0) / recentQueries.length
+		
+		const avgDuration = recentQueries.length > 0 
+			? recentQueries.reduce((sum, q) => sum + q.duration, 0) / recentQueries.length 
 			: 0;
 
 		return {
@@ -676,8 +581,8 @@ export class OptimizedQueries {
 			recentQueries: recentQueries.length,
 			slowQueries: slowQueries.length,
 			averageDuration: Math.round(avgDuration),
-			slowestQuery: recentQueries.reduce((slowest, current) =>
-				current.duration > slowest.duration ? current : slowest,
+			slowestQuery: recentQueries.reduce((slowest, current) => 
+				current.duration > slowest.duration ? current : slowest, 
 				{ duration: 0, query: '', timestamp: 0, cacheHit: false }
 			)
 		};
@@ -702,10 +607,12 @@ export class OptimizedQueries {
 
 		this.performanceLog.push(logEntry);
 
+		// Mantenir només les últimes 1000 entrades
 		if (this.performanceLog.length > 1000) {
 			this.performanceLog = this.performanceLog.slice(-1000);
 		}
 
+		// Log de queries lentes
 		if (duration > this.SLOW_QUERY_THRESHOLD) {
 			logAction('slow_query_detected', {
 				query,

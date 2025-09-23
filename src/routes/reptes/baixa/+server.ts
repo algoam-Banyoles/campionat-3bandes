@@ -17,7 +17,7 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     const { data: player, error: pErr } = await supabase
-      .from('players')
+      .from('socis')
       .select('id')
       .eq('email', auth.user.email)
       .maybeSingle();

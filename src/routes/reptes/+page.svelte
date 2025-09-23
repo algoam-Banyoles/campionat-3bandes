@@ -137,7 +137,7 @@
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {
         const { data: player } = await supabase
-          .from('players')
+          .from('socis')
           .select('id')
           .eq('email', auth.user.email)
           .maybeSingle();
@@ -162,7 +162,7 @@
       let nameById = new Map<string, string>();
       if (idsPendents.length) {
         const { data: players, error: pErr } = await supabase
-          .from('players')
+          .from('socis')
           .select('id,nom')
           .in('id', idsPendents);
         if (pErr) throw pErr;
@@ -201,7 +201,7 @@
         let namesRes = new Map<string, string>();
         if (idsRes.length) {
           const { data: pls, error: pErr2 } = await supabase
-            .from('players')
+            .from('socis')
             .select('id,nom')
             .in('id', idsRes);
           if (pErr2) throw pErr2;

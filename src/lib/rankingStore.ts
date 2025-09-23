@@ -19,7 +19,9 @@ export type RankingRow = {
   nom: string;
   cognoms: string | null;
   mitjana: number | null;
-  estat: string;
+  estat: 'actiu' | 'inactiu' | 'pre_inactiu' | 'baixa';
+  data_ultim_repte: string | null;
+  numero_soci: number;
 };
 
 export const ranking = writable<RankingRow[]>([]);
@@ -45,21 +47,19 @@ export async function refreshRanking(force = false): Promise<void> {
       return;
     }
 
-    // Consulta directa amb JOIN per agafar nom i cognoms separats
+    // Consulta directa amb JOIN per agafar nom i cognoms de socis
     const { data, error } = await supabase
       .from('ranking_positions')
       .select(`
         posicio,
         player_id,
-        players!inner (
-          nom,
-          mitjana,
-          estat,
+        mitjana,
+        estat,
+        data_ultim_repte,
+        socis!inner (
           numero_soci,
-          socis (
-            nom,
-            cognoms
-          )
+          nom,
+          cognoms
         )
       `)
       .eq('event_id', activeEvent.id)
@@ -73,11 +73,12 @@ export async function refreshRanking(force = false): Promise<void> {
     const rankingData: RankingRow[] = (data ?? []).map((item: any) => ({
       posicio: item.posicio,
       player_id: item.player_id,
-      // Usar nom i cognoms de socis si existeixen, sinó usar nom de players
-      nom: item.players.socis?.nom || item.players.nom,
-      cognoms: item.players.socis?.cognoms || null,
-      mitjana: item.players.mitjana,
-      estat: item.players.estat
+      nom: item.socis.nom,
+      cognoms: item.socis.cognoms,
+      mitjana: item.mitjana,
+      estat: item.estat,
+      data_ultim_repte: item.data_ultim_repte,
+      numero_soci: item.socis.numero_soci
     }));
 
     ranking.set(rankingData);

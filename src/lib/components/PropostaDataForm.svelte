@@ -45,7 +45,7 @@
 
     // trobem el player_id d'aquest email
     const { data: me, error } = await supabase
-      .from('players')
+      .from('socis')
       .select('id')
       .eq('email', email)
       .maybeSingle();

@@ -3,14 +3,10 @@
   import { goto } from '$app/navigation';
   import { canCreateChallenge } from '$lib/canCreateChallenge';
   import { formatPlayerDisplayName } from '$lib/utils/playerName';
+  import { ranking, refreshRanking, type RankingRow } from '$lib/rankingStore';
+  import { get } from 'svelte/store';
 
-  type Row = {
-    posicio: number;
-    player_id: string;
-    nom: string;
-    cognoms: string | null;
-    mitjana: number | null;
-    estat: string;
+  type Row = RankingRow & {
     event_id?: string;
     // Si vols afegir camps extra, afegeix-los aquí i a la funció SQL
     isMe?: boolean;
@@ -43,21 +39,22 @@
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {
         const { data: player } = await supabase
-          .from('players')
+          .from('socis')
           .select('id')
           .eq('email', auth.user.email)
           .maybeSingle();
         myPlayerId = (player as any)?.id ?? null;
       }
 
-      const { data, error: err } = await supabase.rpc('get_ranking');
+      // Usar el mateix sistema que /ranking per consistència
+      await refreshRanking();
+      const rankingData = get(ranking);
 
-      if (err) error = err.message;
-      else {
-        const base = (data as Row[]) ?? [];
-        rows = base.map((r) => ({
+      if (rankingData.length === 0) {
+        error = 'No hi ha dades de classificació disponibles';
+      } else {
+        rows = rankingData.map((r) => ({
           ...r,
-          cognoms: r.cognoms ?? null,
           isMe: myPlayerId === r.player_id,
           hasActiveChallenge: false,
           cooldownToChallenge: false,
@@ -69,11 +66,20 @@
           outside: r.posicio == null || r.posicio > 20
         }));
 
-        const eventId = base[0]?.event_id as string | undefined;
+        // Obtenir event_id
+        const { data: event } = await supabase
+          .from('events')
+          .select('id')
+          .eq('actiu', true)
+          .order('creat_el', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const eventId = event?.id;
 
         // Carregar mitjanes històriques per jugadors sense mitjana actual
         await loadHistoricalAverages(supabase, rows);
-        
+
         await evaluateBadges(supabase, rows, eventId, myPlayerId);
 
         // trigger reactivity after in-place badge updates
@@ -97,7 +103,7 @@
 
     // Obtenir numero_soci per cada player_id
     const { data: playerSocis } = await supabase
-      .from('players')
+      .from('socis')
       .select('id, numero_soci')
       .in('id', playersNeedingHistory);
 
@@ -329,7 +335,7 @@
                 {/if}
 
                 <!-- Botó reptar -->
-                {#if r.reptable}
+                {#if myPlayerId && r.reptable}
                   <button
                     class="ml-1 px-2 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
                     disabled={!r.canChallenge}

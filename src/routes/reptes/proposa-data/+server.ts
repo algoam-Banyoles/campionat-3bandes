@@ -50,7 +50,7 @@ export const POST: RequestHandler = async ({ request }) => {
     const email = auth.user.email;
 
     const { data: player, error: pErr } = await supabase
-      .from('players')
+      .from('socis')
       .select('id')
       .eq('email', email)
       .maybeSingle();
