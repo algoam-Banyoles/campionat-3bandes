@@ -48,17 +48,22 @@
           ...(waitingPlayers?.map(w => w.player_id) || [])
         ]);
 
-        // Obtenir tots els socis i filtrar els no inscrits
+        // Obtenir tots els jugadors i filtrar els no inscrits
         const { data: allPlayers, error: playersError } = await supabase
-          .from('socis')
-          .select('id, nom, cognoms, email')
-          .eq('de_baixa', false)
-          .order('nom');
+          .from('players')
+          .select('id, socis!inner(nom, cognoms, email, de_baixa)')
+          .eq('socis.de_baixa', false)
+          .order('socis.nom');
 
         if (playersError) {
           error = playersError.message;
         } else {
-          socis = (allPlayers || []).filter(player => !inscritIds.has(player.id));
+          socis = (allPlayers || []).filter(player => !inscritIds.has(player.id)).map(player => ({
+            id: player.id,
+            nom: (player.socis as any)?.nom,
+            cognoms: (player.socis as any)?.cognoms,
+            email: (player.socis as any)?.email
+          }));
         }
       }
     }
@@ -76,7 +81,7 @@
       const eventId = ev?.id;
       if (!eventId) return;
       const { data: pl, error: ePl } = await supabase
-        .from('socis')
+        .from('players')
         .select('id')
         .eq('email', u.email)
         .maybeSingle();
@@ -151,7 +156,7 @@
       } else {
         // Mode usuari normal: inscriure's a si mateix
         const { data: pl, error: ePl } = await supabase
-          .from('socis')
+          .from('players')
           .select('id, nom')
           .eq('email', u.email)
           .maybeSingle();

@@ -57,8 +57,9 @@
         return;
       }
       
+      // Buscar jugador via players (estructura actual)
       const { data: pl, error: ePl } = await supabase
-        .from('socis')
+        .from('players')
         .select('id')
         .eq('email', u.email)
         .maybeSingle();

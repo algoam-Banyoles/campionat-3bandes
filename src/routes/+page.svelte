@@ -58,7 +58,7 @@
         
         // Després trobar el player corresponent
         const { data: p, error: e2 } = await supabase
-          .from('socis')
+          .from('players')
           .select('id')
           .eq('numero_soci', s.numero_soci)
           .maybeSingle();

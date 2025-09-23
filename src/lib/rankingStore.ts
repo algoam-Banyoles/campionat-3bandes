@@ -4,6 +4,7 @@ import { supabase } from '$lib/supabaseClient';
 import { cacheManager } from '$lib/cache/strategies';
 import { connectionManager, isConnected } from '$lib/connection/connectionManager';
 import { offlineStorage, getAllOffline, storeOffline } from '$lib/connection/offlineStorage';
+import { formatPlayerDisplayName } from '$lib/utils/playerName';
 // import { performanceMonitor } from '$lib/monitoring/performance';
 
 // Stub temporal mentre TypeScript recompila
@@ -103,12 +104,12 @@ export async function refreshRanking(force = false): Promise<void> {
       const player = playersMap.get(item.player_id) as any;
       const soci = player?.numero_soci ? socisMap.get(player.numero_soci) as any : null;
       
-      // Generar nom: inicial del nom real de socis + primer cognom
+      // Generar nom utilitzant la mateixa funció que es fa servir a altres parts
       let displayName = 'Desconegut';
       if (soci?.nom && soci?.cognoms) {
-        const inicial = soci.nom.charAt(0).toUpperCase();
-        const primerCognom = soci.cognoms.split(' ')[0];
-        displayName = `${inicial}. ${primerCognom}`;
+        displayName = formatPlayerDisplayName(soci.nom, soci.cognoms);
+      } else if (soci?.nom) {
+        displayName = formatPlayerDisplayName(soci.nom, null);
       } else if (player?.nom) {
         // Fallback si no hi ha dades de soci
         displayName = player.nom;

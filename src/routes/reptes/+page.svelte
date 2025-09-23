@@ -137,7 +137,7 @@
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {
         const { data: player } = await supabase
-          .from('socis')
+          .from('players')
           .select('id')
           .eq('email', auth.user.email)
           .maybeSingle();
@@ -162,11 +162,11 @@
       let nameById = new Map<string, string>();
       if (idsPendents.length) {
         const { data: players, error: pErr } = await supabase
-          .from('socis')
-          .select('id,nom')
+          .from('players')
+          .select('id, socis!inner(nom)')
           .in('id', idsPendents);
         if (pErr) throw pErr;
-        nameById = new Map(players?.map((p: any) => [p.id, p.nom]) ?? []);
+        nameById = new Map(players?.map((p: any) => [p.id, p.socis?.nom]) ?? []);
       }
       actius = actius.map((c) => ({
         ...c,
@@ -201,11 +201,11 @@
         let namesRes = new Map<string, string>();
         if (idsRes.length) {
           const { data: pls, error: pErr2 } = await supabase
-            .from('socis')
-            .select('id,nom')
+            .from('players')
+            .select('id, socis!inner(nom)')
             .in('id', idsRes);
           if (pErr2) throw pErr2;
-          namesRes = new Map(pls?.map((p: any) => [p.id, p.nom]) ?? []);
+          namesRes = new Map(pls?.map((p: any) => [p.id, p.socis?.nom]) ?? []);
         }
         recents = matches.map((mm: any) => {
           const chInfo = chalMap.get(mm.challenge_id);

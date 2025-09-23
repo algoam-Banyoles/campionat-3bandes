@@ -78,11 +78,11 @@
 
       // 2) Noms jugadors
       const { data: players, error: e2 } = await supabase
-        .from('socis')
-        .select('id,nom')
+        .from('players')
+        .select('id, socis!inner(nom)')
         .in('id', [c.reptador_id, c.reptat_id]);
       if (e2) throw e2;
-      const dict = new Map((players ?? []).map((p:any)=>[p.id, p.nom]));
+      const dict = new Map((players ?? []).map((p:any)=>[p.id, p.socis?.nom]));
       reptadorNom = dict.get(c.reptador_id) ?? '—';
       reptatNom = dict.get(c.reptat_id) ?? '—';
 

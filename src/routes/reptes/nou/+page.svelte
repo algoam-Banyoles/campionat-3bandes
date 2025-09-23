@@ -47,7 +47,7 @@
       info = null;
       await getSettings();
 
-      const params = get(page).url?.searchParams;
+      const params = (get(page) as any).url.searchParams;
       isAccess = params.get('access') === '1';
 
       const { data: auth } = await supabase.auth.getUser();
@@ -57,7 +57,7 @@
       }
 
       const { data: player, error: pErr } = await supabase
-        .from('socis')
+        .from('players')
         .select('id')
         .eq('email', auth.user.email)
         .maybeSingle();
@@ -99,11 +99,11 @@
           }
         } else {
           const { data: opp } = await supabase
-            .from('socis')
-            .select('nom')
+            .from('players')
+            .select('numero_soci, socis!inner(nom)')
             .eq('id', oppId)
             .maybeSingle();
-          opponentName = (opp as any)?.nom ?? '';
+          opponentName = (opp as any)?.socis?.nom ?? '';
         }
         selectedOpponent = oppId;
       } else {

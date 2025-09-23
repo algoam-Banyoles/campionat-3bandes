@@ -39,7 +39,7 @@
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {
         const { data: player } = await supabase
-          .from('socis')
+          .from('players')
           .select('id')
           .eq('email', auth.user.email)
           .maybeSingle();
@@ -103,7 +103,7 @@
 
     // Obtenir numero_soci per cada player_id
     const { data: playerSocis } = await supabase
-      .from('socis')
+      .from('players')
       .select('id, numero_soci')
       .in('id', playersNeedingHistory);
 

@@ -37,12 +37,12 @@
     const id = $page.params.id;
     try {
       const { data: player, error: pErr } = await supabase
-        .from('socis')
-        .select('nom')
+        .from('players')
+        .select('socis!inner(nom)')
         .eq('id', id)
         .maybeSingle();
       if (pErr) throw pErr;
-      playerName = player?.nom ?? '';
+      playerName = (player?.socis as any)?.nom ?? '';
 
       const { data: event, error: eErr } = await supabase
         .from('events')

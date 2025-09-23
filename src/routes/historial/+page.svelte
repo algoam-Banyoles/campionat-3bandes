@@ -89,12 +89,12 @@
         const missing = ids.filter((id) => !players[id]);
         if (missing.length > 0) {
           const { data: pl, error: e2 } = await supabase
-            .from('socis')
-            .select('id, nom')
+            .from('players')
+            .select('id, socis!inner(nom)')
             .in('id', missing);
           if (e2) throw e2;
           for (const p of pl ?? []) {
-            players[p.id] = p.nom;
+            players[p.id] = (p.socis as any)?.nom;
           }
         }
       }
@@ -129,12 +129,12 @@
       const missing = ids.filter((id) => !players[id]);
       if (missing.length > 0) {
         const { data: pl, error: e2 } = await supabase
-          .from('socis')
-          .select('id, nom')
+          .from('players')
+          .select('id, socis!inner(nom)')
           .in('id', missing);
         if (e2) throw e2;
         for (const p of pl ?? []) {
-          players[p.id] = p.nom;
+          players[p.id] = (p.socis as any)?.nom;
         }
       }
     } catch (e) {

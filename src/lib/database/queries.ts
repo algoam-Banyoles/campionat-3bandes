@@ -158,7 +158,7 @@ export class OptimizedQueries {
 				player: {
 					id: item.players?.id,
 					numero_soci: item.players?.numero_soci || 0,
-					nom: item.players?.socis?.nom || item.players?.nom || 'Desconegut',
+					nom: item.players?.socis?.nom || 'Desconegut',
 					cognoms: item.players?.socis?.cognoms || null,
 					email: item.players?.socis?.email || item.players?.email,
 					telefon: null, // No disponible en l'estructura actual
@@ -260,7 +260,7 @@ export class OptimizedQueries {
 				player: {
 					id: item.players?.id,
 					numero_soci: item.players?.numero_soci || 0,
-					nom: item.players?.socis?.nom || item.players?.nom || 'Desconegut',
+					nom: item.players?.socis?.nom || 'Desconegut',
 					cognoms: item.players?.socis?.cognoms || null,
 					email: item.players?.socis?.email || item.players?.email,
 					telefon: null, // No disponible en l'estructura actual
