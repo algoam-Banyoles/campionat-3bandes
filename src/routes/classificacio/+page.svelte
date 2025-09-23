@@ -2,11 +2,13 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { canCreateChallenge } from '$lib/canCreateChallenge';
+  import { formatPlayerDisplayName } from '$lib/utils/playerName';
 
   type Row = {
     posicio: number;
     player_id: string;
     nom: string;
+    cognoms: string | null;
     mitjana: number | null;
     estat: string;
     event_id?: string;
@@ -55,6 +57,7 @@
         const base = (data as Row[]) ?? [];
         rows = base.map((r) => ({
           ...r,
+          cognoms: r.cognoms ?? null,
           isMe: myPlayerId === r.player_id,
           hasActiveChallenge: false,
           cooldownToChallenge: false,
@@ -298,7 +301,12 @@
             <td class="px-3 py-2">{r.posicio}</td>
             <td class="px-3 py-2">
               <div class="flex items-center gap-2">
-                <span class="font-medium text-gray-900">{r.nom}</span>
+                <span
+                  class="font-medium text-gray-900"
+                  title={r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom}
+                >
+                  {formatPlayerDisplayName(r.nom, r.cognoms)}
+                </span>
                 
                 <!-- Badges d'estat -->
                 {#if r.isMe}

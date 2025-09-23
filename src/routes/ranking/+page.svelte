@@ -12,6 +12,7 @@
     import { adminStore } from '$lib/stores/auth';
     import { applyDisagreementDrop } from '$lib/applyDisagreementDrop';
     import PullToRefresh from '$lib/components/gestures/PullToRefresh.svelte';
+    import { formatPlayerDisplayName } from '$lib/utils/playerName';
 
   export let badges: VPlayerBadges[] = [];
   export let badgesLoaded = false;
@@ -236,37 +237,6 @@
   const fmtMitjana = (m: number | null) => (m == null ? '-' : String(m));
   const fmtEstat = (e: string | undefined | null) => (e ? e.replace('_', ' ') : '');
 
-  // Funció per escurçar noms: inicials + primer cognom
-  const shortenName = (nom: string, cognoms: string | null): string => {
-    if (!nom) return '';
-
-    // Si tenim cognoms separats, usar-los
-    if (cognoms) {
-      // Agafar les inicials dels noms
-      const nameInitials = nom.trim().split(/\s+/)
-        .map(name => name.charAt(0).toUpperCase())
-        .join('.');
-
-      // Agafar el primer cognom
-      const firstSurname = cognoms.trim().split(/\s+/)[0];
-
-      return `${nameInitials}. ${firstSurname}`;
-    }
-
-    // Fallback: usar el nom complet com abans
-    const parts = nom.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0]; // Només un nom
-
-    // Assumim que l'últim element és el cognom principal
-    const surname = parts[parts.length - 1];
-
-    // Els elements anteriors són noms
-    const firstNames = parts.slice(0, -1);
-    const initials = firstNames.map(name => name.charAt(0).toUpperCase()).join('.');
-
-    return `${initials}. ${surname}`;
-  };
-
   async function applyPenalty() {
     if (!(eventId && selA && selB && Math.abs(selA - selB) === 1)) return;
     penaltyBusy = true;
@@ -355,7 +325,7 @@
                   class:font-bold={r.player_id === myPlayerId}
                   title={r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom}
                 >
-                  {shortenName(r.nom, r.cognoms)}
+                  {formatPlayerDisplayName(r.nom, r.cognoms)}
                 </button>
 
                 <!-- Badge per identificar el jugador logat -->
@@ -434,7 +404,7 @@
             <option value={null} disabled selected>Selecciona posició</option>
             {#each rows as r}
               <option value={r.posicio} title={r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom}>
-                {r.posicio} - {shortenName(r.nom, r.cognoms)}
+                {r.posicio} - {formatPlayerDisplayName(r.nom, r.cognoms)}
               </option>
             {/each}
           </select>
@@ -445,7 +415,7 @@
             <option value={null} disabled selected>Selecciona posició</option>
             {#each rows as r}
               <option value={r.posicio} title={r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom}>
-                {r.posicio} - {shortenName(r.nom, r.cognoms)}
+                {r.posicio} - {formatPlayerDisplayName(r.nom, r.cognoms)}
               </option>
             {/each}
           </select>
