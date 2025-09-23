@@ -281,7 +281,13 @@
   }
 </script>
 
-<h1 class="text-xl font-semibold mb-4">Classificació</h1>
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-slate-900 mb-2 flex items-center gap-3">
+    <span class="text-3xl">🏆</span>
+    Classificació del Rànquing
+  </h1>
+  <p class="text-slate-600 text-sm">Posicions actuals del campionat continu de 3 bandes</p>
+</div>
 
 {#if loading}
   <p class="text-slate-500">Carregant rànquing…</p>
@@ -292,68 +298,106 @@
 {:else if rows.length === 0}
   <p class="text-slate-500">Encara no hi ha posicions al rànquing.</p>
 {:else}
-  <div class="overflow-x-auto rounded-lg border border-slate-200">
-    <table class="min-w-full text-sm">
-      <thead class="bg-slate-50">
+  <div class="overflow-x-auto rounded-xl bg-white shadow-sm border border-slate-200">
+    <table class="min-w-full">
+      <thead class="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
         <tr>
-          <th class="px-3 py-2 text-left font-semibold">Pos.</th>
-          <th class="px-3 py-2 text-left font-semibold">Jugador</th>
-          <th class="px-3 py-2 text-left font-semibold">Mitjana</th>
+          <th class="px-4 py-3 text-left font-semibold text-slate-700 text-sm">Posició</th>
+          <th class="px-4 py-3 text-left font-semibold text-slate-700 text-sm">Jugador</th>
+          <th class="px-4 py-3 text-left font-semibold text-slate-700 text-sm">Mitjana</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody class="divide-y divide-slate-100">
         {#each rows as r}
-          <tr class="border-t">
-            <td class="px-3 py-2">{r.posicio}</td>
-            <td class="px-3 py-2">
-              <div class="flex items-center gap-2">
+          <tr class="hover:bg-slate-50 transition-colors duration-150 {r.isMe ? 'bg-blue-50' : ''}">
+            <td class="px-4 py-3">
+              {#if r.posicio}
+                <div class="flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold text-white
+                  {r.posicio === 1 ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 shadow-lg' :
+                   r.posicio === 2 ? 'bg-gradient-to-r from-gray-300 to-gray-400 shadow-md' :
+                   r.posicio === 3 ? 'bg-gradient-to-r from-amber-600 to-amber-700 shadow-md' :
+                   r.posicio <= 5 ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
+                   r.posicio <= 10 ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
+                   'bg-gradient-to-r from-slate-400 to-slate-500'}">
+                  {r.posicio}
+                </div>
+              {:else}
+                <div class="flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium text-slate-500 bg-slate-200">
+                  —
+                </div>
+              {/if}
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-3">
                 <span
-                  class="font-medium text-gray-900"
+                  class="font-medium text-slate-900 text-sm"
                   title={r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom}
                 >
                   {formatPlayerDisplayName(r.nom, r.cognoms)}
                 </span>
                 
-                <!-- Badges d'estat -->
-                {#if r.isMe}
-                  <span class="inline-block rounded-full bg-yellow-400 px-2 py-0.5 text-xs font-medium text-gray-900">Tu</span>
-                {/if}
-                {#if r.hasActiveChallenge}
-                  <span class="inline-block rounded-full bg-red-600 px-2 py-0.5 text-xs font-medium text-white">Repte actiu</span>
-                {/if}
-                {#if r.cooldownToChallenge}
-                  <span class="inline-block rounded-full bg-yellow-300 px-2 py-0.5 text-xs font-medium text-gray-900">Cooldown</span>
-                {/if}
-                {#if r.protected}
-                  <span class="inline-block rounded-full bg-gray-400 px-2 py-0.5 text-xs font-medium text-white">Protegit</span>
-                {/if}
-                {#if r.outside}
-                  <span class="inline-block rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-800">Fora rànquing</span>
-                {/if}
-                {#if r.reptable && r.canChallenge}
-                  <span class="inline-block rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">Reptable</span>
-                {/if}
+                <!-- Badges d'estat modernitzats -->
+                <div class="flex items-center gap-2 flex-wrap">
+                  {#if r.isMe}
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-sm">
+                      ✨ Tu
+                    </span>
+                  {/if}
+                  {#if r.hasActiveChallenge}
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-red-500 to-red-600 text-white shadow-sm">
+                      🎯 Repte actiu
+                    </span>
+                  {/if}
+                  {#if r.cooldownToChallenge}
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-orange-400 to-orange-500 text-white shadow-sm">
+                      ⏳ Cooldown
+                    </span>
+                  {/if}
+                  {#if r.protected}
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-slate-500 to-slate-600 text-white shadow-sm">
+                      🛡️ Protegit
+                    </span>
+                  {/if}
+                  {#if r.outside}
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-slate-300 to-slate-400 text-slate-700 shadow-sm">
+                      📋 Fora rànquing
+                    </span>
+                  {/if}
+                  {#if r.reptable && r.canChallenge}
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-sm">
+                      ⚔️ Reptable
+                    </span>
+                  {/if}
 
-                <!-- Botó reptar -->
-                {#if myPlayerId && r.reptable}
-                  <button
-                    class="ml-1 px-2 py-1 rounded bg-green-600 text-white text-xs hover:bg-green-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
-                    disabled={!r.canChallenge}
-                    title={r.canChallenge ? (r.reason ?? 'Reptar aquest jugador') : (r.reason ?? 'No pots reptar aquest jugador')}
-                    on:click={() => reptar(r.player_id)}
-                  >Reptar</button>
-                {/if}
+                  <!-- Botó reptar modernitzat -->
+                  {#if myPlayerId && r.reptable}
+                    <button
+                      class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105
+                        {r.canChallenge
+                          ? 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700'
+                          : 'bg-slate-200 text-slate-500 cursor-not-allowed'}"
+                      disabled={!r.canChallenge}
+                      title={r.canChallenge ? (r.reason ?? 'Reptar aquest jugador') : (r.reason ?? 'No pots reptar aquest jugador')}
+                      on:click={() => reptar(r.player_id)}
+                    >
+                      ⚡ Reptar
+                    </button>
+                  {/if}
+                </div>
               </div>
             </td>
-            <td class="px-3 py-2">
+            <td class="px-4 py-3">
               {#if r.mitjana !== null}
-                <span class="font-mono text-sm">{r.mitjana.toFixed(3)}</span>
+                <div class="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200">
+                  <span class="font-mono text-sm font-semibold text-emerald-700">{r.mitjana.toFixed(3)}</span>
+                </div>
               {:else if r.mitjanaHistorica !== null}
-                <span class="font-mono text-sm text-gray-600" title="Mitjana d'accés (millor entre 2024-2025)">
-                  {r.mitjanaHistorica.toFixed(3)}*
-                </span>
+                <div class="inline-flex items-center px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200" title="Mitjana d'accés (millor entre 2024-2025)">
+                  <span class="font-mono text-sm font-semibold text-amber-700">{r.mitjanaHistorica.toFixed(3)}</span>
+                  <span class="ml-1 text-amber-600">*</span>
+                </div>
               {:else}
-                <span class="text-gray-400 text-sm">—</span>
+                <span class="text-slate-400 text-sm font-medium">—</span>
               {/if}
             </td>
           </tr>
@@ -361,42 +405,53 @@
       </tbody>
     </table>
   </div>
-  
-  <div class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-    <p class="text-sm text-blue-800">
-      <strong>Llegenda mitjanes:</strong> Les mitjanes marcades amb * són mitjanes d'accés 
-      (millor mitjana entre 2024-2025 a 3 Bandes que va permetre l'entrada al rànquing).
-    </p>
+
+  <!-- Informació sobre mitjanes -->
+  <div class="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-sm">
+    <div class="flex items-start gap-3">
+      <div class="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+        <span class="text-blue-600 text-sm">ℹ️</span>
+      </div>
+      <div>
+        <h3 class="font-semibold text-blue-900 text-sm mb-1">Llegenda de mitjanes</h3>
+        <p class="text-sm text-blue-800">
+          Les mitjanes marcades amb <span class="font-mono font-semibold">*</span> són mitjanes d'accés
+          (millor mitjana entre 2024-2025 a 3 Bandes que va permetre l'entrada al rànquing).
+        </p>
+      </div>
+    </div>
   </div>
 
-  <div class="mt-2 flex flex-wrap gap-4 text-sm">
-    <div class="flex items-center gap-1">
-      <span class="inline-block rounded-full bg-red-600 px-2.5 py-1 text-xs font-medium text-white">Té repte actiu</span>
-      <span>té repte actiu</span>
-    </div>
-    <div class="flex items-center gap-1">
-      <span class="inline-block rounded-full bg-yellow-300 px-2.5 py-1 text-xs font-medium text-gray-900">No pot reptar</span>
-      <span>no pot reptar (període d'espera)</span>
-    </div>
-    <div class="flex items-center gap-1">
-      <span class="inline-block rounded-full bg-green-600 px-2.5 py-1 text-xs font-medium text-white">Pot reptar</span>
-      <span>pot reptar</span>
-    </div>
-    <div class="flex items-center gap-1">
-      <span class="inline-block rounded-full bg-blue-600 px-2.5 py-1 text-xs font-medium text-white">Reptable</span>
-      <span>reptable</span>
-    </div>
-    <div class="flex items-center gap-1">
-      <span class="inline-block rounded-full bg-gray-400 px-2.5 py-1 text-xs font-medium text-white">Protegit</span>
-      <span>protegit (no reptable)</span>
-    </div>
-    <div class="flex items-center gap-1">
-      <span class="inline-block rounded-full bg-gray-200 px-2.5 py-1 text-xs font-medium text-gray-800">Fora de rànquing actiu</span>
-      <span>fora de rànquing actiu</span>
-    </div>
-    <div class="flex items-center gap-1">
-      <span class="inline-block rounded-full bg-yellow-400 px-2.5 py-1 text-xs font-medium text-gray-900">Tu</span>
-      <span>tu</span>
+  <!-- Llegenda d'estats modernitzada -->
+  <div class="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+    <h3 class="font-semibold text-slate-900 text-sm mb-3 flex items-center gap-2">
+      <span>🏷️</span> Llegenda d'estats
+    </h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-sm">✨ Tu</span>
+        <span class="text-slate-700">el teu jugador</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-red-500 to-red-600 text-white shadow-sm">🎯 Repte actiu</span>
+        <span class="text-slate-700">té repte actiu</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-orange-400 to-orange-500 text-white shadow-sm">⏳ Cooldown</span>
+        <span class="text-slate-700">període d'espera</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-sm">⚔️ Reptable</span>
+        <span class="text-slate-700">pots reptar</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-slate-500 to-slate-600 text-white shadow-sm">🛡️ Protegit</span>
+        <span class="text-slate-700">no reptable</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-slate-300 to-slate-400 text-slate-700 shadow-sm">📋 Fora rànquing</span>
+        <span class="text-slate-700">fora del top 20</span>
+      </div>
     </div>
   </div>
 
