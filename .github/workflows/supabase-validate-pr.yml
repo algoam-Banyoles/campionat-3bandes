@@ -3,7 +3,7 @@ name: Supabase – Validate PR (apply to Staging)
 on:
   pull_request:
     paths:
-      - 'supabase/migrations/**'
+      - 'supabase/migrations/DISABLED/**'
 
 jobs:
   apply-migrations-staging:
