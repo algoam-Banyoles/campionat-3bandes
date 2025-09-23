@@ -17,7 +17,7 @@ const performanceMonitor = {
 export type RankingRow = {
   posicio: number;
   player_id: string;
-  nom: string;
+  nom: string | null;
   cognoms: string | null;
   mitjana: number | null;
   estat: 'actiu' | 'inactiu' | 'pre_inactiu' | 'baixa';
@@ -48,10 +48,25 @@ export async function refreshRanking(force = false): Promise<void> {
       return;
     }
 
-    // Consulta més robusta: primer agafar ranking_positions, després obtenir detalls dels socis
-    const { data: rankingData, error: rankingError } = await supabase
+    // Consulta amb JOIN a través de players (esquema real de producció)
+    const { data: finalRankingData, error: rankingError } = await supabase
       .from('ranking_positions')
-      .select('posicio, player_id')
+      .select(`
+        posicio,
+        player_id,
+        players!inner (
+          id,
+          mitjana,
+          estat,
+          data_ultim_repte,
+          numero_soci,
+          socis (
+            numero_soci,
+            nom,
+            cognoms
+          )
+        )
+      `)
       .eq('event_id', activeEvent.id)
       .order('posicio', { ascending: true });
 
@@ -59,66 +74,20 @@ export async function refreshRanking(force = false): Promise<void> {
       throw new Error(rankingError.message);
     }
 
-    if (!rankingData || rankingData.length === 0) {
+    if (!finalRankingData || finalRankingData.length === 0) {
       ranking.set([]);
       return;
     }
 
-    // Estructura actual: ranking_positions -> players -> socis
-    const playerIds = rankingData.map(r => r.player_id);
-    
-    // Obtenir dades de players amb l'estructura actual
-    const { data: playersData, error: playersError } = await supabase
-      .from('players')
-      .select('id, nom, numero_soci, mitjana, estat, data_ultim_repte')
-      .in('id', playerIds);
+    // Transformar les dades al format correcte
+    const transformedData: RankingRow[] = finalRankingData.map((item: any) => {
+      const player = item.players;
+      const soci = player?.socis;
 
-    if (playersError) {
-      console.warn('Error getting players data:', playersError.message);
-      ranking.set([]);
-      return;
-    }
-
-    // Obtenir nom i cognoms reals de socis mitjançant numero_soci
-    const numerosSoci = playersData?.filter(p => p.numero_soci).map(p => p.numero_soci) || [];
-    let socisData = null;
-    if (numerosSoci.length > 0) {
-      const { data, error: socisError } = await supabase
-        .from('socis')
-        .select('numero_soci, nom, cognoms')
-        .in('numero_soci', numerosSoci);
-
-      if (socisError) {
-        console.warn('Error getting socis data:', socisError.message);
-      } else {
-        socisData = data;
-      }
-    }
-
-    // Crear maps per combinar dades
-    const playersMap = new Map(playersData?.map(p => [p.id, p]) || []);
-    const socisMap = new Map(socisData?.map((s: any) => [s.numero_soci, s]) || []);
-
-    // Transformar les dades al format correcte combinant ranking amb players i socis
-    const finalRankingData: RankingRow[] = rankingData.map((item: any) => {
-      const player = playersMap.get(item.player_id) as any;
-      const soci = player?.numero_soci ? socisMap.get(player.numero_soci) as any : null;
-      
-      // Generar nom utilitzant la mateixa funció que es fa servir a altres parts
-      let displayName = 'Desconegut';
-      if (soci?.nom && soci?.cognoms) {
-        displayName = formatPlayerDisplayName(soci.nom, soci.cognoms);
-      } else if (soci?.nom) {
-        displayName = formatPlayerDisplayName(soci.nom, null);
-      } else if (player?.nom) {
-        // Fallback si no hi ha dades de soci
-        displayName = player.nom;
-      }
-      
       return {
         posicio: item.posicio,
         player_id: item.player_id,
-        nom: displayName,
+        nom: soci?.nom || null,
         cognoms: soci?.cognoms || null,
         mitjana: player?.mitjana || null,
         estat: player?.estat || 'actiu',
@@ -127,7 +96,7 @@ export async function refreshRanking(force = false): Promise<void> {
       };
     });
 
-    ranking.set(finalRankingData);
+    ranking.set(transformedData);
 
   } catch (error: any) {
     ranking.set([]);

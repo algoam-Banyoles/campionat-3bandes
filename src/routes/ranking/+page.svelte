@@ -315,17 +315,19 @@
         {#each rows as r}
           {@const badge = badgeMap.get(r.player_id)}
           {@const badgeView = getBadgeView(badge)}
+          {@const displayName = r.nom ? formatPlayerDisplayName(r.nom, r.cognoms) : 'Desconegut'}
+          {@const fullName = r.nom && r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom || 'Desconegut'}
           <tr class="border-t" class:bg-yellow-100={r.moved}>
             <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm">{r.posicio}</td>
             <td class="px-2 sm:px-3 py-2">
               <div class="flex flex-wrap items-center gap-1 sm:gap-2">
                 <button
                   class="text-blue-600 hover:underline text-xs sm:text-sm"
-                  on:click={() => openEvolution(r.player_id, r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom)}
+                  on:click={() => openEvolution(r.player_id, fullName)}
                   class:font-bold={r.player_id === myPlayerId}
-                  title={r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom}
+                  title={fullName}
                 >
-                  {formatPlayerDisplayName(r.nom, r.cognoms)}
+                  {displayName}
                 </button>
 
                 <!-- Badge per identificar el jugador logat -->
@@ -403,8 +405,10 @@
           <select id="penal-a" bind:value={selA} class="w-full rounded border p-1">
             <option value={null} disabled selected>Selecciona posició</option>
             {#each rows as r}
-              <option value={r.posicio} title={r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom}>
-                {r.posicio} - {formatPlayerDisplayName(r.nom, r.cognoms)}
+              {@const displayName = r.nom ? formatPlayerDisplayName(r.nom, r.cognoms) : 'Desconegut'}
+              {@const fullName = r.nom && r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom || 'Desconegut'}
+              <option value={r.posicio} title={fullName}>
+                {r.posicio} - {displayName}
               </option>
             {/each}
           </select>
@@ -414,8 +418,10 @@
           <select id="penal-b" bind:value={selB} class="w-full rounded border p-1">
             <option value={null} disabled selected>Selecciona posició</option>
             {#each rows as r}
-              <option value={r.posicio} title={r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom}>
-                {r.posicio} - {formatPlayerDisplayName(r.nom, r.cognoms)}
+              {@const displayName = r.nom ? formatPlayerDisplayName(r.nom, r.cognoms) : 'Desconegut'}
+              {@const fullName = r.nom && r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom || 'Desconegut'}
+              <option value={r.posicio} title={fullName}>
+                {r.posicio} - {displayName}
               </option>
             {/each}
           </select>

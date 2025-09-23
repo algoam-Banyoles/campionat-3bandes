@@ -436,7 +436,7 @@ export class OptimizedQueries {
 				// Informació bàsica del jugador (via players)
 				supabase
 					.from('players')
-					.select('id, numero_soci, nom, socis(numero_soci, nom, cognoms)')
+					.select('id, numero_soci, mitjana, estat, data_ultim_repte, socis(numero_soci, nom, cognoms)')
 					.eq('id', playerId)
 					.single(),
 
@@ -485,8 +485,8 @@ export class OptimizedQueries {
 			const player = {
 				id: playerRaw.id,
 				numero_soci: playerRaw.numero_soci,
-				nom: playerRaw.socis?.[0]?.nom || playerRaw.nom,
-				cognoms: playerRaw.socis?.[0]?.cognoms || ''
+				nom: playerRaw.socis?.nom || '',
+				cognoms: playerRaw.socis?.cognoms || ''
 			};
 			
 			const currentPosition = rankingData.data?.posicio || null;
