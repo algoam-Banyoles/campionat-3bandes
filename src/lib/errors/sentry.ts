@@ -9,11 +9,11 @@ import type { AppError, ErrorContext } from './types';
 const SENTRY_CONFIG = {
 	dsn: dev 
 		? '' // No tracking en development per defecte
-		: 'https://your-sentry-dsn@sentry.io/project-id', // Configurar amb el teu DSN
+		: '', // DSN de Sentry desactivat fins configurar-lo adequadament
 	environment: dev ? 'development' : 'production',
 	tracesSampleRate: dev ? 0 : 0.1, // 10% sampling en producció
 	debug: dev,
-	enabled: !dev && browser, // Només en producció i al browser
+	enabled: false, // Desactivat fins configurar DSN correcte
 	beforeSend: (event: any) => {
 		// Filtrar errors no importants en development
 		if (dev && event.exception) {

@@ -111,26 +111,31 @@ export class OptimizedQueries {
 		const queryName = 'getRankingWithPlayers';
 
 		try {
+			// Estructura actual: ranking_positions -> players -> socis
 			let query = supabase
 				.from('ranking_positions')
 				.select(`
 					event_id,
 					posicio,
 					player_id,
-					mitjana,
-					estat,
-					data_ultim_repte,
 					assignat_el,
-					socis!inner (
+					players!inner (
 						id,
-						numero_soci,
 						nom,
-						cognoms,
 						email,
-						telefon,
-						de_baixa,
+						mitjana,
+						estat,
 						club,
-						avatar_url
+						avatar_url,
+						data_ultim_repte,
+						numero_soci,
+						socis (
+							numero_soci,
+							nom,
+							cognoms,
+							email,
+							de_baixa
+						)
 					)
 				`)
 				.eq('event_id', eventId)
@@ -146,20 +151,20 @@ export class OptimizedQueries {
 				event_id: item.event_id,
 				posicio: item.posicio,
 				player_id: item.player_id,
-				mitjana: item.mitjana,
-				estat: item.estat,
-				data_ultim_repte: item.data_ultim_repte,
+				mitjana: item.players?.mitjana || null,
+				estat: item.players?.estat || 'actiu',
+				data_ultim_repte: item.players?.data_ultim_repte || null,
 				assignat_el: item.assignat_el,
 				player: {
-					id: item.socis.id,
-					numero_soci: item.socis.numero_soci,
-					nom: item.socis.nom,
-					cognoms: item.socis.cognoms,
-					email: item.socis.email,
-					telefon: item.socis.telefon,
-					de_baixa: item.socis.de_baixa,
-					club: item.socis.club,
-					avatar_url: item.socis.avatar_url
+					id: item.players?.id,
+					numero_soci: item.players?.numero_soci || 0,
+					nom: item.players?.socis?.nom || item.players?.nom || 'Desconegut',
+					cognoms: item.players?.socis?.cognoms || null,
+					email: item.players?.socis?.email || item.players?.email,
+					telefon: null, // No disponible en l'estructura actual
+					de_baixa: item.players?.socis?.de_baixa || false,
+					club: item.players?.club,
+					avatar_url: item.players?.avatar_url
 				}
 			}));
 
@@ -217,20 +222,24 @@ export class OptimizedQueries {
 					id,
 					player_id,
 					ordre,
-					estat,
-					data_ultim_repte,
 					data_inscripcio,
 					event_id,
-					socis!inner (
+					players!inner (
 						id,
-						numero_soci,
 						nom,
-						cognoms,
 						email,
-						telefon,
-						de_baixa,
+						estat,
 						club,
-						avatar_url
+						avatar_url,
+						data_ultim_repte,
+						numero_soci,
+						socis (
+							numero_soci,
+							nom,
+							cognoms,
+							email,
+							de_baixa
+						)
 					)
 				`)
 				.eq('event_id', eventId)
@@ -244,20 +253,20 @@ export class OptimizedQueries {
 				id: item.id,
 				player_id: item.player_id,
 				ordre: item.ordre,
-				estat: item.estat,
-				data_ultim_repte: item.data_ultim_repte,
+				estat: item.players?.estat || 'actiu',
+				data_ultim_repte: item.players?.data_ultim_repte || null,
 				data_inscripcio: item.data_inscripcio,
 				event_id: item.event_id,
 				player: {
-					id: item.socis.id,
-					numero_soci: item.socis.numero_soci,
-					nom: item.socis.nom,
-					cognoms: item.socis.cognoms,
-					email: item.socis.email,
-					telefon: item.socis.telefon,
-					de_baixa: item.socis.de_baixa,
-					club: item.socis.club,
-					avatar_url: item.socis.avatar_url
+					id: item.players?.id,
+					numero_soci: item.players?.numero_soci || 0,
+					nom: item.players?.socis?.nom || item.players?.nom || 'Desconegut',
+					cognoms: item.players?.socis?.cognoms || null,
+					email: item.players?.socis?.email || item.players?.email,
+					telefon: null, // No disponible en l'estructura actual
+					de_baixa: item.players?.socis?.de_baixa || false,
+					club: item.players?.club,
+					avatar_url: item.players?.avatar_url
 				}
 			}));
 
@@ -424,10 +433,10 @@ export class OptimizedQueries {
 
 		try {
 			const [playerData, rankingData, challengesData, averagesData] = await Promise.all([
-				// Informació bàsica del jugador
+				// Informació bàsica del jugador (via players)
 				supabase
-					.from('socis')
-					.select('id, numero_soci, nom, cognoms')
+					.from('players')
+					.select('id, numero_soci, nom, socis(numero_soci, nom, cognoms)')
 					.eq('id', playerId)
 					.single(),
 
@@ -461,14 +470,8 @@ export class OptimizedQueries {
 					.order('data_creacio', { ascending: false })
 					.limit(20),
 
-				// Mitjanes històriques
-				supabase
-					.from('mitjanes_historiques')
-					.select('*')
-					.eq('soci_id', playerData?.data?.numero_soci)
-					.eq('modalitat', '3 BANDES')
-					.order('year', { ascending: false })
-					.limit(5)
+				// Mitjanes històriques - obtindrem després amb el numero_soci del player
+				Promise.resolve({ data: [], error: null })
 			]);
 
 			if (playerData.error) {
@@ -478,10 +481,29 @@ export class OptimizedQueries {
 				throw playerData.error;
 			}
 
-			const player = playerData.data;
+			const playerRaw = playerData.data;
+			const player = {
+				id: playerRaw.id,
+				numero_soci: playerRaw.numero_soci,
+				nom: playerRaw.socis?.[0]?.nom || playerRaw.nom,
+				cognoms: playerRaw.socis?.[0]?.cognoms || ''
+			};
+			
 			const currentPosition = rankingData.data?.posicio || null;
 			const challenges = challengesData.data || [];
-			const averages = averagesData.data || [];
+			
+			// Obtenir mitjanes històriques si tenim numero_soci
+			let averages: any[] = [];
+			if (player.numero_soci) {
+				const { data: avgData } = await supabase
+					.from('mitjanes_historiques')
+					.select('*')
+					.eq('soci_id', player.numero_soci)
+					.eq('modalitat', '3 BANDES')
+					.order('year', { ascending: false })
+					.limit(5);
+				averages = avgData || [];
+			}
 
 			// Calcular estadístiques
 			const completedChallenges = challenges.filter(c => c.estat === 'completat');

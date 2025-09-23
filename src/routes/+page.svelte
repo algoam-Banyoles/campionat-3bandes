@@ -30,13 +30,14 @@
   const challengeStateLabel = (state: string): string => CHALLENGE_STATE_LABEL[state] ?? state;
 
   onMount(() => {
-      const unsub = status.subscribe(async (s) => {
+      let unsub: (() => void) | undefined;
+      unsub = status.subscribe(async (s) => {
         if (s === 'loading') return;
         const u = get(user);
         if (s === 'anonymous' || !(u as any)?.email) {
           goto('/ranking');
           loading = false;
-          unsub();
+          unsub?.();
           return;
         }
       try {
@@ -116,6 +117,8 @@
       }
       unsub();
     });
+
+    return () => unsub();
   });
 
   function diffDays(d1: Date, d2: Date) {

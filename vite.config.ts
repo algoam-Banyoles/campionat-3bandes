@@ -30,7 +30,8 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api/, /^\/admin/],
         globPatterns: [
           'client/**/*.{js,css,ico,png,svg,webp,woff,woff2}',
-          '*.{html,json,ico,png,svg,webp}'
+          '*.{html,json,ico,png,svg,webp}',
+          'offline.html'
         ],
         globIgnores: [
           '**/service-worker.*',
