@@ -129,58 +129,9 @@
   }
 
   // Carregar dades quan es canvia la vista de gestió a inscripcions, classificació o calendari
-  $: if (selectedEventId && selectedEvent && (managementView === 'inscriptions' || managementView === 'standings' || managementView === 'view-calendar') && activeView === 'active') {
+  $: if (selectedEventId && selectedEvent && managementView === 'inscriptions' && activeView === 'active' && isUserAdmin) {
     if (!loadingInscriptions) {
-      if (isUserAdmin) {
-        loadInscriptionsData();
-      } else {
-        loadPublicPlayers();
-      }
-    }
-  }
-
-  // Carregar només dades públiques d'inscripcions per usuaris no logats
-  // Nova implementació simple per mostrar jugadors públics
-  let publicPlayersLoading = false;
-  let publicPlayers = [];
-
-  async function loadPublicPlayers() {
-    console.log('🔍 TEMP: loadPublicPlayers called - selectedEventId:', selectedEventId, 'loading:', publicPlayersLoading);
-    if (!selectedEventId || publicPlayersLoading) return;
-    
-    try {
-      console.log('🔍 TEMP: Starting to load public players for event:', selectedEventId);
-      publicPlayersLoading = true;
-      
-      // Carregar inscripcions amb dades dels socis
-      const { data, error } = await supabase
-        .from('inscripcions')
-        .select(`
-          id,
-          soci_numero,
-          categoria_assignada_id,
-          confirmat,
-          socis!inscripcions_soci_numero_fkey(nom, cognoms)
-        `)
-        .eq('event_id', selectedEventId)
-        .order('data_inscripcio');
-
-      console.log('🔍 TEMP: Query result - data:', data?.length || 0, 'error:', error);
-
-      if (error) {
-        console.error('Error loading public players:', error);
-        publicPlayers = [];
-      } else {
-        publicPlayers = data || [];
-        console.log('🔍 TEMP: Final public players set:', publicPlayers.length);
-      }
-      
-    } catch (error) {
-      console.error('🔍 TEMP: Error in loadPublicPlayers:', error);
-      publicPlayers = [];
-    } finally {
-      console.log('🔍 TEMP: loadPublicPlayers finished, setting loading to false');
-      publicPlayersLoading = false;
+      loadInscriptionsData();
     }
   }
 
@@ -581,28 +532,19 @@
       if (manualActiveEvent) {
         selectedEventId = manualActiveEvent.id;
         activeView = 'active';
-        console.log('🔍 TEMP: Manual active event, isUserAdmin:', isUserAdmin);
-        // Per usuaris no logats, començar amb la vista de jugadors i carregar dades públiques
+        console.log('🔍 Manual active event, isUserAdmin:', isUserAdmin);
+        // Per usuaris no logats, començar amb la vista de jugadors
         if (!isUserAdmin) {
           managementView = 'inscriptions';
-          console.log('🔍 TEMP: Setting managementView to inscriptions for non-admin');
+          console.log('🔍 Setting managementView to inscriptions for non-admin');
         }
-        // Carregar dades públiques per tots els usuaris
-        setTimeout(() => {
-          console.log('🔍 TEMP: About to call loadPublicPlayers from manual active event');
-          loadPublicPlayers();
-        }, 100);
       } else if (activeEvent) {
         selectedEventId = activeEvent.id;
         activeView = 'active';
-        // Per usuaris no logats, començar amb la vista de jugadors i carregar dades públiques
+        // Per usuaris no logats, començar amb la vista de jugadors
         if (!isUserAdmin) {
           managementView = 'inscriptions';
         }
-        // Carregar dades públiques per tots els usuaris
-        setTimeout(() => {
-          loadPublicPlayers();
-        }, 100);
       } else if (isUserAdmin && preparationEvent) {
         selectedEventId = preparationEvent.id;
         activeView = 'preparation';
@@ -1184,91 +1126,11 @@
                   />
 
                 {:else if managementView === 'inscriptions'}
-                  <!-- Nova implementació simple de jugadors públics -->
-                  {#if publicPlayersLoading}
-                    <div class="text-center py-8">
-                      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                      <p class="mt-2 text-gray-600">Carregant jugadors...</p>
-                    </div>
-                  {:else if publicPlayers.length === 0}
-                    <div class="text-center py-8">
-                      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                      </svg>
-                      <h3 class="mt-2 text-sm font-medium text-gray-900">No hi ha jugadors inscrits</h3>
-                      <p class="mt-1 text-sm text-gray-500">Els jugadors apareixeran aquí quan es facin les inscripcions.</p>
-                    </div>
-                  {:else}
-                    <!-- Mostrar jugadors per categories -->
-                    <div class="space-y-6">
-                      {#if selectedEvent?.categories && selectedEvent.categories.length > 0}
-                        <div class="flex flex-wrap gap-4">
-                          {#each selectedEvent.categories as category}
-                            {@const categoryPlayers = publicPlayers.filter(p => p.categoria_assignada_id === category.id)}
-                            <div class="bg-white border border-gray-200 rounded-lg p-3 min-w-fit">
-                              <div class="text-center mb-2 pb-2 border-b border-gray-100">
-                                <h3 class="text-sm font-bold text-gray-900 whitespace-nowrap">{category.nom}</h3>
-                                <p class="text-xs text-blue-600 font-medium whitespace-nowrap">
-                                  {category.distancia_caramboles} car. • {categoryPlayers.length} jug.
-                                </p>
-                              </div>
-
-                              {#if categoryPlayers.length > 0}
-                                <div class="space-y-1">
-                                  {#each categoryPlayers as player}
-                                    {#if player.socis}
-                                      <div class="flex items-center py-1">
-                                        <div class="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">
-                                          {player.socis.nom ? player.socis.nom.charAt(0).toUpperCase() : '?'}
-                                        </div>
-                                        <span class="text-xs text-gray-900 whitespace-nowrap">
-                                          {player.socis.nom} {player.socis.cognoms}
-                                        </span>
-                                      </div>
-                                    {/if}
-                                  {/each}
-                                </div>
-                              {:else}
-                                <p class="text-center text-xs text-gray-500 italic whitespace-nowrap">Cap jugador inscrit</p>
-                              {/if}
-                            </div>
-                          {/each}
-                        </div>
-
-                        
-                        <!-- Jugadors sense categoria -->
-                        {@const playersWithoutCategory = publicPlayers.filter(p => !p.categoria_assignada_id)}
-                        {#if playersWithoutCategory.length > 0}
-                          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 min-w-fit">
-                            <div class="text-center mb-2 pb-2 border-b border-yellow-200">
-                              <h3 class="text-sm font-bold text-gray-900 whitespace-nowrap">⚠️ Sense Categoria</h3>
-                              <p class="text-xs text-orange-600 font-medium whitespace-nowrap">
-                                Pendent • {playersWithoutCategory.length} jug.
-                              </p>
-                            </div>
-                            <div class="space-y-1">
-                              {#each playersWithoutCategory as player}
-                                {#if player.socis}
-                                  <div class="flex items-center py-1">
-                                    <div class="w-5 h-5 bg-yellow-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">
-                                      {player.socis.nom ? player.socis.nom.charAt(0).toUpperCase() : '?'}
-                                    </div>
-                                    <span class="text-xs text-gray-900 whitespace-nowrap">
-                                      {player.socis.nom} {player.socis.cognoms}
-                                    </span>
-                                  </div>
-                                {/if}
-                              {/each}
-                            </div>
-                          </div>
-                        {/if}
-                      {:else}
-                        <div class="text-center py-8">
-                          <p class="text-gray-500">No hi ha categories configurades per aquesta lliga</p>
-                        </div>
-                      {/if}
-                    </div>
-                  {/if}
+                  <!-- Component unificat per mostrar jugadors inscrits -->
+                  <SocialLeaguePlayersGrid 
+                    eventId={selectedEventId} 
+                    categories={selectedEvent?.categories || []} 
+                  />
 
                 {:else if managementView === 'results'}
                   <!-- Resultats de partides -->

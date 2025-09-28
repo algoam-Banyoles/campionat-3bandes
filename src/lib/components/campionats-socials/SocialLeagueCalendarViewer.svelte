@@ -618,6 +618,8 @@
 
 
   let matches: any[] = [];
+  let availableDates: Date[] = [];
+  let timelineData: any[] = [];
   let calendarConfig: any = {
     dies_setmana: ['dl', 'dt', 'dc', 'dj', 'dv'],
     hores_disponibles: ['18:00', '19:00'],
@@ -673,6 +675,15 @@
   // Generar dates disponibles per la vista timeline
   $: availableDates = generateAvailableDates(matches);
   $: timelineData = generateTimelineData(matches, calendarConfig, availableDates);
+  
+  // Debug reactiu
+  $: {
+    if (matches.length > 0) {
+      console.log('🔍 Reactive update - matches:', matches.length);
+      console.log('🔍 Reactive update - availableDates:', availableDates?.length || 0);
+      console.log('🔍 Reactive update - timelineData:', timelineData?.length || 0);
+    }
+  }
 
   async function loadCalendarData() {
     if (!eventId) return;
@@ -703,44 +714,69 @@
         }
       }
 
-      // Carregar partits
-      const { data: matchData, error: matchError } = await supabase
-        .from('calendari_partides')
-        .select(`
-          id,
-          categoria_id,
-          data_programada,
-          hora_inici,
-          jugador1_id,
-          jugador2_id,
-          estat,
-          taula_assignada,
-          observacions_junta,
-          jugador1:players!calendari_partides_jugador1_id_fkey (
-            id,
-            numero_soci,
-            socis!players_numero_soci_fkey (
-              nom,
-              cognoms
-            )
-          ),
-          jugador2:players!calendari_partides_jugador2_id_fkey (
-            id,
-            numero_soci,
-            socis!players_numero_soci_fkey (
-              nom,
-              cognoms
-            )
-          )
-        `)
-        .eq('event_id', eventId)
-        .order('data_programada', { ascending: true });
+      // Carregar partits amb funció RPC per accés públic
+      console.log('🔍 Loading calendar matches with RPC for event:', eventId);
+      const { data: matchDataRaw, error: matchError } = await supabase
+        .rpc('get_calendar_matches_public', {
+          p_event_id: eventId
+        });
 
-      if (matchError) throw matchError;
+      if (matchError) {
+        console.error('❌ Error loading calendar with RPC:', matchError);
+        throw matchError;
+      }
+
+      console.log('✅ Loaded calendar matches:', matchDataRaw?.length || 0);
+
+      // Transformar les dades RPC al format esperat pel component
+      const matchData = matchDataRaw?.map(match => ({
+        id: match.id,
+        categoria_id: match.categoria_id,
+        data_programada: match.data_programada,
+        hora_inici: match.hora_inici,
+        jugador1_id: match.jugador1_id,
+        jugador2_id: match.jugador2_id,
+        estat: match.estat,
+        taula_assignada: match.taula_assignada,
+        observacions_junta: match.observacions_junta,
+        jugador1: {
+          id: match.jugador1_id,
+          numero_soci: match.jugador1_numero_soci,
+          socis: {
+            nom: match.jugador1_nom,
+            cognoms: match.jugador1_cognoms
+          }
+        },
+        jugador2: {
+          id: match.jugador2_id,
+          numero_soci: match.jugador2_numero_soci,
+          socis: {
+            nom: match.jugador2_nom,
+            cognoms: match.jugador2_cognoms
+          }
+        }
+      })) || [];
+
+      // Carregar categories si no es passen per prop
+      let finalCategories = categories;
+      if (categories.length === 0) {
+        console.log('🔍 Loading categories for calendar with RPC:', eventId);
+        const { data: categoriesData, error: categoriesError } = await supabase
+          .rpc('get_categories_for_event', {
+            p_event_id: eventId
+          });
+        
+        if (!categoriesError && categoriesData) {
+          finalCategories = categoriesData;
+          console.log('✅ Loaded categories for calendar:', finalCategories.length);
+        } else {
+          console.error('❌ Error loading categories for calendar:', categoriesError);
+        }
+      }
 
       // Combinar dades de partits amb categories
       const matchesWithCategories = (matchData || []).map(match => {
-        const category = categories.find(c => c.id === match.categoria_id);
+        const category = finalCategories.find(c => c.id === match.categoria_id);
         return {
           ...match,
           categories: category || null
@@ -748,8 +784,19 @@
       });
 
       matches = matchesWithCategories;
+      
+      console.log('✅ Final matches processed:', matches.length);
+      console.log('🔍 Sample match structure:', matches[0] ? {
+        id: matches[0].id,
+        data_programada: matches[0].data_programada,
+        hora_inici: matches[0].hora_inici,
+        jugador1: matches[0].jugador1?.socis?.nom,
+        jugador2: matches[0].jugador2?.socis?.nom,
+        categories: matches[0].categories
+      } : 'No matches');
 
     } catch (e) {
+      console.error('❌ Error in loadCalendarData:', e);
       error = formatSupabaseError(e);
     } finally {
       loading = false;
@@ -758,14 +805,18 @@
 
 
   function generateAvailableDates(matchesParam = []) {
+    console.log('🔍 generateAvailableDates called with matchesParam:', matchesParam.length);
+    
     // SEMPRE generar un rang ampli de dates per mostrar tots els slots possibles
     let startDate, endDate;
 
     // Usar paràmetres passats o variables globals com a fallback
     const currentMatches = matchesParam.length > 0 ? matchesParam : matches;
+    console.log('🔍 Using currentMatches:', currentMatches.length);
 
     // Si hi ha partits programats, usar el rang de dates dels partits
     const validMatches = currentMatches.filter(m => m.data_programada);
+    console.log('🔍 validMatches:', validMatches.length);
 
     if (validMatches.length > 0) {
       // Usar dates dels partits programats
@@ -802,11 +853,19 @@
   }
 
   function generateTimelineData(matchesParam = [], configParam = null, datesParam = []) {
+    console.log('🔍 generateTimelineData called with:');
+    console.log('  - matchesParam:', matchesParam.length);
+    console.log('  - datesParam:', datesParam.length);
+    console.log('  - global matches:', matches.length);
+    console.log('  - global availableDates:', availableDates?.length || 0);
+    
     const timeline = [];
 
     // Usar paràmetres passats o variables globals com a fallback
     const currentMatches = matchesParam.length > 0 ? matchesParam : matches;
     const currentDates = datesParam.length > 0 ? datesParam : availableDates;
+
+    console.log('🔍 Using currentMatches:', currentMatches.length, 'currentDates:', currentDates?.length || 0);
 
     // Assegurar-nos que tenim configuració vàlida
     const config = configParam || calendarConfig || {
@@ -815,6 +874,7 @@
       taules_per_slot: 3
     };
 
+    console.log('🔍 Using config:', config);
 
     let totalSlots = 0;
     let matchedSlots = 0;
@@ -838,6 +898,15 @@
             // Buscar partit programat per aquest slot
             const scheduledMatch = currentMatches.find(match => {
               if (!match.data_programada) return false;
+              
+              // Debug dates format
+              if (index === 0 && hora === hores[0] && taula === 1) {
+                console.log('🔍 Debug first match data_programada:', match.data_programada, 'type:', typeof match.data_programada);
+                console.log('🔍 Debug dateStr:', dateStr);
+                console.log('🔍 Debug hora:', hora, 'match hora_inici:', match.hora_inici);
+                console.log('🔍 Debug taula:', taula, 'match taula_assignada:', match.taula_assignada);
+              }
+              
               const matchDate = new Date(match.data_programada).toISOString().split('T')[0];
               const matchesDate = matchDate === dateStr;
 
@@ -848,6 +917,10 @@
 
               const matchesTable = match.taula_assignada === taula;
 
+              // Debug matching logic for first few matches
+              if (index === 0 && hora === hores[0] && taula === 1) {
+                console.log('🔍 Debug matching - date:', matchesDate, 'time:', matchesTime, 'table:', matchesTable);
+              }
 
               return matchesDate && matchesTime && matchesTable;
             });

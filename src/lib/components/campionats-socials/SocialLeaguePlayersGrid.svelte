@@ -6,6 +6,7 @@
   export let categories: any[] = [];
 
   let inscriptions: any[] = [];
+  let loadedCategories: any[] = [];
   let loading = false;
   let error: string | null = null;
 
@@ -28,49 +29,69 @@
     error = null;
 
     try {
-      // Carregar inscripcions
+      console.log('🔍 SocialLeaguePlayersGrid: Loading inscriptions with RPC function for event:', eventId);
+      
+      // Carregar categories de l'esdeveniment si no es passen per prop
+      if (categories.length === 0) {
+        console.log('🔍 Loading categories for event with RPC:', eventId);
+        const { data: categoriesData, error: categoriesError } = await supabase
+          .rpc('get_categories_for_event', {
+            p_event_id: eventId
+          });
+        
+        if (categoriesError) {
+          console.error('❌ Error loading categories with RPC:', categoriesError);
+        } else if (categoriesData) {
+          loadedCategories = categoriesData;
+          console.log('✅ Loaded categories with RPC:', loadedCategories.length, loadedCategories.map(c => c.nom));
+        } else {
+          console.log('⚠️ No categories found');
+        }
+      } else {
+        loadedCategories = categories;
+        console.log('✅ Using categories from props:', loadedCategories.length);
+      }
+      
+      // Utilitzar la funció RPC que permet accés públic (anònim i autenticat)
       const { data: inscriptionsData, error: inscriptionsError } = await supabase
-        .from('inscripcions')
-        .select(`
-          id,
-          soci_numero,
-          categoria_assignada_id,
-          data_inscripcio,
-          pagat,
-          confirmat
-        `)
-        .eq('event_id', eventId)
-        .order('data_inscripcio', { ascending: true });
+        .rpc('get_inscripcions_with_socis', {
+          p_event_id: eventId
+        });
 
-      if (inscriptionsError) throw inscriptionsError;
+      if (inscriptionsError) {
+        console.error('❌ Error loading inscriptions with RPC:', inscriptionsError);
+        throw inscriptionsError;
+      }
+
+      console.log('✅ Loaded inscriptions:', inscriptionsData?.length || 0);
 
       if (!inscriptionsData || inscriptionsData.length === 0) {
         inscriptions = [];
+        console.log('ℹ️ No inscriptions found for event');
         return;
       }
 
-      // Obtenir dades dels socis
-      const sociNumbers = [...new Set(inscriptionsData.map(i => i.soci_numero))];
-      const { data: socisData, error: socisError } = await supabase
-        .from('socis')
-        .select(`
-          numero_soci,
-          nom,
-          cognoms,
-          email
-        `)
-        .in('numero_soci', sociNumbers);
-
-      if (socisError) throw socisError;
-
-      // Combinar dades
-      const socisMap = new Map(socisData?.map(soci => [soci.numero_soci, soci]) || []);
-      inscriptions = inscriptionsData.map(inscription => ({
-        ...inscription,
-        socis: socisMap.get(inscription.soci_numero) || null
+      // Les dades ja inclouen informació dels socis gràcies a la funció RPC
+      inscriptions = inscriptionsData.map(item => ({
+        id: item.id,
+        soci_numero: item.soci_numero,
+        categoria_assignada_id: item.categoria_assignada_id,
+        data_inscripcio: item.data_inscripcio,
+        pagat: item.pagat,
+        confirmat: item.confirmat,
+        created_at: item.created_at,
+        socis: {
+          numero_soci: item.soci_numero,
+          nom: item.nom,
+          cognoms: item.cognoms,
+          email: item.email,
+          de_baixa: item.de_baixa
+        }
       }));
+      
+      console.log('✅ Final inscriptions processed:', inscriptions.length);
     } catch (e) {
-      console.error('Error loading inscriptions:', e);
+      console.error('❌ Error loading inscriptions:', e);
       error = 'Error carregant les inscripcions';
     } finally {
       loading = false;
@@ -85,9 +106,26 @@
     return inscriptions.filter(i => !i.categoria_assignada_id);
   }
 
-  // Ordenar categories
-  $: sortedCategories = categories.sort((a, b) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0));
+  // Utilitzar les categories carregades o les rebudes per prop
+  $: finalCategories = loadedCategories.length > 0 ? loadedCategories : categories;
+  $: sortedCategories = finalCategories.sort((a, b) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0));
   $: playersWithoutCategory = getPlayersWithoutCategory();
+  
+  // Debug per veure què està passant
+  $: {
+    console.log('🔍 DEBUG SocialLeaguePlayersGrid:');
+    console.log('  - Total inscriptions:', inscriptions.length);
+    console.log('  - Categories received from prop:', categories.length, categories.map(c => c?.nom));
+    console.log('  - Categories loaded directly:', loadedCategories.length, loadedCategories.map(c => c?.nom));
+    console.log('  - Final categories used:', finalCategories.length, finalCategories.map(c => c?.nom));
+    console.log('  - Players without category:', playersWithoutCategory.length);
+    if (inscriptions.length > 0 && finalCategories.length > 0) {
+      finalCategories.forEach(cat => {
+        const playersInCat = getPlayersInCategory(cat.id);
+        console.log(`  - ${cat.nom}: ${playersInCat.length} jugadors`);
+      });
+    }
+  }
 </script>
 
 <div class="space-y-6">
@@ -110,21 +148,50 @@
       <p class="mt-1 text-sm text-gray-500">Els jugadors apareixeran aquí quan es facin les inscripcions.</p>
     </div>
   {:else}
+    <!-- Si les categories encara es carreguen, mostrar tots els jugadors temporalment -->
+    {#if finalCategories.length === 0 && inscriptions.length > 0}
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="text-center mb-4 pb-3 border-b border-blue-200">
+          <h3 class="text-lg font-bold text-gray-900">📋 Tots els Jugadors Inscrits</h3>
+          <p class="text-sm text-blue-600 font-medium">
+            Carregant categories...
+          </p>
+          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mt-2">
+            {inscriptions.length} jugadors
+          </span>
+        </div>
+
+        <div class="space-y-2 max-h-96 overflow-y-auto">
+          {#each inscriptions as inscription (inscription.id)}
+            {@const soci = inscription.socis}
+            {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
+            {@const cognoms = soci?.cognoms || `Soci #${inscription.soci_numero}`}
+            <div class="flex items-center justify-between py-1">
+              <div class="flex items-center">
+                <div class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">
+                  {inicialNom}
+                </div>
+                <span class="text-sm font-medium text-gray-900">
+                  {cognoms}
+                </span>
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {:else}
     <!-- Categories compactes amb jugadors -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="flex flex-wrap gap-4">
       {#each sortedCategories as category (category.id)}
         {@const playersInCategory = getPlayersInCategory(category.id)}
         {#if playersInCategory.length > 0}
-          <div class="bg-white border-2 border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow">
+          <div class="bg-white border-2 border-gray-200 rounded-lg p-3 min-w-fit hover:shadow-lg transition-shadow">
             <!-- Capçalera de categoria -->
-            <div class="text-center mb-4 pb-3 border-b border-gray-200">
-              <h3 class="text-lg font-bold text-gray-900">{category.nom}</h3>
-              <p class="text-sm text-blue-600 font-medium">
-                {category.distancia_caramboles} caramboles
+            <div class="text-center mb-3 pb-2 border-b border-gray-200">
+              <h3 class="text-sm font-bold text-gray-900 whitespace-nowrap">{category.nom}</h3>
+              <p class="text-xs text-blue-600 font-medium whitespace-nowrap">
+                {category.distancia_caramboles} car. • {playersInCategory.length} jug.
               </p>
-              <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mt-2">
-                {playersInCategory.length} jugadors
-              </span>
             </div>
 
             <!-- Llista de jugadors compacta -->
@@ -132,24 +199,16 @@
               {#each playersInCategory as inscription (inscription.id)}
                 {@const soci = inscription.socis}
                 {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
-                {@const cognoms = soci?.cognoms || `Soci #${inscription.soci_numero}`}
-                <div class="flex items-center justify-between py-1">
+                {@const primerCognom = soci?.cognoms ? soci.cognoms.split(' ')[0] : ''}
+                {@const nomComplet = soci ? `${inicialNom}. ${primerCognom}` : `Soci #${inscription.soci_numero}`}
+                <div class="flex items-center py-1">
                   <div class="flex items-center">
-                    <div class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">
+                    <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">
                       {inicialNom}
                     </div>
-                    <span class="text-sm font-medium text-gray-900">
-                      {cognoms}
+                    <span class="text-xs text-gray-900 whitespace-nowrap">
+                      {nomComplet}
                     </span>
-                  </div>
-                  <div class="flex items-center">
-                    {#if inscription.confirmat && inscription.pagat}
-                      <span class="w-2 h-2 bg-green-500 rounded-full" title="Confirmat i pagat"></span>
-                    {:else if inscription.confirmat}
-                      <span class="w-2 h-2 bg-orange-500 rounded-full" title="Confirmat, pendent pagament"></span>
-                    {:else}
-                      <span class="w-2 h-2 bg-yellow-500 rounded-full" title="Pendent confirmació"></span>
-                    {/if}
                   </div>
                 </div>
               {/each}
@@ -176,7 +235,7 @@
               {@const soci = inscription.socis}
               {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
               {@const cognoms = soci?.cognoms || `Soci #${inscription.soci_numero}`}
-              <div class="flex items-center justify-between py-1">
+              <div class="flex items-center py-1">
                 <div class="flex items-center">
                   <div class="w-8 h-8 bg-yellow-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">
                     {inicialNom}
@@ -185,39 +244,12 @@
                     {cognoms}
                   </span>
                 </div>
-                <div class="flex items-center">
-                  {#if inscription.confirmat && inscription.pagat}
-                    <span class="w-2 h-2 bg-green-500 rounded-full" title="Confirmat i pagat"></span>
-                  {:else if inscription.confirmat}
-                    <span class="w-2 h-2 bg-orange-500 rounded-full" title="Confirmat, pendent pagament"></span>
-                  {:else}
-                    <span class="w-2 h-2 bg-yellow-500 rounded-full" title="Pendent confirmació"></span>
-                  {/if}
-                </div>
               </div>
             {/each}
           </div>
         </div>
       {/if}
     </div>
-
-    <!-- Llegenda d'estats -->
-    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-      <h4 class="text-sm font-medium text-gray-900 mb-3">Llegenda d'estats:</h4>
-      <div class="flex flex-wrap gap-4 text-sm">
-        <div class="flex items-center">
-          <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-          <span class="text-gray-600">Confirmat i pagat</span>
-        </div>
-        <div class="flex items-center">
-          <span class="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
-          <span class="text-gray-600">Confirmat, pendent pagament</span>
-        </div>
-        <div class="flex items-center">
-          <span class="w-2 h-2 bg-yellow-500 rounded-full mr-2"></span>
-          <span class="text-gray-600">Pendent confirmació</span>
-        </div>
-      </div>
-    </div>
+    {/if}
   {/if}
 </div>
