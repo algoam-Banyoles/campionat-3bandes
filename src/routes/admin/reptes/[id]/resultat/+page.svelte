@@ -4,7 +4,7 @@
     import { user } from '$lib/stores/auth';
     import { checkIsAdmin } from '$lib/roles';
   import { getSettings, type AppSettings } from '$lib/settings';
-  import { refreshRanking } from '$lib/rankingStore';
+  import { refreshRanking } from '$lib/stores/rankingStore';
   import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
 
   type Challenge = {

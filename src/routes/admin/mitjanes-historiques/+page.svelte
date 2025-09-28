@@ -24,12 +24,13 @@
 		email: string | null;
 	};
 
-	let mitjanes: MitjanaHistorica[] = data.mitjanes || [];
-	let socis: Soci[] = data.socis || [];
-	 // Pagination from server
-	let serverPage: number = data.page ?? 1;
-	let serverLimit: number = data.limit ?? 200;
-	let serverTotal: number | null = data.total ?? null;
+	let mitjanes: MitjanaHistorica[] = [];
+	let socis: Soci[] = [];
+
+	// Client-side pagination
+	let currentPage: number = 1;
+	let pageLimit: number = 200;
+	let totalCount: number | null = null;
 	let loading = false;
 	let searchTerm = '';
 	let selectedModalitat = '';
@@ -47,14 +48,80 @@
 	let years: number[] = [];
 
 	onMount(() => {
-		// Extreure filtres únics de les dades carregades del servidor
-		modalitats = [...new Set(mitjanes.map(m => m.modalitat))].sort();
-		years = [...new Set(mitjanes.map(m => m.year))].sort((a, b) => b - a);
+		loadData();
 	});
+
+	async function loadData() {
+		loading = true;
+		try {
+			console.log('Loading mitjanes històriques client-side...');
+
+			// Load mitjanes with pagination
+			const from = (currentPage - 1) * pageLimit;
+			const to = from + pageLimit - 1;
+
+			const { data: mitjanesList, error: mitjError, count } = await supabase
+				.from('mitjanes_historiques')
+				.select('*', { count: 'exact' })
+				.order('year', { ascending: false })
+				.order('mitjana', { ascending: false })
+				.range(from, to);
+
+			if (mitjError) {
+				console.error('Error loading mitjanes:', mitjError);
+				throw mitjError;
+			}
+
+			console.log(`Loaded ${mitjanesList?.length || 0} mitjanes`);
+			totalCount = count;
+
+			// Load all socis
+			const { data: socisList, error: socisError } = await supabase
+				.from('socis')
+				.select('numero_soci, nom, cognoms, email')
+				.order('cognoms');
+
+			if (socisError) {
+				console.error('Error loading socis:', socisError);
+				throw socisError;
+			}
+
+			console.log(`Loaded ${socisList?.length || 0} socis`);
+
+			// Create socis map for quick lookup
+			const socisMap = new Map();
+			(socisList || []).forEach(soci => {
+				socisMap.set(soci.numero_soci, soci);
+			});
+
+			// Process mitjanes to include soci info
+			const processedMitjanes = (mitjanesList || []).map(m => {
+				const soci = socisMap.get(m.soci_id);
+				return {
+					...m,
+					nom_soci: soci?.nom || null,
+					cognoms_soci: soci?.cognoms || null
+				};
+			});
+
+			mitjanes = processedMitjanes;
+			socis = socisList || [];
+
+			// Extract unique filters
+			modalitats = [...new Set(mitjanes.map(m => m.modalitat))].sort();
+			years = [...new Set(mitjanes.map(m => m.year))].sort((a, b) => b - a);
+
+		} catch (error) {
+			console.error('Error loading data:', error);
+			alert('Error carregant les dades. Comprova la consola per més detalls.');
+		} finally {
+			loading = false;
+		}
+	}
 
 	async function reloadData() {
 		// Recarregar dades després d'una modificació
-		location.reload();
+		await loadData();
 	}
 
 	function startEditing(mitjana: MitjanaHistorica) {
@@ -124,11 +191,8 @@
 
 async function gotoPage(p: number) {
 		if (!p || p < 1) return;
-		loading = true;
-		const params = new URLSearchParams(location.search);
-		params.set('page', String(p));
- 		if (serverLimit) params.set('limit', String(serverLimit));
-		await goto(`${location.pathname}?${params.toString()}`, { replaceState: false });
+		currentPage = p;
+		await loadData();
 	}
 
 	// Funció d'ordenació
@@ -183,14 +247,14 @@ async function gotoPage(p: number) {
 	// Filtrar i ordenar mitjanes
 	$: filteredAndSortedMitjanes = sortMitjanes(
 		mitjanes.filter(m => {
-			const matchesSearch = !searchTerm || 
+			const matchesSearch = !searchTerm ||
 				m.soci_id?.toString().includes(searchTerm) ||
 				m.nom_soci?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 				m.cognoms_soci?.toLowerCase().includes(searchTerm.toLowerCase());
-			
+
 			const matchesModalitat = !selectedModalitat || m.modalitat === selectedModalitat;
 			const matchesYear = !selectedYear || m.year.toString() === selectedYear;
-			
+
 			return matchesSearch && matchesModalitat && matchesYear;
 		}),
 		sortBy,
@@ -487,13 +551,13 @@ async function gotoPage(p: number) {
 		<!-- Paginació (si cal) -->
 		{#if filteredAndSortedMitjanes.length > 0}
 				<div class="mt-4 text-sm text-gray-600 text-center">
-					Mostrant {filteredAndSortedMitjanes.length} de {serverTotal ?? mitjanes.length} mitjanes històriques
+					Mostrant {filteredAndSortedMitjanes.length} de {totalCount ?? mitjanes.length} mitjanes històriques
 				</div>
-				{#if serverPage}
+				{#if totalCount && totalCount > pageLimit}
 					<div class="mt-3 flex items-center justify-center space-x-3">
-						<button on:click={() => gotoPage(serverPage! - 1)} disabled={serverPage <= 1} class="px-3 py-1 border rounded">Anterior</button>
-						<span>Pàgina {serverPage} {#if serverTotal !== null}de {Math.ceil(serverTotal / (serverLimit || 1))}{/if}</span>
-						<button on:click={() => gotoPage(serverPage! + 1)} disabled={serverTotal !== null && serverPage! >= Math.ceil(serverTotal / (serverLimit || 1))} class="px-3 py-1 border rounded">Següent</button>
+						<button on:click={() => gotoPage(currentPage - 1)} disabled={currentPage <= 1} class="px-3 py-1 border rounded">Anterior</button>
+						<span>Pàgina {currentPage} de {Math.ceil(totalCount / pageLimit)}</span>
+						<button on:click={() => gotoPage(currentPage + 1)} disabled={currentPage >= Math.ceil(totalCount / pageLimit)} class="px-3 py-1 border rounded">Següent</button>
 					</div>
 				{/if}
 		{/if}

@@ -27,6 +27,19 @@ export type RepteCalendari = {
   observacions: string | null;
 };
 
+export type PartidaCalendari = {
+  id: string;
+  jugador1_nom: string;
+  jugador2_nom: string;
+  data_programada: string;
+  hora_inici: string;
+  taula_assignada: number;
+  estat: string;
+  event_nom: string;
+  categoria_nom: string;
+  observacions_junta: string | null;
+};
+
 export type CalendarEvent = {
   id: string;
   title: string;
@@ -42,13 +55,16 @@ export type CalendarEvent = {
 export const currentDate = writable(new Date());
 
 // Store per la vista actual (mensual/setmanal)
-export const calendarView = writable<CalendarView>('month');
+export const calendarView = writable<CalendarView>('week');
 
 // Store per esdeveniments del club
 export const esdeveniments = writable<EsdevenimentClub[]>([]);
 
 // Store per reptes programats
 export const reptesProgramats = writable<RepteCalendari[]>([]);
+
+// Store per partides dels campionats socials
+export const partidesCalendari = writable<PartidaCalendari[]>([]);
 
 // Store loading
 export const calendarLoading = writable(false);
@@ -58,8 +74,8 @@ export const calendarError = writable<string | null>(null);
 
 // Store derivat que combina tots els esdeveniments per al calendari
 export const calendarEvents = derived(
-  [esdeveniments, reptesProgramats],
-  ([$esdeveniments, $reptesProgramats]) => {
+  [esdeveniments, reptesProgramats, partidesCalendari],
+  ([$esdeveniments, $reptesProgramats, $partidesCalendari]) => {
     const events: CalendarEvent[] = [];
     
     // Afegir esdeveniments del club
@@ -80,12 +96,26 @@ export const calendarEvents = derived(
     $reptesProgramats.forEach(repte => {
       events.push({
         id: `challenge-${repte.id}`,
-        title: `${repte.reptador_nom} vs ${repte.reptat_nom}`,
+        title: `🎯 ${repte.reptador_nom} vs ${repte.reptat_nom}`,
         description: repte.observacions || undefined,
         start: new Date(repte.data_programada),
         type: 'challenge',
         subtype: repte.estat,
         data: repte
+      });
+    });
+    
+    // Afegir partides dels campionats socials
+    $partidesCalendari.forEach(partida => {
+      const dataHora = new Date(`${partida.data_programada}T${partida.hora_inici}`);
+      events.push({
+        id: `match-${partida.id}`,
+        title: `🏆 ${partida.jugador1_nom} vs ${partida.jugador2_nom}`,
+        description: `${partida.event_nom} - ${partida.categoria_nom}\nTaula: ${partida.taula_assignada}${partida.observacions_junta ? `\n${partida.observacions_junta}` : ''}`,
+        start: dataHora,
+        type: 'challenge',
+        subtype: `campionat-social-${partida.estat}`,
+        data: partida
       });
     });
     
@@ -183,6 +213,53 @@ export async function loadReptesProgramats(): Promise<void> {
   }
 }
 
+export async function loadPartidesCalendari(): Promise<void> {
+  try {
+    calendarLoading.set(true);
+    calendarError.set(null);
+    
+    const { data, error } = await supabase
+      .from('calendari_partides')
+      .select(`
+        id,
+        data_programada,
+        hora_inici,
+        taula_assignada,
+        estat,
+        observacions_junta,
+        jugador1:jugador1_id(nom),
+        jugador2:jugador2_id(nom),
+        events!inner(nom),
+        categories!inner(nom)
+      `)
+      .order('data_programada', { ascending: true });
+    
+    if (error) {
+      throw new Error(error.message);
+    }
+    
+    const partides: PartidaCalendari[] = (data || []).map(item => ({
+      id: item.id,
+      jugador1_nom: (item.jugador1 as any)?.nom || 'Desconegut',
+      jugador2_nom: (item.jugador2 as any)?.nom || 'Desconegut',
+      data_programada: item.data_programada,
+      hora_inici: item.hora_inici,
+      taula_assignada: item.taula_assignada,
+      estat: item.estat,
+      event_nom: (item.events as any)?.nom || 'Campionat',
+      categoria_nom: (item.categories as any)?.nom || 'Categoria',
+      observacions_junta: item.observacions_junta
+    }));
+    
+    partidesCalendari.set(partides);
+  } catch (error: any) {
+    calendarError.set(error.message);
+    partidesCalendari.set([]);
+  } finally {
+    calendarLoading.set(false);
+  }
+}
+
 export async function deleteEsdeveniment(id: string): Promise<void> {
   try {
     calendarLoading.set(true);
@@ -211,7 +288,8 @@ export async function deleteEsdeveniment(id: string): Promise<void> {
 export async function refreshCalendarData(): Promise<void> {
   await Promise.all([
     loadEsdeveniments(),
-    loadReptesProgramats()
+    loadReptesProgramats(),
+    loadPartidesCalendari()
   ]);
 }
 

@@ -1,46 +1,17 @@
 import { supabase } from '$lib/supabaseClient';
-import type { Database } from '$lib/database.types';
-
-// Tipus per als events de lligues socials
-export interface SocialLeagueEvent {
-  id: string;
-  nom: string;
-  temporada: string;
-  modalitat: 'tres_bandes' | 'lliure' | 'banda';
-  tipus_competicio: 'lliga_social';
-  estat_competicio: string;
-  data_inici: string | null;
-  data_fi: string | null;
-  actiu: boolean;
-  categories: SocialLeagueCategory[];
-}
-
-export interface SocialLeagueCategory {
-  id: string;
-  nom: string;
-  distancia_caramboles: number;
-  ordre_categoria: number;
-  max_entrades: number;
-  min_jugadors: number;
-  max_jugadors: number;
-  classificacions: Classification[];
-}
-
-export interface Classification {
-  id: string;
-  posicio: number;
-  player_id: string;
-  player_nom: string;
-  player_cognom: string;
-  partides_jugades: number;
-  partides_guanyades: number;
-  partides_perdudes: number;
-  partides_empat: number;
-  punts: number;
-  caramboles_favor: number;
-  caramboles_contra: number;
-  mitjana_particular: number | null;
-}
+import type {
+  SocialLeagueEvent,
+  SocialLeagueCategory,
+  Classification,
+  SearchResult,
+  Player,
+  Soci,
+  Inscripcio,
+  CalendariPartida,
+  ConfiguracioCalendari,
+  Category,
+  UUID
+} from '$lib/types';
 
 // API FUNCTIONS
 
@@ -123,7 +94,7 @@ export async function getSocialLeagueEventById(eventId: string): Promise<SocialL
           mitjana_particular,
           players (
             nom,
-            cognom
+            cognoms
           )
         )
       )
@@ -148,7 +119,7 @@ export async function getSocialLeagueEventById(eventId: string): Promise<SocialL
         posicio: cl.posicio,
         player_id: cl.player_id,
         player_nom: cl.players?.nom || '',
-        player_cognom: cl.players?.cognom || '',
+        player_cognom: cl.players?.cognoms || '',
         partides_jugades: cl.partides_jugades,
         partides_guanyades: cl.partides_guanyades,
         partides_perdudes: cl.partides_perdudes,
@@ -263,7 +234,7 @@ export async function getCategoryClassifications(categoryId: string): Promise<Cl
       mitjana_particular,
       players (
         nom,
-        cognom
+        cognoms
       )
     `)
     .eq('categoria_id', categoryId)
@@ -279,7 +250,7 @@ export async function getCategoryClassifications(categoryId: string): Promise<Cl
     posicio: cl.posicio,
     player_id: cl.player_id,
     player_nom: cl.players?.nom || '',
-    player_cognom: cl.players?.cognom || '',
+    player_cognom: cl.players?.cognoms || '',
     partides_jugades: cl.partides_jugades,
     partides_guanyades: cl.partides_guanyades,
     partides_perdudes: cl.partides_perdudes,
@@ -313,7 +284,7 @@ export async function searchPlayerInClassifications(playerName: string): Promise
       partides_jugades,
       players (
         nom,
-        cognom
+        cognoms
       ),
       categories (
         nom,
@@ -336,7 +307,7 @@ export async function searchPlayerInClassifications(playerName: string): Promise
   results?.forEach(result => {
     if (!result.players || !result.categories?.events) return;
 
-    const playerKey = `${result.players.nom} ${result.players.cognom}`;
+    const playerKey = `${result.players.nom} ${result.players.cognoms}`;
 
     if (!playersMap.has(playerKey)) {
       playersMap.set(playerKey, {
@@ -356,4 +327,155 @@ export async function searchPlayerInClassifications(playerName: string): Promise
   });
 
   return Array.from(playersMap.values());
+}
+
+/**
+ * Exportar calendari de campionat social a CSV
+ */
+export async function exportCalendariToCSV(eventId: string): Promise<string> {
+  try {
+    // First get the calendar matches
+    const { data: partides, error: partidesError } = await supabase
+      .from('calendari_partides')
+      .select(`
+        id,
+        data_programada,
+        hora_inici,
+        taula_assignada,
+        estat,
+        jugador1_id,
+        jugador2_id,
+        categoria_id
+      `)
+      .eq('event_id', eventId)
+      .order('data_programada')
+      .order('hora_inici');
+
+    if (partidesError) {
+      console.error('Error fetching calendar matches:', partidesError);
+      throw partidesError;
+    }
+
+    if (!partides || partides.length === 0) {
+      throw new Error('No hi ha partides al calendari per exportar');
+    }
+
+    // Get unique player IDs and category IDs
+    const playerIds = [...new Set([
+      ...partides.map(p => p.jugador1_id),
+      ...partides.map(p => p.jugador2_id)
+    ].filter(Boolean))];
+
+    const categoryIds = [...new Set(partides.map(p => p.categoria_id).filter(Boolean))];
+
+    // Fetch players and categories separately
+    const [playersResult, categoriesResult] = await Promise.all([
+      supabase.from('players').select('id, nom').in('id', playerIds),
+      supabase.from('categories').select('id, nom').in('id', categoryIds)
+    ]);
+
+    // Create lookup maps
+    const playersMap = new Map();
+    if (playersResult.data) {
+      playersResult.data.forEach(player => {
+        playersMap.set(player.id, player.nom);
+      });
+    }
+
+    const categoriesMap = new Map();
+    if (categoriesResult.data) {
+      categoriesResult.data.forEach(category => {
+        categoriesMap.set(category.id, category.nom);
+      });
+    }
+
+    // Capçalera del CSV
+    const headers = ['ID Partida', 'Categoria', 'Data', 'Hora', 'Taula', 'Estat', 'Jugador 1', 'Jugador 2'];
+
+    // Convertir dades a format CSV
+    const rows = partides.map(partida => [
+      partida.id,
+      categoriesMap.get(partida.categoria_id) || '',
+      partida.data_programada || '',
+      partida.hora_inici || '',
+      partida.taula_assignada || '',
+      partida.estat || '',
+      playersMap.get(partida.jugador1_id) || '',
+      playersMap.get(partida.jugador2_id) || ''
+    ]);
+
+    // Combinar capçalera i files
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    return csvContent;
+  } catch (error) {
+    console.error('Error in exportCalendariToCSV:', error);
+    throw error;
+  }
+}
+
+/**
+ * Buscar socis actius per a inscripcions socials
+ */
+export async function searchActivePlayers(playerName: string): Promise<{
+  numero_soci: number;
+  nom: string;
+  cognoms: string;
+  telefon: string | null;
+  email: string | null;
+  historicalAverage: number | null;
+}[]> {
+  // Buscar socis actius
+  const { data: socis, error } = await supabase
+    .from('socis')
+    .select('numero_soci, nom, cognoms, telefon, email')
+    .ilike('nom', `%${playerName}%`)
+    .eq('de_baixa', false)
+    .order('nom');
+
+  if (error) {
+    console.error('Error searching active players:', error);
+    throw error;
+  }
+
+  if (!socis || socis.length === 0) {
+    return [];
+  }
+
+  // Obtenir mitjanes històriques de les dues últimes temporades
+  // Temporada 2024/2025 = any 2025, Temporada 2023/2024 = any 2024
+  const currentYear = new Date().getFullYear();
+  const lastTwoYears = [currentYear, currentYear - 1];
+
+  const socisNumbers = socis.map(s => s.numero_soci);
+
+  const { data: mitjanes, error: mitjErr } = await supabase
+    .from('mitjanes_historiques')
+    .select('soci_id, mitjana, year, modalitat')
+    .in('soci_id', socisNumbers)
+    .in('year', lastTwoYears)
+    .eq('modalitat', '3 BANDES'); // Default to 3 BANDES for social leagues
+
+  if (mitjErr) {
+    console.warn('Error fetching historical averages:', mitjErr);
+  }
+
+  // Combinar dades dels socis amb les seves millors mitjanes històriques
+  return socis.map(soci => {
+    const playerMitjanes = mitjanes?.filter(m => m.soci_id === soci.numero_soci) || [];
+    const bestMitjana = playerMitjanes.length > 0
+      ? Math.max(...playerMitjanes.map(m => m.mitjana))
+      : null;
+
+    return {
+      numero_soci: soci.numero_soci,
+      nom: soci.nom,
+      cognoms: soci.cognoms || '',
+      telefon: soci.telefon,
+      email: soci.email,
+      historicalAverage: bestMitjana
+    };
+  });
 }

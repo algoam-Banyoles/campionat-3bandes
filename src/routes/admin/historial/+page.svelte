@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-    import Loader from '$lib/components/Loader.svelte';
-    import Banner from '$lib/components/Banner.svelte';
+    import Loader from '$lib/components/general/Loader.svelte';
+    import Banner from '$lib/components/general/Banner.svelte';
     import { supabase } from '$lib/supabaseClient';
     import { formatSupabaseError } from '$lib/ui/alerts';
     import { adminStore } from '$lib/stores/auth';

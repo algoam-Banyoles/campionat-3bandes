@@ -264,7 +264,7 @@ function getUrlForNotificationType(tipus, extraData) {
       return extraData?.challengeId ? `/reptes/${extraData.challengeId}` : '/reptes';
       
     case 'partida_recordatori':
-      return extraData?.matchId ? `/partides/${extraData.matchId}` : '/calendari';
+      return extraData?.matchId ? `/partides/${extraData.matchId}` : '/general/calendari';
       
     case 'confirmacio_requerida':
       return extraData?.challengeId ? `/reptes/${extraData.challengeId}/confirmar` : '/reptes';

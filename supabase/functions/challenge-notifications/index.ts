@@ -102,7 +102,7 @@ async function handleChallengeCreated(supabase: any, challenge: any) {
     titol: 'Nou repte rebut!',
     missatge: `${challengerName} t'ha proposat un repte`,
     challengeId: challenge.id,
-    url: `/reptes/${challenge.id}`,
+    url: `/campionat-continu/reptes/${challenge.id}`,
     actions: [
       { action: 'accept', title: 'Acceptar', icon: '/icons/check-circle.svg' },
       { action: 'reject', title: 'Rebutjar', icon: '/icons/x-circle.svg' },
@@ -129,7 +129,7 @@ async function handleChallengeAccepted(supabase: any, challenge: any) {
     titol: 'Repte acceptat!',
     missatge: `${challengedName} ha acceptat el teu repte`,
     challengeId: challenge.id,
-    url: `/reptes/${challenge.id}`,
+    url: `/campionat-continu/reptes/${challenge.id}`,
     actions: [
       { action: 'view', title: 'Veure detalls', icon: '/icons/eye.svg' }
     ]
@@ -158,7 +158,7 @@ async function handleChallengeCompleted(supabase: any, challenge: any) {
     titol: 'Repte finalitzat',
     missatge: `El repte amb ${challengedName} ha estat completat`,
     challengeId: challenge.id,
-    url: `/reptes/${challenge.id}`,
+    url: `/campionat-continu/reptes/${challenge.id}`,
     actions: [
       { action: 'view', title: 'Veure resultats', icon: '/icons/eye.svg' }
     ]
@@ -171,7 +171,7 @@ async function handleChallengeCompleted(supabase: any, challenge: any) {
     titol: 'Repte finalitzat',
     missatge: `El repte amb ${challengerName} ha estat completat`,
     challengeId: challenge.id,
-    url: `/reptes/${challenge.id}`,
+    url: `/campionat-continu/reptes/${challenge.id}`,
     actions: [
       { action: 'view', title: 'Veure resultats', icon: '/icons/eye.svg' }
     ]
@@ -232,7 +232,7 @@ async function handleChallengeExpired(supabase: any, challenge: any) {
     payload: {
       titol: 'Repte caducat',
       missatge: `El teu repte a ${challengedName} ha caducat sense resposta`,
-      url: '/reptes',
+      url: '/campionat-continu/reptes',
       type: 'repte_caducat'
     }
   }
@@ -246,7 +246,7 @@ async function handleChallengeExpired(supabase: any, challenge: any) {
     payload: {
       titol: 'Has perdut un repte',
       missatge: `No has respost al repte de ${challengerName} a temps`,
-      url: '/reptes',
+      url: '/campionat-continu/reptes',
       type: 'repte_caducat'
     }
   }

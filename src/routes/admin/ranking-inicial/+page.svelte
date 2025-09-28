@@ -1,5 +1,5 @@
 <script lang="ts">
-	import CrearRanquingInicial from '$lib/components/CrearRanquingInicial.svelte';
+	import CrearRanquingInicial from '$lib/components/admin/CrearRanquingInicial.svelte';
 	import { goto } from '$app/navigation';
 </script>
 

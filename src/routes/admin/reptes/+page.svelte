@@ -3,12 +3,12 @@
         import { onMount } from 'svelte';
         import { user } from '$lib/stores/auth';
       import { checkIsAdmin } from '$lib/roles';
-      import Banner from '$lib/components/Banner.svelte';
-      import Loader from '$lib/components/Loader.svelte';
+      import Banner from '$lib/components/general/Banner.svelte';
+      import Loader from '$lib/components/general/Loader.svelte';
       import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
       import { authFetch } from '$lib/utils/http';
       import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
-      import { refreshActiveChallenges, activeChallenges, invalidateChallengeCaches } from '$lib/challengeStore';
+      import { refreshActiveChallenges, activeChallenges, invalidateChallengeCaches } from '$lib/stores/challengeStore';
       import { performanceMonitor } from '$lib/monitoring/performance';
   type ChallengeRow = {
     id: string;

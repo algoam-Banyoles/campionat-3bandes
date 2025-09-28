@@ -5,7 +5,7 @@
     import { getSettings, type AppSettings } from '$lib/settings';
     import { get } from 'svelte/store';
     import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
-    import { refreshUserChallenges, userChallenges } from '$lib/challengeStore';
+    import { refreshUserChallenges, userChallenges } from '$lib/stores/challengeStore';
     import { performanceMonitor } from '$lib/monitoring/performance';
     import { isDevUser } from '$lib/guards/devOnly';
 
@@ -36,7 +36,7 @@
         if (s === 'loading') return;
         const u = get(user);
         if (s === 'anonymous' || !(u as any)?.email) {
-          goto('/ranking');
+          goto('/campionat-continu/ranking');
           loading = false;
           unsub?.();
           return;

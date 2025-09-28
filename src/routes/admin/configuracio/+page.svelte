@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import { user, adminStore } from '$lib/stores/auth';
   import { checkIsAdmin } from '$lib/roles';
-  import Banner from '$lib/components/Banner.svelte';
+  import Banner from '$lib/components/general/Banner.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
 
   type AppSettings = {

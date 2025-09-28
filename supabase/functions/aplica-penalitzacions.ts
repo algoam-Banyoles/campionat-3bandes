@@ -5,7 +5,7 @@ import { serve } from 'std/server';
 
 // Substitueix per la teva API key si l'endpoint la requereix
 const API_KEY = process.env.API_KEY || '<API_KEY>'; // Posa la clau aquí si cal
-const ENDPOINT = 'https://campionat-3bandes.vercel.app/reptes/check-expired';
+const ENDPOINT = 'https://campionat-3bandes.vercel.app/campionat-continu/reptes/check-expired';
 
 serve(async (req) => {
   try {

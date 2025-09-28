@@ -67,9 +67,9 @@ export {
 export { toastStore } from '../stores/toastStore';
 
 // Components UI
-export { default as ErrorToast } from '../components/ErrorToast.svelte';
-export { default as ErrorBoundary } from '../components/ErrorBoundary.svelte';
-export { default as ToastContainer } from '../components/ToastContainer.svelte';
+export { default as ErrorToast } from '../components/general/ErrorToast.svelte';
+export { default as ErrorBoundary } from '../components/general/ErrorBoundary.svelte';
+export { default as ToastContainer } from '../components/general/ToastContainer.svelte';
 
 /**
  * Exemple d'ús bàsic:

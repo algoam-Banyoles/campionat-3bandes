@@ -1,7 +1,7 @@
 {
-  "name": "Campionat 3 Bandes",
-  "short_name": "3Bandes",
-  "description": "Campionat de 3 Bandes del club",
+  "name": "Secció de Billar del Foment Martinenc",
+  "short_name": "Foment Martinenc",
+  "description": "Aplicació de la Secció de Billar del Foment Martinenc",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -53,9 +53,9 @@
       "type": "image/png"
     },
     {
-      "src": "/icons/icon-144.svg",
+      "src": "/icons/icon-144.png",
       "sizes": "144x144",
-      "type": "image/svg+xml"
+      "type": "image/png"
     },
     {
       "src": "/icons/icon-152.png",

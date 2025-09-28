@@ -2,8 +2,8 @@
   import { onMount } from 'svelte';
   import { user } from '$lib/stores/auth';
   import { checkIsAdmin } from '$lib/roles';
-  import Banner from '$lib/components/Banner.svelte';
-  import Loader from '$lib/components/Loader.svelte';
+  import Banner from '$lib/components/general/Banner.svelte';
+  import Loader from '$lib/components/general/Loader.svelte';
   import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
   import { updateSettingsValues } from '$lib/settings';
 

@@ -35,7 +35,7 @@ export async function scheduleChallenge(
   id: string,
   isoDate: string
 ): Promise<void> {
-  const res = await authFetch('/reptes/programar', {
+  const res = await authFetch('/campionat-continu/reptes/programar', {
     method: 'POST',
     body: JSON.stringify({ id, data_iso: isoDate })
   });

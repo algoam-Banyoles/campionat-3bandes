@@ -119,13 +119,13 @@ self.addEventListener('notificationclick', (event) => {
     // Si s'ha fet clic en una acció específica
     switch (action) {
       case 'view_challenge':
-        targetUrl = data.challengeUrl || '/reptes';
+        targetUrl = data.challengeUrl || '/campionat-continu/reptes';
         break;
       case 'view_ranking':
-        targetUrl = '/ranking';
+        targetUrl = '/campionat-continu/ranking';
         break;
       case 'view_profile':
-        targetUrl = '/reptes/me';
+        targetUrl = '/campionat-continu/reptes/me';
         break;
       default:
         targetUrl = data.url || '/';

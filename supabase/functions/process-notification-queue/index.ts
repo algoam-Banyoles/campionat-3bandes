@@ -173,7 +173,7 @@ async function handleExpiryWarning(supabase: any, notification: any, notificatio
 
   notificationData.titol = 'Repte a punt de caducar!'
   notificationData.missatge = `El repte de ${challengerName} caduca en ${hoursLeft} hores`
-  notificationData.url = `/reptes/${challenge.id}`
+  notificationData.url = `/campionat-continu/reptes/${challenge.id}`
   notificationData.actions = [
     { action: 'accept', title: 'Acceptar', icon: '/icons/check-circle.svg' },
     { action: 'reject', title: 'Rebutjar', icon: '/icons/x-circle.svg' },
@@ -201,7 +201,7 @@ async function handleChallengeExpired(supabase: any, notification: any, notifica
     notificationData.missatge = `No has respost al repte de ${challengerName} a temps`
   }
 
-  notificationData.url = '/reptes'
+  notificationData.url = '/campionat-continu/reptes'
   notificationData.actions = [
     { action: 'view', title: 'Veure reptes', icon: '/icons/eye.svg' }
   ]
@@ -220,7 +220,7 @@ async function handleMatchReminder(supabase: any, notification: any, notificatio
 
   notificationData.titol = 'Partida programada avui'
   notificationData.missatge = `Tens una partida amb ${opponentName || 'algú'} programada avui`
-  notificationData.url = `/reptes/${challenge.id}`
+  notificationData.url = `/campionat-continu/reptes/${challenge.id}`
   notificationData.actions = [
     { action: 'confirm', title: 'Confirmar assistència', icon: '/icons/check.svg' },
     { action: 'reschedule', title: 'Reagendar', icon: '/icons/calendar.svg' },

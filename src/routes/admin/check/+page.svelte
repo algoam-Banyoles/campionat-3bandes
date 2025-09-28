@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
     import { supabase } from '$lib/supabaseClient';
     import { checkIsAdmin } from '$lib/roles';
-  import Banner from '$lib/components/Banner.svelte';
+  import Banner from '$lib/components/general/Banner.svelte';
   import { formatSupabaseError } from '$lib/ui/alerts';
 
   let email: string | null = null;

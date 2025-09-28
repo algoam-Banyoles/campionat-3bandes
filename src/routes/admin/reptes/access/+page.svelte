@@ -2,9 +2,9 @@
     import { onMount } from 'svelte';
     import { user } from '$lib/stores/auth';
     import { checkIsAdmin } from '$lib/roles';
-  import Banner from '$lib/components/Banner.svelte';
+  import Banner from '$lib/components/general/Banner.svelte';
   import { resolveAccessChallenge } from '$lib/challenges';
-  import { refreshRanking } from '$lib/rankingStore';
+  import { refreshRanking } from '$lib/stores/rankingStore';
   import { invalidate } from '$app/navigation';
 
   type Row = {
