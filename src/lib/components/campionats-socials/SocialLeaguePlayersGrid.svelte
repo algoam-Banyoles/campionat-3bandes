@@ -9,21 +9,21 @@
   let loading = false;
   let error: string | null = null;
 
-  onM      </div>
-  {/if} {
-    if (eventId) {
+  onMount(() => {
+    if (eventId && eventId.trim() !== '') {
       loadInscriptions();
     }
   });
 
-  $: if (eventId) {
+  $: if (eventId && eventId.trim() !== '') {
     loadInscriptions();
+  } else if (eventId === '') {
+    inscriptions = [];
   }
 
-  async function loadInscriptions() {
-    console.log('🔍 SocialLeaguePlayersGrid: Starting to load inscriptions for eventId:', eventId);
-    console.log('🔍 Categories passed:', categories.length);
 
+
+  async function loadInscriptions() {
     loading = true;
     error = null;
 
@@ -42,12 +42,9 @@
         .eq('event_id', eventId)
         .order('data_inscripcio', { ascending: true });
 
-      console.log('🔍 Inscriptions loaded:', inscriptionsData?.length || 0);
-
       if (inscriptionsError) throw inscriptionsError;
 
       if (!inscriptionsData || inscriptionsData.length === 0) {
-        console.log('🔍 No inscriptions found');
         inscriptions = [];
         return;
       }
@@ -72,10 +69,8 @@
         ...inscription,
         socis: socisMap.get(inscription.soci_numero) || null
       }));
-
-      console.log('🔍 Final inscriptions with socis:', inscriptions.length);
     } catch (e) {
-      console.error('❌ Error loading inscriptions:', e);
+      console.error('Error loading inscriptions:', e);
       error = 'Error carregant les inscripcions';
     } finally {
       loading = false;
@@ -224,75 +219,5 @@
         </div>
       </div>
     </div>
-  {/if}
-</div>
-
-    <!-- Jugadors sense categoria assignada -->
-    {#if playersWithoutCategory.length > 0}
-      <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
-        <div class="text-center mb-4 pb-3 border-b border-yellow-300">
-          <h3 class="text-lg font-bold text-gray-900">⚠️ Sense Categoria</h3>
-          <p class="text-sm text-orange-600 font-medium">
-            Pendent assignació
-          </p>
-          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800 mt-2">
-            {playersWithoutCategory.length} jugadors
-          </span>
-        </div>
-
-        <div class="space-y-2">
-          {#each playersWithoutCategory as inscription (inscription.id)}
-            {@const soci = inscription.socis}
-            {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
-            {@const cognoms = soci?.cognoms || `Soci #${inscription.soci_numero}`}
-            <div class="flex items-center justify-between py-1">
-              <div class="flex items-center">
-                <div class="w-8 h-8 bg-yellow-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">
-                  {inicialNom}
-                </div>
-                <span class="text-sm font-medium text-gray-900">
-                  {cognoms}
-                </span>
-              </div>
-              <div class="flex items-center">
-                {#if inscription.confirmat && inscription.pagat}
-                  <span class="w-2 h-2 bg-green-500 rounded-full" title="Confirmat i pagat"></span>
-                {:else if inscription.confirmat}
-                  <span class="w-2 h-2 bg-orange-500 rounded-full" title="Confirmat, pendent pagament"></span>
-                {:else}
-                  <span class="w-2 h-2 bg-yellow-500 rounded-full" title="Pendent confirmació"></span>
-                {/if}
-              </div>
-            </div>
-          {/each}
-        </div>
-      </div>
-    {/if}
-
-    <!-- Llegenda d'estats -->
-    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-      <h4 class="text-sm font-medium text-gray-900 mb-3">Llegenda d'estats:</h4>
-      <div class="flex flex-wrap gap-4 text-sm">
-        <div class="flex items-center">
-          <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-          <span class="text-gray-600">Confirmat i pagat</span>
-        </div>
-        <div class="flex items-center">
-          <span class="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
-          <span class="text-gray-600">Confirmat, pendent pagament</span>
-        </div>
-        <div class="flex items-center">
-          <span class="w-2 h-2 bg-yellow-500 rounded-full mr-2"></span>
-          <span class="text-gray-600">Pendent confirmació</span>
-        </div>
-      </div>
-    {:else}
-      <div class="text-center py-12">
-        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-        </svg>
-        <h3 class="mt-2 text-sm font-medium text-gray-900">No hi ha jugadors inscrits</h3>
-        <p class="mt-1 text-sm text-gray-500">Els jugadors apareixeran aquí quan es facin les inscripcions.</p>
-      </div>
   {/if}
 </div>

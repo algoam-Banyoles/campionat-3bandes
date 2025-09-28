@@ -134,42 +134,53 @@
       if (isUserAdmin) {
         loadInscriptionsData();
       } else {
-        loadPublicInscriptionsData();
+        loadPublicPlayers();
       }
     }
   }
 
   // Carregar només dades públiques d'inscripcions per usuaris no logats
-  async function loadPublicInscriptionsData() {
-    if (!selectedEventId) return;
+  // Nova implementació simple per mostrar jugadors públics
+  let publicPlayersLoading = false;
+  let publicPlayers = [];
 
+  async function loadPublicPlayers() {
+    console.log('🔍 TEMP: loadPublicPlayers called - selectedEventId:', selectedEventId, 'loading:', publicPlayersLoading);
+    if (!selectedEventId || publicPlayersLoading) return;
+    
     try {
-      loadingInscriptions = true;
-
-      // Carregar només inscripcions amb dades públiques del soci
-      const { data: inscriptionsData, error: inscriptionsError } = await supabase
+      console.log('🔍 TEMP: Starting to load public players for event:', selectedEventId);
+      publicPlayersLoading = true;
+      
+      // Carregar inscripcions amb dades dels socis
+      const { data, error } = await supabase
         .from('inscripcions')
         .select(`
           id,
           soci_numero,
           categoria_assignada_id,
-          data_inscripcio,
           confirmat,
           socis!inscripcions_soci_numero_fkey(nom, cognoms)
         `)
-        .eq('event_id', selectedEventId);
+        .eq('event_id', selectedEventId)
+        .order('data_inscripcio');
 
-      if (inscriptionsError) {
-        console.error('Error loading public inscriptions:', inscriptionsError);
+      console.log('🔍 TEMP: Query result - data:', data?.length || 0, 'error:', error);
+
+      if (error) {
+        console.error('Error loading public players:', error);
+        publicPlayers = [];
       } else {
-        inscriptions = inscriptionsData || [];
-        console.log('Loaded public inscriptions:', inscriptions.length);
+        publicPlayers = data || [];
+        console.log('🔍 TEMP: Final public players set:', publicPlayers.length);
       }
-
+      
     } catch (error) {
-      console.error('Error loading public inscriptions data:', error);
+      console.error('🔍 TEMP: Error in loadPublicPlayers:', error);
+      publicPlayers = [];
     } finally {
-      loadingInscriptions = false;
+      console.log('🔍 TEMP: loadPublicPlayers finished, setting loading to false');
+      publicPlayersLoading = false;
     }
   }
 
@@ -558,7 +569,30 @@
       const preparationEvent = preparationEvents[0];
       const activeEvent = activeEvents[0];
 
-      if (activeEvent) {
+      // Buscar manualment esdeveniments actius per evitar problemes de timing
+      const manualActiveEvent = events.find(e => 
+        e.actiu && 
+        (e.estat_competicio === 'en_curs' || 
+         e.estat_competicio === 'en_progres' || 
+         e.estat_competicio === 'actiu' || 
+         e.estat_competicio === 'ongoing')
+      );
+      
+      if (manualActiveEvent) {
+        selectedEventId = manualActiveEvent.id;
+        activeView = 'active';
+        console.log('🔍 TEMP: Manual active event, isUserAdmin:', isUserAdmin);
+        // Per usuaris no logats, començar amb la vista de jugadors i carregar dades públiques
+        if (!isUserAdmin) {
+          managementView = 'inscriptions';
+          console.log('🔍 TEMP: Setting managementView to inscriptions for non-admin');
+        }
+        // Carregar dades públiques per tots els usuaris
+        setTimeout(() => {
+          console.log('🔍 TEMP: About to call loadPublicPlayers from manual active event');
+          loadPublicPlayers();
+        }, 100);
+      } else if (activeEvent) {
         selectedEventId = activeEvent.id;
         activeView = 'active';
         // Per usuaris no logats, començar amb la vista de jugadors i carregar dades públiques
@@ -567,9 +601,7 @@
         }
         // Carregar dades públiques per tots els usuaris
         setTimeout(() => {
-          if (!isUserAdmin) {
-            loadPublicInscriptionsData();
-          }
+          loadPublicPlayers();
         }, 100);
       } else if (isUserAdmin && preparationEvent) {
         selectedEventId = preparationEvent.id;
@@ -1152,67 +1184,84 @@
                   />
 
                 {:else if managementView === 'inscriptions'}
-                  <!-- Jugadors inscrits i categories -->
-                  {#if loadingInscriptions}
+                  <!-- Nova implementació simple de jugadors públics -->
+                  {#if publicPlayersLoading}
                     <div class="text-center py-8">
                       <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                       <p class="mt-2 text-gray-600">Carregant jugadors...</p>
                     </div>
+                  {:else if publicPlayers.length === 0}
+                    <div class="text-center py-8">
+                      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                      </svg>
+                      <h3 class="mt-2 text-sm font-medium text-gray-900">No hi ha jugadors inscrits</h3>
+                      <p class="mt-1 text-sm text-gray-500">Els jugadors apareixeran aquí quan es facin les inscripcions.</p>
+                    </div>
                   {:else}
+                    <!-- Mostrar jugadors per categories -->
                     <div class="space-y-6">
-                      <!-- Categories i jugadors per categoria -->
-                      {#if selectedEvent.categories && selectedEvent.categories.length > 0}
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {#if selectedEvent?.categories && selectedEvent.categories.length > 0}
+                        <div class="flex flex-wrap gap-4">
                           {#each selectedEvent.categories as category}
-                            {@const categoryInscriptions = inscriptions.filter(i => i.categoria_assignada_id === category.id)}
-                            <div class="bg-gray-50 rounded-lg p-4">
-                              <div class="flex items-center justify-between mb-4">
-                                <h4 class="text-lg font-medium text-gray-900">{category.nom}</h4>
-                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                  {categoryInscriptions.length} jugadors
-                                </span>
+                            {@const categoryPlayers = publicPlayers.filter(p => p.categoria_assignada_id === category.id)}
+                            <div class="bg-white border border-gray-200 rounded-lg p-3 min-w-fit">
+                              <div class="text-center mb-2 pb-2 border-b border-gray-100">
+                                <h3 class="text-sm font-bold text-gray-900 whitespace-nowrap">{category.nom}</h3>
+                                <p class="text-xs text-blue-600 font-medium whitespace-nowrap">
+                                  {category.distancia_caramboles} car. • {categoryPlayers.length} jug.
+                                </p>
                               </div>
 
-                              <div class="mb-3 text-sm text-gray-600">
-                                <p>📏 {category.distancia_caramboles} caramboles</p>
-                              </div>
-
-                              {#if categoryInscriptions.length > 0}
-                                <div class="space-y-2">
-                                  <h5 class="text-sm font-medium text-gray-700">Jugadors inscrits:</h5>
-                                  <div class="grid grid-cols-1 gap-2">
-                                    {#each categoryInscriptions as inscription}
-                                      {#if inscription.socis}
-                                        <div class="bg-white rounded border border-gray-200 p-3">
-                                          <div class="flex items-center justify-between">
-                                            <div>
-                                              <p class="font-medium text-gray-900">
-                                                {inscription.socis.nom} {inscription.socis.cognoms}
-                                              </p>
-                                            </div>
-                                            <div class="flex items-center space-x-2">
-                                              {#if inscription.confirmat}
-                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                  ✅ Confirmat
-                                                </span>
-                                              {:else}
-                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                                  ⏳ Pendent
-                                                </span>
-                                              {/if}
-                                            </div>
-                                          </div>
+                              {#if categoryPlayers.length > 0}
+                                <div class="space-y-1">
+                                  {#each categoryPlayers as player}
+                                    {#if player.socis}
+                                      <div class="flex items-center py-1">
+                                        <div class="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">
+                                          {player.socis.nom ? player.socis.nom.charAt(0).toUpperCase() : '?'}
                                         </div>
-                                      {/if}
-                                    {/each}
-                                  </div>
+                                        <span class="text-xs text-gray-900 whitespace-nowrap">
+                                          {player.socis.nom} {player.socis.cognoms}
+                                        </span>
+                                      </div>
+                                    {/if}
+                                  {/each}
                                 </div>
                               {:else}
-                                <p class="text-sm text-gray-500 italic">No hi ha jugadors inscrits en aquesta categoria</p>
+                                <p class="text-center text-xs text-gray-500 italic whitespace-nowrap">Cap jugador inscrit</p>
                               {/if}
                             </div>
                           {/each}
                         </div>
+
+                        
+                        <!-- Jugadors sense categoria -->
+                        {@const playersWithoutCategory = publicPlayers.filter(p => !p.categoria_assignada_id)}
+                        {#if playersWithoutCategory.length > 0}
+                          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 min-w-fit">
+                            <div class="text-center mb-2 pb-2 border-b border-yellow-200">
+                              <h3 class="text-sm font-bold text-gray-900 whitespace-nowrap">⚠️ Sense Categoria</h3>
+                              <p class="text-xs text-orange-600 font-medium whitespace-nowrap">
+                                Pendent • {playersWithoutCategory.length} jug.
+                              </p>
+                            </div>
+                            <div class="space-y-1">
+                              {#each playersWithoutCategory as player}
+                                {#if player.socis}
+                                  <div class="flex items-center py-1">
+                                    <div class="w-5 h-5 bg-yellow-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">
+                                      {player.socis.nom ? player.socis.nom.charAt(0).toUpperCase() : '?'}
+                                    </div>
+                                    <span class="text-xs text-gray-900 whitespace-nowrap">
+                                      {player.socis.nom} {player.socis.cognoms}
+                                    </span>
+                                  </div>
+                                {/if}
+                              {/each}
+                            </div>
+                          </div>
+                        {/if}
                       {:else}
                         <div class="text-center py-8">
                           <p class="text-gray-500">No hi ha categories configurades per aquesta lliga</p>
