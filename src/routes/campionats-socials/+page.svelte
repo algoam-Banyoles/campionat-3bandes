@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import type { PageData } from './$types';
   import SocialLeagueCalendarViewer from '$lib/components/campionats-socials/SocialLeagueCalendarViewer.svelte';
+  import SocialLeagueMatchResults from '$lib/components/campionats-socials/SocialLeagueMatchResults.svelte';
+  import SocialLeaguePlayersGrid from '$lib/components/campionats-socials/SocialLeaguePlayersGrid.svelte';
   import DragDropInscriptions from '$lib/components/campionats-socials/DragDropInscriptions.svelte';
   import CategorySetup from '$lib/components/campionats-socials/CategorySetup.svelte';
   import CategoryManagement from '$lib/components/campionats-socials/CategoryManagement.svelte';
@@ -18,10 +20,12 @@
   let selectedEventId = '';
   let selectedEvent: any = null;
   let loading = false;
-  let activeView: 'preparation' | 'active' | 'history' | 'players' | 'inscriptions' = 'preparation';
+  let activeView: 'preparation' | 'active' | 'history' | 'players' | 'inscriptions' = 'active';
+
+
 
   // Variables per la gestió d'inscripcions
-  let managementView: 'inscriptions' | 'categories' | 'generate-calendar' | 'view-calendar' | 'restrictions' = 'inscriptions';
+  let managementView: 'inscriptions' | 'categories' | 'generate-calendar' | 'view-calendar' | 'restrictions' | 'results' | 'standings' = 'inscriptions';
   let socis: any[] = [];
   let inscriptions: any[] = [];
   let loadingSocis = false;
@@ -30,6 +34,53 @@
 
   // Computed per verificar si és admin (comprovant tots dos sistemes)
   $: isUserAdmin = $adminStore || $isAdminNew;
+
+  // Funció manual per recalcular filtres i fer debug
+  function recalculateFilters() {
+    console.log('� MANUAL RECOMPUTE amb', events.length, 'events:');
+    
+    events.forEach((event, i) => {
+      console.log(`${i+1}. "${event.nom}" - actiu: ${event.actiu}, estat: "${event.estat_competicio}"`);
+    });
+    
+    // Test manual dels filtres
+    const prep = events.filter(e => e.actiu && (
+      e.estat_competicio === 'preparacio' ||
+      e.estat_competicio === 'planificacio' ||
+      e.estat_competicio === 'inscripcions_obertes' ||
+      e.estat_competicio === 'pendent' ||
+      e.estat_competicio === 'pendent_validacio' ||
+      e.estat_competicio === 'inscripcions' ||
+      e.estat_competicio === 'configuracio' ||
+      e.estat_competicio === 'programacio' ||
+      !e.estat_competicio ||
+      e.estat_competicio === ''
+    ));
+    
+    const active = events.filter(e => e.actiu && (
+      e.estat_competicio === 'en_curs' ||
+      e.estat_competicio === 'en_progres' ||
+      e.estat_competicio === 'actiu' ||
+      e.estat_competicio === 'ongoing'
+    ));
+    
+    console.log('✅ Manual results: prep =', prep.length, ', active =', active.length);
+    
+    // També escriu l'info en el document
+    if (typeof document !== 'undefined') {
+      const debugDiv = document.createElement('div');
+      debugDiv.style.cssText = 'position:fixed;top:50px;left:0;background:lightblue;padding:10px;z-index:9999;font-size:12px;';
+      debugDiv.innerHTML = `🔧 Manual recompute: prep = ${prep.length}, active = ${active.length}`;
+      document.body.appendChild(debugDiv);
+      
+      // Eliminar després de 5 segons
+      setTimeout(() => debugDiv.remove(), 5000);
+    }
+    
+    // Forçar reassignació per triggerejar reactius
+    preparationEvents = prep;
+    activeEvents = active;
+  }
 
   // Events amb inscripcions obertes
   $: openRegistrations = events.filter(e => e.actiu && (
@@ -41,10 +92,14 @@
   // Redefinir filtres segons els nous estats de lliga
   $: preparationEvents = events.filter(e => e.actiu && (
     e.estat_competicio === 'preparacio' ||
+    e.estat_competicio === 'planificacio' ||
     e.estat_competicio === 'inscripcions_obertes' ||
     e.estat_competicio === 'pendent' ||
-    e.estat_competicio === 'pendent_validacio' || // Afegit l'estat real!
-    !e.estat_competicio || // Events sense estat definit es consideren en preparació
+    e.estat_competicio === 'pendent_validacio' ||
+    e.estat_competicio === 'inscripcions' ||
+    e.estat_competicio === 'configuracio' ||
+    e.estat_competicio === 'programacio' ||
+    !e.estat_competicio ||
     e.estat_competicio === ''
   ));
 
@@ -64,9 +119,57 @@
 
   $: if (selectedEventId) {
     selectedEvent = events.find(e => e.id === selectedEventId);
-    if (selectedEvent && activeView === 'preparation') {
+    console.log('🎯 Selected event:', selectedEvent?.nom, 'Categories:', selectedEvent?.categories?.length || 0);
+    if (selectedEvent && (activeView === 'preparation' || activeView === 'active')) {
       loadInscriptionsData();
-      checkCalendarStatus();
+      if (activeView === 'preparation') {
+        checkCalendarStatus();
+      }
+    }
+  }
+
+  // Carregar dades quan es canvia la vista de gestió a inscripcions, classificació o calendari
+  $: if (selectedEventId && selectedEvent && (managementView === 'inscriptions' || managementView === 'standings' || managementView === 'view-calendar') && activeView === 'active') {
+    if (!loadingInscriptions) {
+      if (isUserAdmin) {
+        loadInscriptionsData();
+      } else {
+        loadPublicInscriptionsData();
+      }
+    }
+  }
+
+  // Carregar només dades públiques d'inscripcions per usuaris no logats
+  async function loadPublicInscriptionsData() {
+    if (!selectedEventId) return;
+
+    try {
+      loadingInscriptions = true;
+
+      // Carregar només inscripcions amb dades públiques del soci
+      const { data: inscriptionsData, error: inscriptionsError } = await supabase
+        .from('inscripcions')
+        .select(`
+          id,
+          soci_numero,
+          categoria_assignada_id,
+          data_inscripcio,
+          confirmat,
+          socis!inscripcions_soci_numero_fkey(nom, cognoms)
+        `)
+        .eq('event_id', selectedEventId);
+
+      if (inscriptionsError) {
+        console.error('Error loading public inscriptions:', inscriptionsError);
+      } else {
+        inscriptions = inscriptionsData || [];
+        console.log('Loaded public inscriptions:', inscriptions.length);
+      }
+
+    } catch (error) {
+      console.error('Error loading public inscriptions data:', error);
+    } finally {
+      loadingInscriptions = false;
     }
   }
 
@@ -181,33 +284,54 @@
 
   // Check calendar status
   async function checkCalendarStatus() {
-    if (!selectedEventId) return;
+    if (!selectedEventId) {
+      console.log('🔍 checkCalendarStatus: No selectedEventId');
+      return;
+    }
 
     try {
+      console.log('🔍 Checking calendar status for event:', selectedEventId);
+      
       const { data: matches, error } = await supabase
         .from('calendari_partides')
         .select('id, estat')
         .eq('event_id', selectedEventId);
 
       if (error) {
-        console.error('Error checking calendar status:', error);
+        console.error('❌ Error checking calendar status:', error);
         return;
       }
 
+      console.log('📊 Found matches:', matches?.length || 0);
+      
       if (!matches || matches.length === 0) {
         calendarStatus = 'not-generated';
+        console.log('📅 Calendar status: NOT GENERATED');
       } else {
         const validatedMatches = matches.filter(match => match.estat === 'validat');
-        if (validatedMatches.length === matches.length) {
+        const publishedMatches = matches.filter(match => match.estat === 'publicat');
+        
+        console.log('📈 Match stats:');
+        console.log('  - Total:', matches.length);
+        console.log('  - Validated:', validatedMatches.length);
+        console.log('  - Published:', publishedMatches.length);
+        
+        if (publishedMatches.length > 0) {
+          calendarStatus = 'published';
+          console.log('📅 Calendar status: PUBLISHED');
+        } else if (validatedMatches.length === matches.length) {
           calendarStatus = 'validated';
+          console.log('📅 Calendar status: VALIDATED');
         } else if (validatedMatches.length > 0) {
           calendarStatus = 'partially-validated';
+          console.log('📅 Calendar status: PARTIALLY VALIDATED');
         } else {
           calendarStatus = 'generated';
+          console.log('📅 Calendar status: GENERATED');
         }
       }
     } catch (error) {
-      console.error('Error in checkCalendarStatus:', error);
+      console.error('❌ Error in checkCalendarStatus:', error);
     }
   }
 
@@ -355,55 +479,7 @@
     }
   }
 
-  async function publishCalendar() {
-    try {
-      // Check if calendar is validated
-      const { data: matches, error: matchesError } = await supabase
-        .from('calendari_partides')
-        .select('id, estat')
-        .eq('event_id', selectedEventId);
 
-      if (matchesError) {
-        console.error('Error checking calendar:', matchesError);
-        alert('Error al verificar el calendari: ' + matchesError.message);
-        return;
-      }
-
-      const validatedMatches = matches?.filter(match => match.estat === 'validat') || [];
-
-      if (validatedMatches.length === 0) {
-        alert('El calendari no està validat. Valida primer el calendari abans de publicar-lo.');
-        return;
-      }
-
-      if (!confirm('Estàs segur que vols publicar el calendari? Una vegada publicat, l\'event passarà a estar en curs.')) {
-        return;
-      }
-
-      // Update event status to "en_curs"
-      const { error: eventError } = await supabase
-        .from('events')
-        .update({
-          estat_competicio: 'en_curs',
-          data_inici: new Date().toISOString().split('T')[0] // Set start date to today
-        })
-        .eq('id', selectedEventId);
-
-      if (eventError) {
-        console.error('Error publishing event:', eventError);
-        alert('Error al publicar l\'event: ' + eventError.message);
-        return;
-      }
-
-      alert('Calendari publicat correctament! L\'event ara està en curs.');
-
-      // Reload events to reflect the change
-      window.location.reload();
-    } catch (error) {
-      console.error('Error in publishCalendar:', error);
-      alert('Error al publicar el calendari');
-    }
-  }
 
   onMount(async () => {
     try {
@@ -427,9 +503,8 @@
       }
 
       events = await getSocialLeagueEvents();
+      
 
-      console.log('🔍 EVENTS DEBUG:');
-      console.log('Total events:', events.length);
 
       events.forEach((event, index) => {
         console.log(`\n${index + 1}. "${event.nom}"`);
@@ -437,6 +512,12 @@
         console.log(`   Modalitat: ${event.modalitat}`);
         console.log(`   Actiu: ${event.actiu}`);
         console.log(`   Estat Competició: "${event.estat_competicio}"`);
+        console.log(`   Categories: ${event.categories?.length || 0}`);
+        if (event.categories?.length > 0) {
+          event.categories.forEach(cat => {
+            console.log(`     - ${cat.nom} (${cat.distancia_caramboles} car.)`);
+          });
+        }
         const isActiveEvent = event.actiu && (
           event.estat_competicio === 'en_curs' ||
           event.estat_competicio === 'en_progres' ||
@@ -448,25 +529,57 @@
 
       console.log('\nValors únics estat_competicio:', [...new Set(events.map(e => e.estat_competicio))]);
 
+      // DEBUG DETALLAT: Verificar cada event individualment
+      console.log('\n🔍 EVENTS DETALLATS:');
+      events.forEach((event, index) => {
+        console.log(`${index + 1}. "${event.nom}"`);
+        console.log(`   actiu: ${event.actiu} (type: ${typeof event.actiu})`);
+        console.log(`   estat_competicio: "${event.estat_competicio}"`);
+        console.log(`   temporada: ${event.temporada}`);
+        
+        // Test filtres individuals
+        const isActive = event.actiu && (
+          event.estat_competicio === 'en_curs' ||
+          event.estat_competicio === 'en_progres' ||
+          event.estat_competicio === 'actiu' ||
+          event.estat_competicio === 'ongoing'
+        );
+        console.log(`   ➜ Seria ACTIU?: ${isActive}`);
+        console.log('');
+      });
+
       // DEBUG: Verificar filtres
       console.log('\n🔍 FILTRES DEBUG:');
       console.log('Preparation events:', preparationEvents.length, preparationEvents.map(e => e.nom));
       console.log('Active events:', activeEvents.length, activeEvents.map(e => e.nom));
       console.log('Historical events:', historicalEvents.length);
 
-      // Auto-seleccionar: prioritzar preparació > actiu > qualsevol
+      // Auto-seleccionar: lligues actives per defecte, preparació només per admins
       const preparationEvent = preparationEvents[0];
       const activeEvent = activeEvents[0];
 
-      if (preparationEvent) {
-        selectedEventId = preparationEvent.id;
-        activeView = 'preparation';
-      } else if (activeEvent) {
+      if (activeEvent) {
         selectedEventId = activeEvent.id;
         activeView = 'active';
-      } else if (events.length > 0) {
-        selectedEventId = events[0].id;
+        // Per usuaris no logats, començar amb la vista de jugadors i carregar dades públiques
+        if (!isUserAdmin) {
+          managementView = 'inscriptions';
+        }
+        // Carregar dades públiques per tots els usuaris
+        setTimeout(() => {
+          if (!isUserAdmin) {
+            loadPublicInscriptionsData();
+          }
+        }, 100);
+      } else if (isUserAdmin && preparationEvent) {
+        selectedEventId = preparationEvent.id;
+        activeView = 'preparation';
+      } else {
+        // Si no hi ha lligues actives ni en preparació, va a historial
         activeView = 'history';
+        if (events.length > 0) {
+          selectedEventId = events[0].id;
+        }
       }
     } catch (error) {
       console.error('Error loading events:', error);
@@ -491,91 +604,80 @@
         Competicions socials per modalitats: Lliure, Banda i 3 Bandes
       </p>
     </div>
+    <div class="flex items-center space-x-4">
+      {#if isUserAdmin}
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          👑 Administrator
+        </span>
+      {:else if $user}
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+          👤 {$user.email}
+        </span>
+      {:else}
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+          👤 Visitant anònim
+        </span>
+      {/if}
+    </div>
   </div>
 
-  <!-- Estadístiques Reals -->
-  {#if !loading}
-    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      <!-- Lligues en Preparació -->
-      <button class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:bg-gray-50 w-full text-left" on:click={() => activeView = 'preparation'}>
-        <div class="p-5">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <svg class="h-6 w-6 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
-              </svg>
-            </div>
-            <div class="ml-5 w-0 flex-1">
-              <dl>
-                <dt class="text-sm font-medium text-gray-500 truncate">Lligues en Preparació</dt>
-                <dd class="text-lg font-medium text-gray-900">{preparationEvents.length}</dd>
-                {#if preparationEvents.length > 0}
-                  <dd class="text-xs text-orange-600 font-medium">▶ Clic per gestionar</dd>
-                {/if}
-              </dl>
-            </div>
+  <!-- Barra d'informació d'usuari -->
+  {#if !$user}
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div class="flex items-center">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <h3 class="text-sm font-medium text-blue-800">
+            Informació pública disponible
+          </h3>
+          <div class="mt-1 text-sm text-blue-700">
+            <p>Pots veure els calendaris i resultats públics sense registrar-te. Per accedir a funcionalitats addicionals, inicia sessió.</p>
           </div>
         </div>
-      </button>
-
-      <!-- Lligues en Curs -->
-      <button class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:bg-gray-50 w-full text-left" on:click={() => activeView = 'active'}>
-        <div class="p-5">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <svg class="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div class="ml-5 w-0 flex-1">
-              <dl>
-                <dt class="text-sm font-medium text-gray-500 truncate">Lligues en Curs</dt>
-                <dd class="text-lg font-medium text-gray-900">{activeEvents.length}</dd>
-                {#if activeEvents.length > 0}
-                  <dd class="text-xs text-green-600 font-medium">▶ Clic per veure</dd>
-                {/if}
-              </dl>
-            </div>
-          </div>
+      </div>
+    </div>
+  {:else if $user && !isUserAdmin}
+    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+      <div class="flex items-center">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+          </svg>
         </div>
-      </button>
-
-      <!-- Total Lligues -->
-      <div class="bg-white overflow-hidden shadow rounded-lg">
-        <div class="p-5">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-            </div>
-            <div class="ml-5 w-0 flex-1">
-              <dl>
-                <dt class="text-sm font-medium text-gray-500 truncate">Total Lligues</dt>
-                <dd class="text-lg font-medium text-gray-900">{events.length}</dd>
-              </dl>
-            </div>
+        <div class="ml-3">
+          <h3 class="text-sm font-medium text-green-800">
+            Benvingut/da, {$user.email}!
+          </h3>
+          <div class="mt-1 text-sm text-green-700">
+            <p>Com a usuari registrat, pots veure tots els calendaris i resultats detallats de les competicions.</p>
           </div>
         </div>
       </div>
     </div>
   {/if}
 
+
   <!-- Navegació per Seccions -->
   <div class="border-b border-gray-200">
     <nav class="-mb-px flex space-x-8">
-      <button
-        on:click={() => activeView = 'preparation'}
-        class="py-2 px-1 border-b-2 font-medium text-sm"
-        class:border-orange-500={activeView === 'preparation'}
-        class:text-orange-600={activeView === 'preparation'}
-        class:border-transparent={activeView !== 'preparation'}
-        class:text-gray-500={activeView !== 'preparation'}
-        class:hover:text-gray-700={activeView !== 'preparation'}
-        class:hover:border-gray-300={activeView !== 'preparation'}
-      >
-        🔧 Lligues en Preparació
-      </button>
+      {#if isUserAdmin}
+        <button
+          on:click={() => activeView = 'preparation'}
+          class="py-2 px-1 border-b-2 font-medium text-sm"
+          class:border-orange-500={activeView === 'preparation'}
+          class:text-orange-600={activeView === 'preparation'}
+          class:border-transparent={activeView !== 'preparation'}
+          class:text-gray-500={activeView !== 'preparation'}
+          class:hover:text-gray-700={activeView !== 'preparation'}
+          class:hover:border-gray-300={activeView !== 'preparation'}
+        >
+          🔧 Lligues en Preparació
+        </button>
+      {/if}
       <button
         on:click={() => activeView = 'active'}
         class="py-2 px-1 border-b-2 font-medium text-sm"
@@ -617,8 +719,8 @@
 
 
   <!-- Contingut per Seccions -->
-  {#if activeView === 'preparation'}
-    <!-- Lligues en Preparació -->
+  {#if activeView === 'preparation' && isUserAdmin}
+    <!-- Lligues en Preparació - Només admins -->
     {#if loading}
       <div class="text-center py-8">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -626,12 +728,14 @@
       </div>
     {:else if preparationEvents.length > 0}
       <div class="space-y-6">
-        <!-- Lligues en Preparació -->
+        <!-- Lligues en Preparació - Vista pública -->
         <div class="bg-white shadow rounded-lg">
           <div class="px-4 py-5 sm:p-6">
             <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
-              🔧 Lligues en Preparació - Gestió d'Inscripcions
+              🔧 Lligues en Preparació ({preparationEvents.length})
             </h3>
+            
+
             <div class="space-y-4">
               {#each preparationEvents as event}
                 <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
@@ -648,6 +752,11 @@
                           En Preparació
                         </span>
                       {/if}
+                      {#if event.data_inici}
+                        <p class="text-sm text-gray-500 mt-1">
+                          📅 Inici previst: {new Date(event.data_inici).toLocaleDateString('ca-ES')}
+                        </p>
+                      {/if}
                     </div>
                     <div class="text-right">
                       {#if isUserAdmin}
@@ -657,9 +766,13 @@
                         >
                           Gestionar Inscripcions
                         </button>
+                      {:else if $user}
+                        <span class="inline-flex items-center px-3 py-2 text-sm text-blue-600">
+                          En preparació - Aviat disponible
+                        </span>
                       {:else}
                         <span class="inline-flex items-center px-3 py-2 text-sm text-gray-500">
-                          Només visible per admins
+                          En preparació
                         </span>
                       {/if}
                     </div>
@@ -751,12 +864,12 @@
                     class:border-orange-500={managementView === 'view-calendar'}
                     class:text-orange-600={managementView === 'view-calendar'}
                     class:border-transparent={managementView !== 'view-calendar'}
-                    class:text-gray-500={managementView !== 'view-calendar'}
-                    class:hover:text-gray-700={managementView !== 'view-calendar'}
-                    class:hover:border-gray-300={managementView !== 'view-calendar'}
-                    disabled={calendarStatus === 'not-generated'}
+                    class:text-gray-500={managementView !== 'view-calendar' && calendarStatus === 'not-generated'}
+                    class:hover:text-gray-700={managementView !== 'view-calendar' && calendarStatus !== 'not-generated'}
+                    class:hover:border-gray-300={managementView !== 'view-calendar' && calendarStatus !== 'not-generated'}
+                    disabled={false}
                     class:opacity-50={calendarStatus === 'not-generated'}
-                    class:cursor-not-allowed={calendarStatus === 'not-generated'}
+                    title={calendarStatus === 'not-generated' ? 'Calendari no generat encara' : 'Visualitzar calendari generat'}
                   >
                     📅 Visualitzar Calendari
                     {#if calendarStatus === 'generated'}
@@ -893,21 +1006,7 @@
                         </span>
                       {/if}
 
-                      {#if calendarStatus === 'validated'}
-                        <button
-                          on:click={publishCalendar}
-                          class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                        >
-                          📢 Publicar Calendari
-                        </button>
-                      {:else}
-                        <span
-                          class="inline-flex items-center px-3 py-2 text-sm leading-4 font-medium text-gray-500 bg-gray-100 rounded-md cursor-not-allowed"
-                          title="Cal validar el calendari primer"
-                        >
-                          📢 Publicar Calendari
-                        </span>
-                      {/if}
+
                     </div>
                   </div>
 
@@ -948,96 +1047,511 @@
       </div>
     {:else if activeEvents.length > 0}
       <div class="space-y-6">
-        <!-- Lligues en Curs -->
-        <div class="bg-white shadow rounded-lg">
-          <div class="px-4 py-5 sm:p-6">
-            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
-              🏆 Lligues en Curs - Calendaris i Resultats
-            </h3>
-            <div class="space-y-4">
-              {#each activeEvents as event}
-                <div class="border border-green-200 rounded-lg p-4 hover:bg-gray-50">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <h4 class="font-medium text-gray-900">{event.nom}</h4>
-                      <p class="text-sm text-gray-500">
-                        Temporada {event.temporada} •
-                        {event.modalitat === 'tres_bandes' ? '3 Bandes' :
-                         event.modalitat === 'lliure' ? 'Lliure' : 'Banda'}
-                      </p>
-                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-1">
-                        En Curs
-                      </span>
-                    </div>
-                    <div class="text-right space-y-2">
-                      <div class="flex space-x-2">
-                        <button
-                          on:click={() => { selectedEventId = event.id; }}
-                          class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
-                        >
-                          Veure Calendari Oficial
-                        </button>
-                        {#if isUserAdmin}
-                          <button
-                            on:click={() => downloadCalendariCSV(event.id, event.nom)}
-                            class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                            title="Exportar calendari a CSV"
-                          >
-                            📄 CSV
-                          </button>
-                        {/if}
-                      </div>
+
+        <!-- Informació Completa de la Lliga Seleccionada - Visible per tots -->
+        {#if selectedEventId && selectedEvent && activeEvents.find(e => e.id === selectedEventId)}
+          <div class="space-y-6">
+
+            {#if isUserAdmin}
+              <!-- Vista Admin: Selector de lliga i navegació completa -->
+              <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                  <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">
+                      {selectedEvent.nom} - Gestió Admin
+                    </h3>
+                    <div class="flex space-x-3">
+                      <button
+                        on:click={() => downloadCalendariCSV(selectedEventId, selectedEvent.nom)}
+                        class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                        title="Exportar calendari a CSV"
+                      >
+                        📄 Exportar CSV
+                      </button>
+                      <select
+                        bind:value={selectedEventId}
+                        class="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      >
+                        <option value="">-- Tria una lliga --</option>
+                        {#each activeEvents as event}
+                          <option value={event.id}>
+                            {event.nom} - {event.temporada}
+                          </option>
+                        {/each}
+                      </select>
                     </div>
                   </div>
-                </div>
-              {/each}
-            </div>
-          </div>
-        </div>
 
-        <!-- Calendari de la Lliga Seleccionada -->
-        {#if selectedEventId && selectedEvent && activeEvents.find(e => e.id === selectedEventId)}
-          <div class="bg-white shadow rounded-lg">
-            <div class="px-4 py-5 sm:p-6">
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">
-                  Calendari Oficial: {selectedEvent.nom}
-                </h3>
-                <div class="flex space-x-3">
-                  {#if isUserAdmin}
+                <!-- Navegació interna de la lliga -->
+                <div class="border-b border-gray-200 mb-6">
+                  <nav class="-mb-px flex space-x-8">
                     <button
-                      on:click={() => downloadCalendariCSV(selectedEventId, selectedEvent.nom)}
-                      class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                      title="Exportar calendari a CSV"
+                      on:click={() => managementView = 'view-calendar'}
+                      class="py-2 px-1 border-b-2 font-medium text-sm"
+                      class:border-green-500={managementView === 'view-calendar'}
+                      class:text-green-600={managementView === 'view-calendar'}
+                      class:border-transparent={managementView !== 'view-calendar'}
+                      class:text-gray-500={managementView !== 'view-calendar'}
+                      class:hover:text-gray-700={managementView !== 'view-calendar'}
+                      class:hover:border-gray-300={managementView !== 'view-calendar'}
                     >
-                      📄 Exportar CSV
+                      📅 Calendari
                     </button>
+                    <button
+                      on:click={() => managementView = 'inscriptions'}
+                      class="py-2 px-1 border-b-2 font-medium text-sm"
+                      class:border-green-500={managementView === 'inscriptions'}
+                      class:text-green-600={managementView === 'inscriptions'}
+                      class:border-transparent={managementView !== 'inscriptions'}
+                      class:text-gray-500={managementView !== 'inscriptions'}
+                      class:hover:text-gray-700={managementView !== 'inscriptions'}
+                      class:hover:border-gray-300={managementView !== 'inscriptions'}
+                    >
+                      👥 Jugadors i Categories
+                    </button>
+                    <button
+                      on:click={() => managementView = 'results'}
+                      class="py-2 px-1 border-b-2 font-medium text-sm"
+                      class:border-green-500={managementView === 'results'}
+                      class:text-green-600={managementView === 'results'}
+                      class:border-transparent={managementView !== 'results'}
+                      class:text-gray-500={managementView !== 'results'}
+                      class:hover:text-gray-700={managementView !== 'results'}
+                      class:hover:border-gray-300={managementView !== 'results'}
+                    >
+                      🏆 Resultats
+                    </button>
+                    <button
+                      on:click={() => managementView = 'standings'}
+                      class="py-2 px-1 border-b-2 font-medium text-sm"
+                      class:border-green-500={managementView === 'standings'}
+                      class:text-green-600={managementView === 'standings'}
+                      class:border-transparent={managementView !== 'standings'}
+                      class:text-gray-500={managementView !== 'standings'}
+                      class:hover:text-gray-700={managementView !== 'standings'}
+                      class:hover:border-gray-300={managementView !== 'standings'}
+                    >
+                      📊 Classificació
+                    </button>
+                  </nav>
+                </div>
+
+                <!-- Contingut segons la vista seleccionada -->
+                {#if managementView === 'view-calendar'}
+                  <!-- Calendari de partides -->
+                  <SocialLeagueCalendarViewer
+                    eventId={selectedEventId}
+                    categories={selectedEvent.categories || []}
+                    isAdmin={isUserAdmin}
+                    eventData={selectedEvent}
+                    defaultMode="timeline"
+                    editMode={isUserAdmin}
+                    on:matchUpdated={() => {
+                      console.log('Match updated');
+                    }}
+                  />
+
+                {:else if managementView === 'inscriptions'}
+                  <!-- Jugadors inscrits i categories -->
+                  {#if loadingInscriptions}
+                    <div class="text-center py-8">
+                      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <p class="mt-2 text-gray-600">Carregant jugadors...</p>
+                    </div>
+                  {:else}
+                    <div class="space-y-6">
+                      <!-- Categories i jugadors per categoria -->
+                      {#if selectedEvent.categories && selectedEvent.categories.length > 0}
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          {#each selectedEvent.categories as category}
+                            {@const categoryInscriptions = inscriptions.filter(i => i.categoria_assignada_id === category.id)}
+                            <div class="bg-gray-50 rounded-lg p-4">
+                              <div class="flex items-center justify-between mb-4">
+                                <h4 class="text-lg font-medium text-gray-900">{category.nom}</h4>
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  {categoryInscriptions.length} jugadors
+                                </span>
+                              </div>
+
+                              <div class="mb-3 text-sm text-gray-600">
+                                <p>📏 {category.distancia_caramboles} caramboles</p>
+                              </div>
+
+                              {#if categoryInscriptions.length > 0}
+                                <div class="space-y-2">
+                                  <h5 class="text-sm font-medium text-gray-700">Jugadors inscrits:</h5>
+                                  <div class="grid grid-cols-1 gap-2">
+                                    {#each categoryInscriptions as inscription}
+                                      {#if inscription.socis}
+                                        <div class="bg-white rounded border border-gray-200 p-3">
+                                          <div class="flex items-center justify-between">
+                                            <div>
+                                              <p class="font-medium text-gray-900">
+                                                {inscription.socis.nom} {inscription.socis.cognoms}
+                                              </p>
+                                            </div>
+                                            <div class="flex items-center space-x-2">
+                                              {#if inscription.confirmat}
+                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                  ✅ Confirmat
+                                                </span>
+                                              {:else}
+                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                  ⏳ Pendent
+                                                </span>
+                                              {/if}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      {/if}
+                                    {/each}
+                                  </div>
+                                </div>
+                              {:else}
+                                <p class="text-sm text-gray-500 italic">No hi ha jugadors inscrits en aquesta categoria</p>
+                              {/if}
+                            </div>
+                          {/each}
+                        </div>
+                      {:else}
+                        <div class="text-center py-8">
+                          <p class="text-gray-500">No hi ha categories configurades per aquesta lliga</p>
+                        </div>
+                      {/if}
+                    </div>
                   {/if}
-                  <select
-                    bind:value={selectedEventId}
-                    class="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  >
-                    <option value="">-- Tria una lliga --</option>
-                    {#each activeEvents as event}
-                      <option value={event.id}>
-                        {event.nom} - {event.temporada}
-                      </option>
-                    {/each}
-                  </select>
+
+                {:else if managementView === 'results'}
+                  <!-- Resultats de partides -->
+                  <div class="space-y-4">
+                    <h4 class="text-lg font-medium text-gray-900">Resultats de Partides</h4>
+                    <SocialLeagueMatchResults
+                      eventId={selectedEventId}
+                      categories={selectedEvent.categories || []}
+                      isAdmin={isUserAdmin}
+                      isPublicView={true}
+                    />
+                  </div>
+
+                {:else if managementView === 'standings'}
+                  <!-- Classificació -->
+                  <div class="space-y-6">
+                    <h4 class="text-lg font-medium text-gray-900">Classificació per Categories</h4>
+
+                    {#if selectedEvent.categories && selectedEvent.categories.length > 0}
+                      <div class="space-y-6">
+                        {#each selectedEvent.categories as category}
+                          {@const categoryInscriptions = inscriptions.filter(i => i.categoria_assignada_id === category.id)}
+                          <div class="bg-gray-50 rounded-lg p-6">
+                            <div class="flex items-center justify-between mb-4">
+                              <h5 class="text-lg font-medium text-gray-900">{category.nom}</h5>
+                              <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                {categoryInscriptions.length} participants
+                              </span>
+                            </div>
+
+                            {#if categoryInscriptions.length > 0}
+                              <div class="bg-white rounded-lg overflow-hidden shadow">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                  <thead class="bg-gray-50">
+                                    <tr>
+                                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Posició
+                                      </th>
+                                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Jugador
+                                      </th>
+                                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        PJ
+                                      </th>
+                                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        PG
+                                      </th>
+                                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        PP
+                                      </th>
+                                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Punts
+                                      </th>
+                                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        %
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody class="bg-white divide-y divide-gray-200">
+                                    {#each categoryInscriptions.sort((a, b) => (b.socis?.nom || '').localeCompare(a.socis?.nom || '')) as inscription, index}
+                                      <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                          {index + 1}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                          <div class="flex items-center">
+                                            <div>
+                                              <div class="text-sm font-medium text-gray-900">
+                                                {inscription.socis?.nom} {inscription.socis?.cognoms}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                          0
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                          0
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                          0
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                          0
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                          0%
+                                        </td>
+                                      </tr>
+                                    {/each}
+                                  </tbody>
+                                </table>
+                              </div>
+                              <div class="mt-3 text-center">
+                                <p class="text-sm text-gray-500">
+                                  💡 Les estadístiques es calcularan automàticament quan es juguin les partides
+                                </p>
+                              </div>
+                            {:else}
+                              <div class="text-center py-8">
+                                <p class="text-gray-500">No hi ha participants en aquesta categoria</p>
+                              </div>
+                            {/if}
+                          </div>
+                        {/each}
+                      </div>
+                    {:else}
+                      <div class="bg-gray-50 rounded-lg p-8 text-center">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">No hi ha categories configurades</h3>
+                        <p class="mt-1 text-sm text-gray-500">Les categories es mostraran aquí quan estiguin disponibles</p>
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
+              </div>
+            </div>
+            {:else}
+              <!-- Vista Pública: Dashboard simplificat per usuaris no admin -->
+              <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                  <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">
+                      Selecciona una lliga per veure la informació
+                    </h3>
+                    <select
+                      bind:value={selectedEventId}
+                      class="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    >
+                      <option value="">-- Tria una lliga --</option>
+                      {#each activeEvents as event}
+                        <option value={event.id}>
+                          {event.nom} - {event.temporada}
+                        </option>
+                      {/each}
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <SocialLeagueCalendarViewer
-                eventId={selectedEventId}
-                categories={selectedEvent.categories || []}
-                isAdmin={isUserAdmin}
-                eventData={selectedEvent}
-                defaultMode="timeline"
-                on:matchUpdated={() => {
-                  console.log('Match updated');
-                }}
-              />
-            </div>
+              <!-- Dashboard públic simplificat -->
+              {#if selectedEventId && selectedEvent}
+                <!-- Navegació per pestanyes públiques -->
+                <div class="bg-white shadow rounded-lg">
+                  <div class="border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-8 px-6">
+                      <button
+                        on:click={() => managementView = 'inscriptions'}
+                        class="py-3 px-1 border-b-2 font-medium text-sm"
+                        class:border-blue-500={managementView === 'inscriptions'}
+                        class:text-blue-600={managementView === 'inscriptions'}
+                        class:border-transparent={managementView !== 'inscriptions'}
+                        class:text-gray-500={managementView !== 'inscriptions'}
+                        class:hover:text-gray-700={managementView !== 'inscriptions'}
+                      >
+                        👥 Jugadors per Categories
+                      </button>
+                      <button
+                        on:click={() => managementView = 'view-calendar'}
+                        class="py-3 px-1 border-b-2 font-medium text-sm"
+                        class:border-blue-500={managementView === 'view-calendar'}
+                        class:text-blue-600={managementView === 'view-calendar'}
+                        class:border-transparent={managementView !== 'view-calendar'}
+                        class:text-gray-500={managementView !== 'view-calendar'}
+                        class:hover:text-gray-700={managementView !== 'view-calendar'}
+                      >
+                        📅 Calendari
+                      </button>
+                      <button
+                        on:click={() => managementView = 'results'}
+                        class="py-3 px-1 border-b-2 font-medium text-sm"
+                        class:border-blue-500={managementView === 'results'}
+                        class:text-blue-600={managementView === 'results'}
+                        class:border-transparent={managementView !== 'results'}
+                        class:text-gray-500={managementView !== 'results'}
+                        class:hover:text-gray-700={managementView !== 'results'}
+                      >
+                        ⚡ Resultats
+                      </button>
+                      <button
+                        on:click={() => managementView = 'standings'}
+                        class="py-3 px-1 border-b-2 font-medium text-sm"
+                        class:border-blue-500={managementView === 'standings'}
+                        class:text-blue-600={managementView === 'standings'}
+                        class:border-transparent={managementView !== 'standings'}
+                        class:text-gray-500={managementView !== 'standings'}
+                        class:hover:text-gray-700={managementView !== 'standings'}
+                      >
+                        🏆 Classificacions
+                      </button>
+                    </nav>
+                  </div>
+
+                  <!-- Contingut de cada pestanya -->
+                  <div class="p-6">
+                    {#if managementView === 'inscriptions'}
+                      <!-- Jugadors per categories amb SocialLeaguePlayersGrid -->
+                      <SocialLeaguePlayersGrid
+                        eventId={selectedEventId}
+                        categories={selectedEvent.categories || []}
+                      />
+
+                    {:else if managementView === 'view-calendar'}
+                      <!-- Calendari -->
+                      <SocialLeagueCalendarViewer
+                        eventId={selectedEventId}
+                        categories={selectedEvent.categories || []}
+                        isAdmin={false}
+                        eventData={selectedEvent}
+                        defaultMode="timeline"
+                        editMode={false}
+                      />
+
+                    {:else if managementView === 'results'}
+                      <!-- Resultats -->
+                      <SocialLeagueMatchResults
+                        eventId={selectedEventId}
+                        categories={selectedEvent.categories || []}
+                        isAdmin={false}
+                        isPublicView={true}
+                      />
+
+                    {:else if managementView === 'standings'}
+                      <!-- Classificacions -->
+                      <div class="space-y-6">
+                        <h4 class="text-lg font-medium text-gray-900">Classificació per Categories</h4>
+
+                        {#if selectedEvent.categories && selectedEvent.categories.length > 0}
+                          <div class="space-y-6">
+                            {#each selectedEvent.categories as category}
+                              {@const categoryInscriptions = inscriptions.filter(i => i.categoria_assignada_id === category.id)}
+                              <div class="bg-gray-50 rounded-lg p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                  <h5 class="text-lg font-medium text-gray-900">{category.nom}</h5>
+                                  <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                    {categoryInscriptions.length} participants
+                                  </span>
+                                </div>
+
+                                {#if categoryInscriptions.length > 0}
+                                  <div class="bg-white rounded-lg overflow-hidden shadow">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                      <thead class="bg-gray-50">
+                                        <tr>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Posició
+                                          </th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Jugador
+                                          </th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            PJ
+                                          </th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            PG
+                                          </th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            PP
+                                          </th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Punts
+                                          </th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            %
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody class="bg-white divide-y divide-gray-200">
+                                        {#each categoryInscriptions.sort((a, b) => (b.socis?.nom || '').localeCompare(a.socis?.nom || '')) as inscription, index}
+                                          <tr class="hover:bg-gray-50">
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                              {index + 1}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                              <div class="flex items-center">
+                                                <div>
+                                                  <div class="text-sm font-medium text-gray-900">
+                                                    {inscription.socis?.nom} {inscription.socis?.cognoms}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                              0
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                              0
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                              0
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                              0
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                              0%
+                                            </td>
+                                          </tr>
+                                        {/each}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                  <div class="mt-3 text-center">
+                                    <p class="text-sm text-gray-500">
+                                      💡 Les estadístiques es calcularan automàticament quan es juguin les partides
+                                    </p>
+                                  </div>
+                                {:else}
+                                  <div class="text-center py-8">
+                                    <p class="text-gray-500">No hi ha participants en aquesta categoria</p>
+                                  </div>
+                                {/if}
+                              </div>
+                            {/each}
+                          </div>
+                        {:else}
+                          <div class="bg-gray-50 rounded-lg p-8 text-center">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <h3 class="mt-2 text-sm font-medium text-gray-900">No hi ha categories configurades</h3>
+                            <p class="mt-1 text-sm text-gray-500">Les categories es mostraran aquí quan estiguin disponibles</p>
+                          </div>
+                        {/if}
+                      </div>
+                    {/if}
+                  </div>
+                </div>
+              {/if}
+            {/if}
           </div>
         {/if}
       </div>
@@ -1209,5 +1723,6 @@
         </div>
       </div>
     </div>
+
   {/if}
 </div>

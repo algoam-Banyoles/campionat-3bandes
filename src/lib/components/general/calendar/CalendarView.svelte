@@ -5,7 +5,7 @@
     currentDate, 
     calendarView, 
     calendarEvents, 
-    getEventsForDate, 
+    getEventsForDate,
     calendarLoading,
     calendarError,
     refreshCalendarData,
@@ -186,6 +186,7 @@
       </button>
     </div>
   {:else}
+    
     <!-- Calendar Grid -->
     <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
       <!-- Header amb dies de la setmana -->
@@ -203,7 +204,7 @@
           {#each monthDays as date}
             <CalendarDay 
               {date}
-              events={$getEventsForDate(date)}
+              events={getEventsForDate(date)}
               isCurrentMonth={isCurrentMonth(date)}
               isToday={isToday(date)}
               isSelected={selectedDate?.toDateString() === date.toDateString()}
@@ -220,7 +221,7 @@
           {#each weekDays_dates as date}
             <CalendarDay 
               {date}
-              events={$getEventsForDate(date)}
+              events={getEventsForDate(date)}
               isCurrentMonth={true}
               isToday={isToday(date)}
               isSelected={selectedDate?.toDateString() === date.toDateString()}
@@ -363,9 +364,9 @@
         </button>
       </div>
       
-      {#if $getEventsForDate(selectedDate).length > 0}
+      {#if getEventsForDate(selectedDate).length > 0}
         <div class="space-y-2">
-          {#each $getEventsForDate(selectedDate) as event}
+          {#each getEventsForDate(selectedDate) as event}
             <button
               class="w-full text-left p-3 rounded border border-slate-200 hover:bg-slate-50 transition-colors"
               on:click={() => {

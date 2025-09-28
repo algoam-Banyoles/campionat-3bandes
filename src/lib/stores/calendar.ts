@@ -31,6 +31,8 @@ export type PartidaCalendari = {
   id: string;
   jugador1_nom: string;
   jugador2_nom: string;
+  jugador1?: any; // Dades originals del jugador 1
+  jugador2?: any; // Dades originals del jugador 2
   data_programada: string;
   hora_inici: string;
   taula_assignada: number;
@@ -107,43 +109,111 @@ export const calendarEvents = derived(
     
     // Afegir partides dels campionats socials
     $partidesCalendari.forEach(partida => {
-      const dataHora = new Date(`${partida.data_programada}T${partida.hora_inici}`);
-      events.push({
-        id: `match-${partida.id}`,
-        title: `🏆 ${partida.jugador1_nom} vs ${partida.jugador2_nom}`,
-        description: `${partida.event_nom} - ${partida.categoria_nom}\nTaula: ${partida.taula_assignada}${partida.observacions_junta ? `\n${partida.observacions_junta}` : ''}`,
-        start: dataHora,
-        type: 'challenge',
-        subtype: `campionat-social-${partida.estat}`,
-        data: partida
+      // Crear la data correctament
+      const dataStr = partida.data_programada.split('T')[0]; // '2025-10-01'
+      const horaStr = partida.hora_inici; // '19:00:00'
+      
+      // Extreure components i crear Date
+      const [any, mes, dia] = dataStr.split('-').map(Number);
+      const [hora, minut] = horaStr.split(':').map(Number);
+      const dataHora = new Date(any, mes - 1, dia, hora, minut); // mes - 1 perquè Date usa 0-11
+      
+      console.log('🏆 Adding match to calendar:', {
+        partida: partida.jugador1_nom + ' vs ' + partida.jugador2_nom,
+        data_programada: partida.data_programada,
+        hora_inici: partida.hora_inici,
+        dataHora: dataHora.toISOString(),
+        isValidDate: !isNaN(dataHora.getTime())
       });
+      
+      if (!isNaN(dataHora.getTime())) {
+        // Formatar noms utilitzant les dades originals dels jugadors (com SocialLeagueCalendarViewer)
+        const formatPlayerName = (jugador: any) => {
+          if (!jugador) return 'Jugador desconegut';
+          
+          // Si tenim nom i cognoms dels socis
+          if (jugador.socis?.nom && jugador.socis?.cognoms) {
+            const nom = jugador.socis.nom.trim();
+            const cognoms = jugador.socis.cognoms.trim();
+            
+            // Obtenir primera inicial del nom
+            const inicialNom = nom.charAt(0).toUpperCase();
+            
+            // Obtenir primer cognom (dividir per espais i agafar el primer)
+            const primerCognom = cognoms.split(' ')[0];
+            
+            return `${inicialNom}. ${primerCognom}`;
+          }
+          
+          // Fallback al nom del jugador si no hi ha socis
+          if (jugador.nom) {
+            return jugador.nom;
+          }
+          
+          return 'Jugador desconegut';
+        };
+        
+        const jugador1Format = formatPlayerName(partida.jugador1);
+        const jugador2Format = formatPlayerName(partida.jugador2);
+        
+        events.push({
+          id: `match-${partida.id}`,
+          title: `${jugador1Format} vs ${jugador2Format}`,
+          description: `${partida.event_nom} - ${partida.categoria_nom}\nTaula: ${partida.taula_assignada}${partida.observacions_junta ? `\n${partida.observacions_junta}` : ''}`,
+          start: dataHora,
+          type: 'challenge',
+          subtype: `campionat-social-${partida.estat}`,
+          data: partida
+        });
+        
+
+      }
     });
+    
+    console.log('📅 Combined calendar events:', {
+      esdeveniments: $esdeveniments.length,
+      reptesProgramats: $reptesProgramats.length,
+      partidesCalendari: $partidesCalendari.length,
+      totalEvents: events.length,
+      matches: events.filter(e => e.type === 'challenge' && e.subtype?.startsWith('campionat-social')).length
+    });
+    
+    console.log('🎯 CALENDAR DEBUG: Events created successfully!', events.length, 'total events');
+    
+    // Log sample match dates to help debug
+    const matchEvents = events.filter(e => e.type === 'challenge' && e.subtype?.startsWith('campionat-social'));
+    if (matchEvents.length > 0) {
+      console.log('🗓️ Sample match dates:', matchEvents.slice(0, 3).map(e => ({
+        title: e.title,
+        date: e.start.toLocaleDateString('ca-ES')
+      })));
+    }
     
     return events.sort((a, b) => a.start.getTime() - b.start.getTime());
   }
 );
 
 // Store derivat per obtenir esdeveniments d'un dia específic
-export const getEventsForDate = derived(
-  calendarEvents,
-  ($calendarEvents) => (date: Date) => {
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
+export function getEventsForDate(date: Date): CalendarEvent[] {
+  if (!date) return [];
+  
+  const allEvents = get(calendarEvents) as CalendarEvent[];
+  const events = allEvents.filter(event => {
+    if (!event.start) return false;
     
-    return $calendarEvents.filter(event => {
-      const eventDate = new Date(event.start);
-      eventDate.setHours(0, 0, 0, 0);
-      
-      if (event.end) {
-        const endDate = new Date(event.end);
-        endDate.setHours(23, 59, 59, 999);
-        return targetDate >= eventDate && targetDate <= endDate;
-      }
-      
-      return targetDate.getTime() === eventDate.getTime();
-    });
-  }
-);
+    const eventDate = new Date(event.start);
+    const matches = eventDate.toDateString() === date.toDateString();
+    
+    // Debug log for calendar days
+    if (matches && event.type === 'challenge') {
+      console.log('📅 Found event for date', date.toDateString(), ':', event.title);
+    }
+    
+    return matches;
+  });
+  
+  return events;
+}
 
 // Funcions per carregar dades
 export async function loadEsdeveniments(): Promise<void> {
@@ -218,6 +288,24 @@ export async function loadPartidesCalendari(): Promise<void> {
     calendarLoading.set(true);
     calendarError.set(null);
     
+    // Simplified query: get published events first, then filter partides
+    const { data: publishedEvents, error: eventsError } = await supabase
+      .from('events')
+      .select('id')
+      .eq('calendari_publicat', true);
+    
+    if (eventsError) {
+      throw new Error(`Error getting published events: ${eventsError.message}`);
+    }
+    
+    if (!publishedEvents || publishedEvents.length === 0) {
+      partidesCalendari.set([]);
+      return;
+    }
+    
+    const eventIds = publishedEvents.map(e => e.id);
+    
+    // Now add the relations back step by step
     const { data, error } = await supabase
       .from('calendari_partides')
       .select(`
@@ -227,21 +315,50 @@ export async function loadPartidesCalendari(): Promise<void> {
         taula_assignada,
         estat,
         observacions_junta,
-        jugador1:jugador1_id(nom),
-        jugador2:jugador2_id(nom),
-        events!inner(nom),
-        categories!inner(nom)
+        event_id,
+        jugador1:jugador1_id(
+          nom,
+          socis(nom, cognoms)
+        ),
+        jugador2:jugador2_id(
+          nom,
+          socis(nom, cognoms)
+        ),
+        events(nom),
+        categories(nom)
       `)
+      .eq('estat', 'validat')
+      .in('event_id', eventIds)
       .order('data_programada', { ascending: true });
     
     if (error) {
-      throw new Error(error.message);
+      throw new Error(`Error getting partides: ${error.message}`);
+    }
+
+
+
+    if (error) {
+      console.error('❌ Supabase query error:', error);
+      throw new Error(`Supabase error: ${error.message} (Code: ${error.code})`);
     }
     
-    const partides: PartidaCalendari[] = (data || []).map(item => ({
+    if (!data || data.length === 0) {
+      partidesCalendari.set([]);
+      return;
+    }
+    
+    // Create partides with proper player data
+    const partides: PartidaCalendari[] = data.map(item => ({
       id: item.id,
-      jugador1_nom: (item.jugador1 as any)?.nom || 'Desconegut',
-      jugador2_nom: (item.jugador2 as any)?.nom || 'Desconegut',
+      jugador1_nom: (item.jugador1 as any)?.socis ? 
+        `${(item.jugador1 as any).socis.nom} ${(item.jugador1 as any).socis.cognoms}` : 
+        ((item.jugador1 as any)?.nom || 'Desconegut'),
+      jugador2_nom: (item.jugador2 as any)?.socis ? 
+        `${(item.jugador2 as any).socis.nom} ${(item.jugador2 as any).socis.cognoms}` : 
+        ((item.jugador2 as any)?.nom || 'Desconegut'),
+      // Afegir dades dels jugadors per format correcte
+      jugador1: item.jugador1,
+      jugador2: item.jugador2,
       data_programada: item.data_programada,
       hora_inici: item.hora_inici,
       taula_assignada: item.taula_assignada,

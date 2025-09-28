@@ -33,13 +33,27 @@
           categoria_id,
           data_programada,
           hora_inici,
-          jugador1,
-          jugador2,
-          resultat_jugador1,
-          resultat_jugador2,
+          jugador1_id,
+          jugador2_id,
           estat,
-          observacions,
           taula_assignada,
+          observacions_junta,
+          jugador1:players!calendari_partides_jugador1_id_fkey (
+            id,
+            numero_soci,
+            socis!players_numero_soci_fkey (
+              nom,
+              cognoms
+            )
+          ),
+          jugador2:players!calendari_partides_jugador2_id_fkey (
+            id,
+            numero_soci,
+            socis!players_numero_soci_fkey (
+              nom,
+              cognoms
+            )
+          ),
           categories!calendari_partides_categoria_id_fkey(
             id,
             nom,
@@ -73,7 +87,13 @@
       }
     }
 
-    return `${playerData.nom} ${playerData.cognoms}`;
+    // Nova estructura amb joins
+    if (playerData.socis?.nom && playerData.socis?.cognoms) {
+      return `${playerData.socis.nom} ${playerData.socis.cognoms}`;
+    }
+
+    // Fallback a estructura anterior
+    return `${playerData.nom || 'N/A'} ${playerData.cognoms || ''}`;
   }
 
   function getMatchStatus(match: any) {

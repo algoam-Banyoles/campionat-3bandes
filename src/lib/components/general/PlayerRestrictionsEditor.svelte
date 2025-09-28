@@ -157,13 +157,20 @@
           </label>
           <textarea
             bind:value={restriccions_especials}
-            rows="3"
-            placeholder="Exemple: No disponible del 15 al 22 de desembre, o prefereixo no jugar els dimarts..."
+            rows="5"
+            placeholder="Exemples:&#10;- No disponible del 15 al 22 de desembre&#10;- Del 1/12 al 5/12 no puc jugar&#10;- Del 1 al 15 d'octubre NO&#10;- 24 de desembre NO&#10;- Vacances del 20-07 al 30-07"
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           ></textarea>
-          <p class="mt-1 text-xs text-gray-500">
-            Escriu aquí qualsevol altra restricció o preferència especial
-          </p>
+          <div class="mt-2 text-xs text-gray-600 space-y-1">
+            <p><strong>Formats acceptats per dates:</strong></p>
+            <ul class="list-disc list-inside ml-2 space-y-0.5">
+              <li>"del 15 al 22 de desembre" o "del 15 al 22 de desembre NO"</li>
+              <li>"del 1/12 al 5/12" o "del 1/12 al 5/12 NO"</li>
+              <li>"del 15-04 al 20-04" o "del 15-04 al 20-04 NO"</li>
+              <li>"24 de desembre" o "24 de desembre NO"</li>
+              <li>Pots afegir "NO" al final per més claredat</li>
+            </ul>
+          </div>
         </div>
 
         <!-- Botons -->

@@ -26,14 +26,32 @@
   let proposedCalendar = [];
   let generatingCalendar = false;
   let showRestrictions = false;
+  let showDeleteConfirmation = false; // Modal per doble confirmació
+  let calendariPublicat = false; // Estat del calendari publicat
 
   // Mapes per optimitzar cerques
   let playerRestrictions = new Map();
   let playersByCategory = new Map();
 
-  // Carregar restriccions dels jugadors
+  // Carregar restriccions dels jugadors i estat del calendari
   $: if (inscriptions.length > 0) {
     loadPlayerRestrictions();
+    checkCalendariPublicat();
+  }
+
+  async function checkCalendariPublicat() {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('calendari_publicat')
+        .eq('id', eventId)
+        .single();
+
+      if (error) throw error;
+      calendariPublicat = data?.calendari_publicat || false;
+    } catch (error) {
+      console.error('Error comprovant estat calendari:', error);
+    }
   }
 
   async function loadPlayerRestrictions() {
@@ -181,6 +199,21 @@
     try {
       console.log('Generant calendari amb dates fixades...');
 
+      // 0. Processar restriccions especials dels jugadors
+      let totalSpecialRestrictions = 0;
+      let consecutiveDaysAvoided = { count: 0 }; // 🔄 Contador per dies consecutius evitats
+      
+      playerRestrictions.forEach((restrictions, playerId) => {
+        if (restrictions.restriccions_especials) {
+          const parsedRestrictions = parseSpecialRestrictions(restrictions.restriccions_especials);
+          if (parsedRestrictions.length > 0) {
+            totalSpecialRestrictions += parsedRestrictions.length;
+            console.log(`🚫 Jugador ${playerId}: ${parsedRestrictions.length} restriccions especials detectades`);
+          }
+        }
+      });
+      console.log(`📋 Total restriccions especials processades: ${totalSpecialRestrictions}`);
+
       // 1. Generar tots els enfrontaments possibles per categoria
       const matchups = generateAllMatchups();
 
@@ -206,12 +239,13 @@
       if (configError) throw configError;
 
       // 3. Distribuir enfrontaments al calendari respectant restriccions
-      const scheduledMatches = scheduleMatches(matchups);
+      const scheduledMatches = scheduleMatches(matchups, consecutiveDaysAvoided);
 
       proposedCalendar = scheduledMatches;
       showPreview = true;
 
       console.log('Calendari generat:', scheduledMatches.length, 'partits');
+      console.log(`🚫 Dies consecutius evitats: ${consecutiveDaysAvoided.count} cops`);
 
     } catch (error) {
       console.error('Error generant calendari:', error);
@@ -253,7 +287,7 @@
     return matchups;
   }
 
-  function scheduleMatches(matchups) {
+  function scheduleMatches(matchups, consecutiveDaysCounter) {
     const scheduled = [];
     const unscheduled = [];
 
@@ -291,7 +325,7 @@
       const unscheduledThisRound = [];
 
       for (const matchup of remainingMatchups) {
-        const bestSlot = findBestBalancedSlot(matchup, availableDates, playerAvailability, playerStats);
+        const bestSlot = findBestBalancedSlot(matchup, availableDates, playerAvailability, playerStats, consecutiveDaysCounter);
 
         if (bestSlot) {
           const scheduledMatch = {
@@ -377,7 +411,7 @@
   }
 
   // Funció millorada per trobar el millor slot considerant equilibri
-  function findBestBalancedSlot(matchup, availableDates, playerAvailability, playerStats) {
+  function findBestBalancedSlot(matchup, availableDates, playerAvailability, playerStats, consecutiveDaysCounter) {
     const player1Id = matchup.jugador1.player_id;
     const player2Id = matchup.jugador2.player_id;
 
@@ -395,12 +429,27 @@
 
       const dayOfWeek = getDayOfWeekCode(slot.date.getDay());
       const dateStr = slot.date.toISOString().split('T')[0];
+      const slotDate = new Date(slot.date);
 
       // Comprovar si els jugadors ja juguen aquest dia
       if (player1Busy.some(busyDate =>
           busyDate.toISOString().split('T')[0] === dateStr) ||
           player2Busy.some(busyDate =>
           busyDate.toISOString().split('T')[0] === dateStr)) {
+        return false;
+      }
+
+      // ✨ EVITAR DIES CONSECUTIUS: Excloure completament slots en dies consecutius
+      const hasConsecutiveDayConflict = player1Busy.some(busyDate => {
+        const daysDiff = Math.abs((slotDate.getTime() - busyDate.getTime()) / (1000 * 60 * 60 * 24));
+        return daysDiff < 1; // Menys d'1 dia = consecutiu
+      }) || player2Busy.some(busyDate => {
+        const daysDiff = Math.abs((slotDate.getTime() - busyDate.getTime()) / (1000 * 60 * 60 * 24));
+        return daysDiff < 1; // Menys d'1 dia = consecutiu
+      });
+
+      if (hasConsecutiveDayConflict) {
+        consecutiveDaysCounter.count++; // Incrementar contador
         return false;
       }
 
@@ -418,6 +467,19 @@
       if (player1HasTimePrefs && !player1Restrictions.preferencies_hores.includes(slot.time)) return false;
       if (player2HasTimePrefs && !player2Restrictions.preferencies_hores.includes(slot.time)) return false;
 
+      // ✨ NOVA FUNCIONALITAT: Comprovar restriccions especials (dates específiques d'indisponibilitat)
+      if (player1Restrictions?.restriccions_especials) {
+        if (isDateRestricted(slot.date, player1Restrictions.restriccions_especials)) {
+          return false;
+        }
+      }
+      
+      if (player2Restrictions?.restriccions_especials) {
+        if (isDateRestricted(slot.date, player2Restrictions.restriccions_especials)) {
+          return false;
+        }
+      }
+
       return true;
     });
 
@@ -430,22 +492,23 @@
       // Evitar dies consecutius (puntuació alta = millor)
       const slotDate = new Date(slot.date);
       const daysBetween1 = player1Stats.lastMatchDate ?
-        Math.abs((slotDate - player1Stats.lastMatchDate) / (1000 * 60 * 60 * 24)) : 999;
+        Math.abs((slotDate.getTime() - player1Stats.lastMatchDate.getTime()) / (1000 * 60 * 60 * 24)) : 999;
       const daysBetween2 = player2Stats.lastMatchDate ?
-        Math.abs((slotDate - player2Stats.lastMatchDate) / (1000 * 60 * 60 * 24)) : 999;
+        Math.abs((slotDate.getTime() - player2Stats.lastMatchDate.getTime()) / (1000 * 60 * 60 * 24)) : 999;
 
-      // Penalitzar dies consecutius o molt propers
+      // Prioritzar dies amb més separació (els consecutius ja estan exclosos)
       const minDaysBetween = Math.min(daysBetween1, daysBetween2);
-      if (minDaysBetween >= 2) {
+      if (minDaysBetween >= 3) {
+        score += 150; // Excel·lent: 3+ dies d'espaiat
+      } else if (minDaysBetween >= 2) {
         score += 100; // Perfecte: 2+ dies d'espaiat
       } else if (minDaysBetween >= 1) {
         score += 50; // Acceptable: 1 dia d'espaiat
-      } else {
-        score -= 50; // Dolent: dies consecutius
       }
+      // Nota: Els dies consecutius ja no poden arribar aquí
 
       // Prioritzar dates més properes (per omplir el calendari de manera més uniforme)
-      const daysFromStart = Math.abs((slotDate - new Date(dataInici)) / (1000 * 60 * 60 * 24));
+      const daysFromStart = Math.abs((slotDate.getTime() - new Date(dataInici).getTime()) / (1000 * 60 * 60 * 24));
       score += Math.max(0, 30 - daysFromStart * 0.1);
 
       return { slot, score };
@@ -515,6 +578,194 @@
     return days[dayIndex];
   }
 
+  // Processar restriccions especials de text lliure
+  function parseSpecialRestrictions(restrictions) {
+    if (!restrictions || restrictions.trim() === '') return [];
+    
+    const periods = [];
+    const currentYear = new Date().getFullYear();
+    
+    // Mapes dels mesos en català
+    const monthMap = {
+      'gener': 0, 'febrer': 1, 'març': 2, 'abril': 3, 'maig': 4, 'juny': 5,
+      'juliol': 6, 'agost': 7, 'setembre': 8, 'octubre': 9, 'novembre': 10, 'desembre': 11
+    };
+    
+    console.log('🔍 Parsing restrictions:', restrictions);
+    
+    // Dividir per línies i processar cada línia
+    const lines = restrictions.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    
+    for (const line of lines) {
+      console.log('📝 Processing line:', line);
+      let found = false;
+      
+      // Test 1: Períodes "del X al Y de [mes]"
+      let match = line.match(/del\s+(\d{1,2})\s+al\s+(\d{1,2})\s+de\s+([a-zA-Zàèéíòóúç]+)/i);
+      if (match) {
+        const [, startDay, endDay, monthName] = match;
+        const monthNumber = monthMap[monthName.toLowerCase()];
+        if (monthNumber !== undefined) {
+          const startDate = new Date(currentYear, monthNumber, parseInt(startDay));
+          const endDate = new Date(currentYear, monthNumber, parseInt(endDay));
+          periods.push({ start: startDate, end: endDate });
+          console.log('✅ Found month period (de):', { start: startDate, end: endDate });
+          found = true;
+        }
+      }
+      
+      // Test 2: Períodes "del X al Y d'[mes]"
+      if (!found) {
+        match = line.match(/del\s+(\d{1,2})\s+al\s+(\d{1,2})\s+d'([a-zA-Zàèéíòóúç]+)/i);
+        if (match) {
+          const [, startDay, endDay, monthName] = match;
+          const monthNumber = monthMap[monthName.toLowerCase()];
+          if (monthNumber !== undefined) {
+            const startDate = new Date(currentYear, monthNumber, parseInt(startDay));
+            const endDate = new Date(currentYear, monthNumber, parseInt(endDay));
+            periods.push({ start: startDate, end: endDate });
+            console.log("✅ Found month period (d'):", { start: startDate, end: endDate });
+            found = true;
+          }
+        }
+      }
+      
+      // Test 3: DD/MM al DD/MM
+      if (!found) {
+        match = line.match(/(\d{1,2})\/(\d{1,2})\s+al\s+(\d{1,2})\/(\d{1,2})/i);
+        if (match) {
+          const [, startDay, startMonth, endDay, endMonth] = match;
+          const startDate = new Date(currentYear, parseInt(startMonth) - 1, parseInt(startDay));
+          const endDate = new Date(currentYear, parseInt(endMonth) - 1, parseInt(endDay));
+          periods.push({ start: startDate, end: endDate });
+          console.log('✅ Found date period (/):', { start: startDate, end: endDate });
+          found = true;
+        }
+      }
+      
+      // Test 4: DD-MM al DD-MM
+      if (!found) {
+        match = line.match(/(\d{1,2})-(\d{1,2})\s+al\s+(\d{1,2})-(\d{1,2})/i);
+        if (match) {
+          const [, startDay, startMonth, endDay, endMonth] = match;
+          const startDate = new Date(currentYear, parseInt(startMonth) - 1, parseInt(startDay));
+          const endDate = new Date(currentYear, parseInt(endMonth) - 1, parseInt(endDay));
+          periods.push({ start: startDate, end: endDate });
+          console.log('✅ Found dash period (-):', { start: startDate, end: endDate });
+          found = true;
+        }
+      }
+      
+      // Test 5: Dates específiques "X de [mes]"
+      if (!found) {
+        match = line.match(/(\d{1,2})\s+de\s+([a-zA-Zàèéíòóúç]+)/i);
+        if (match) {
+          const [, day, monthName] = match;
+          const monthNumber = monthMap[monthName.toLowerCase()];
+          if (monthNumber !== undefined) {
+            const date = new Date(currentYear, monthNumber, parseInt(day));
+            periods.push({ start: date, end: date });
+            console.log('✅ Found specific date:', { start: date, end: date });
+            found = true;
+          }
+        }
+      }
+      
+      // Test 6: "X [mes]" sense "de"
+      if (!found) {
+        match = line.match(/(\d{1,2})\s+([a-zA-Zàèéíòóúç]+)/i);
+        if (match) {
+          const [, day, monthName] = match;
+          const monthNumber = monthMap[monthName.toLowerCase()];
+          if (monthNumber !== undefined) {
+            const date = new Date(currentYear, monthNumber, parseInt(day));
+            periods.push({ start: date, end: date });
+            console.log('✅ Found specific date (no "de"):', { start: date, end: date });
+            found = true;
+          }
+        }
+      }
+      
+      // Test 7: Multiple dates "X i Y [mes]"
+      if (!found) {
+        match = line.match(/(\d{1,2})\s+i\s+(\d{1,2})\s+([a-zA-Zàèéíòóúç]+)/i);
+        if (match) {
+          const [, day1, day2, monthName] = match;
+          const monthNumber = monthMap[monthName.toLowerCase()];
+          if (monthNumber !== undefined) {
+            const date1 = new Date(currentYear, monthNumber, parseInt(day1));
+            const date2 = new Date(currentYear, monthNumber, parseInt(day2));
+            periods.push({ start: date1, end: date1 });
+            periods.push({ start: date2, end: date2 });
+            console.log('✅ Found multiple specific dates:', { date1, date2 });
+            found = true;
+          }
+        }
+      }
+      
+      if (!found) {
+        console.log('❌ No pattern matched for line:', line);
+      }
+    }
+    
+    return periods;
+  }
+  
+  // Parser flexible per dates en diferents formats
+  function parseFlexibleDate(dateStr) {
+    const currentYear = new Date().getFullYear();
+    
+    // Provar DD/MM/YYYY, DD-MM-YYYY, DD/MM, DD-MM
+    const formats = [
+      /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/,  // DD/MM/YYYY
+      /^(\d{1,2})[\/\-](\d{1,2})$/                 // DD/MM (assumir any actual)
+    ];
+    
+    for (const format of formats) {
+      const match = dateStr.match(format);
+      if (match) {
+        const day = parseInt(match[1]);
+        const month = parseInt(match[2]) - 1; // JavaScript months are 0-indexed
+        const year = match[3] ? parseInt(match[3]) : currentYear;
+        
+        // Validacions bàsiques
+        if (day < 1 || day > 31 || month < 0 || month > 11) {
+          continue;
+        }
+        
+        const date = new Date(year, month, day);
+        
+        // Verificar que la data creada coincideix amb els valors introduïts
+        // (JavaScript "arregla" dates invàlides com 32/13/2024)
+        if (date.getFullYear() !== year || 
+            date.getMonth() !== month || 
+            date.getDate() !== day) {
+          continue;
+        }
+        
+        return date;
+      }
+    }
+    
+    return null;
+  }
+  
+  // Comprovar si una data està dins les restriccions especials
+  function isDateRestricted(date, restrictionsText) {
+    if (!restrictionsText || restrictionsText.trim() === '') return false;
+    
+    const restrictions = parseSpecialRestrictions(restrictionsText);
+    
+    return restrictions.some(restriction => {
+      // Comparar només les dates (sense hora)
+      const checkDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const startDate = new Date(restriction.start.getFullYear(), restriction.start.getMonth(), restriction.start.getDate());
+      const endDate = new Date(restriction.end.getFullYear(), restriction.end.getMonth(), restriction.end.getDate());
+      
+      return checkDate >= startDate && checkDate <= endDate;
+    });
+  }
+
   function calculateProposedEndDate(totalMatches) {
     // Càlcul precís basant-se en la configuració real del club
     const diesPerSetmana = calendarConfig.dies_setmana.length; // dies establerts (normalment 5: dl-dv)
@@ -574,7 +825,7 @@
     }
 
     console.log(`🔢 Càlcul de capacitat real:`);
-    console.log(`   Dies del període: ${Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))} dies`);
+    console.log(`   Dies del període: ${Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))} dies`);
     console.log(`   Dies vàlids: ${calendarConfig.dies_setmana.join(', ')}`);
     console.log(`   Hores per dia: ${calendarConfig.hores_disponibles.join(', ')}`);
     console.log(`   Taules per hora: ${calendarConfig.taules_per_slot}`);
@@ -680,6 +931,42 @@
 
     } catch (error) {
       console.error('Error regenerant calendari:', error);
+      dispatch('error', { message: formatSupabaseError(error) });
+    } finally {
+      generatingCalendar = false;
+    }
+  }
+
+  async function deletePublishedCalendar() {
+    try {
+      generatingCalendar = true;
+      showDeleteConfirmation = false;
+
+      // 1. Despublicar l'esdeveniment
+      const { error: updateError } = await supabase
+        .from('esdeveniments_club')
+        .update({ calendari_publicat: false })
+        .eq('id', eventId);
+
+      if (updateError) throw updateError;
+
+      // 2. Eliminar totes les partides del calendari
+      const { error: deleteError } = await supabase
+        .from('calendari_partides')
+        .delete()
+        .eq('event_id', eventId);
+
+      if (deleteError) throw deleteError;
+
+      // 3. Resetear l'estat del component
+      proposedCalendar = [];
+      showPreview = false;
+      
+      console.log('✅ Calendari publicat esborrat amb èxit');
+      dispatch('success', { message: 'Calendari esborrat correctament' });
+
+    } catch (error) {
+      console.error('Error esborrant calendari publicat:', error);
       dispatch('error', { message: formatSupabaseError(error) });
     } finally {
       generatingCalendar = false;
@@ -850,6 +1137,17 @@
       >
         Regenerar Calendari
       </button>
+
+      <!-- Botó per esborrar calendari publicat -->
+      {#if calendariPublicat}
+        <button
+          on:click={() => showDeleteConfirmation = true}
+          disabled={generatingCalendar}
+          class="px-4 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:bg-gray-400 flex items-center gap-2"
+        >
+          🗑️ Esborrar Calendari Publicat
+        </button>
+      {/if}
 
       <button
         on:click={() => showRestrictions = !showRestrictions}
@@ -1037,3 +1335,55 @@
     </div>
   {/if}
 </div>
+
+<!-- Modal de doble confirmació per esborrar calendari publicat -->
+{#if showDeleteConfirmation}
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <div class="text-center">
+        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+          <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.732 15.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+        </div>
+        
+        <h3 class="text-lg font-medium text-gray-900 mb-2">
+          Esborrar Calendari Publicat
+        </h3>
+        
+        <p class="text-sm text-gray-500 mb-6">
+          <strong>Atenció!</strong> Aquesta acció eliminarà permanentment:
+        </p>
+        
+        <div class="text-left bg-red-50 border border-red-200 rounded-md p-3 mb-6">
+          <ul class="text-sm text-red-700 space-y-1">
+            <li>• Tot el calendari publicat</li>
+            <li>• Totes les partides programades</li>
+            <li>• La visibilitat a l'aplicació PWA</li>
+          </ul>
+        </div>
+        
+        <p class="text-sm text-gray-600 mb-6">
+          Aquesta acció <strong>NO es pot desfer</strong>. Estàs segur?
+        </p>
+      </div>
+      
+      <div class="flex flex-col sm:flex-row gap-3 sm:gap-2">
+        <button
+          on:click={deletePublishedCalendar}
+          disabled={generatingCalendar}
+          class="flex-1 px-4 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:bg-gray-400"
+        >
+          {generatingCalendar ? 'Esborrant...' : 'Sí, Esborrar Definitivament'}
+        </button>
+        <button
+          on:click={() => showDeleteConfirmation = false}
+          disabled={generatingCalendar}
+          class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400 disabled:bg-gray-200"
+        >
+          Cancel·lar
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

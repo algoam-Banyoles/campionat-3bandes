@@ -13,6 +13,609 @@
   export let defaultMode: 'category' | 'timeline' = 'timeline';
   export let editMode: boolean = false;
 
+  // Funció per imprimir només la taula cronològica
+  function printCalendar() {
+    // Verificar que hi hagi dades per imprimir
+    if (!matches || matches.length === 0) {
+      alert('No hi ha dades de calendari per imprimir. Assegura\'t que el calendari estigui generat.');
+      return;
+    }
+
+    // Preguntar a l'usuari quin format d'impressió vol
+    const useDoubleColumn = confirm(
+      'Tria el format d\'impressió:\n\n' +
+      'Acceptar: Dues columnes (més compacte, més partides per pàgina)\n' +
+      'Cancel·lar: Una columna (text més gran, més fàcil de llegir)'
+    );
+
+    console.log('Imprimint calendari amb', matches.length, 'partides', useDoubleColumn ? '(dues columnes)' : '(una columna)');
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('No s\'ha pogut obrir la finestra d\'impressió. Comprova que no estiguin bloquejades les finestres emergents.');
+      return;
+    }
+    
+    try {
+      // Generar HTML per a impressió amb el format escollit
+      const printHTML = generatePrintHTML(useDoubleColumn);
+      
+      printWindow.document.open();
+      printWindow.document.write(printHTML);
+      printWindow.document.close();
+      
+      // Esperar que es carregui i imprimir
+      printWindow.onload = () => {
+        printWindow.print();
+        printWindow.close();
+      };
+    } catch (error) {
+      console.error('Error generant la impressió:', error);
+      alert('Error generant la impressió: ' + error.message);
+      printWindow.close();
+    }
+  }
+
+  // Generar HTML de capçalera per reutilitzar a cada pàgina
+  function generateHeaderHTML(): string {
+    return `
+      <div class="print-header-container">
+        <div class="print-header-left">
+          <img src="/logo.png" alt="Foment Martinenc" class="print-logo" />
+        </div>
+        <div class="print-header-center">
+          <h1 class="print-main-title">FOMENT MARTINENC - SECCIÓ BILLAR</h1>
+          <h2 class="print-event-title">${eventData?.nom || 'Campionat de Billar'}</h2>
+          <h3 class="print-season">Temporada ${eventData?.temporada || new Date().getFullYear()}</h3>
+        </div>
+        <div class="print-header-right">
+        </div>
+      </div>
+      <hr class="print-divider" />
+    `;
+  }
+
+  // Generar HTML complet per a impressió
+  function generatePrintHTML(useDoubleColumn: boolean = true): string {
+    const tableHTML = generateTableHTML(useDoubleColumn);
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Calendari ${eventData?.nom || 'Campionat'}</title>
+        <style>
+          @page { 
+            margin: 0.4in 0.3in 0.2in 0.3in; /* top right bottom left - peu més petit */
+            size: A4 landscape; 
+          }
+          ${getPrintCSS()}
+        </style>
+      </head>
+      <body>
+        ${tableHTML}
+      </body>
+      </html>
+    `;
+  }
+
+  // Generar HTML de la taula
+  function generateTableHTML(useDoubleColumn: boolean = true): string {
+    // Generar les dades del timeline per la impressió
+    const currentTimelineData = generateTimelineData(matches, calendarConfig, availableDates);
+    console.log('Timeline generat per impressió:', currentTimelineData.length, 'slots');
+    
+    const currentFilteredTimeline = currentTimelineData.filter(slot => {
+      // Aplicar els mateixos filtres que a la vista
+      if (selectedDate && slot.dateStr !== selectedDate) return false;
+      if (selectedCategory && slot.match && slot.match.categoria_id !== selectedCategory) return false;
+      return true;
+    });
+    console.log('Timeline filtrat per impressió:', currentFilteredTimeline.length, 'slots');
+    
+    const currentTimelineGrouped = groupTimelineByDayAndHour(currentFilteredTimeline);
+    console.log('Timeline agrupat per impressió:', currentTimelineGrouped.size, 'dies');
+
+    // Generar partides programades
+    const scheduledHTML = useDoubleColumn 
+      ? generatePaginatedHTML(currentTimelineGrouped)
+      : generateSingleColumnHTML(currentTimelineGrouped);
+
+    // Generar partides pendents
+    const pendingHTML = generatePendingMatchesHTML(useDoubleColumn);
+
+    return scheduledHTML + pendingHTML;
+  }
+
+  // Generar HTML per partides pendents de programar
+  function generatePendingMatchesHTML(useDoubleColumn: boolean = true): string {
+    // Identificar partides sense programar (sense data_programada o amb camps buits)
+    const pendingMatches = matches.filter(match => {
+      if (!match.data_programada || !match.hora_inici || !match.taula_assignada) {
+        // Aplicar filtres si estan configurats
+        if (selectedCategory && match.categoria_id !== selectedCategory) return false;
+        return true;
+      }
+      return false;
+    });
+
+    if (pendingMatches.length === 0) {
+      return ''; // No hi ha partides pendents
+    }
+
+    console.log(`Partides pendents de programar: ${pendingMatches.length}`);
+
+    const pageBreak = '<div class="print-page-break"></div><div style="page-break-before: always; break-before: page; display: block; height: 1px; width: 100%; clear: both;"></div>';
+    const headerHTML = generateHeaderHTML();
+
+    const pendingTableHTML = `
+      <div class="pending-matches-section">
+        <h3 class="pending-matches-title">PARTIDES PENDENTS DE PROGRAMAR</h3>
+        <table class="calendar-table pending-matches-table">
+          <thead>
+            <tr>
+              <th class="category-column">Categoria</th>
+              <th class="player-column">Jugador 1</th>
+              <th class="player-column">Jugador 2</th>
+              <th class="date-column">Data límit</th>
+              <th class="observations-column">Observacions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${pendingMatches.map(match => `
+              <tr>
+                <td class="category-cell">${getCategoryName(match.categoria_id)}</td>
+                <td class="player-cell">${formatPlayerName(match.jugador1)}</td>
+                <td class="player-cell">${formatPlayerName(match.jugador2)}</td>
+                <td class="date-cell">${match.data_limit ? new Date(match.data_limit).toLocaleDateString('ca-ES') : 'Per definir'}</td>
+                <td class="observations-cell">${match.observacions || '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    return `${pageBreak}${headerHTML}${pendingTableHTML}`;
+  }
+
+  // Generar HTML paginat amb dies consecutius
+  function generatePaginatedHTML(timelineGrouped: Map<string, Map<string, any[]>>): string {
+    // Ordenar dies cronològicament
+    const daysArray = Array.from(timelineGrouped.entries()).sort(([dateA], [dateB]) => {
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
+    });
+
+    console.log(`Total dies per paginar: ${daysArray.length}`);
+    console.log('Dies ordenats:', daysArray.map(([dateStr]) => dateStr).join(', '));
+
+    // Calcular slots per dia per estimar la mida de pàgina
+    const daysWithSlotCount = daysArray.map(([dateStr, hourGroups]) => {
+      const totalSlots = Array.from(hourGroups.values()).reduce((total: number, slots: any[]) => total + slots.length, 0);
+      return { dateStr, hourGroups, totalSlots, index: daysArray.findIndex(([d]) => d === dateStr) };
+    });
+
+    // Estimar quants dies caben per pàgina (optimitzat amb marges ajustats)
+    const maxSlotsPerPage = 60; // Tornat a 60 amb marges de peu optimitzats
+    const pages: { leftColumn: any[], rightColumn: any[] }[] = [];
+    
+    let currentPageDays: typeof daysWithSlotCount = [];
+    let currentPageSlots = 0;
+    
+    for (const day of daysWithSlotCount) {
+      // Si afegir aquest dia excedeix la capacitat de la pàgina, crear nova pàgina
+      if (currentPageSlots > 0 && currentPageSlots + day.totalSlots > maxSlotsPerPage) {
+        // Crear pàgina amb els dies actuals
+        pages.push(createPageFromDays(currentPageDays));
+        currentPageDays = [];
+        currentPageSlots = 0;
+      }
+      
+      currentPageDays.push(day);
+      currentPageSlots += day.totalSlots;
+    }
+    
+    // Afegir l'última pàgina si hi ha dies pendents
+    if (currentPageDays.length > 0) {
+      pages.push(createPageFromDays(currentPageDays));
+    }
+    
+    console.log(`Generades ${pages.length} pàgines:`);
+    pages.forEach((page, i) => {
+      const leftDates = page.leftColumn.map(([dateStr]) => dateStr).join(', ');
+      const rightDates = page.rightColumn.map(([dateStr]) => dateStr).join(', ');
+      
+      // Calcular slots totals per pàgina per debug
+      const leftSlots = page.leftColumn.reduce((total, [, hourGroups]) => {
+        return total + Array.from(hourGroups.values()).reduce((sum: number, slots: any[]) => sum + slots.length, 0);
+      }, 0);
+      const rightSlots = page.rightColumn.reduce((total, [, hourGroups]) => {
+        return total + Array.from(hourGroups.values()).reduce((sum: number, slots: any[]) => sum + slots.length, 0);
+      }, 0);
+      const totalSlots = leftSlots + rightSlots;
+      
+      console.log(`Pàgina ${i + 1} (${totalSlots} slots): Esquerra=[${leftDates}] (${leftSlots} slots) Dreta=[${rightDates}] (${rightSlots} slots)`);
+    });
+    
+    // Generar HTML per totes les pàgines
+    return pages.map((page, pageIndex) => generatePageHTML(page, pageIndex)).join('');
+  }
+
+  // Crear pàgina dividint dies consecutivament
+  function createPageFromDays(pageDays: any[]): { leftColumn: any[], rightColumn: any[] } {
+    const daysForPage = pageDays.map(day => [day.dateStr, day.hourGroups]);
+    const splitPoint = Math.ceil(daysForPage.length / 2);
+    
+    return {
+      leftColumn: daysForPage.slice(0, splitPoint),
+      rightColumn: daysForPage.slice(splitPoint)
+    };
+  }
+
+  // Generar HTML per una pàgina específica
+  function generatePageHTML(page: { leftColumn: any[], rightColumn: any[] }, pageIndex: number): string {
+    // Salt de pàgina més robust per navegadors diversos
+    const pageBreak = pageIndex > 0 ? `
+      <div class="print-page-break"></div>
+      <div style="page-break-before: always; break-before: page; display: block; height: 1px; width: 100%; clear: both;"></div>
+    ` : '';
+    const headerHTML = generateHeaderHTML();
+    
+    return `
+      ${pageBreak}
+      ${headerHTML}
+      <div class="two-column-layout">
+        <div class="column-left">
+          <table class="calendar-table">
+            <thead>
+              <tr>
+                <th class="day-column">Dia</th>
+                <th class="hour-column">Hora</th>
+                <th class="table-column">Billar</th>
+                <th class="category-column">Cat</th>
+                <th class="player-column">Jugador 1</th>
+                <th class="player-column">Jugador 2</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${generateColumnHTML(page.leftColumn)}
+            </tbody>
+          </table>
+        </div>
+        <div class="column-right">
+          <table class="calendar-table">
+            <thead>
+              <tr>
+                <th class="day-column">Dia</th>
+                <th class="hour-column">Hora</th>
+                <th class="table-column">Billar</th>
+                <th class="category-column">Cat</th>
+                <th class="player-column">Jugador 1</th>
+                <th class="player-column">Jugador 2</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${generateColumnHTML(page.rightColumn)}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  // Funció auxiliar per generar HTML d'una columna
+  function generateColumnHTML(columnDays: any[]): string {
+    let columnHTML = '';
+
+    if (columnDays.length === 0) {
+      return `
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 20px; color: #666; font-style: italic;">
+            No hi ha més partides
+          </td>
+        </tr>
+      `;
+    }
+
+    for (const [dateStr, hourGroups] of columnDays) {
+      const totalSlotsForDay = Array.from(hourGroups.values()).reduce((total: number, slots: any[]) => total + slots.length, 0);
+      let dayRowSpanUsed = false;
+      
+      for (const [hora, slots] of Array.from(hourGroups.entries())) {
+        let hourRowSpanUsed = false;
+        
+        for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
+          const slot = slots[slotIndex];
+          
+          columnHTML += '<tr>';
+          
+          // Columna de dia amb rowspan
+          if (!dayRowSpanUsed) {
+            columnHTML += `
+              <td class="day-cell" rowspan="${totalSlotsForDay}">
+                <div class="print-date-main">${formatDate(new Date(dateStr))}</div>
+                <div class="print-day-name">${dayNames[getDayOfWeekCode(new Date(dateStr + 'T00:00:00').getDay())]}</div>
+              </td>
+            `;
+            dayRowSpanUsed = true;
+          }
+          
+          // Columna d'hora amb rowspan
+          if (!hourRowSpanUsed) {
+            columnHTML += `<td class="hour-cell" rowspan="${slots.length}">${hora}</td>`;
+            hourRowSpanUsed = true;
+          }
+          
+          // Columnes de contingut
+          columnHTML += `
+            <td class="table-cell">B${slot.taula}</td>
+            <td class="category-cell">${slot.match ? getCategoryName(slot.match.categoria_id) : '-'}</td>
+            <td class="player-cell">${slot.match ? formatPlayerName(slot.match.jugador1) : '-'}</td>
+            <td class="player-cell">${slot.match ? formatPlayerName(slot.match.jugador2) : '-'}</td>
+          `;
+          
+          columnHTML += '</tr>';
+        }
+      }
+    }
+
+    return columnHTML;
+  }
+
+  // Generar HTML per una sola columna (text més gran)
+  function generateSingleColumnHTML(timelineGrouped: Map<string, Map<string, any[]>>): string {
+    let tableHTML = `
+      <table class="calendar-table single-column">
+        <thead>
+          <tr>
+            <th class="day-column">Dia</th>
+            <th class="hour-column">Hora</th>
+            <th class="table-column">Billar</th>
+            <th class="category-column">Cat</th>
+            <th class="player-column">Jugador 1</th>
+            <th class="player-column">Jugador 2</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    if (timelineGrouped.size === 0) {
+      tableHTML += `
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 30px; color: #666; font-style: italic; font-size: 18px;">
+            No hi ha partides programades per mostrar
+          </td>
+        </tr>
+      `;
+    } else {
+      const allDays = Array.from(timelineGrouped.entries());
+      tableHTML += generateColumnHTML(allDays);
+    }
+
+    tableHTML += '</tbody></table>';
+    return tableHTML;
+  }
+
+  // CSS per a impressió
+  function getPrintCSS(): string {
+    return `
+      @page { 
+        margin: 0.5in 0.5in 0.3in 0.5in; /* top right bottom left - peu més petit */
+        size: A3 portrait; 
+      }
+      body { 
+        font-family: Arial, sans-serif; 
+        font-size: 14px; 
+        margin: 0; 
+        padding: 0; 
+        color: #000; 
+        line-height: 1.4;
+      }
+      .print-header-container { 
+        display: flex; 
+        align-items: center; 
+        justify-content: space-between; 
+        margin-bottom: 10px; 
+        padding: 8px 0; 
+      }
+      .print-logo { 
+        height: 45px; 
+        width: auto; 
+      }
+      .print-header-center { 
+        flex: 1; 
+        text-align: center; 
+        margin: 0 30px; 
+      }
+      .print-main-title { 
+        font-size: 18px; 
+        font-weight: bold; 
+        margin: 0 0 6px 0; 
+        text-transform: uppercase; 
+        letter-spacing: 1px;
+      }
+      .print-event-title { 
+        font-size: 16px; 
+        font-weight: bold; 
+        margin: 0 0 4px 0; 
+      }
+      .print-season { 
+        font-size: 14px; 
+        margin: 0; 
+        color: #666; 
+      }
+
+
+
+      .print-divider { 
+        border: none; 
+        border-top: 3px solid #333; 
+        margin: 0 0 20px 0; 
+      }
+      .calendar-table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        font-size: 20px; 
+        margin-top: 15px;
+      }
+      .calendar-table th, .calendar-table td { 
+        border: 1px solid #333; 
+        padding: 8px 4px; 
+        text-align: center; 
+        vertical-align: middle; 
+        line-height: 1.3;
+      }
+      .calendar-table th { 
+        background-color: #e8e8e8; 
+        font-weight: bold; 
+        font-size: 18px; 
+        text-transform: uppercase; 
+        text-align: center;
+        padding: 12px 6px;
+      }
+      .day-column { width: 120px; }
+      .hour-column { width: 80px; }
+      .table-column { width: 70px; }
+      .category-column { width: 90px; }
+      .player-column { width: 220px; }
+      .day-cell { 
+        background-color: #f5f5f5; 
+        border-right: 3px solid #333; 
+        text-align: center; 
+        font-weight: bold;
+        font-size: 21px;
+      }
+      .hour-cell { 
+        background-color: #f0f0f0; 
+        border-right: 3px solid #333; 
+        text-align: center; 
+        font-weight: bold; 
+        font-size: 22px;
+      }
+      .table-cell {
+        text-align: center;
+        font-weight: bold;
+        background-color: #fafafa;
+        font-size: 21px;
+      }
+      .category-cell {
+        text-align: center;
+        font-weight: bold;
+        background-color: #f8f8f8;
+        font-size: 20px;
+      }
+      .player-cell {
+        font-weight: normal;
+        text-align: center;
+        font-size: 19px;
+        padding: 8px 4px;
+      }
+      .print-date-main { 
+        font-size: 14px; 
+        font-weight: bold; 
+        margin-bottom: 3px;
+      }
+      .print-day-name { 
+        font-size: 12px; 
+        color: #666; 
+        font-style: italic;
+      }
+      
+      /* Layout de dues columnes */
+      .two-column-layout {
+        display: flex;
+        gap: 20px;
+        width: 100%;
+      }
+      .column-left, .column-right {
+        flex: 1;
+        width: 48%;
+      }
+      .column-left .calendar-table,
+      .column-right .calendar-table {
+        width: 100%;
+        font-size: 16px;
+      }
+      
+      /* Ajustaments per columnes més estretes */
+      .two-column-layout .day-column { width: 85px; }
+      .two-column-layout .hour-column { width: 55px; }
+      .two-column-layout .table-column { width: 45px; }
+      .two-column-layout .category-column { width: 55px; }
+      .two-column-layout .player-column { width: 150px; }
+      
+      /* Tamanys de font ajustats per dues columnes */
+      .two-column-layout .calendar-table th { font-size: 14px; }
+      .two-column-layout .day-cell { font-size: 15px; }
+      .two-column-layout .hour-cell { font-size: 16px; }
+      .two-column-layout .table-cell { font-size: 15px; }
+      .two-column-layout .category-cell { font-size: 14px; }
+      .two-column-layout .player-cell { font-size: 15px; }
+      .two-column-layout .print-date-main { font-size: 13px; }
+      .two-column-layout .print-day-name { font-size: 11px; }
+      
+      /* Estils per vista d'una sola columna (text més gran) */
+      .calendar-table.single-column {
+        font-size: 22px;
+      }
+      .calendar-table.single-column th {
+        font-size: 20px;
+        padding: 12px 8px;
+      }
+      .calendar-table.single-column .day-cell {
+        font-size: 24px;
+      }
+      .calendar-table.single-column .hour-cell {
+        font-size: 25px;
+      }
+      .calendar-table.single-column .table-cell {
+        font-size: 24px;
+      }
+      .calendar-table.single-column .category-cell {
+        font-size: 23px;
+      }
+      .calendar-table.single-column .player-cell {
+        font-size: 22px;
+      }
+      .calendar-table.single-column .print-date-main {
+        font-size: 19px;
+      }
+      .calendar-table.single-column .print-day-name {
+        font-size: 17px;
+      }
+
+      /* Estils per partides pendents */
+      .pending-matches-section {
+        margin-top: 30px;
+      }
+      .pending-matches-title {
+        font-size: 20px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 20px;
+        color: #d97706;
+        text-transform: uppercase;
+      }
+      .pending-matches-table .date-column {
+        width: 15%;
+        text-align: center;
+      }
+      .pending-matches-table .observations-column {
+        width: 25%;
+      }
+      .pending-matches-table .date-cell {
+        text-align: center;
+        font-weight: bold;
+        color: #dc2626;
+      }
+      .pending-matches-table .observations-cell {
+        font-size: 12px;
+        color: #666;
+      }
+    `;
+  }
+
 
   let matches: any[] = [];
   let calendarConfig: any = {
@@ -23,6 +626,7 @@
   let loading = true;
   let error: string | null = null;
   let viewMode: 'category' | 'timeline' = defaultMode;
+  let publishing = false;
 
   // Filtres
   let selectedCategory = '';
@@ -54,8 +658,9 @@
   const estatOptions = [
     { value: 'generat', label: 'Generat', color: 'bg-gray-100 text-gray-800' },
     { value: 'validat', label: 'Validat', color: 'bg-blue-100 text-blue-800' },
+    { value: 'publicat', label: 'Publicat', color: 'bg-green-100 text-green-800' },
     { value: 'reprogramada', label: 'Reprogramada', color: 'bg-yellow-100 text-yellow-800' },
-    { value: 'jugada', label: 'Jugada', color: 'bg-green-100 text-green-800' },
+    { value: 'jugada', label: 'Jugada', color: 'bg-emerald-100 text-emerald-800' },
     { value: 'cancel·lada', label: 'Cancel·lada', color: 'bg-red-100 text-red-800' },
     { value: 'pendent_programar', label: 'Pendent programar', color: 'bg-orange-100 text-orange-800' }
   ];
@@ -76,15 +681,26 @@
     error = null;
 
     try {
-      // Carregar configuració del calendari
-      const { data: config, error: configError } = await supabase
-        .from('configuracio_calendari')
-        .select('*')
-        .eq('event_id', eventId)
-        .single();
+      // Carregar configuració del calendari (només per admins per evitar errors RLS)
+      if (isAdmin) {
+        try {
+          const { data: config, error: configError } = await supabase
+            .from('configuracio_calendari')
+            .select('*')
+            .eq('event_id', eventId)
+            .single();
 
-      if (config) {
-        calendarConfig = config;
+          if (config) {
+            calendarConfig = config;
+          }
+          
+          if (configError && configError.code !== 'PGRST116') { // PGRST116 = no rows found
+            console.warn('Error loading calendar config:', configError);
+          }
+        } catch (configErr) {
+          console.warn('Could not load calendar config - insufficient permissions:', configErr);
+          // Continuar sense configuració del calendari
+        }
       }
 
       // Carregar partits
@@ -95,13 +711,27 @@
           categoria_id,
           data_programada,
           hora_inici,
-          jugador1,
-          jugador2,
-          resultat_jugador1,
-          resultat_jugador2,
+          jugador1_id,
+          jugador2_id,
           estat,
-          observacions,
-          taula_assignada
+          taula_assignada,
+          observacions_junta,
+          jugador1:players!calendari_partides_jugador1_id_fkey (
+            id,
+            numero_soci,
+            socis!players_numero_soci_fkey (
+              nom,
+              cognoms
+            )
+          ),
+          jugador2:players!calendari_partides_jugador2_id_fkey (
+            id,
+            numero_soci,
+            socis!players_numero_soci_fkey (
+              nom,
+              cognoms
+            )
+          )
         `)
         .eq('event_id', eventId)
         .order('data_programada', { ascending: true });
@@ -249,7 +879,6 @@
 
   function formatDate(date: Date) {
     return date.toLocaleDateString('ca-ES', {
-      weekday: 'short',
       day: 'numeric',
       month: 'short'
     });
@@ -278,41 +907,39 @@
   });
 
   $: filteredTimeline = timelineData.filter(slot => {
+    // Filtrar per data seleccionada
     if (selectedDate && slot.dateStr !== selectedDate) return false;
+    
+    // Filtrar per categoria seleccionada
     if (selectedCategory && slot.match && slot.match.categoria_id !== selectedCategory) return false;
+    
+    // Si hi ha cerca de jugador, NOMÉS mostrar slots amb partits del jugador cercat
     if (playerSearch.length >= 2) {
+      // Si no té partit, no mostrar aquest slot
+      if (!slot.match) return false;
+      
       const searchLower = playerSearch.toLowerCase().trim();
-
-      // Si hi ha cerca de jugador, només mostrar dies i hores on el jugador té partits
-      const hasPlayerMatchAtThisSlot = matches.some(match => {
-        if (!match.data_programada) return false;
-        const matchDate = new Date(match.data_programada).toISOString().split('T')[0];
-        const matchTime = match.hora_inici;
-
-        // Verificar que coincideix data i hora
-        if (matchDate !== slot.dateStr || matchTime !== slot.hour) return false;
-
-        const player1Match = matchPlayerSearchText(match.jugador1, searchLower);
-        const player2Match = matchPlayerSearchText(match.jugador2, searchLower);
-        return player1Match || player2Match;
-      });
-
-      // Si no hi ha cap partit del jugador en aquest slot específic, no mostrar el slot
-      if (!hasPlayerMatchAtThisSlot) return false;
-
-      // Si és un slot amb partit, verificar que el jugador hi participa
-      if (slot.match) {
-        const player1Match = matchPlayerSearchText(slot.match.jugador1, searchLower);
-        const player2Match = matchPlayerSearchText(slot.match.jugador2, searchLower);
-        if (!player1Match && !player2Match) return false;
-      }
+      const player1Match = matchPlayerSearchText(slot.match.jugador1, searchLower);
+      const player2Match = matchPlayerSearchText(slot.match.jugador2, searchLower);
+      
+      // Si el partit no té el jugador cercat, no mostrar aquest slot
+      if (!player1Match && !player2Match) return false;
     }
+    
     return true;
   });
 
   // Separar partits programats i no programats
-  $: programmedMatches = filteredMatches.filter(match => match.data_programada && match.estat !== 'pendent_programar');
+  $: programmedMatches = filteredMatches.filter(match => match.data_programada && !['pendent_programar'].includes(match.estat));
   $: unprogrammedMatches = filteredMatches.filter(match => !match.data_programada || match.estat === 'pendent_programar');
+  
+  // Comptar slots amb partits del jugador cercat (per debugging)
+  $: playerMatchSlots = playerSearch.length >= 2 
+    ? filteredTimeline.filter(slot => slot.match).length 
+    : filteredTimeline.filter(slot => slot.match).length;
+    
+  // Verificar si s'han generat slots
+  $: hasValidSlots = filteredTimeline.length > 0;
 
   // Agrupar per categoria (vista categoria)
   $: matchesByCategory = groupByCategory(programmedMatches);
@@ -432,20 +1059,29 @@
       }
     }
 
-    // Buscar en nom complet
+    // Nova estructura amb joins - buscar en socis
+    if (playerData.socis?.nom && playerData.socis?.cognoms) {
+      const nomComplet = `${playerData.socis.nom} ${playerData.socis.cognoms}`.toLowerCase();
+      if (nomComplet.includes(searchLower)) return true;
+
+      // Buscar en nom individualment
+      if (playerData.socis.nom.toLowerCase().includes(searchLower)) return true;
+
+      // Buscar en cognoms individualment  
+      if (playerData.socis.cognoms.toLowerCase().includes(searchLower)) return true;
+    }
+
+    // Buscar en número de soci
+    if (playerData.numero_soci && playerData.numero_soci.toString().includes(searchLower)) return true;
+
+    // Fallback a estructura anterior (per compatibilitat)
     if (playerData.nom && playerData.cognoms) {
       const nomComplet = `${playerData.nom} ${playerData.cognoms}`.toLowerCase();
       if (nomComplet.includes(searchLower)) return true;
     }
 
-    // Buscar en nom
     if (playerData.nom && playerData.nom.toLowerCase().includes(searchLower)) return true;
-
-    // Buscar en cognoms
     if (playerData.cognoms && playerData.cognoms.toLowerCase().includes(searchLower)) return true;
-
-    // Buscar en número de soci
-    if (playerData.numero_soci && playerData.numero_soci.toString().includes(searchLower)) return true;
 
     return false;
   }
@@ -566,34 +1202,131 @@
       error = formatSupabaseError(e);
     }
   }
+
+  // Funció per publicar el calendari al calendari general
+  async function publishCalendar() {
+    if (!isAdmin || publishing) return;
+    
+    const validatedMatches = matches.filter(match => match.estat === 'validat');
+    
+    if (validatedMatches.length === 0) {
+      error = 'No hi ha partits validats per publicar';
+      return;
+    }
+
+    // Confirmar la publicació
+    const confirmPublish = confirm(`Estàs segur que vols publicar ${validatedMatches.length} partits validats al calendari general?\n\nAixò farà que les partides apareguin al calendari de la PWA i seran visibles per tots els usuaris.`);
+    
+    if (!confirmPublish) return;
+
+    publishing = true;
+    error = null;
+
+    try {
+      // Actualitzar l'esdeveniment per marcar-lo com a publicat
+      const { error: updateEventError } = await supabase
+        .from('events')
+        .update({ calendari_publicat: true })
+        .eq('id', eventId);
+
+      if (updateEventError) {
+        console.error('Error actualitzant esdeveniment:', updateEventError);
+        error = 'Error al marcar l\'esdeveniment com a publicat: ' + updateEventError.message;
+        return;
+      }
+
+      // Recarregar les dades per actualitzar la vista
+      await loadCalendarData();
+      
+      // Emetre esdeveniment per notificar que s'ha publicat
+      dispatch('calendarPublished', { 
+        eventId,
+        publishedMatches: validatedMatches.length 
+      });
+
+      // Mostrar missatge d'èxit
+      console.log(`✅ Calendari publicat! ${validatedMatches.length} partits ara són visibles al calendari general.`);
+      
+      // Opcional: mostrar una notificació toast
+      if (typeof window !== 'undefined') {
+        // Si tens un sistema de notificacions, pots usar-lo aquí
+        alert(`✅ Calendari publicat correctament!\n\n${validatedMatches.length} partits ara són visibles al calendari general de la PWA.`);
+      }
+
+    } catch (e) {
+      console.error('Error publicant calendari:', e);
+      error = formatSupabaseError(e);
+    } finally {
+      publishing = false;
+    }
+  }
 </script>
 
 <svelte:window on:click={handleClickOutside} />
 
 <style>
   @media print {
-    /* Amagar tot excepte la vista cronològica */
-    .no-print,
-    .print-header-hide,
-    .print-category-hide {
+    /* Amagar TOT el contingut de la pàgina */
+    body * {
+      visibility: hidden !important;
+    }
+
+    /* Mostrar només l'encapçalament i la taula cronològica */
+    .print-title-show,
+    .print-title-show *,
+    .calendar-main-container,
+    .calendar-main-container * {
+      visibility: visible !important;
+    }
+
+    /* Amagar elements específics dins la taula visible */
+    .print-hide {
+      visibility: hidden !important;
       display: none !important;
     }
 
-    /* Mostrar títol només en impressió */
+    .no-print {
+      visibility: hidden !important;
+      display: none !important;
+    }
+
+    /* Mostrar l'encapçalament en impressió */
     .print-title-show {
       display: block !important;
       page-break-after: avoid !important;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      z-index: 1000 !important;
+      background: white !important;
     }
 
-    /* Amagar columnes específiques */
-    .print-hide {
-      display: none !important;
-    }
-
-    /* Configuració de pàgina optimitzada */
+    /* Configuració de pàgina optimitzada per calendari */
     @page {
-      margin: 0.3in;
+      margin: 0.4in 0.3in 0.2in 0.3in; /* top right bottom left - peu més petit */
       size: A4 landscape;
+    }
+
+    /* Reset de la pàgina per impressió */
+    html, body {
+      width: 100% !important;
+      height: auto !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    /* Contenidor de la taula per impressió */
+    .calendar-main-container {
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      margin-top: 140px !important; /* Espai per l'encapçalament fix */
+      position: relative !important;
+    }
+
+    .calendar-main-container .overflow-x-auto {
+      overflow: visible !important;
     }
 
     /* Estils generals optimitzats per llegibilitat */
@@ -612,21 +1345,132 @@
       margin-bottom: 10px !important;
     }
 
-    /* Cel·les amb text més gran i llegible */
+    /* Cel·les optimitzades per una sola fila */
     th, td {
-      padding: 8px 10px !important;
-      font-size: 13px !important;
+      padding: 4px 6px !important;
+      font-size: 10px !important;
       font-weight: normal !important;
-      border: 1px solid #333 !important;
+      border: 0.5px solid #666 !important;
       text-align: left !important;
       vertical-align: middle !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      line-height: 1.2 !important;
+      height: 18px !important;
+      max-height: 18px !important;
     }
 
     /* Capçaleres de taula destacades */
     th {
-      background-color: #f0f0f0 !important;
+      background-color: #e8e8e8 !important;
       font-weight: bold !important;
-      font-size: 12px !important;
+      font-size: 9px !important;
+      text-transform: uppercase !important;
+      border: 1px solid #333 !important;
+      height: 20px !important;
+      max-height: 20px !important;
+    }
+
+    /* Amplades específiques per columnes */
+    .calendar-table .day-column {
+      width: 80px !important;
+      min-width: 80px !important;
+      max-width: 80px !important;
+    }
+
+    .calendar-table .hour-column {
+      width: 50px !important;
+      min-width: 50px !important;
+      max-width: 50px !important;
+    }
+
+    .calendar-table .table-column {
+      width: 40px !important;
+      min-width: 40px !important;
+      max-width: 40px !important;
+    }
+
+    .calendar-table .category-column {
+      width: 50px !important;
+      min-width: 50px !important;
+      max-width: 50px !important;
+    }
+
+    .calendar-table .player-column {
+      width: 120px !important;
+      min-width: 120px !important;
+      max-width: 120px !important;
+    }
+
+    /* Estil compacte per noms de jugadors */
+    .player-name-compact {
+      font-size: 10px !important;
+      font-weight: normal !important;
+      margin: 0 !important;
+      line-height: 1.2 !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+
+    .player-name-compact .font-semibold {
+      font-weight: bold !important;
+      font-size: 10px !important;
+    }
+
+    .vs-separator {
+      font-size: 8px !important;
+      color: #666 !important;
+      margin: 0 4px !important;
+      font-weight: normal !important;
+    }
+
+    /* Estils específics per categories compactes */
+    .category-compact {
+      font-size: 8px !important;
+      padding: 1px 4px !important;
+      border-radius: 2px !important;
+      font-weight: bold !important;
+      background-color: #e0e0e0 !important;
+      color: #333 !important;
+    }
+
+    /* Estils per número de billar */
+    .table-number-compact {
+      font-size: 9px !important;
+      font-weight: bold !important;
+      background-color: #f0f0f0 !important;
+      padding: 1px 3px !important;
+      border-radius: 2px !important;
+    }
+
+    /* Estils per capçaleres de dia i hora compactes */
+    .print-day-header {
+      text-align: center !important;
+    }
+
+    .print-date-main {
+      font-size: 10px !important;
+      font-weight: bold !important;
+      line-height: 1.1 !important;
+      margin: 0 !important;
+    }
+
+    .print-day-name {
+      font-size: 8px !important;
+      font-weight: normal !important;
+      color: #666 !important;
+      line-height: 1.1 !important;
+      margin: 1px 0 0 0 !important;
+    }
+
+    .print-hour-header {
+      font-size: 11px !important;
+      font-weight: bold !important;
+      text-align: center !important;
+      line-height: 1.1 !important;
+      margin: 0 !important;
     }
 
     /* Capçaleres de seccions */
@@ -637,23 +1481,80 @@
       page-break-after: avoid !important;
     }
 
-    /* Títols d'impressió */
-    .print-title-show h1 {
-      font-size: 18px !important;
-      font-weight: bold !important;
-      margin-bottom: 5px !important;
+    /* Estils per encapçalament professional */
+    .print-header-container {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      margin-bottom: 20px !important;
+      padding: 15px 20px !important;
     }
 
-    .print-title-show h2 {
+    .print-header-left {
+      flex: 0 0 auto !important;
+    }
+
+    .print-logo {
+      height: 60px !important;
+      width: auto !important;
+      object-fit: contain !important;
+    }
+
+    .print-header-center {
+      flex: 1 !important;
+      text-align: center !important;
+      margin: 0 20px !important;
+    }
+
+    .print-main-title {
       font-size: 16px !important;
-      font-weight: normal !important;
-      margin-bottom: 3px !important;
+      font-weight: bold !important;
+      margin: 0 0 8px 0 !important;
+      color: #000 !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.5px !important;
     }
 
-    .print-title-show h3 {
+    .print-event-title {
       font-size: 14px !important;
+      font-weight: bold !important;
+      margin: 0 0 6px 0 !important;
+      color: #333 !important;
+    }
+
+    .print-season {
+      font-size: 12px !important;
       font-weight: normal !important;
-      margin-bottom: 15px !important;
+      margin: 0 0 6px 0 !important;
+      color: #666 !important;
+    }
+
+    .print-date {
+      font-size: 10px !important;
+      font-style: italic !important;
+      margin: 0 !important;
+      color: #888 !important;
+    }
+
+    .print-header-right {
+      flex: 0 0 auto !important;
+    }
+
+    .print-contact {
+      text-align: right !important;
+      font-size: 10px !important;
+      line-height: 1.4 !important;
+    }
+
+    .print-contact-line {
+      margin-bottom: 2px !important;
+      color: #666 !important;
+    }
+
+    .print-divider {
+      border: none !important;
+      border-top: 2px solid #333 !important;
+      margin: 0 0 20px 0 !important;
     }
 
     /* Divisions de dies */
@@ -751,9 +1652,14 @@
       background-color: transparent !important;
     }
 
-    /* Força salts de pàgina entre dies si cal */
+    /* Força salts de pàgina entre dies si cal - compatibilitat multi-navegador */
     .print-page-break {
       page-break-before: always !important;
+      break-before: page !important; /* CSS3 modern */
+      display: block !important;
+      height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
 
     /* Assegurar que no es trenquin files de taula */
@@ -830,20 +1736,28 @@
   }
 </style>
 
-<div class="space-y-6">
-  <!-- Títol d'impressió (només visible en impressió) -->
+<div class="space-y-6 main-calendar-container">
+  <!-- Encapçalament professional per a impressió -->
   <div class="print-title-show" style="display: none;">
-    <div class="text-center mb-6">
-      <h1 class="text-2xl font-bold text-gray-900 mb-2">
-        {eventData?.nom || 'Campionat de Billar'}
-      </h1>
-      <h2 class="text-lg text-gray-700">
-        Temporada {eventData?.temporada || new Date().getFullYear()}
-      </h2>
-      <h3 class="text-md text-gray-600 mt-2">
-        Calendari de Partits - Vista Cronològica
-      </h3>
+    <div class="print-header-container">
+      <div class="print-header-left">
+        <img src="/logo.png" alt="Foment Martinenc" class="print-logo" />
+      </div>
+      <div class="print-header-center">
+        <h1 class="print-main-title">
+          FOMENT MARTINENC - SECCIÓ BILLAR
+        </h1>
+        <h2 class="print-event-title">
+          {eventData?.nom || 'Campionat de Billar'}
+        </h2>
+        <h3 class="print-season">
+          Temporada {eventData?.temporada || new Date().getFullYear()}
+        </h3>
+      </div>
+      <div class="print-header-right">
+      </div>
     </div>
+    <hr class="print-divider" />
   </div>
 
   <!-- Header amb controls -->
@@ -856,6 +1770,19 @@
             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 mr-2">
               ✅ {programmedMatches.length} programats
             </span>
+            
+            <!-- Mostrar resum per estats -->
+            {#if programmedMatches.some(match => match.estat === 'validat')}
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mr-2">
+                📋 {programmedMatches.filter(match => match.estat === 'validat').length} validats
+              </span>
+            {/if}
+            {#if programmedMatches.some(match => match.estat === 'publicat')}
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 mr-2">
+                📢 {programmedMatches.filter(match => match.estat === 'publicat').length} publicats
+              </span>
+            {/if}
+            
             {#if unprogrammedMatches.length > 0}
               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 mr-2">
                 ⏳ {unprogrammedMatches.length} pendents
@@ -863,7 +1790,7 @@
             {/if}
             {#if playerSearch.length >= 2}
               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                🔍 Filtrant per: {playerSearch}
+                🔍 Filtrant per: {playerSearch} | Partits trobats: {filteredMatches.length}/{matches.length} | Slots amb partits: {playerMatchSlots}
               </span>
             {/if}
           </div>
@@ -872,6 +1799,23 @@
 
       <!-- Controls de vista -->
       <div class="flex items-center gap-3">
+        <!-- Botó de publicar calendari (només per admins i si hi ha partits validats) -->
+        {#if isAdmin && programmedMatches.some(match => match.estat === 'validat')}
+          <button
+            on:click={publishCalendar}
+            class="no-print px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center gap-2 font-semibold"
+            title="Publicar calendari al calendari general de la PWA"
+            disabled={loading}
+          >
+            {#if publishing}
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Publicant...
+            {:else}
+              📢 Publicar Calendari
+            {/if}
+          </button>
+        {/if}
+
         <!-- Selecció de vista -->
         <div class="flex bg-gray-100 rounded-lg p-1">
           <button
@@ -898,9 +1842,9 @@
 
         <!-- Botó d'impressió -->
         <button
-          on:click={() => window.print()}
+          on:click={printCalendar}
           class="no-print px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 flex items-center gap-1"
-          title="Imprimir calendari"
+          title="Imprimir calendari cronològic"
         >
           🖨️ Imprimir
         </button>
@@ -1083,21 +2027,29 @@
           <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2z"/>
           </svg>
-          <p class="mt-2">No s'han generat slots de calendari</p>
-          <p class="text-sm text-gray-400">Comprova la configuració del calendari</p>
+          {#if playerSearch.length >= 2}
+            <p class="mt-2">Cap partit trobat per "{playerSearch}"</p>
+            <p class="text-sm text-gray-400">Prova amb un altre nom o neteja els filtres</p>
+          {:else if selectedDate || selectedCategory}
+            <p class="mt-2">Cap partit trobat amb els filtres aplicats</p>
+            <p class="text-sm text-gray-400">Prova eliminant alguns filtres</p>
+          {:else}
+            <p class="mt-2">No s'han generat slots de calendari</p>
+            <p class="text-sm text-gray-400">Comprova la configuració del calendari o que hi hagi partits programats</p>
+          {/if}
         </div>
       </div>
     {:else}
       <!-- Unified table view with merged columns for days and hours -->
-      <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div class="bg-white border border-gray-200 rounded-lg overflow-hidden calendar-main-container">
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-500 calendar-table border-collapse">
             <thead class="bg-gray-100">
               <tr>
                 <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-4 border-gray-800 day-column">Dia</th>
                 <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-4 border-gray-800 hour-column">Hora</th>
-                <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400">Billar</th>
-                <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400">Cat</th>
+                <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 table-column">Billar</th>
+                <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 category-column">Cat</th>
                 <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 player-column">Jugador 1</th>
                 <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 player-column">Jugador 2</th>
                 <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 print-hide">Estat</th>
@@ -1119,9 +2071,9 @@
                       <!-- Day column with rowspan -->
                       {#if hourIndex === 0 && slotIndex === 0}
                         <td class="px-3 py-4 text-sm md:text-base font-bold text-gray-900 border-r-4 border-gray-800 bg-gray-50 align-top day-column" rowspan={totalSlotsForDay}>
-                          <div class="sticky top-0">
-                            <div class="font-bold text-gray-900 text-sm md:text-base">{formatDate(new Date(dateStr))}</div>
-                            <div class="text-xs md:text-sm text-gray-700 mt-1 font-medium">{dayNames[getDayOfWeekCode(new Date(dateStr + 'T00:00:00').getDay())]}</div>
+                          <div class="sticky top-0 print-day-header">
+                            <div class="print-date-main">{formatDate(new Date(dateStr))}</div>
+                            <div class="print-day-name">{dayNames[getDayOfWeekCode(new Date(dateStr + 'T00:00:00').getDay())]}</div>
                           </div>
                         </td>
                       {/if}
@@ -1129,19 +2081,19 @@
                       <!-- Hour column with rowspan for each hour group -->
                       {#if slotIndex === 0}
                         <td class="px-3 py-4 text-sm md:text-base font-bold text-gray-800 border-r-4 border-gray-800 bg-gray-100 align-top hour-column" rowspan={slots.length}>
-                          <div class="font-bold text-base md:text-lg">{hora}</div>
+                          <div class="print-hour-header">{hora}</div>
                         </td>
                       {/if}
 
                       <!-- Table column -->
-                      <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base text-gray-900 border-r-2 border-gray-400" class:match-cell={slot.match} class:empty-cell={!slot.match}>
-                        <span class="font-mono text-sm md:text-base bg-gray-200 px-2 py-1 rounded font-semibold">B{slot.taula}</span>
+                      <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base text-gray-900 border-r-2 border-gray-400 table-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
+                        <span class="table-number-compact">B{slot.taula}</span>
                       </td>
 
                       <!-- Category column -->
-                      <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base text-gray-900 border-r-2 border-gray-400" class:match-cell={slot.match} class:empty-cell={!slot.match}>
+                      <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base text-gray-900 border-r-2 border-gray-400 category-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
                         {#if slot.match}
-                          <span class="inline-flex items-center px-2 py-1 rounded-full text-sm md:text-base font-semibold bg-blue-100 text-blue-800">
+                          <span class="category-compact">
                             {getCategoryName(slot.match.categoria_id)}
                           </span>
                         {:else}
@@ -1149,19 +2101,19 @@
                         {/if}
                       </td>
 
-                      <!-- Player 1 column -->
+                      <!-- Jugador 1 -->
                       <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base text-gray-900 border-r-2 border-gray-400 player-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
                         {#if slot.match}
-                          <div class="font-semibold text-sm md:text-base">{formatPlayerName(slot.match.jugador1)}</div>
+                          <span class="font-semibold">{formatPlayerName(slot.match.jugador1)}</span>
                         {:else}
                           <span class="text-gray-500 text-sm md:text-base font-medium">-</span>
                         {/if}
                       </td>
 
-                      <!-- Player 2 column -->
+                      <!-- Jugador 2 -->
                       <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base text-gray-900 border-r-2 border-gray-400 player-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
                         {#if slot.match}
-                          <div class="font-semibold text-sm md:text-base">{formatPlayerName(slot.match.jugador2)}</div>
+                          <span class="font-semibold">{formatPlayerName(slot.match.jugador2)}</span>
                         {:else}
                           <span class="text-gray-500 text-sm md:text-base font-medium">-</span>
                         {/if}
