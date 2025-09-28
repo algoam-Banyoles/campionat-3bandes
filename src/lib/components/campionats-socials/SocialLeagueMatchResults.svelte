@@ -27,42 +27,9 @@
 
     try {
       const { data, error: matchesError } = await supabase
-        .from('calendari_partides')
-        .select(`
-          id,
-          categoria_id,
-          data_programada,
-          hora_inici,
-          jugador1_id,
-          jugador2_id,
-          estat,
-          taula_assignada,
-          observacions_junta,
-          jugador1:players!calendari_partides_jugador1_id_fkey (
-            id,
-            numero_soci,
-            socis!players_numero_soci_fkey (
-              nom,
-              cognoms
-            )
-          ),
-          jugador2:players!calendari_partides_jugador2_id_fkey (
-            id,
-            numero_soci,
-            socis!players_numero_soci_fkey (
-              nom,
-              cognoms
-            )
-          ),
-          categories!calendari_partides_categoria_id_fkey(
-            id,
-            nom,
-            distancia_caramboles
-          )
-        `)
-        .eq('event_id', eventId)
-        .order('data_programada', { ascending: false })
-        .order('hora_inici', { ascending: false });
+        .rpc('get_match_results_public', { 
+          p_event_id: eventId 
+        });
 
       if (matchesError) throw matchesError;
 

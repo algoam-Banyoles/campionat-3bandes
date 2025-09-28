@@ -553,6 +553,14 @@
           Gestiona les categories dels campionats socials i configura els promigs mínims per a les promocions automàtiques.
         </p>
       </a>
+
+      <!-- Targeta: resultats campionats socials -->
+      <a href="/admin/resultats-socials" class="block rounded-2xl border p-4 hover:shadow-sm bg-emerald-50 border-emerald-200">
+        <h2 class="font-semibold text-emerald-800">📊 Resultats - Lligues Socials</h2>
+        <p class="text-sm text-emerald-700 mt-1">
+          Pujar i gestionar resultats de partides dels campionats socials en curs amb validació automàtica de classificacions.
+        </p>
+      </a>
     </div>
   </div>
 {/if}

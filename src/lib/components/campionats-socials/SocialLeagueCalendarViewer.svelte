@@ -821,8 +821,10 @@
     if (validMatches.length > 0) {
       // Usar dates dels partits programats
       const dates = validMatches.map(m => new Date(m.data_programada));
-      startDate = new Date(Math.min(...dates));
-      endDate = new Date(Math.max(...dates));
+      console.log('🔍 Parsed dates:', dates.slice(0, 5).map(d => d.toISOString().split('T')[0]));
+      startDate = new Date(Math.min(...dates.map(d => d.getTime())));
+      endDate = new Date(Math.max(...dates.map(d => d.getTime())));
+      console.log('🔍 Date range:', startDate.toISOString().split('T')[0], 'to', endDate.toISOString().split('T')[0]);
 
       // Per la vista cronològica: limitar fins a la data màxima del calendari
       // Afegir només 1 dia després de l'últim partit programat
@@ -848,7 +850,7 @@
       allDates.push(new Date(date));
     }
 
-
+    console.log('🔍 Generated dates:', allDates.slice(0, 10).map(d => d.toISOString().split('T')[0]), `(total: ${allDates.length})`);
     return allDates;
   }
 
@@ -874,13 +876,12 @@
       taules_per_slot: 3
     };
 
-    console.log('🔍 Using config:', config);
-
     let totalSlots = 0;
     let matchedSlots = 0;
     let validDays = 0;
 
     currentDates.forEach((date, index) => {
+      const dateStr = date.toISOString().split('T')[0];
       const dayOfWeek = getDayOfWeekCode(date.getDay());
 
       // Només mostrar dies de la setmana configurats
@@ -888,41 +889,35 @@
         validDays++;
         const hores = config.hores_disponibles || ['18:00', '19:00'];
         const taules = config.taules_per_slot || 3;
-
+        
+        // Pre-filter matches for this specific date to optimize performance
+        const dateMatches = currentMatches.filter(match => {
+          if (!match.data_programada) return false;
+          const matchDate = new Date(match.data_programada).toISOString().split('T')[0];
+          return matchDate === dateStr;
+        });
+        
+        // Debug for first few dates
+        if (index < 1 && dateMatches.length > 0) {
+          console.log(`🔍 Date ${dateStr}: Found ${dateMatches.length} matches`);
+        }
 
         hores.forEach(hora => {
           for (let taula = 1; taula <= taules; taula++) {
-            const dateStr = date.toISOString().split('T')[0];
             totalSlots++;
 
-            // Buscar partit programat per aquest slot
-            const scheduledMatch = currentMatches.find(match => {
-              if (!match.data_programada) return false;
-              
-              // Debug dates format
-              if (index === 0 && hora === hores[0] && taula === 1) {
-                console.log('🔍 Debug first match data_programada:', match.data_programada, 'type:', typeof match.data_programada);
-                console.log('🔍 Debug dateStr:', dateStr);
-                console.log('🔍 Debug hora:', hora, 'match hora_inici:', match.hora_inici);
-                console.log('🔍 Debug taula:', taula, 'match taula_assignada:', match.taula_assignada);
-              }
-              
-              const matchDate = new Date(match.data_programada).toISOString().split('T')[0];
-              const matchesDate = matchDate === dateStr;
-
+            // Buscar partit programat per aquest slot (només entre els partits d'aquest dia)
+            const scheduledMatch = dateMatches.find(match => {
               // Normalitzar format d'hores - eliminar segons si existeixen
               const normalizedSlotHora = hora; // ja ve en format HH:MM
               const normalizedMatchHora = match.hora_inici?.substring(0, 5); // eliminar :SS si existeix
               const matchesTime = normalizedMatchHora === normalizedSlotHora;
 
-              const matchesTable = match.taula_assignada === taula;
+              const matchesTable = parseInt(match.taula_assignada) === taula;
+              
 
-              // Debug matching logic for first few matches
-              if (index === 0 && hora === hores[0] && taula === 1) {
-                console.log('🔍 Debug matching - date:', matchesDate, 'time:', matchesTime, 'table:', matchesTable);
-              }
 
-              return matchesDate && matchesTime && matchesTable;
+              return matchesTime && matchesTable;
             });
 
             if (scheduledMatch) {
@@ -941,6 +936,23 @@
         });
       }
     });
+
+    // Ordenar cronològicament: primer per data, després per hora, finalment per taula
+    timeline.sort((a, b) => {
+      // Primer comparar dates
+      const dateComparison = a.dateStr.localeCompare(b.dateStr);
+      if (dateComparison !== 0) return dateComparison;
+      
+      // Si són el mateix dia, comparar hores
+      const timeComparison = a.hora.localeCompare(b.hora);
+      if (timeComparison !== 0) return timeComparison;
+      
+      // Si són la mateixa hora, comparar taules
+      return a.taula - b.taula;
+    });
+
+    const slotsWithMatches = timeline.filter(slot => slot.match).length;
+    console.log('🔍 Timeline sorted chronologically. Total slots:', timeline.length, 'Slots with matches:', slotsWithMatches);
 
     return timeline;
   }
@@ -980,17 +992,19 @@
   });
 
   $: filteredTimeline = timelineData.filter(slot => {
+
+    
+    // SEMPRE mostrar només slots amb partits programats (eliminar slots buits)
+    if (!slot.match) return false;
+    
     // Filtrar per data seleccionada
     if (selectedDate && slot.dateStr !== selectedDate) return false;
     
     // Filtrar per categoria seleccionada
-    if (selectedCategory && slot.match && slot.match.categoria_id !== selectedCategory) return false;
+    if (selectedCategory && slot.match.categoria_id !== selectedCategory) return false;
     
-    // Si hi ha cerca de jugador, NOMÉS mostrar slots amb partits del jugador cercat
+    // Si hi ha cerca de jugador, filtrar pels jugadors
     if (playerSearch.length >= 2) {
-      // Si no té partit, no mostrar aquest slot
-      if (!slot.match) return false;
-      
       const searchLower = playerSearch.toLowerCase().trim();
       const player1Match = matchPlayerSearchText(slot.match.jugador1, searchLower);
       const player2Match = matchPlayerSearchText(slot.match.jugador2, searchLower);
@@ -1001,6 +1015,17 @@
     
     return true;
   });
+
+  // Debug del resultat del filtrat
+  $: if (timelineData.length > 0) {
+    console.log('🔍 Timeline filtering results:', {
+      totalSlots: timelineData.length,
+      slotsWithMatches: timelineData.filter(slot => slot.match).length,
+      filteredSlots: filteredTimeline.length,
+      selectedDate,
+      selectedCategory
+    });
+  }
 
   // Separar partits programats i no programats
   $: programmedMatches = filteredMatches.filter(match => match.data_programada && !['pendent_programar'].includes(match.estat));
@@ -1041,22 +1066,23 @@
     return groups;
   }
 
-  function groupTimelineByDayAndHour(timeline: any[]) {
-    const grouped = new Map();
+  function groupTimelineByDayAndHour(timeline: any[]): Map<string, Map<string, any[]>> {
+    const grouped = new Map<string, Map<string, any[]>>();
 
     timeline.forEach(slot => {
       const dateKey = slot.dateStr;
       const hourKey = slot.hora;
 
       if (!grouped.has(dateKey)) {
-        grouped.set(dateKey, new Map());
+        grouped.set(dateKey, new Map<string, any[]>());
       }
 
-      if (!grouped.get(dateKey).has(hourKey)) {
-        grouped.get(dateKey).set(hourKey, []);
+      const dayMap = grouped.get(dateKey)!;
+      if (!dayMap.has(hourKey)) {
+        dayMap.set(hourKey, []);
       }
 
-      grouped.get(dateKey).get(hourKey).push(slot);
+      dayMap.get(hourKey)!.push(slot);
     });
 
     return grouped;
@@ -2039,7 +2065,6 @@
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Taula</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Enfrontament</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase print-hide">Estat</th>
                   {#if isAdmin}
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase print-hide">Accions</th>
                   {/if}
@@ -2067,11 +2092,6 @@
                           {formatPlayerName(match.jugador2)}
                         </span>
                       </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap print-hide">
-                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getEstatStyle(match.estat)}">
-                        {estatOptions.find(opt => opt.value === match.estat)?.label || match.estat}
-                      </span>
                     </td>
                     {#if isAdmin}
                       <td class="px-6 py-4 whitespace-nowrap text-sm font-medium print-hide">
@@ -2122,10 +2142,8 @@
                 <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-4 border-gray-800 day-column">Dia</th>
                 <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-4 border-gray-800 hour-column">Hora</th>
                 <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 table-column">Billar</th>
-                <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 category-column">Cat</th>
                 <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 player-column">Jugador 1</th>
                 <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 player-column">Jugador 2</th>
-                <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 print-hide">Estat</th>
                 {#if isAdmin}
                   <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase print-hide">Accions</th>
                 {/if}
@@ -2163,16 +2181,7 @@
                         <span class="table-number-compact">B{slot.taula}</span>
                       </td>
 
-                      <!-- Category column -->
-                      <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base text-gray-900 border-r-2 border-gray-400 category-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
-                        {#if slot.match}
-                          <span class="category-compact">
-                            {getCategoryName(slot.match.categoria_id)}
-                          </span>
-                        {:else}
-                          <span class="text-gray-500 text-sm md:text-base font-medium">-</span>
-                        {/if}
-                      </td>
+
 
                       <!-- Jugador 1 -->
                       <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base text-gray-900 border-r-2 border-gray-400 player-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
@@ -2192,16 +2201,7 @@
                         {/if}
                       </td>
 
-                      <!-- Status column -->
-                      <td class="px-3 py-4 whitespace-nowrap border-r-2 border-gray-400 print-hide">
-                        {#if slot.match}
-                          <span class="inline-flex items-center px-2.5 py-1 rounded-full text-sm md:text-base font-medium {getEstatStyle(slot.match.estat)}">
-                            {estatOptions.find(opt => opt.value === slot.match.estat)?.label || slot.match.estat}
-                          </span>
-                        {:else}
-                          <span class="text-gray-500 text-sm md:text-base font-medium">Lliure</span>
-                        {/if}
-                      </td>
+
 
                       <!-- Actions column -->
                       {#if isAdmin}

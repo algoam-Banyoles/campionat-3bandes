@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { getSocialLeagueEventById } from '$lib/api/socialLeagues';
-  import ClassificationTable from '$lib/components/campionat-continu/ClassificationTable.svelte';
+  import { supabase } from '$lib/supabaseClient';
   import type { SocialLeagueEvent } from '$lib/types';
 
   let event: SocialLeagueEvent | null = null;
@@ -26,12 +25,70 @@
     }
 
     try {
-      event = await getSocialLeagueEventById(eventId);
-      if (!event) {
+      // Get basic event data using RPC for anonymous access
+      const { data: eventResult, error: eventError } = await supabase
+        .rpc('get_event_public', { p_event_id: eventId });
+
+      const eventData = eventResult?.[0];
+
+      if (eventError) throw eventError;
+
+      if (!eventData) {
         error = 'Event no trobat';
-      } else {
-        pageTitle = `${modalityNames[event.modalitat]} ${event.temporada} - Lligues Socials`;
+        loading = false;
+        return;
       }
+
+      // Get categories using RPC
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .rpc('get_categories_for_event', { p_event_id: eventId });
+
+      if (categoriesError) throw categoriesError;
+
+      // Get classifications using RPC
+      const { data: classificationsData, error: classificationsError } = await supabase
+        .rpc('get_classifications_public', { 
+          event_id_param: eventId,
+          category_ids: null 
+        });
+
+      if (classificationsError) throw classificationsError;
+
+      // Group classifications by category
+      const classificationsByCategory = {};
+      if (classificationsData) {
+        classificationsData.forEach(cl => {
+          if (!classificationsByCategory[cl.categoria_id]) {
+            classificationsByCategory[cl.categoria_id] = [];
+          }
+          classificationsByCategory[cl.categoria_id].push({
+            id: cl.id,
+            posicio: cl.posicio,
+            player_id: cl.player_id,
+            player_nom: cl.soci_nom || '',
+            player_cognom: cl.soci_cognoms || '',
+            partides_jugades: cl.partides_jugades,
+            partides_guanyades: cl.partides_guanyades,
+            partides_perdudes: cl.partides_perdudes,
+            partides_empat: cl.partides_empat,
+            punts: cl.punts,
+            caramboles_favor: cl.caramboles_favor,
+            caramboles_contra: cl.caramboles_contra,
+            mitjana_particular: cl.mitjana_particular
+          });
+        });
+      }
+
+      // Combine data
+      event = {
+        ...eventData,
+        categories: (categoriesData || []).map(cat => ({
+          ...cat,
+          classificacions: classificationsByCategory[cat.id] || []
+        }))
+      };
+
+      pageTitle = `${modalityNames[event.modalitat]} ${event.temporada} - Lligues Socials`;
     } catch (e) {
       error = 'Error carregant l\'event';
       console.error(e);
@@ -102,55 +159,94 @@
     </div>
 
     <!-- Categories i Classificacions -->
-    {#if event.categories && event.categories.length > 0}
-      <div class="space-y-8">
-        {#each event.categories as category}
-          <div class="bg-white border border-gray-200 rounded-lg">
-            <!-- Header de la categoria -->
-            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h2 class="text-xl font-semibold text-gray-900">{category.nom}</h2>
-                  <p class="text-sm text-gray-600 mt-1">
-                    Distància: {category.distancia_caramboles} caramboles
-                    {#if category.classificacions.length > 0}
-                      • {category.classificacions.length} jugadors
-                    {/if}
-                  </p>
-                </div>
+    <div class="space-y-6">
+      <h2 class="text-2xl font-bold text-gray-900">Classificacions per Categories</h2>
+      
+      {#if event.categories && event.categories.length > 0}
+        <div class="space-y-8">
+          {#each event.categories as category}
+            <div class="bg-white border border-gray-200 rounded-lg">
+              <!-- Header de la categoria -->
+              <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 rounded-t-lg">
+                <h3 class="text-xl font-semibold text-gray-900">{category.nom}</h3>
+                <p class="text-sm text-gray-600 mt-1">
+                  Distància: {category.distancia_caramboles} caramboles
+                </p>
+              </div>
 
-                {#if category.classificacions.length > 0}
-                  <div class="text-right">
-                    <div class="text-lg font-bold text-green-600">
-                      {category.classificacions[0]?.player_nom}
-                    </div>
-                    <div class="text-sm text-gray-600">Campió</div>
+              <!-- Classificacions -->
+              <div class="p-6">
+                {#if category.classificacions && category.classificacions.length > 0}
+                  <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Pos
+                          </th>
+                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Jugador
+                          </th>
+                          <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            PJ
+                          </th>
+                          <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            PG
+                          </th>
+                          <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            PP
+                          </th>
+                          <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Punts
+                          </th>
+                          <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Mitjana
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white divide-y divide-gray-200">
+                        {#each category.classificacions as player, index}
+                          <tr class="hover:bg-gray-50">
+                            <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
+                              {index + 1}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                              <div class="text-sm font-medium text-gray-900">{player.player_nom}</div>
+                            </td>
+                            <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                              {player.partides_jugades || 0}
+                            </td>
+                            <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                              {player.partides_guanyades || 0}
+                            </td>
+                            <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                              {player.partides_perdudes || 0}
+                            </td>
+                            <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
+                              {player.punts || 0}
+                            </td>
+                            <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                              {player.mitjana ? player.mitjana.toFixed(3) : '0.000'}
+                            </td>
+                          </tr>
+                        {/each}
+                      </tbody>
+                    </table>
+                  </div>
+                {:else}
+                  <div class="text-center text-gray-500 py-8">
+                    <p>No hi ha classificacions disponibles per aquesta categoria</p>
                   </div>
                 {/if}
               </div>
             </div>
-
-            <!-- Classificacions -->
-            <div class="p-0">
-              {#if category.classificacions && category.classificacions.length > 0}
-                <ClassificationTable
-                  classifications={category.classificacions}
-                  title=""
-                  showStats={true}
-                />
-              {:else}
-                <div class="p-6 text-center text-gray-500">
-                  <p>No hi ha classificacions disponibles per aquesta categoria</p>
-                </div>
-              {/if}
-            </div>
-          </div>
-        {/each}
-      </div>
-    {:else}
-      <div class="bg-white border border-gray-200 rounded-lg p-6">
-        <p class="text-center text-gray-500">No hi ha categories disponibles per aquest event</p>
-      </div>
-    {/if}
+          {/each}
+        </div>
+      {:else}
+        <div class="bg-white border border-gray-200 rounded-lg p-6">
+          <p class="text-center text-gray-500">No hi ha categories disponibles per aquest event</p>
+        </div>
+      {/if}
+    </div>
   </div>
 {/if}

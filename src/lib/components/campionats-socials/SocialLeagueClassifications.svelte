@@ -10,6 +10,8 @@
   let error: string | null = null;
   let selectedCategory = 'all';
 
+
+
   onMount(() => {
     if (event?.id) {
       loadClassifications();
@@ -27,45 +29,16 @@
     error = null;
 
     try {
-      // Load classifications for this event
+      // Load classifications for this event using RPC (pass null to get all categories)
       const { data, error: classificationsError } = await supabase
-        .from('classificacions')
-        .select(`
-          id,
-          temporada,
-          categoria_id,
-          soci_numero,
-          posicio,
-          partides_jugades,
-          partides_guanyades,
-          partides_perdudes,
-          caramboles_fetes,
-          caramboles_rebudes,
-          mitjana,
-          punts,
-          data_actualitzacio,
-          categories!classificacions_categoria_id_fkey(
-            id,
-            nom,
-            distancia_caramboles,
-            ordre_categoria
-          ),
-          socis!classificacions_soci_numero_fkey(
-            numero_soci,
-            nom,
-            cognoms,
-            email
-          )
-        `)
-        .eq('temporada', event.temporada)
-        .order('categoria_id', { ascending: true })
-        .order('posicio', { ascending: true });
+        .rpc('get_classifications_public', { 
+          event_id_param: event.id,
+          category_ids: null
+        });
 
       if (classificationsError) throw classificationsError;
 
-      // Filter classifications to only show categories from this event
-      const eventCategoryIds = event.categories?.map((c: any) => c.id) || [];
-      classifications = (data || []).filter(c => eventCategoryIds.includes(c.categoria_id));
+      classifications = data || [];
 
     } catch (e) {
       console.error('Error loading classifications:', e);
@@ -127,6 +100,7 @@
 </script>
 
 <div class="space-y-6">
+
   <!-- Header and filters -->
   <div class="bg-white border border-gray-200 rounded-lg p-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
@@ -334,8 +308,8 @@
                 </div>
                 <div class="text-center">
                   <div class="font-medium text-gray-900">
-                    {classification?.data_actualitzacio ?
-                      new Date(classification.data_actualitzacio).toLocaleDateString('ca-ES') :
+                    {categoryClassifications.length > 0 && categoryClassifications[0]?.data_actualitzacio ?
+                      new Date(categoryClassifications[0].data_actualitzacio).toLocaleDateString('ca-ES') :
                       'No actualitzat'}
                   </div>
                   <div class="text-gray-500">Última Actualització</div>
