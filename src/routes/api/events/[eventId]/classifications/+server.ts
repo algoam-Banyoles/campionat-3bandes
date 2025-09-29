@@ -12,12 +12,14 @@ export const GET: RequestHandler = async ({ params, request }) => {
   try {
     console.log('🔍 API: Loading classifications for event:', eventId);
 
-    // Debug environment variables
-    console.log('🔧 Debug: SUPABASE_SERVICE_ROLE_KEY present:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-    console.log('🔧 Debug: PUBLIC_SUPABASE_URL:', process.env.PUBLIC_SUPABASE_URL);
-
-    // Use service role for admin operations - don't pass request to avoid auth header conflicts
-    const supabaseAdmin = serverSupabase(undefined, true);
+    // Create Supabase client with service role for historical events access
+    const supabaseAdmin = createClient(
+      process.env.PUBLIC_SUPABASE_URL || 'https://qbldqtaqawnahuzlzsjs.supabase.co',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+      {
+        auth: { persistSession: false, autoRefreshToken: false }
+      }
+    );
 
     // First get the event to verify it exists and is a social league
     const { data: event, error: eventError } = await supabaseAdmin

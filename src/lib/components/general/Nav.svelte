@@ -138,6 +138,12 @@
   function closeDropdownOnNavigate() {
     activeDropdown = null;
   }
+
+  // Tancar menú mòbil quan es navega
+  function closeMobileMenuOnNavigate() {
+    mobileMenuOpen = false;
+    activeDropdown = null;
+  }
 </script>
 
 <svelte:window on:click={handleClickOutside} />
@@ -272,6 +278,7 @@
                 {#each section.links as link}
                   <a
                     href={link.href}
+                    on:click={closeMobileMenuOnNavigate}
                     class="block pl-4 pr-4 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 {
                       link.disabled ? 'opacity-50 cursor-not-allowed' : ''
                     } {
@@ -282,6 +289,21 @@
                     {link.label}
                   </a>
                 {/each}
+
+                <!-- User links si n'hi ha -->
+                {#if $user && section.userLinks && section.userLinks.length > 0}
+                  {#each section.userLinks as link}
+                    <a
+                      href={link.href}
+                      on:click={closeMobileMenuOnNavigate}
+                      class="block pl-4 pr-4 py-2 text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 {
+                        isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-700' : ''
+                      }"
+                    >
+                      {link.label}
+                    </a>
+                  {/each}
+                {/if}
               </div>
             {/if}
           {/each}
@@ -295,7 +317,7 @@
             </div>
             <div class="mt-3 px-2">
               <button
-                on:click={signOut}
+                on:click={() => { signOut(); closeMobileMenuOnNavigate(); }}
                 class="block w-full text-left px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
               >
                 Sortir
@@ -305,6 +327,7 @@
             <div class="px-2">
               <a
                 href="/general/login"
+                on:click={closeMobileMenuOnNavigate}
                 class="block px-4 py-2 text-base font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50"
               >
                 Iniciar Sessió
