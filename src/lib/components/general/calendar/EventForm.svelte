@@ -138,9 +138,9 @@
 
 {#if isOpen}
   <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg max-w-md w-full p-6">
-      <div class="flex justify-between items-start mb-6">
-        <h3 class="text-lg font-semibold">
+    <div class="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+      <div class="flex justify-between items-start mb-4 sm:mb-6">
+        <h3 class="text-base sm:text-lg font-semibold">
           {editingEvent ? 'Editar Esdeveniment' : 'Nou Esdeveniment'}
         </h3>
         <button 
@@ -192,7 +192,7 @@
         </div>
 
         <!-- Data i hora d'inici -->
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label for="data_inici" class="block text-sm font-medium text-slate-700 mb-1">
               Data d'inici *
@@ -201,7 +201,7 @@
               id="data_inici"
               type="date"
               bind:value={form.data_inici}
-              class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
               disabled={loading}
             />
@@ -214,14 +214,14 @@
               id="hora_inici"
               type="time"
               bind:value={form.hora_inici}
-              class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={loading}
             />
           </div>
         </div>
 
         <!-- Data i hora de fi -->
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label for="data_fi" class="block text-sm font-medium text-slate-700 mb-1">
               Data de fi
@@ -230,7 +230,7 @@
               id="data_fi"
               type="date"
               bind:value={form.data_fi}
-              class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={loading}
             />
           </div>
@@ -242,7 +242,7 @@
               id="hora_fi"
               type="time"
               bind:value={form.hora_fi}
-              class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={loading}
             />
           </div>
@@ -280,18 +280,18 @@
         </div>
 
         <!-- Botons -->
-        <div class="flex justify-end gap-3 pt-6">
+        <div class="flex flex-col sm:flex-row justify-end gap-3 pt-4 sm:pt-6">
           <button
             type="button"
             on:click={handleClose}
-            class="px-4 py-2 text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"
+            class="w-full sm:w-auto px-4 py-2 text-slate-600 border border-slate-300 rounded-md hover:bg-slate-50 transition-colors order-2 sm:order-1"
             disabled={loading}
           >
             Cancel·lar
           </button>
           <button
             type="submit"
-            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2"
             disabled={loading}
           >
             {#if loading}

@@ -183,15 +183,15 @@
       </div>
     {:else}
     <!-- Categories compactes amb jugadors -->
-    <div class="flex flex-wrap gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {#each sortedCategories as category (category.id)}
         {@const playersInCategory = getPlayersInCategory(category.id)}
         {#if playersInCategory.length > 0}
-          <div class="bg-white border-2 border-gray-200 rounded-lg p-3 min-w-fit hover:shadow-lg transition-shadow">
+          <div class="bg-white border-2 border-gray-200 rounded-lg p-3 hover:shadow-lg transition-shadow">
             <!-- Capçalera de categoria -->
             <div class="text-center mb-3 pb-2 border-b border-gray-200">
-              <h3 class="text-sm font-bold text-gray-900 whitespace-nowrap">{category.nom}</h3>
-              <p class="text-xs text-blue-600 font-medium whitespace-nowrap">
+              <h3 class="text-sm font-bold text-gray-900 truncate">{category.nom}</h3>
+              <p class="text-xs text-blue-600 font-medium">
                 {category.distancia_caramboles} car. • {playersInCategory.length} jug.
               </p>
             </div>
@@ -208,7 +208,7 @@
                     <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">
                       {inicialNom}
                     </div>
-                    <span class="text-xs text-gray-900 whitespace-nowrap">
+                    <span class="text-xs text-gray-900 truncate max-w-24">
                       {nomFormatat}
                     </span>
                   </div>

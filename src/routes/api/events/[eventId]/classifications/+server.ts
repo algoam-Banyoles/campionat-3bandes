@@ -11,11 +11,17 @@ export const GET: RequestHandler = async ({ params, request }) => {
 
   try {
     console.log('🔍 API: Loading classifications for event:', eventId);
+    
+    // Use hardcoded values for debugging (these should be in environment later)
+    const supabaseUrl = 'https://qbldqtaqawnahuzlzsjs.supabase.co';
+    const serviceRoleKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFibGRxdGFxYXduYWh1emx6c2pzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzA1OTIwOCwiZXhwIjoyMDcyNjM1MjA4fQ.-tP6NsvVa6vMFcYXRbXjqQsKC-rm5DxUYi6MzJuiAVI';
+    
+    console.log('🔧 Using hardcoded credentials for debugging');
 
     // Create Supabase client with service role for historical events access
     const supabaseAdmin = createClient(
-      process.env.PUBLIC_SUPABASE_URL || 'https://qbldqtaqawnahuzlzsjs.supabase.co',
-      process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+      supabaseUrl,
+      serviceRoleKey,
       {
         auth: { persistSession: false, autoRefreshToken: false }
       }

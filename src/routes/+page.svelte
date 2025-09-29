@@ -24,26 +24,26 @@
   }
 </script>
 
-<div class="max-w-4xl mx-auto p-6 space-y-8">
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 lg:space-y-8">
   <!-- Capçalera de benvinguda -->
-  <div class="text-center mb-8">
-    <h1 class="text-3xl font-bold text-gray-900 mb-2">Secció de Billar del Foment Martinenc</h1>
-    <p class="text-lg text-gray-600">Informació general i calendari d'activitats</p>
+  <div class="text-center mb-6 lg:mb-8">
+    <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 px-2">Secció de Billar del Foment Martinenc</h1>
+    <p class="text-base sm:text-lg text-gray-600 px-2">Informació general i calendari d'activitats</p>
   </div>
 
   <!-- Horaris i Normativa -->
-  <div class="bg-white rounded-lg shadow-md p-6">
-    <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-      <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
+    <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
+      <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
       </svg>
       Horaris i Normativa
     </h2>
-    
-    <div class="grid md:grid-cols-2 gap-6">
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
       <!-- Horari d'obertura -->
-      <div class="bg-blue-50 rounded-lg p-4">
-        <h3 class="text-lg font-semibold text-blue-900 mb-3 flex items-center">
+      <div class="bg-blue-50 rounded-lg p-3 sm:p-4">
+        <h3 class="text-base sm:text-lg font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center">
           🕒 Horari d'obertura de la Secció
         </h3>
         <div class="space-y-2 text-sm text-blue-800">
@@ -82,10 +82,10 @@
     </div>
 
     <!-- Normes de joc -->
-    <div class="grid md:grid-cols-2 gap-6 mt-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mt-4 sm:mt-6">
       <!-- Inscripció -->
-      <div class="bg-yellow-50 rounded-lg p-4">
-        <h3 class="text-lg font-semibold text-yellow-900 mb-3">
+      <div class="bg-yellow-50 rounded-lg p-3 sm:p-4">
+        <h3 class="text-base sm:text-lg font-semibold text-yellow-900 mb-2 sm:mb-3">
           📝 Inscripció a les partides
         </h3>
         <ul class="list-disc list-inside space-y-1 text-sm text-yellow-800">
@@ -129,18 +129,18 @@
   </div>
 
   <!-- Activitats d'avui -->
-  <div class="bg-white rounded-lg shadow-md p-6">
-    <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-      <svg class="w-6 h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
+    <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
+      <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
       </svg>
       Activitats d'avui
     </h2>
     
-    <div class="bg-gray-50 rounded-lg p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-semibold text-gray-700">Avui, {new Date().toLocaleDateString('ca-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
-        <a href="/general/calendari" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Veure calendari complet →</a>
+    <div class="bg-gray-50 rounded-lg p-4 sm:p-6">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+        <h3 class="text-base sm:text-lg font-semibold text-gray-700">Avui, {new Date().toLocaleDateString('ca-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
+        <a href="/general/calendari" class="text-blue-600 hover:text-blue-800 text-sm font-medium whitespace-nowrap">Veure calendari complet →</a>
       </div>
       
       <div class="space-y-3">
@@ -200,24 +200,16 @@
   </div>
 
   <!-- Accés ràpid -->
-  <div class="bg-gray-50 rounded-lg p-6">
-    <h2 class="text-xl font-semibold text-gray-900 mb-4">Accés ràpid</h2>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <a href="/campionat-continu/ranking" class="bg-white rounded-lg p-4 text-center hover:shadow-md transition-shadow">
-        <div class="text-2xl mb-2">🏆</div>
-        <div class="text-sm font-medium text-gray-700">Campionat Continu</div>
+  <div class="bg-gray-50 rounded-lg p-4 sm:p-6">
+    <h2 class="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Accés ràpid</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+      <a href="/campionat-continu/ranking" class="bg-white rounded-lg p-3 sm:p-4 text-center hover:shadow-md transition-shadow">
+        <div class="text-xl sm:text-2xl mb-2">🏆</div>
+        <div class="text-sm sm:text-base font-medium text-gray-700">Campionat Continu</div>
       </a>
-      <a href="/campionats-socials" class="bg-white rounded-lg p-4 text-center hover:shadow-md transition-shadow">
-        <div class="text-2xl mb-2">👥</div>
-        <div class="text-sm font-medium text-gray-700">Campionats Socials</div>
-      </a>
-      <a href="/admin" class="bg-white rounded-lg p-4 text-center hover:shadow-md transition-shadow">
-        <div class="text-2xl mb-2">⚙️</div>
-        <div class="text-sm font-medium text-gray-700">Administració</div>
-      </a>
-      <a href="/help" class="bg-white rounded-lg p-4 text-center hover:shadow-md transition-shadow">
-        <div class="text-2xl mb-2">❓</div>
-        <div class="text-sm font-medium text-gray-700">Ajuda</div>
+      <a href="/campionats-socials" class="bg-white rounded-lg p-3 sm:p-4 text-center hover:shadow-md transition-shadow">
+        <div class="text-xl sm:text-2xl mb-2">👥</div>
+        <div class="text-sm sm:text-base font-medium text-gray-700">Campionats Socials</div>
       </a>
     </div>
   </div>

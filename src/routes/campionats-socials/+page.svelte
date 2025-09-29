@@ -608,23 +608,23 @@
   <title>Campionats Socials - Campionat 3 Bandes</title>
 </svelte:head>
 
-<div class="space-y-6">
+<div class="px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-6">
   <!-- Header -->
-  <div class="md:flex md:items-center md:justify-between">
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
     <div class="flex-1 min-w-0">
-      <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+      <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold leading-7 text-gray-900">
         Campionats Socials
       </h2>
       <p class="mt-1 text-sm text-gray-500">
         Competicions socials per modalitats: Lliure, Banda i 3 Bandes
       </p>
     </div>
-    <div class="flex items-center space-x-4">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:space-x-4">
       <!-- Navegació ràpida -->
-      <div class="flex bg-gray-100 rounded-lg p-1">
+      <div class="flex bg-gray-100 rounded-lg p-1 w-full sm:w-auto">
         <button
           on:click={() => activeView = 'active'}
-          class="px-3 py-1 rounded-md text-sm font-medium transition-colors"
+          class="flex-1 sm:flex-none px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors"
           class:bg-white={activeView === 'active'}
           class:text-gray-900={activeView === 'active'}
           class:shadow-sm={activeView === 'active'}
@@ -635,7 +635,7 @@
         </button>
         <button
           on:click={() => activeView = 'history'}
-          class="px-3 py-1 rounded-md text-sm font-medium transition-colors"
+          class="flex-1 sm:flex-none px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors"
           class:bg-white={activeView === 'history'}
           class:text-gray-900={activeView === 'history'}
           class:shadow-sm={activeView === 'history'}
@@ -647,7 +647,7 @@
         {#if isUserAdmin}
           <button
             on:click={() => activeView = 'preparation'}
-            class="px-3 py-1 rounded-md text-sm font-medium transition-colors"
+            class="flex-1 sm:flex-none px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors"
             class:bg-white={activeView === 'preparation'}
             class:text-gray-900={activeView === 'preparation'}
             class:shadow-sm={activeView === 'preparation'}
@@ -1510,7 +1510,7 @@
         <!-- Filtres -->
         <div class="mb-6 bg-gray-50 rounded-lg p-4">
           <h4 class="text-sm font-medium text-gray-900 mb-3">Filtres</h4>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <!-- Filtre de Modalitat -->
             <div>
               <label for="history-modalitat" class="block text-xs font-medium text-gray-700 mb-1">Modalitat</label>
@@ -1574,7 +1574,7 @@
                       Finalitzat
                     </span>
                     <a
-                      href="/campionats-socials/{event.id}/classificacio"
+                      href="/campionats-socials/{event.id}/classificacio?from=history"
                       class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
                     >
                       📊 Classificació

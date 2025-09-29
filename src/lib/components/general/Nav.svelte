@@ -165,14 +165,14 @@
       </div>
 
       <!-- Seccions principals centrades (Desktop) -->
-      <div class="hidden sm:flex sm:items-center sm:justify-center flex-1 h-16">
-        <div class="flex items-center space-x-8">
+      <div class="hidden lg:flex lg:items-center lg:justify-center flex-1 h-16">
+        <div class="flex items-center space-x-4 xl:space-x-8">
           {#each Object.entries(navegacio) as [key, section]}
             {#if !section.adminOnly || $isAdmin}
               <div class="relative" data-dropdown>
                 <button
                   on:click={() => toggleDropdown(key)}
-                  class="inline-flex items-center px-3 py-2 border-b-2 text-sm font-medium {
+                  class="inline-flex items-center px-2 xl:px-3 py-2 border-b-2 text-sm font-medium {
                     selectedSection === key
                       ? 'border-' + section.color + '-500 text-' + section.color + '-600'
                       : 'border-transparent text-gray-900 hover:text-gray-700 hover:border-gray-300'
@@ -231,7 +231,7 @@
       </div>
 
       <!-- Menú d'usuari (Dreta) -->
-      <div class="hidden sm:ml-6 sm:flex sm:items-center">
+      <div class="hidden lg:ml-6 lg:flex lg:items-center">
         {#if $user}
           <span class="text-sm text-gray-700 mr-4">{$user.email}</span>
           <button
@@ -251,7 +251,7 @@
       </div>
 
       <!-- Menú mòbil button -->
-      <div class="flex items-center sm:hidden">
+      <div class="flex items-center lg:hidden">
         <button
           on:click={() => mobileMenuOpen = !mobileMenuOpen}
           class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
@@ -267,7 +267,7 @@
 
     <!-- Menú mòbil -->
     {#if mobileMenuOpen}
-      <div class="sm:hidden">
+      <div class="lg:hidden">
         <div class="pt-2 pb-3 space-y-1">
           {#each Object.entries(navegacio) as [, section]}
             {#if !section.adminOnly || $isAdmin}
