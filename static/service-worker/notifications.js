@@ -4,7 +4,7 @@
 // Configuració per defecte de les notificacions
 const DEFAULT_NOTIFICATION_OPTIONS = {
   badge: '/icons/badge-96.png',
-  icon: '/icons/icon-192.png',
+  icon: '/icons/icon-192.svg',
   tag: 'campionat-notification',
   requireInteraction: false,
   silent: false,
