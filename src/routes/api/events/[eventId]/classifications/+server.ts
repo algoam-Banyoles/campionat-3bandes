@@ -1,19 +1,8 @@
 import { json } from '@sveltejs/kit';
-import { createClient } from '@supabase/supabase-js';
+import { serverSupabase } from '$lib/server/supabaseAdmin';
 import type { RequestHandler } from './$types';
 
-const supabaseAdmin = createClient(
-  import.meta.env.PUBLIC_SUPABASE_URL, 
-  import.meta.env.SUPABASE_SERVICE_ROLE_KEY, 
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
-
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, request }) => {
   const { eventId } = params;
 
   if (!eventId) {
@@ -22,6 +11,9 @@ export const GET: RequestHandler = async ({ params }) => {
 
   try {
     console.log('🔍 API: Loading classifications for event:', eventId);
+
+    // Use service role for admin operations
+    const supabaseAdmin = serverSupabase(request, true);
 
     // First get the event to verify it exists and is a social league
     const { data: event, error: eventError } = await supabaseAdmin

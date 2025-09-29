@@ -42,25 +42,12 @@
     }
   }
 
-  function formatPlayerName(playerData: any) {
-    if (!playerData) return 'Jugador desconegut';
-
-    if (typeof playerData === 'string') {
-      try {
-        const parsed = JSON.parse(playerData);
-        return `${parsed.nom} ${parsed.cognoms}`;
-      } catch {
-        return playerData;
-      }
-    }
-
-    // Nova estructura amb joins
-    if (playerData.socis?.nom && playerData.socis?.cognoms) {
-      return `${playerData.socis.nom} ${playerData.socis.cognoms}`;
-    }
-
-    // Fallback a estructura anterior
-    return `${playerData.nom || 'N/A'} ${playerData.cognoms || ''}`;
+  function formatPlayerName(nom: string, cognoms: string, numeroSoci?: number) {
+    if (!nom && !cognoms) return 'Jugador desconegut';
+    
+    // Format: "Nom Cognoms" or just use what we have
+    const fullName = `${nom || ''} ${cognoms || ''}`.trim();
+    return fullName || 'Jugador desconegut';
   }
 
   function getMatchStatus(match: any) {
@@ -271,12 +258,12 @@
                   <div class="space-y-1">
                     <div class="flex items-center {winner === 1 ? 'font-semibold text-green-600' : 'text-gray-900'}">
                       <span class="mr-2">{winner === 1 ? '🏆' : ''}</span>
-                      {formatPlayerName(match.jugador1)}
+                      {formatPlayerName(match.jugador1_nom, match.jugador1_cognoms, match.jugador1_numero_soci)}
                     </div>
                     <div class="text-gray-400 text-xs">vs</div>
                     <div class="flex items-center {winner === 2 ? 'font-semibold text-green-600' : 'text-gray-900'}">
                       <span class="mr-2">{winner === 2 ? '🏆' : ''}</span>
-                      {formatPlayerName(match.jugador2)}
+                      {formatPlayerName(match.jugador2_nom, match.jugador2_cognoms, match.jugador2_numero_soci)}
                     </div>
                   </div>
                 </td>
