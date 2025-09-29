@@ -193,6 +193,8 @@
           {#each availableSocis as soci (soci.numero_soci)}
             <div
               draggable="true"
+              role="button"
+              tabindex="0"
               on:dragstart={(e) => handleDragStart(e, soci, 'available')}
               on:dragend={handleDragEnd}
               class="bg-white border border-gray-200 rounded-lg p-3 mb-2 cursor-move hover:shadow-md transition-shadow"
@@ -232,6 +234,8 @@
       <div
         class="bg-yellow-50 border-2 border-dashed border-yellow-300 rounded-lg p-4 min-h-96 max-h-96 overflow-y-auto"
         class:border-yellow-500={dragOverZone === 'unassigned'}
+        role="region"
+        aria-label="Zona d'inscripcions no assignades"
         class:bg-yellow-100={dragOverZone === 'unassigned'}
         on:dragover={handleDragOver}
         on:dragenter={(e) => handleDragEnter(e, 'unassigned')}

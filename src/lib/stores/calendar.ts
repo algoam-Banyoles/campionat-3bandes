@@ -1,6 +1,7 @@
 // src/lib/stores/calendar.ts
 import { writable, derived, get } from 'svelte/store';
 import { supabase } from '$lib/supabaseClient';
+import { user } from '$lib/stores/auth';
 
 export type CalendarView = 'month' | 'week';
 
@@ -296,6 +297,12 @@ export async function loadPartidesCalendari(): Promise<void> {
     calendarLoading.set(true);
     calendarError.set(null);
 
+    // Check if user is authenticated
+    const currentUser = get(user);
+    const isAuthenticated = !!currentUser;
+    
+    console.log('👤 Loading calendar data - User authenticated:', isAuthenticated);
+
     // Get published events first
     const { data: publishedEvents, error: eventsError } = await supabase
       .from('events')
@@ -353,13 +360,33 @@ export async function loadPartidesCalendari(): Promise<void> {
 
     if (error) {
       console.error('❌ Supabase query error:', error);
+      
+      // Check if error is related to RLS permissions
+      if (error.code === '42501' || error.message.includes('insufficient_privilege') || error.message.includes('permission denied')) {
+        console.warn('⚠️ No access to calendar matches (user not authenticated). This is expected for public users.');
+        console.log('💡 Calendar will show only events, not specific matches until user logs in.');
+        
+        // Set a user-friendly error message for non-authenticated users
+        if (!isAuthenticated) {
+          calendarError.set('Per veure les partides programades, cal iniciar sessió.');
+        }
+        
+        partidesCalendari.set([]);
+        return;
+      }
+      
       throw new Error(`Error getting partides: ${error.message} (Code: ${error.code})`);
     }
 
     console.log('🏆 Raw matches data received:', data?.length || 0);
 
     if (!data || data.length === 0) {
-      console.log('⚠️ No validated matches found for published events');
+      if (!isAuthenticated) {
+        console.log('ℹ️ No matches visible to anonymous users due to RLS policies');
+        calendarError.set('No hi ha partides públiques disponibles. Inicia sessió per veure el calendari complet.');
+      } else {
+        console.log('⚠️ No validated matches found for published events');
+      }
       partidesCalendari.set([]);
       return;
     }

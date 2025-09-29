@@ -19,6 +19,9 @@ const fs = require('fs');
 
 class CloudDatabaseConnector {
     constructor() {
+        // Load environment variables from .env.cloud
+        require('dotenv').config({ path: '.env.cloud' });
+        
         this.supabaseUrl = process.env.PUBLIC_SUPABASE_URL;
         this.supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         
