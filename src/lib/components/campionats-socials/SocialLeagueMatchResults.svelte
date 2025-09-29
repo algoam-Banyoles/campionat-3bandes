@@ -51,9 +51,19 @@
   }
 
   function getMatchStatus(match: any) {
-    if (match.estat === 'completada') return 'completed';
+    // Una partida està completada si té resultats registrats
+    if (match.caramboles_reptador !== null && match.caramboles_reptat !== null && match.match_id !== null) {
+      return 'completed';
+    }
     if (match.data_programada && new Date(match.data_programada) < new Date()) return 'pending';
     return 'scheduled';
+  }
+
+  // Funció per verificar si una partida està completada
+  function isMatchCompleted(match: any) {
+    return match.caramboles_reptador !== null && 
+           match.caramboles_reptat !== null && 
+           match.match_id !== null;
   }
 
   function getStatusColor(status: string) {
@@ -100,7 +110,13 @@
   }
 
   // Filter matches based on selected category and status
+  // For public users, only show completed matches
   $: filteredMatches = matches.filter(match => {
+    // Only show completed matches (with results)
+    if (!isMatchCompleted(match)) {
+      return false;
+    }
+
     if (selectedCategory !== 'all' && match.categoria_id !== selectedCategory) {
       return false;
     }
@@ -196,10 +212,10 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
       </svg>
       <h3 class="mt-2 text-sm font-medium text-gray-900">
-        {selectedCategory !== 'all' || selectedStatus !== 'all' ? 'No hi ha partides amb aquests filtres' : 'No hi ha partides'}
+        {selectedCategory !== 'all' || selectedStatus !== 'all' ? 'No hi ha partides amb aquests filtres' : 'No hi ha resultats de partides'}
       </h3>
       <p class="mt-1 text-sm text-gray-500">
-        {selectedCategory !== 'all' || selectedStatus !== 'all' ? 'Prova a canviar els filtres de categoria o estat.' : 'Les partides apareixeran aquí quan siguin programades.'}
+        {selectedCategory !== 'all' || selectedStatus !== 'all' ? 'Prova a canviar els filtres de categoria o estat.' : 'Només es mostren partides que ja s\'han jugat i tenen resultats.'}
       </p>
     </div>
   {:else}
