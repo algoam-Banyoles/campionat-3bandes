@@ -34,19 +34,19 @@
       fullEventData = await getSocialLeagueEventById(event.id);
     } catch (e) {
       console.error('Error loading full event data:', e);
-      error = 'Error carregant les dades de la lliga';
+      error = 'Error carregant les dades del campionat';
     } finally {
       loading = false;
     }
   }
 
-  function handleTabChange(newTab: string) {
+  function handleTabChange(newTab: 'players' | 'calendar' | 'results' | 'classifications') {
     activeTab = newTab;
   }
 </script>
 
 <div class="space-y-6">
-  <!-- Header de la lliga -->
+  <!-- Header del campionat -->
   <div class="bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg p-6">
     <div class="flex items-center justify-between">
       <div>

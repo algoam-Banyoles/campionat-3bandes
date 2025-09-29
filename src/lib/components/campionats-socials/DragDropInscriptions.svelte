@@ -254,6 +254,8 @@
             {@const sociInfo = getSociInfo(inscription)}
             <div
               draggable="true"
+              role="button"
+              tabindex="0"
               on:dragstart={(e) => handleDragStart(e, inscription, 'inscribed')}
               on:dragend={handleDragEnd}
               class="bg-white border border-gray-200 rounded-lg p-3 mb-2 cursor-move hover:shadow-md transition-shadow"
@@ -305,6 +307,8 @@
 
             <div
               class="p-3 min-h-32"
+              role="region"
+              aria-label="Zona de categoria {category.title}"
               class:border-blue-500={dragOverZone === category.id}
               class:bg-blue-50={dragOverZone === category.id}
               on:dragover={handleDragOver}
@@ -321,6 +325,8 @@
                   {@const sociInfo = getSociInfo(inscription)}
                   <div
                     draggable="true"
+                    role="button"
+                    tabindex="0"
                     on:dragstart={(e) => handleDragStart(e, inscription, 'inscribed')}
                     on:dragend={handleDragEnd}
                     class="bg-gray-50 border border-gray-200 rounded p-2 mb-2 cursor-move hover:shadow-sm transition-shadow"
@@ -378,8 +384,4 @@
 
 <style>
   /* Millor visual feedback per drag & drop */
-  .dragging {
-    opacity: 0.5;
-    transform: rotate(5deg);
-  }
 </style>

@@ -19,7 +19,7 @@
   };
 
   const competitionTypes = {
-    'lliga_social': 'Lliga Social',
+    'lliga_social': 'Campionat Social',
     'handicap': 'Hàndicap',
     'eliminatories': 'Eliminatòries'
   };

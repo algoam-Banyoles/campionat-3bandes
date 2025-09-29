@@ -1,4 +1,4 @@
--- Crear taula per emmagatzemar el calendari de partides de lligues socials
+-- Crear taula per emmagatzemar el calendari de partides de campionats socials
 CREATE TABLE calendari_partides (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,

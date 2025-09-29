@@ -1,4 +1,4 @@
--- Migració 007: Extensions per Lligues Socials
+-- Migració 007: Extensions per Campionats Socials
 -- Basat en l'esquema real de producció utilitzant socis (després de consolidació)
 
 BEGIN;
@@ -22,7 +22,7 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS estat_competicio text DEFAULT 'plani
 ALTER TABLE events ADD COLUMN IF NOT EXISTS max_participants integer;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS quota_inscripcio decimal(5,2);
 
--- 2. Categories per lligues (múltiples categories per event)
+-- 2. Categories per campionats (múltiples categories per event)
 CREATE TABLE IF NOT EXISTS categories (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS calendari_partides (
         UNIQUE (event_id, categoria_id, jugador1_id, jugador2_id)
 );
 
--- 6. Ampliar matches per lligues socials
+-- 6. Ampliar matches per campionats socials
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS jornada integer;
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS categoria_id uuid REFERENCES categories(id);
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS tipus_partida text DEFAULT 'challenge'
@@ -164,7 +164,7 @@ CREATE POLICY "Usuaris autenticats poden veure classificacions"
     ON classificacions FOR SELECT TO authenticated USING (true);
 
 -- Políticas d'inserció només per admins (de moment)
-CREATE POLICY "Només admins poden gestionar lligues socials"
+CREATE POLICY "Només admins poden gestionar campionats socials"
     ON categories FOR ALL TO authenticated
     USING (EXISTS (SELECT 1 FROM admins WHERE email = auth.jwt() ->> 'email'));
 

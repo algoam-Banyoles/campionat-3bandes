@@ -83,7 +83,12 @@
   <!-- Modal backdrop -->
   <div
     class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+    role="dialog"
+    tabindex="-1"
+    aria-modal="true"
+    aria-label="Modal de restriccions del jugador"
     on:click={closeModal}
+    on:keydown={handleKeydown}
   >
     <!-- Modal content -->
     <div
@@ -120,13 +125,14 @@
   <form on:submit|preventDefault={saveRestrictions}>
     <!-- Dies que SÍ pots jugar -->
     <div class="mb-6">
-      <label class="block text-sm font-medium text-gray-700 mb-3">
-        Dies que SÍ pots jugar
-      </label>
-      <p class="text-sm text-gray-500 mb-3">Selecciona els dies que pots i vols jugar. Si no selecciones cap dia, podràs jugar qualsevol dia.</p>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {#each CLUB_DAYS as day}
-          <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+      <fieldset>
+        <legend class="block text-sm font-medium text-gray-700 mb-3">
+          Dies que SÍ pots jugar
+        </legend>
+        <p class="text-sm text-gray-500 mb-3">Selecciona els dies que pots i vols jugar. Si no selecciones cap dia, podràs jugar qualsevol dia.</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {#each CLUB_DAYS as day}
+            <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
             <input
               type="checkbox"
               bind:group={preferencies_dies}
@@ -136,21 +142,23 @@
             <span class="text-sm font-medium text-gray-900">{day.name}</span>
           </label>
         {/each}
-      </div>
-      <p class="mt-2 text-xs text-gray-600">
-        ✅ Marca els dies que pots jugar. Si no marques res, tots els dies estan bé.
-      </p>
+        </div>
+        <p class="mt-2 text-xs text-gray-600">
+          ✅ Marca els dies que pots jugar. Si no marques res, tots els dies estan bé.
+        </p>
+      </fieldset>
     </div>
 
     <!-- Hores que SÍ pots jugar -->
     <div class="mb-6">
-      <label class="block text-sm font-medium text-gray-700 mb-3">
-        Hores que SÍ pots jugar
-      </label>
-      <p class="text-sm text-gray-500 mb-3">Selecciona les hores que pots i vols jugar. Si no selecciones cap hora, podràs jugar a qualsevol hora disponible.</p>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {#each CLUB_HOURS as hora}
-          <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+      <fieldset>
+        <legend class="block text-sm font-medium text-gray-700 mb-3">
+          Hores que SÍ pots jugar
+        </legend>
+        <p class="text-sm text-gray-500 mb-3">Selecciona les hores que pots i vols jugar. Si no selecciones cap hora, podràs jugar a qualsevol hora disponible.</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {#each CLUB_HOURS as hora}
+            <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
             <input
               type="checkbox"
               bind:group={preferencies_hores}
@@ -160,18 +168,20 @@
             <span class="text-sm font-medium text-gray-900">{hora}</span>
           </label>
         {/each}
-      </div>
-      <p class="mt-2 text-xs text-gray-600">
-        ✅ Marca les hores que pots jugar. Si no marques res, totes les hores estan bé.
-      </p>
+        </div>
+        <p class="mt-2 text-xs text-gray-600">
+          ✅ Marca les hores que pots jugar. Si no marques res, totes les hores estan bé.
+        </p>
+      </fieldset>
     </div>
 
     <!-- Restriccions especials -->
     <div class="mb-6">
-      <label class="block text-sm font-medium text-gray-700 mb-2">
+      <label for="observacions-especials" class="block text-sm font-medium text-gray-700 mb-2">
         Observacions o períodes especials
       </label>
       <textarea
+        id="observacions-especials"
         bind:value={restriccions_especials}
         rows="4"
         placeholder="Exemple: Del 20 al 27 de desembre no puc jugar per vacances. O prefereixo no jugar els dilluns al matí..."

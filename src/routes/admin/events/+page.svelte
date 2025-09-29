@@ -22,7 +22,7 @@
 
   const competitionTypes = {
     'ranking_continu': 'Rànquing Continu',
-    'lliga_social': 'Lliga Social',
+    'lliga_social': 'Campionat Social',
     'handicap': 'Hàndicap',
     'eliminatories': 'Eliminatòries'
   };

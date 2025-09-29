@@ -28,13 +28,13 @@
 
   const competitionTypes = {
     'ranking_continu': 'Rànquing Continu',
-    'lliga_social': 'Lliga Social',
+    'lliga_social': 'Campionat Social',
     'handicap': 'Hàndicap',
     'eliminatories': 'Eliminatòries'
   };
 
   const formatTypes = {
-    'lliga': 'Lliga',
+    'lliga': 'Campionat',
     'eliminatoria_simple': 'Eliminatòria Simple',
     'eliminatoria_doble': 'Eliminatòria Doble'
   };
@@ -107,7 +107,7 @@
     console.log('🔍 loadInscriptions cridat per event:', event?.nom, event?.tipus_competicio);
 
     if (!event || event.tipus_competicio !== 'lliga_social') {
-      console.log('⚠️ Skip loadInscriptions: no és lliga social');
+      console.log('⚠️ Skip loadInscriptions: no és campionat social');
       return;
     }
 
@@ -237,7 +237,7 @@
       successMessage = 'Event actualitzat correctament';
       setTimeout(() => successMessage = null, 3000);
 
-      // Recarregar inscripcions si és lliga social
+      // Recarregar inscripcions si és campionat social
       if (event.tipus_competicio === 'lliga_social') {
         await loadInscriptions();
       }
@@ -716,7 +716,7 @@
         </div>
       </div>
 
-      <!-- Generador de Calendaris (només per lligues socials) -->
+      <!-- Generador de Calendaris (només per campionats socials) -->
       {#if event.tipus_competicio === 'lliga_social' && categories.length > 0 && inscriptions.length > 0}
         <CalendarGenerator
           {eventId}

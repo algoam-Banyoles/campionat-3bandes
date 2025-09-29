@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { serverSupabase } from '$lib/server/supabaseAdmin';
+import { createClient } from '@supabase/supabase-js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, request }) => {
@@ -12,8 +12,12 @@ export const GET: RequestHandler = async ({ params, request }) => {
   try {
     console.log('🔍 API: Loading classifications for event:', eventId);
 
-    // Use service role for admin operations
-    const supabaseAdmin = serverSupabase(request, true);
+    // Debug environment variables
+    console.log('🔧 Debug: SUPABASE_SERVICE_ROLE_KEY present:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+    console.log('🔧 Debug: PUBLIC_SUPABASE_URL:', process.env.PUBLIC_SUPABASE_URL);
+
+    // Use service role for admin operations - don't pass request to avoid auth header conflicts
+    const supabaseAdmin = serverSupabase(undefined, true);
 
     // First get the event to verify it exists and is a social league
     const { data: event, error: eventError } = await supabaseAdmin
@@ -41,7 +45,7 @@ export const GET: RequestHandler = async ({ params, request }) => {
     }
 
     if (!['lliga_social', 'eliminatories'].includes(event.tipus_competicio)) {
-      return json({ error: 'Aquest event no és una lliga social o eliminatòria' }, { status: 400 });
+      return json({ error: 'Aquest event no és un campionat social o eliminatòria' }, { status: 400 });
     }
 
     // Get classifications with proper joins using service role

@@ -522,25 +522,25 @@
     </div>
   </div>
 
-  <!-- SECCIÓ: LLIGUES SOCIALS I COMPETICIONS -->
+  <!-- SECCIÓ: CAMPIONATS SOCIALS I COMPETICIONS -->
   <div class="mb-8">
     <h2 class="text-xl font-bold text-gray-900 mb-1 flex items-center">
-      <span class="mr-2">🏟️</span> Lligues Socials i Competicions
+      <span class="mr-2">🏟️</span> Campionats Socials i Competicions
     </h2>
-    <p class="text-sm text-gray-600 mb-4">Gestió de competicions programades: lligues socials, hàndicap i eliminatòries</p>
+    <p class="text-sm text-gray-600 mb-4">Gestió de competicions programades: campionats socials, hàndicap i eliminatòries</p>
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <!-- Targeta: gestió events i competicions -->
       <a href="/admin/events" class="block rounded-2xl border p-4 hover:shadow-sm bg-indigo-50 border-indigo-200">
         <h2 class="font-semibold text-indigo-800">🏟️ Gestió d'Events</h2>
         <p class="text-sm text-indigo-700 mt-1">
-          Crea i gestiona tots els campionats i competicions: lligues socials, hàndicap i eliminatòries.
+          Crea i gestiona tots els campionats i competicions: campionats socials, hàndicap i eliminatòries.
         </p>
       </a>
 
       <!-- Targeta: inscripcions socials -->
       <a href="/admin/inscripcions-socials" class="block rounded-2xl border p-4 hover:shadow-sm bg-teal-50 border-teal-200">
-        <h2 class="font-semibold text-teal-800">📋 Inscripcions - Lligues Socials</h2>
+        <h2 class="font-semibold text-teal-800">📋 Inscripcions - Campionats Socials</h2>
         <p class="text-sm text-teal-700 mt-1">
           Gestiona les inscripcions dels campionats socials i eliminatòries amb categories dinàmiques.
         </p>
@@ -556,7 +556,7 @@
 
       <!-- Targeta: resultats campionats socials -->
       <a href="/admin/resultats-socials" class="block rounded-2xl border p-4 hover:shadow-sm bg-emerald-50 border-emerald-200">
-        <h2 class="font-semibold text-emerald-800">📊 Resultats - Lligues Socials</h2>
+        <h2 class="font-semibold text-emerald-800">📊 Resultats - Campionats Socials</h2>
         <p class="text-sm text-emerald-700 mt-1">
           Pujar i gestionar resultats de partides dels campionats socials en curs amb validació automàtica de classificacions.
         </p>

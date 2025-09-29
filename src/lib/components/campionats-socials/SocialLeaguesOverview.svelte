@@ -23,7 +23,7 @@
       stats = statsData;
       eventsBySeason = eventsData;
     } catch (e) {
-      error = 'Error carregant les dades de les lligues socials';
+      error = 'Error carregant les dades dels campionats socials';
       console.error(e);
     } finally {
       loading = false;
@@ -48,7 +48,7 @@
       <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
         <h3 class="text-lg font-semibold text-blue-900 mb-2">Events Històrics</h3>
         <p class="text-3xl font-bold text-blue-600">{stats.total_events}</p>
-        <p class="text-sm text-blue-700 mt-1">Lligues socials registrades</p>
+        <p class="text-sm text-blue-700 mt-1">Campionats socials registrats</p>
       </div>
 
       <div class="bg-green-50 border border-green-200 rounded-lg p-6">
@@ -67,7 +67,7 @@
     <!-- Events per Temporada -->
     <div class="bg-white border border-gray-200 rounded-lg">
       <div class="px-6 py-4 border-b border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-900">Lligues per Temporada</h3>
+        <h3 class="text-lg font-semibold text-gray-900">Campionats per Temporada</h3>
       </div>
       <div class="p-6">
         <div class="space-y-6">
@@ -134,13 +134,14 @@
       <div class="p-6">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           {#each Object.entries(stats.events_per_modality) as [modalitat, count]}
+            {@const percentage = (Number(count) / Number(stats.total_events)) * 100}
             <div class="text-center">
               <div class="text-2xl font-bold text-gray-900">{count}</div>
               <div class="text-sm text-gray-600">{modalityNames[modalitat]}</div>
               <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
                 <div
                   class="bg-blue-600 h-2 rounded-full"
-                  style="width: {(count / stats.total_events) * 100}%"
+                  style="width: {percentage}%"
                 ></div>
               </div>
             </div>

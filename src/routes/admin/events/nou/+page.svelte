@@ -38,13 +38,13 @@
   };
 
   const competitionTypes = {
-    'lliga_social': 'Lliga Social',
+    'lliga_social': 'Campionat Social',
     'handicap': 'Hàndicap',
     'eliminatories': 'Eliminatòries'
   };
 
   const formatTypes = {
-    'lliga': 'Lliga',
+    'lliga': 'Campionat',
     'eliminatoria_simple': 'Eliminatòria Simple',
     'eliminatoria_doble': 'Eliminatòria Doble'
   };

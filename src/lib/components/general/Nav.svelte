@@ -39,7 +39,7 @@
       icon: '🏆',
       color: 'green',
       links: [
-        { href: '/campionats-socials?view=active', label: 'Lligues en Curs' },
+        { href: '/campionats-socials?view=active', label: 'Campionats en Curs' },
         { href: '/campionats-socials?view=history', label: 'Historial' },
         { href: '/campionats-socials?view=players', label: 'Cerca Jugadors' }
       ],

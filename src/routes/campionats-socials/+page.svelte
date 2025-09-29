@@ -23,6 +23,11 @@
   let loading = false;
   let activeView: 'preparation' | 'active' | 'history' | 'players' | 'inscriptions' = 'active';
 
+  // Filtres per historial
+  let historyModalityFilter = '';
+  let historySeasonFilter = '';
+  let displayLimit = 10;
+
   // Detectar paràmetre URL per canviar vista automàticament
   $: if ($page.url.searchParams.has('view')) {
     const viewParam = $page.url.searchParams.get('view');
@@ -98,7 +103,7 @@
     e.estat_competicio === 'preparacio'
   ));
 
-  // Redefinir filtres segons els nous estats de lliga
+  // Redefinir filtres segons els nous estats de campionat
   $: preparationEvents = events.filter(e => e.actiu && (
     e.estat_competicio === 'preparacio' ||
     e.estat_competicio === 'planificacio' ||
@@ -129,7 +134,14 @@
     e.estat_competicio === 'completed'
   ));
 
-  // Auto-seleccionar la lliga si només n'hi ha una activa
+  // Filtrar esdeveniments històrics segons els filtres aplicats
+  $: filteredHistoricalEvents = historicalEvents.filter(event => {
+    const matchesModality = !historyModalityFilter || event.modalitat === historyModalityFilter;
+    const matchesSeason = !historySeasonFilter || event.temporada === historySeasonFilter;
+    return matchesModality && matchesSeason;
+  });
+
+  // Auto-seleccionar el campionat si només n'hi ha un actiu
   $: if (activeView === 'active' && activeEvents.length === 1 && !selectedEventId) {
     selectedEventId = activeEvents[0].id;
   }
@@ -531,7 +543,7 @@
       console.log('Active events:', activeEvents.length, activeEvents.map(e => e.nom));
       console.log('Historical events:', historicalEvents.length);
 
-      // Auto-seleccionar: lligues actives per defecte, preparació només per admins
+      // Auto-seleccionar: campionats actius per defecte, preparació només per admins
       const preparationEvent = preparationEvents[0];
       const activeEvent = activeEvents[0];
 
@@ -576,7 +588,7 @@
           activeView = 'preparation';
         }
       } else {
-        // Si no hi ha lligues actives ni en preparació, només va a historial si no hi ha paràmetre URL
+        // Si no hi ha campionats actius ni en preparació, només va a historial si no hi ha paràmetre URL
         if (!hasViewParam) {
           activeView = 'history';
         }
@@ -608,6 +620,46 @@
       </p>
     </div>
     <div class="flex items-center space-x-4">
+      <!-- Navegació ràpida -->
+      <div class="flex bg-gray-100 rounded-lg p-1">
+        <button
+          on:click={() => activeView = 'active'}
+          class="px-3 py-1 rounded-md text-sm font-medium transition-colors"
+          class:bg-white={activeView === 'active'}
+          class:text-gray-900={activeView === 'active'}
+          class:shadow-sm={activeView === 'active'}
+          class:text-gray-500={activeView !== 'active'}
+          class:hover:text-gray-700={activeView !== 'active'}
+        >
+          🏃 Actius
+        </button>
+        <button
+          on:click={() => activeView = 'history'}
+          class="px-3 py-1 rounded-md text-sm font-medium transition-colors"
+          class:bg-white={activeView === 'history'}
+          class:text-gray-900={activeView === 'history'}
+          class:shadow-sm={activeView === 'history'}
+          class:text-gray-500={activeView !== 'history'}
+          class:hover:text-gray-700={activeView !== 'history'}
+        >
+          📚 Historial
+        </button>
+        {#if isUserAdmin}
+          <button
+            on:click={() => activeView = 'preparation'}
+            class="px-3 py-1 rounded-md text-sm font-medium transition-colors"
+            class:bg-white={activeView === 'preparation'}
+            class:text-gray-900={activeView === 'preparation'}
+            class:shadow-sm={activeView === 'preparation'}
+            class:text-gray-500={activeView !== 'preparation'}
+            class:hover:text-gray-700={activeView !== 'preparation'}
+          >
+            🔧 Preparació
+          </button>
+        {/if}
+      </div>
+
+      <!-- Informació d'usuari -->
       {#if isUserAdmin}
         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
           👑 Administrator
@@ -666,19 +718,19 @@
 
   <!-- Contingut per Seccions -->
   {#if activeView === 'preparation' && isUserAdmin}
-    <!-- Lligues en Preparació - Només admins -->
+    <!-- Campionats en Preparació - Només admins -->
     {#if loading}
       <div class="text-center py-8">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p class="mt-2 text-gray-600">Carregant lligues...</p>
+        <p class="mt-2 text-gray-600">Carregant campionats...</p>
       </div>
     {:else if preparationEvents.length > 0}
       <div class="space-y-6">
-        <!-- Lligues en Preparació - Vista pública -->
+        <!-- Campionats en Preparació - Vista pública -->
         <div class="bg-white shadow rounded-lg">
           <div class="px-4 py-5 sm:p-6">
             <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
-              🔧 Lligues en Preparació ({preparationEvents.length})
+              🔧 Campionats en Preparació ({preparationEvents.length})
             </h3>
             
 
@@ -729,7 +781,7 @@
           </div>
         </div>
 
-        <!-- Gestió d'Inscripcions de la Lliga Seleccionada (només admins) -->
+        <!-- Gestió d'Inscripcions del Campionat Seleccionat (només admins) -->
         {#if isUserAdmin && selectedEventId && selectedEvent && preparationEvents.find(e => e.id === selectedEventId)}
           <div class="bg-white shadow rounded-lg">
             <div class="px-4 py-5 sm:p-6">
@@ -741,7 +793,7 @@
                   bind:value={selectedEventId}
                   class="px-3 py-2 border border-gray-300 rounded-md text-sm"
                 >
-                  <option value="">-- Tria una lliga --</option>
+                  <option value="">-- Tria un campionat --</option>
                   {#each preparationEvents as event}
                     <option value={event.id}>
                       {event.nom} - {event.temporada}
@@ -979,27 +1031,27 @@
         <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
         </svg>
-        <h3 class="mt-2 text-sm font-medium text-gray-900">No hi ha lligues en preparació</h3>
-        <p class="mt-1 text-sm text-gray-500">Actualment no hi ha cap lliga social en fase de preparació d'inscripcions.</p>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No hi ha campionats en preparació</h3>
+        <p class="mt-1 text-sm text-gray-500">Actualment no hi ha cap campionat social en fase de preparació d'inscripcions.</p>
       </div>
     {/if}
 
   {:else if activeView === 'active'}
-    <!-- Lligues en Curs -->
+    <!-- Campionats en Curs -->
     {#if loading}
       <div class="text-center py-8">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p class="mt-2 text-gray-600">Carregant lligues...</p>
+        <p class="mt-2 text-gray-600">Carregant campionats...</p>
       </div>
     {:else if activeEvents.length > 0}
       <div class="space-y-6">
 
-        <!-- Informació Completa de la Lliga Seleccionada - Visible per tots -->
+        <!-- Informació Completa del Campionat Seleccionat - Visible per tots -->
         {#if selectedEventId && selectedEvent && activeEvents.find(e => e.id === selectedEventId)}
           <div class="space-y-6">
 
             {#if isUserAdmin}
-              <!-- Vista Admin: Selector de lliga i navegació completa -->
+              <!-- Vista Admin: Selector de campionat i navegació completa -->
               <div class="bg-white shadow rounded-lg">
                 <div class="px-4 py-5 sm:p-6">
                   <div class="flex items-center justify-between mb-4">
@@ -1018,7 +1070,7 @@
                         bind:value={selectedEventId}
                         class="px-3 py-2 border border-gray-300 rounded-md text-sm"
                       >
-                        <option value="">-- Tria una lliga --</option>
+                        <option value="">-- Tria un campionat --</option>
                         {#each activeEvents as event}
                           <option value={event.id}>
                             {event.nom} - {event.temporada}
@@ -1028,7 +1080,7 @@
                     </div>
                   </div>
 
-                <!-- Navegació interna de la lliga -->
+                <!-- Navegació interna del campionat -->
                 <div class="border-b border-gray-200 mb-6">
                   <nav class="-mb-px flex space-x-8">
                     <button
@@ -1221,20 +1273,20 @@
               </div>
             </div>
             {:else}
-              <!-- Vista Pública: Auto-selecció de la lliga activa -->
+              <!-- Vista Pública: Auto-selecció del campionat actiu -->
               {#if activeEvents.length > 1}
-                <!-- Només mostrem selector si hi ha més d'una lliga (cas excepcional) -->
+                <!-- Només mostrem selector si hi ha més d'un campionat (cas excepcional) -->
                 <div class="bg-white shadow rounded-lg">
                   <div class="px-4 py-5 sm:p-6">
                     <div class="flex items-center justify-between mb-4">
                       <h3 class="text-lg leading-6 font-medium text-gray-900">
-                        Múltiples lligues actives - Selecciona una
+                        Múltiples campionats actius - Selecciona un
                       </h3>
                       <select
                         bind:value={selectedEventId}
                         class="px-3 py-2 border border-gray-300 rounded-md text-sm"
                       >
-                        <option value="">-- Tria una lliga --</option>
+                        <option value="">-- Tria un campionat --</option>
                         {#each activeEvents as event}
                           <option value={event.id}>
                             {event.nom} - {event.temporada}
@@ -1442,8 +1494,8 @@
         <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <h3 class="mt-2 text-sm font-medium text-gray-900">No hi ha lligues en curs</h3>
-        <p class="mt-1 text-sm text-gray-500">Actualment no hi ha cap lliga social en curs.</p>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No hi ha campionats en curs</h3>
+        <p class="mt-1 text-sm text-gray-500">Actualment no hi ha cap campionat social en curs.</p>
       </div>
     {/if}
 
@@ -1452,11 +1504,61 @@
     <div class="bg-white shadow rounded-lg">
       <div class="px-4 py-5 sm:p-6">
         <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
-          Historial de Lligues
+          Historial de Campionats
         </h3>
-        {#if historicalEvents.length > 0}
+
+        <!-- Filtres -->
+        <div class="mb-6 bg-gray-50 rounded-lg p-4">
+          <h4 class="text-sm font-medium text-gray-900 mb-3">Filtres</h4>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Filtre de Modalitat -->
+            <div>
+              <label for="history-modalitat" class="block text-xs font-medium text-gray-700 mb-1">Modalitat</label>
+              <select
+                id="history-modalitat"
+                bind:value={historyModalityFilter}
+                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Totes les modalitats</option>
+                <option value="tres_bandes">3 Bandes</option>
+                <option value="lliure">Lliure</option>
+                <option value="banda">Banda</option>
+              </select>
+            </div>
+
+            <!-- Filtre de Temporada -->
+            <div>
+              <label for="history-temporada" class="block text-xs font-medium text-gray-700 mb-1">Temporada</label>
+              <select
+                id="history-temporada"
+                bind:value={historySeasonFilter}
+                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Totes les temporades</option>
+                {#each [...new Set(historicalEvents.map(e => e.temporada))].sort().reverse() as temporada}
+                  <option value={temporada}>{temporada}</option>
+                {/each}
+              </select>
+            </div>
+
+            <!-- Botó per netejar filtres -->
+            <div class="flex items-end">
+              <button
+                on:click={() => {
+                  historyModalityFilter = '';
+                  historySeasonFilter = '';
+                }}
+                class="w-full px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+              >
+                Netejar filtres
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {#if filteredHistoricalEvents.length > 0}
           <div class="space-y-4">
-            {#each historicalEvents.slice(0, 10) as event}
+            {#each filteredHistoricalEvents.slice(0, displayLimit) as event}
               <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                 <div class="flex items-center justify-between">
                   <div class="flex-1">
@@ -1471,8 +1573,8 @@
                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                       Finalitzat
                     </span>
-                    <a 
-                      href="/campionats-socials/{event.id}/classificacio" 
+                    <a
+                      href="/campionats-socials/{event.id}/classificacio"
                       class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
                     >
                       📊 Classificació
@@ -1482,14 +1584,34 @@
               </div>
             {/each}
           </div>
-          {#if historicalEvents.length > 10}
-            <p class="mt-4 text-sm text-gray-500 text-center">
-              ... i {historicalEvents.length - 10} lligues més
-            </p>
-          {/if}
+
+          <!-- Controls de paginació -->
+          <div class="mt-6 flex items-center justify-between">
+            <div class="text-sm text-gray-500">
+              Mostrant {Math.min(displayLimit, filteredHistoricalEvents.length)} de {filteredHistoricalEvents.length} campionats
+            </div>
+            {#if filteredHistoricalEvents.length > displayLimit}
+              <button
+                on:click={() => displayLimit += 10}
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-600 bg-blue-100 hover:bg-blue-200 transition-colors"
+              >
+                Mostrar més campionats
+              </button>
+            {/if}
+          </div>
         {:else}
           <div class="text-center py-8">
-            <p class="text-gray-500">No hi ha lligues històriques disponibles.</p>
+            {#if historyModalityFilter || historySeasonFilter}
+              <div class="text-center">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No s'han trobat campionats</h3>
+                <p class="mt-1 text-sm text-gray-500">No hi ha cap campionat que compleixi els filtres aplicats.</p>
+              </div>
+            {:else}
+              <p class="text-gray-500">No hi ha campionats històrics disponibles.</p>
+            {/if}
           </div>
         {/if}
       </div>
@@ -1577,13 +1699,13 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
             <h3 class="mt-2 text-sm font-medium text-gray-900">No hi ha inscripcions obertes</h3>
-            <p class="mt-1 text-sm text-gray-500">Actualment no hi ha cap lliga social amb inscripcions obertes.</p>
+            <p class="mt-1 text-sm text-gray-500">Actualment no hi ha cap campionat social amb inscripcions obertes.</p>
             {#if isUserAdmin}
               <div class="mt-6">
                 <button
                   class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                 >
-                  ➕ Obrir Inscripcions per a una Lliga
+                  ➕ Obrir Inscripcions per a un Campionat
                 </button>
               </div>
             {/if}
@@ -1600,7 +1722,7 @@
           Cerca de Jugadors
         </h3>
         <p class="text-sm text-gray-500 mb-6">
-          Busca la trajectòria i estadístiques de qualsevol jugador de les lligues socials.
+          Busca la trajectòria i estadístiques de qualsevol jugador dels campionats socials.
         </p>
         <!-- Aquí aniria el component PlayerSearcher simplificat -->
         <div class="text-center py-8 text-gray-500">

@@ -1,4 +1,4 @@
-# Script per aplicar Migració 007: Lligues Socials
+# Script per aplicar Migració 007: Campionats Socials
 # Executa la migració i verifica l'estat de la base de dades
 
 param(
@@ -6,7 +6,7 @@ param(
     [switch]$TestOnly
 )
 
-Write-Host "=== MIGRACIÓ 007: LLIGUES SOCIALS ===" -ForegroundColor Green
+Write-Host "=== MIGRACIÓ 007: CAMPIONATS SOCIALS ===" -ForegroundColor Green
 Write-Host ""
 
 # 1. Verificar connexió BD
@@ -135,7 +135,7 @@ if ($allTablesExist) {
     Write-Host ""
     Write-Host "Pròxims passos:" -ForegroundColor Cyan
     Write-Host "1. Executar 'npm run dev' per provar la interfície" -ForegroundColor Gray
-    Write-Host "2. Accedir com algoam@gmail.com per veure 'Lligues Socials [DEV]'" -ForegroundColor Gray
+    Write-Host "2. Accedir com algoam@gmail.com per veure 'Campionats Socials [DEV]'" -ForegroundColor Gray
     Write-Host "3. Importar dades històriques Excel" -ForegroundColor Gray
 } else {
     Write-Host "❌ Problemes detectats en la migració" -ForegroundColor Red

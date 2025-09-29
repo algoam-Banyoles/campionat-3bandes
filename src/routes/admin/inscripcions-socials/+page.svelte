@@ -48,7 +48,7 @@
   };
 
   const competitionTypes = {
-    'lliga_social': 'Lliga Social',
+    'lliga_social': 'Campionat Social',
     'eliminatories': 'Eliminatòries'
   };
 
@@ -881,7 +881,7 @@
         ← Tornar a Admin
       </a>
     </div>
-    <h1 class="text-2xl font-semibold text-gray-900 mt-2">Inscripcions - Lligues Socials</h1>
+    <h1 class="text-2xl font-semibold text-gray-900 mt-2">Inscripcions - Campionats Socials</h1>
     <p class="text-gray-600 mt-1">Gestiona les inscripcions dels campionats socials i eliminatòries</p>
   </div>
 

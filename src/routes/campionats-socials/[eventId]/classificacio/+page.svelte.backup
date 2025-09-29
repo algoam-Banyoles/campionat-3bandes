@@ -21,7 +21,7 @@
   };
 
   const competitionTypes = {
-    'lliga_social': 'Lliga Social',
+    'lliga_social': 'Campionat Social',
     'eliminatories': 'Eliminatòries'
   };
 
@@ -60,7 +60,7 @@
 
     // Check if event is a social league
     if (!['lliga_social', 'eliminatories'].includes(event.tipus_competicio)) {
-      error = 'Aquest event no és una lliga social o eliminatòria';
+      error = 'Aquest event no és un campionat social o eliminatòria';
       return;
     }
   }

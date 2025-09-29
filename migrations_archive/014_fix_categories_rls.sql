@@ -4,7 +4,7 @@
 BEGIN;
 
 -- Eliminar política existent (si existeix)
-DROP POLICY IF EXISTS "Només admins poden gestionar lligues socials" ON categories;
+DROP POLICY IF EXISTS "Només admins poden gestionar campionats socials" ON categories;
 
 -- Crear polítiques més específiques
 CREATE POLICY "Admins poden crear categories"

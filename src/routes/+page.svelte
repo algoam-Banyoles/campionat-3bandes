@@ -209,7 +209,7 @@
       </a>
       <a href="/campionats-socials" class="bg-white rounded-lg p-4 text-center hover:shadow-md transition-shadow">
         <div class="text-2xl mb-2">👥</div>
-        <div class="text-sm font-medium text-gray-700">Lligues Socials</div>
+        <div class="text-sm font-medium text-gray-700">Campionats Socials</div>
       </a>
       <a href="/admin" class="bg-white rounded-lg p-4 text-center hover:shadow-md transition-shadow">
         <div class="text-2xl mb-2">⚙️</div>

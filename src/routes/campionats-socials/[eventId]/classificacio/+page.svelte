@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { formatSupabaseError } from '$lib/ui/alerts';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   let loading = true;
   let error: string | null = null;
@@ -17,7 +18,7 @@
   };
 
   const competitionTypes = {
-    'lliga_social': 'Lliga Social',
+    'lliga_social': 'Campionat Social',
     'eliminatories': 'Eliminatòries'
   };
 
@@ -140,7 +141,7 @@
 </script>
 
 <svelte:head>
-  <title>Classificació - {event?.nom || 'Lliga Social'}</title>
+  <title>Classificació - {event?.nom || 'Campionat Social'}</title>
 </svelte:head>
 
 <div class="max-w-6xl mx-auto p-4">
@@ -240,9 +241,9 @@
                     <td class="px-6 py-4 whitespace-nowrap">
                       <div class="text-sm font-medium text-gray-900">
                         {#if participant.isClassification}
-                          {participant.player?.nom || 'Nom no disponible'}
+                          {formatarNomJugador(participant.player?.nom || 'Nom no disponible')}
                         {:else if participant.socis}
-                          {participant.socis.nom} {participant.socis.cognoms}
+                          {formatarNomJugador(`${participant.socis.nom} ${participant.socis.cognoms}`)}
                         {:else}
                           Jugador desconegut
                         {/if}

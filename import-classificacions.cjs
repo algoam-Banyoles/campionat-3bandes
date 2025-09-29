@@ -22,10 +22,10 @@ const temporadaMapping = {
 };
 
 const categoriaMapping = {
-  '1a': '1a',
-  '2a': '2a',
-  '3a': '3a',
-  '4a': '4a'
+  '1a': '1a Categoria',
+  '2a': '2a Categoria',
+  '3a': '3a Categoria',
+  '4a': '4a Categoria'
 };
 
 async function llegirCSV() {
@@ -75,13 +75,14 @@ async function obtenirPlayers() {
 async function obtenirCategories() {
   const { data, error } = await supabase
     .from('categories')
-    .select('id, nom');
+    .select('id, nom, event_id');
 
   if (error) throw error;
 
   const mapping = {};
   data.forEach(cat => {
-    mapping[cat.nom] = cat.id;
+    const key = `${cat.event_id}_${cat.nom}`;
+    mapping[key] = cat.id;
   });
 
   return mapping;
@@ -214,7 +215,9 @@ async function main() {
 
       const eventId = eventsMap[eventKey];
       const playerId = playersMap[row.numero_soci];
-      const categoriaId = categoriesMap[row.categoria];
+      const categoriaNom = categoriaMapping[row.categoria];
+      const categoriaKey = `${eventId}_${categoriaNom}`;
+      const categoriaId = categoriesMap[categoriaKey];
 
       if (!eventId) {
         console.warn(`⚠️ No s'ha trobat event per: ${row.any} ${row.modalitat}`);
@@ -227,7 +230,7 @@ async function main() {
       }
 
       if (!categoriaId) {
-        console.warn(`⚠️ No s'ha trobat categoria: ${row.categoria}`);
+        console.warn(`⚠️ No s'ha trobat categoria: ${row.categoria} per event ${eventId}`);
         continue;
       }
 

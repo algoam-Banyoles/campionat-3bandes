@@ -1,6 +1,7 @@
 <script lang="ts">
   import { supabase } from '$lib/supabaseClient';
   import { onMount } from 'svelte';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   export let eventId: string = '';
   export let categories: any[] = [];
@@ -164,15 +165,16 @@
         <div class="space-y-2 max-h-96 overflow-y-auto">
           {#each inscriptions as inscription (inscription.id)}
             {@const soci = inscription.socis}
+            {@const nomComplet = soci ? `${soci.nom} ${soci.cognoms}` : `Soci #${inscription.soci_numero}`}
+            {@const nomFormatat = formatarNomJugador(nomComplet)}
             {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
-            {@const cognoms = soci?.cognoms || `Soci #${inscription.soci_numero}`}
             <div class="flex items-center justify-between py-1">
               <div class="flex items-center">
                 <div class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">
                   {inicialNom}
                 </div>
                 <span class="text-sm font-medium text-gray-900">
-                  {cognoms}
+                  {nomFormatat}
                 </span>
               </div>
             </div>
@@ -198,16 +200,16 @@
             <div class="space-y-2">
               {#each playersInCategory as inscription (inscription.id)}
                 {@const soci = inscription.socis}
+                {@const nomCompletJugador = soci ? `${soci.nom} ${soci.cognoms}` : `Soci #${inscription.soci_numero}`}
+                {@const nomFormatat = formatarNomJugador(nomCompletJugador)}
                 {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
-                {@const primerCognom = soci?.cognoms ? soci.cognoms.split(' ')[0] : ''}
-                {@const nomComplet = soci ? `${inicialNom}. ${primerCognom}` : `Soci #${inscription.soci_numero}`}
                 <div class="flex items-center py-1">
                   <div class="flex items-center">
                     <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">
                       {inicialNom}
                     </div>
                     <span class="text-xs text-gray-900 whitespace-nowrap">
-                      {nomComplet}
+                      {nomFormatat}
                     </span>
                   </div>
                 </div>
@@ -233,15 +235,16 @@
           <div class="space-y-2">
             {#each playersWithoutCategory as inscription (inscription.id)}
               {@const soci = inscription.socis}
+              {@const nomCompletSenseCategoria = soci ? `${soci.nom} ${soci.cognoms}` : `Soci #${inscription.soci_numero}`}
+              {@const nomFormatat = formatarNomJugador(nomCompletSenseCategoria)}
               {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
-              {@const cognoms = soci?.cognoms || `Soci #${inscription.soci_numero}`}
               <div class="flex items-center py-1">
                 <div class="flex items-center">
                   <div class="w-8 h-8 bg-yellow-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">
                     {inicialNom}
                   </div>
                   <span class="text-sm font-medium text-gray-900">
-                    {cognoms}
+                    {nomFormatat}
                   </span>
                 </div>
               </div>

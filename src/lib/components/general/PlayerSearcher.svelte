@@ -44,7 +44,7 @@
 <div class="bg-white border border-gray-200 rounded-lg">
   <div class="px-6 py-4 border-b border-gray-200">
     <h3 class="text-lg font-semibold text-gray-900">Cercar Jugador</h3>
-    <p class="text-sm text-gray-600 mt-1">Troba la trajectòria d'un jugador a les lligues socials</p>
+    <p class="text-sm text-gray-600 mt-1">Troba la trajectòria d'un jugador als campionats socials</p>
   </div>
 
   <div class="p-6">
@@ -64,6 +64,7 @@
       {#if searchTerm}
         <button
           on:click={clearSearch}
+          aria-label="Neteja la cerca"
           class="absolute inset-y-0 right-0 pr-3 flex items-center"
         >
           <svg class="h-5 w-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

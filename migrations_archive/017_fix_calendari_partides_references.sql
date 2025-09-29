@@ -98,7 +98,7 @@ END
 $$;
 
 -- 4. Comentaris finals
-COMMENT ON TABLE calendari_partides IS 'Calendari de partides generat automàticament per lligues socials. Utilitza referències UUID a socis.id';
+COMMENT ON TABLE calendari_partides IS 'Calendari de partides generat automàticament per campionats socials. Utilitza referències UUID a socis.id';
 COMMENT ON COLUMN calendari_partides.jugador1_id IS 'Referència UUID al primer jugador (socis.id)';
 COMMENT ON COLUMN calendari_partides.jugador2_id IS 'Referència UUID al segon jugador (socis.id)';
 COMMENT ON COLUMN calendari_partides.guanyador_id IS 'Referència UUID al jugador guanyador (socis.id), null si no s''ha jugat';

@@ -7,7 +7,7 @@
   let event: SocialLeagueEvent | null = null;
   let loading = true;
   let error: string | null = null;
-  let pageTitle = 'Event - Lligues Socials';
+  let pageTitle = 'Event - Campionats Socials';
 
   const eventId = $page.params.eventId;
 
@@ -88,7 +88,7 @@
         }))
       };
 
-      pageTitle = `${modalityNames[event.modalitat]} ${event.temporada} - Lligues Socials`;
+      pageTitle = `${modalityNames[event.modalitat]} ${event.temporada} - Campionats Socials`;
     } catch (e) {
       error = 'Error carregant l\'event';
       console.error(e);
@@ -111,7 +111,7 @@
     <h3 class="text-lg font-medium text-red-800 mb-2">Error</h3>
     <p class="text-red-600">{error}</p>
     <a href="/campionats-socials" class="mt-4 inline-block text-blue-600 hover:text-blue-800">
-      ← Tornar a lligues socials
+      ← Tornar a campionats socials
     </a>
   </div>
 {:else if event}

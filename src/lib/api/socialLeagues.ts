@@ -17,7 +17,7 @@ import type {
 // API FUNCTIONS
 
 /**
- * Obtenir tots els events de lligues socials històrics
+ * Obtenir tots els events de campionats socials històrics
  */
 export async function getSocialLeagueEvents(): Promise<SocialLeagueEvent[]> {
   // Get events without categories first to avoid RLS issues
@@ -168,7 +168,7 @@ export async function getSocialLeagueEventsBySeasonAndModality(): Promise<{
 }
 
 /**
- * Obtenir estadístiques generals de les lligues socials
+ * Obtenir estadístiques generals dels campionats socials
  */
 export async function getSocialLeagueStats(): Promise<{
   total_events: number;

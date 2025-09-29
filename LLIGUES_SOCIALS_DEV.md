@@ -1,16 +1,16 @@
-# 🚧 Lligues Socials - Documentació de Desenvolupament
+# 🚧 Campionats Socials - Documentació de Desenvolupament
 
 ## 📋 Estat Actual
 
 ### ✅ COMPLETAT
-- **Migració 007**: Extensions de base de dades per lligues socials
+- **Migració 007**: Extensions de base de dades per campionats socials
 - **Estructura de rutes**: `/campionats-socials/` amb layout específic
 - **Restricció d'accés**: Només `algoam@gmail.com` pot accedir
 - **UI base**: Dashboard inicial amb indicadors de progrés
 
 ### 🔄 EN CURS
 - Importació dades històriques Excel
-- API endpoints per gestió lligues
+- API endpoints per gestió campionats
 
 ### ⏳ PENDENT
 - Algoritme generació calendari automàtic
@@ -28,7 +28,7 @@
 ├── src/routes/campionats-socials/
 │   ├── +layout.server.ts                # Guard servidor
 │   ├── +layout.svelte                   # Layout amb warning dev
-│   └── +page.svelte                     # Dashboard lligues socials
+│   └── +page.svelte                     # Dashboard campionats socials
 ├── apply-migration-007.ps1              # Script aplicació migració
 └── LLIGUES_SOCIALS_DEV.md              # Aquest document
 ```
@@ -36,7 +36,7 @@
 ## 🔧 Taules BD Noves
 
 ### `categories`
-Categories per cada event/lliga (1a, 2a, 3a categoria)
+Categories per cada event/campionat (1a, 2a, 3a categoria)
 - `event_id`, `nom`, `distancia_caramboles`, `ordre_categoria`
 - 8-12 jugadors per categoria
 
@@ -75,7 +75,7 @@ npm run dev
 
 ### 3. Accedir com Developer
 - Login amb `algoam@gmail.com`
-- Veure enllaç "Lligues Socials [DEV]" al menú
+- Veure enllaç "Campionats Socials [DEV]" al menú
 - Accedir a `/campionats-socials`
 
 ### 4. Verificar Restricció
@@ -84,7 +84,7 @@ npm run dev
 
 ## 🔒 Seguretat Temporal
 
-**IMPORTANT**: Les lligues socials estan **completament restringides** durant desenvolupament:
+**IMPORTANT**: Els campionats socials estan **completament restringits** durant desenvolupament:
 
 - **Frontend**: Només `algoam@gmail.com` veu l'enllaç
 - **Backend**: Guard `ensureDevAccess()` bloqueja altres usuaris
@@ -106,14 +106,14 @@ ranking_positions
 events (+ modalitat, tipus_competicio, estats)
   ↓
 ├── challenges → matches (ranking continu)
-├── inscripcions → categories → calendari_partides → classificacions (lligues)
+├── inscripcions → categories → calendari_partides → classificacions (campionats)
 └── [handicap tables] (futur)
 ```
 
 ## 🔄 Pròxims Passos
 
 1. **Importació Excel** històrics
-2. **API Service** `lliguesSocials.ts`
+2. **API Service** `campionatsSocials.ts`
 3. **Algoritme calendari** amb constraints
 4. **UI inscripcions** amb preferències
 5. **Dashboard admin** gestió competicions
