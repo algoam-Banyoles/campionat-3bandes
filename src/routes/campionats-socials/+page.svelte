@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { page } from '$app/stores';
   import type { PageData } from './$types';
   import SocialLeagueCalendarViewer from '$lib/components/campionats-socials/SocialLeagueCalendarViewer.svelte';
   import SocialLeagueMatchResults from '$lib/components/campionats-socials/SocialLeagueMatchResults.svelte';
@@ -21,6 +22,14 @@
   let selectedEvent: any = null;
   let loading = false;
   let activeView: 'preparation' | 'active' | 'history' | 'players' | 'inscriptions' = 'active';
+
+  // Detectar paràmetre URL per canviar vista automàticament
+  $: if ($page.url.searchParams.has('view')) {
+    const viewParam = $page.url.searchParams.get('view');
+    if (viewParam && ['preparation', 'active', 'history', 'players', 'inscriptions'].includes(viewParam)) {
+      activeView = viewParam as typeof activeView;
+    }
+  }
 
 
 
@@ -107,8 +116,11 @@
     e.estat_competicio === 'en_curs' ||
     e.estat_competicio === 'en_progres' ||
     e.estat_competicio === 'actiu' ||
-    e.estat_competicio === 'ongoing'
+    e.estat_competicio === 'ongoing' ||
+    e.estat_competicio === 'pendent_validacio' // Temporalment inclòs fins que es validi
   ));
+
+
 
   $: historicalEvents = events.filter(e => !e.actiu || (
     e.estat_competicio === 'finalitzat' ||
@@ -116,6 +128,11 @@
     e.estat_competicio === 'finished' ||
     e.estat_competicio === 'completed'
   ));
+
+  // Auto-seleccionar la lliga si només n'hi ha una activa
+  $: if (activeView === 'active' && activeEvents.length === 1 && !selectedEventId) {
+    selectedEventId = activeEvents[0].id;
+  }
 
   $: if (selectedEventId) {
     selectedEvent = events.find(e => e.id === selectedEventId);
@@ -465,8 +482,6 @@
       }
 
       events = await getSocialLeagueEvents();
-      
-
 
       events.forEach((event, index) => {
         console.log(`\n${index + 1}. "${event.nom}"`);
@@ -529,9 +544,15 @@
          e.estat_competicio === 'ongoing')
       );
       
+      // Detectar si hi ha un paràmetre view a l'URL
+      const hasViewParam = $page.url.searchParams.has('view');
+
       if (manualActiveEvent) {
         selectedEventId = manualActiveEvent.id;
-        activeView = 'active';
+        // Només canviar activeView si no hi ha paràmetre URL
+        if (!hasViewParam) {
+          activeView = 'active';
+        }
         console.log('🔍 Manual active event, isUserAdmin:', isUserAdmin);
         // Per usuaris no logats, començar amb la vista de jugadors
         if (!isUserAdmin) {
@@ -540,17 +561,25 @@
         }
       } else if (activeEvent) {
         selectedEventId = activeEvent.id;
-        activeView = 'active';
+        // Només canviar activeView si no hi ha paràmetre URL
+        if (!hasViewParam) {
+          activeView = 'active';
+        }
         // Per usuaris no logats, començar amb la vista de jugadors
         if (!isUserAdmin) {
           managementView = 'inscriptions';
         }
       } else if (isUserAdmin && preparationEvent) {
         selectedEventId = preparationEvent.id;
-        activeView = 'preparation';
+        // Només canviar activeView si no hi ha paràmetre URL
+        if (!hasViewParam) {
+          activeView = 'preparation';
+        }
       } else {
-        // Si no hi ha lligues actives ni en preparació, va a historial
-        activeView = 'history';
+        // Si no hi ha lligues actives ni en preparació, només va a historial si no hi ha paràmetre URL
+        if (!hasViewParam) {
+          activeView = 'history';
+        }
         if (events.length > 0) {
           selectedEventId = events[0].id;
         }
@@ -633,63 +662,6 @@
       </div>
     </div>
   {/if}
-
-
-  <!-- Navegació per Seccions -->
-  <div class="border-b border-gray-200">
-    <nav class="-mb-px flex space-x-8">
-      {#if isUserAdmin}
-        <button
-          on:click={() => activeView = 'preparation'}
-          class="py-2 px-1 border-b-2 font-medium text-sm"
-          class:border-orange-500={activeView === 'preparation'}
-          class:text-orange-600={activeView === 'preparation'}
-          class:border-transparent={activeView !== 'preparation'}
-          class:text-gray-500={activeView !== 'preparation'}
-          class:hover:text-gray-700={activeView !== 'preparation'}
-          class:hover:border-gray-300={activeView !== 'preparation'}
-        >
-          🔧 Lligues en Preparació
-        </button>
-      {/if}
-      <button
-        on:click={() => activeView = 'active'}
-        class="py-2 px-1 border-b-2 font-medium text-sm"
-        class:border-green-500={activeView === 'active'}
-        class:text-green-600={activeView === 'active'}
-        class:border-transparent={activeView !== 'active'}
-        class:text-gray-500={activeView !== 'active'}
-        class:hover:text-gray-700={activeView !== 'active'}
-        class:hover:border-gray-300={activeView !== 'active'}
-      >
-        🏆 Lligues en Curs
-      </button>
-      <button
-        on:click={() => activeView = 'history'}
-        class="py-2 px-1 border-b-2 font-medium text-sm"
-        class:border-blue-500={activeView === 'history'}
-        class:text-blue-600={activeView === 'history'}
-        class:border-transparent={activeView !== 'history'}
-        class:text-gray-500={activeView !== 'history'}
-        class:hover:text-gray-700={activeView !== 'history'}
-        class:hover:border-gray-300={activeView !== 'history'}
-      >
-        📜 Historial
-      </button>
-      <button
-        on:click={() => activeView = 'players'}
-        class="py-2 px-1 border-b-2 font-medium text-sm"
-        class:border-blue-500={activeView === 'players'}
-        class:text-blue-600={activeView === 'players'}
-        class:border-transparent={activeView !== 'players'}
-        class:text-gray-500={activeView !== 'players'}
-        class:hover:text-gray-700={activeView !== 'players'}
-        class:hover:border-gray-300={activeView !== 'players'}
-      >
-        🔍 Cerca Jugadors
-      </button>
-    </nav>
-  </div>
 
 
   <!-- Contingut per Seccions -->
@@ -1139,8 +1111,6 @@
                     <SocialLeagueMatchResults
                       eventId={selectedEventId}
                       categories={selectedEvent.categories || []}
-                      isAdmin={isUserAdmin}
-                      isPublicView={true}
                     />
                   </div>
 
@@ -1251,27 +1221,30 @@
               </div>
             </div>
             {:else}
-              <!-- Vista Pública: Dashboard simplificat per usuaris no admin -->
-              <div class="bg-white shadow rounded-lg">
-                <div class="px-4 py-5 sm:p-6">
-                  <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">
-                      Selecciona una lliga per veure la informació
-                    </h3>
-                    <select
-                      bind:value={selectedEventId}
-                      class="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    >
-                      <option value="">-- Tria una lliga --</option>
-                      {#each activeEvents as event}
-                        <option value={event.id}>
-                          {event.nom} - {event.temporada}
-                        </option>
-                      {/each}
-                    </select>
+              <!-- Vista Pública: Auto-selecció de la lliga activa -->
+              {#if activeEvents.length > 1}
+                <!-- Només mostrem selector si hi ha més d'una lliga (cas excepcional) -->
+                <div class="bg-white shadow rounded-lg">
+                  <div class="px-4 py-5 sm:p-6">
+                    <div class="flex items-center justify-between mb-4">
+                      <h3 class="text-lg leading-6 font-medium text-gray-900">
+                        Múltiples lligues actives - Selecciona una
+                      </h3>
+                      <select
+                        bind:value={selectedEventId}
+                        class="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      >
+                        <option value="">-- Tria una lliga --</option>
+                        {#each activeEvents as event}
+                          <option value={event.id}>
+                            {event.nom} - {event.temporada}
+                          </option>
+                        {/each}
+                      </select>
+                    </div>
                   </div>
                 </div>
-              </div>
+              {/if}
 
               <!-- Dashboard públic simplificat -->
               {#if selectedEventId && selectedEvent}
@@ -1351,8 +1324,6 @@
                       <SocialLeagueMatchResults
                         eventId={selectedEventId}
                         categories={selectedEvent.categories || []}
-                        isAdmin={false}
-                        isPublicView={true}
                       />
 
                     {:else if managementView === 'standings'}
@@ -1486,9 +1457,9 @@
         {#if historicalEvents.length > 0}
           <div class="space-y-4">
             {#each historicalEvents.slice(0, 10) as event}
-              <div class="border border-gray-200 rounded-lg p-4">
+              <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                 <div class="flex items-center justify-between">
-                  <div>
+                  <div class="flex-1">
                     <h4 class="font-medium text-gray-900">{event.nom}</h4>
                     <p class="text-sm text-gray-500">
                       Temporada {event.temporada} •
@@ -1496,10 +1467,16 @@
                        event.modalitat === 'lliure' ? 'Lliure' : 'Banda'}
                     </p>
                   </div>
-                  <div class="text-right">
+                  <div class="flex items-center gap-3">
                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                       Finalitzat
                     </span>
+                    <a 
+                      href="/campionats-socials/{event.id}/classificacio" 
+                      class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                    >
+                      📊 Classificació
+                    </a>
                   </div>
                 </div>
               </div>

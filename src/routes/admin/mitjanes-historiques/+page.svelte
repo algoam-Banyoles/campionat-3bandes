@@ -2,9 +2,6 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
-	import type { PageData } from './$types';
-
-	export let data: PageData;
 
 	type MitjanaHistorica = {
 		id: number;

@@ -16,7 +16,7 @@ self.addEventListener('push', (event) => {
     title: 'Campionat 3 Bandes',
     body: 'Tens una nova notificació',
     icon: '/icons/icon-192.svg',
-    badge: '/icons/icon-96.png',
+    badge: '/icons/icon-192.svg',
     tag: 'general',
     data: {}
   };

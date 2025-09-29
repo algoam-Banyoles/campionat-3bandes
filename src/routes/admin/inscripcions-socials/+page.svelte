@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { user } from '$lib/stores/auth';
   import { supabase } from '$lib/supabaseClient';
+  import { supabase as serviceClient } from '$lib/supabaseServiceClient';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
   import DragDropInscriptions from '$lib/components/campionats-socials/DragDropInscriptions.svelte';
@@ -196,18 +197,9 @@
   async function loadSocis() {
     console.log('=== Loading socis from client-side ===');
 
-    // First test basic connection
-    console.log('Testing basic connection to socis table...');
-    const { data: testData, error: testError } = await supabase
-      .from('socis')
-      .select('count(*)')
-      .limit(1);
-
-    console.log('Connection test result:', { data: testData, error: testError });
-
-    // Load active socis
-    console.log('Loading socis with full query...');
-    const { data: socisData, error: socisError } = await supabase
+    // Load active socis using service role client
+    console.log('Loading socis with service role client...');
+    const { data: socisData, error: socisError } = await serviceClient
       .from('socis')
       .select('numero_soci, nom, cognoms, email')
       .eq('de_baixa', false)

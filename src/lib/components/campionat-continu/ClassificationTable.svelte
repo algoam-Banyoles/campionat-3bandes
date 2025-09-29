@@ -42,37 +42,38 @@
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Posició
+            <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <span class="hidden sm:inline">Posició</span>
+              <span class="sm:hidden">Pos.</span>
             </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Jugador
             </th>
-            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th class="px-2 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
               PJ
             </th>
-            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th class="px-2 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
               PG
             </th>
-            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th class="px-2 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
               PP
             </th>
             {#if classifications.some(c => c.partides_empat > 0)}
-              <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th class="px-2 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
                 PE
               </th>
             {/if}
-            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th class="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
               Punts
             </th>
             {#if showStats}
-              <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th class="px-2 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
                 CF
               </th>
-              <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th class="px-2 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
                 CC
               </th>
-              <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th class="px-2 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
                 Mitjana
               </th>
             {/if}
@@ -81,7 +82,7 @@
         <tbody class="bg-white divide-y divide-gray-200">
           {#each classifications as classification, index}
             <tr class={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+              <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div class="flex items-center space-x-2">
                   <span class={getPositionClass(classification.posicio)}>
                     {classification.posicio}
@@ -91,39 +92,46 @@
                   </span>
                 </div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
+              <td class="px-3 sm:px-6 py-4">
                 <div class="text-sm font-medium text-gray-900">
                   {classification.player_nom}
                   {#if classification.player_cognom}
                     {classification.player_cognom}
                   {/if}
                 </div>
+                <!-- Mobile stats shown under name -->
+                <div class="sm:hidden text-xs text-gray-500 mt-1">
+                  {classification.partides_jugades}PJ • {classification.partides_guanyades}PG • {classification.partides_perdudes}PP
+                  {#if classification.partides_empat > 0}
+                    • {classification.partides_empat}PE
+                  {/if}
+                </div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+              <td class="px-2 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center hidden sm:table-cell">
                 {classification.partides_jugades}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-center font-medium">
+              <td class="px-2 sm:px-6 py-4 whitespace-nowrap text-sm text-green-600 text-center font-medium hidden sm:table-cell">
                 {classification.partides_guanyades}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-center font-medium">
+              <td class="px-2 sm:px-6 py-4 whitespace-nowrap text-sm text-red-600 text-center font-medium hidden sm:table-cell">
                 {classification.partides_perdudes}
               </td>
               {#if classifications.some(c => c.partides_empat > 0)}
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-yellow-600 text-center font-medium">
+                <td class="px-2 sm:px-6 py-4 whitespace-nowrap text-sm text-yellow-600 text-center font-medium hidden sm:table-cell">
                   {classification.partides_empat}
                 </td>
               {/if}
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center font-bold">
+              <td class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center font-bold">
                 {classification.punts}
               </td>
               {#if showStats}
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                <td class="px-2 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center hidden md:table-cell">
                   {classification.caramboles_favor}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                <td class="px-2 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center hidden md:table-cell">
                   {classification.caramboles_contra}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center font-medium">
+                <td class="px-2 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center font-medium hidden lg:table-cell">
                   {formatAverage(classification.mitjana_particular)}
                 </td>
               {/if}

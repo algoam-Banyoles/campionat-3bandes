@@ -31,8 +31,7 @@
       links: [
         { href: '/', label: 'Inici' },
         { href: '/general/calendari', label: 'Calendari General' },
-        { href: '/campionats-socials/inscripcions', label: 'Inscripcions' },
-        { href: '/general/socis', label: 'Socis' }
+        { href: '/general/multimedia', label: 'Multimedia' }
       ]
     },
     socials: {
@@ -40,7 +39,12 @@
       icon: '🏆',
       color: 'green',
       links: [
-        { href: '/campionats-socials', label: 'Vista Principal' }
+        { href: '/campionats-socials?view=active', label: 'Lligues en Curs' },
+        { href: '/campionats-socials?view=history', label: 'Historial' },
+        { href: '/campionats-socials?view=players', label: 'Cerca Jugadors' }
+      ],
+      userLinks: [
+        { href: '/campionats-socials/inscripcions', label: 'Inscripcions Obertes' }
       ]
     },
     ranking: {
@@ -104,6 +108,7 @@
   let open = false;
   let dropdownOpen = false;
   let mobileMenuOpen = false;
+  let activeDropdown: string | null = null;
 
   // Reactivitat per actualitzar la secció seleccionada
   $: selectedSection = getCurrentSection();
@@ -115,11 +120,27 @@
 
   // Tancar dropdown quan es clica fora
   function handleClickOutside(event) {
-    if (dropdownOpen && !event.target.closest('[data-dropdown]')) {
-      dropdownOpen = false;
+    if (activeDropdown && !event.target.closest('[data-dropdown]')) {
+      activeDropdown = null;
     }
   }
+
+  // Funció per gestionar el toggle del dropdown
+  function toggleDropdown(sectionKey: string) {
+    if (activeDropdown === sectionKey) {
+      activeDropdown = null;
+    } else {
+      activeDropdown = sectionKey;
+    }
+  }
+
+  // Tancar dropdown quan es navega
+  function closeDropdownOnNavigate() {
+    activeDropdown = null;
+  }
 </script>
+
+<svelte:window on:click={handleClickOutside} />
 
 <nav class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -142,8 +163,9 @@
         <div class="flex items-center space-x-8">
           {#each Object.entries(navegacio) as [key, section]}
             {#if !section.adminOnly || $isAdmin}
-              <div class="relative group">
+              <div class="relative" data-dropdown>
                 <button
+                  on:click={() => toggleDropdown(key)}
                   class="inline-flex items-center px-3 py-2 border-b-2 text-sm font-medium {
                     selectedSection === key
                       ? 'border-' + section.color + '-500 text-' + section.color + '-600'
@@ -152,44 +174,50 @@
                 >
                   <span class="mr-1">{section.icon}</span>
                   {section.label}
-                  <svg class="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="ml-1 h-4 w-4 transition-transform duration-200 {
+                    activeDropdown === key ? 'rotate-180' : ''
+                  }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                   </svg>
                 </button>
 
                 <!-- Dropdown -->
-                <div class="absolute top-full left-0 mt-1 w-64 bg-white rounded-md shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  <div class="py-2">
-                    {#each section.links as link}
-                      <a
-                        href={link.href}
-                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 {
-                          link.disabled ? 'opacity-50 cursor-not-allowed' : ''
-                        } {
-                          isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-700' : ''
-                        }"
-                        class:pointer-events-none={link.disabled}
-                      >
-                        {link.label}
-                      </a>
-                    {/each}
-
-                    <!-- User links si n'hi ha -->
-                    {#if $user && section.userLinks && section.userLinks.length > 0}
-                      <hr class="my-2">
-                      {#each section.userLinks as link}
+                {#if activeDropdown === key}
+                  <div class="absolute top-full left-0 mt-1 w-64 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                    <div class="py-2">
+                      {#each section.links as link}
                         <a
                           href={link.href}
+                          on:click={closeDropdownOnNavigate}
                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 {
+                            link.disabled ? 'opacity-50 cursor-not-allowed' : ''
+                          } {
                             isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-700' : ''
                           }"
+                          class:pointer-events-none={link.disabled}
                         >
                           {link.label}
                         </a>
                       {/each}
-                    {/if}
+
+                      <!-- User links si n'hi ha -->
+                      {#if $user && section.userLinks && section.userLinks.length > 0}
+                        <hr class="my-2">
+                        {#each section.userLinks as link}
+                          <a
+                            href={link.href}
+                            on:click={closeDropdownOnNavigate}
+                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 {
+                              isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-700' : ''
+                            }"
+                          >
+                            {link.label}
+                          </a>
+                        {/each}
+                      {/if}
+                    </div>
                   </div>
-                </div>
+                {/if}
               </div>
             {/if}
           {/each}
@@ -235,7 +263,7 @@
     {#if mobileMenuOpen}
       <div class="sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
-          {#each Object.entries(navegacio) as [key, section]}
+          {#each Object.entries(navegacio) as [, section]}
             {#if !section.adminOnly || $isAdmin}
               <div class="px-2">
                 <div class="text-gray-500 font-medium text-xs uppercase tracking-wider py-2">

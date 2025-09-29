@@ -226,7 +226,7 @@
                               {player.punts || 0}
                             </td>
                             <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                              {player.mitjana ? player.mitjana.toFixed(3) : '0.000'}
+                              {player.mitjana_particular ? player.mitjana_particular.toFixed(3) : '0.000'}
                             </td>
                           </tr>
                         {/each}

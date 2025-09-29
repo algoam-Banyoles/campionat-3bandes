@@ -1,8 +1,0 @@
-<!-- Simple SVG placeholder for 192x192 icon -->
-<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
-  <rect width="192" height="192" fill="#3b82f6" rx="32"/>
-  <circle cx="96" cy="70" r="25" fill="white"/>
-  <circle cx="50" cy="122" r="25" fill="white"/>
-  <circle cx="142" cy="122" r="25" fill="white"/>
-  <text x="96" y="165" text-anchor="middle" fill="white" font-family="sans-serif" font-size="16" font-weight="bold">3 BANDES</text>
-</svg>

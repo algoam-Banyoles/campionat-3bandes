@@ -177,16 +177,24 @@ export const calendarEvents = derived(
       totalEvents: events.length,
       matches: events.filter(e => e.type === 'challenge' && e.subtype?.startsWith('campionat-social')).length
     });
-    
+
     console.log('🎯 CALENDAR DEBUG: Events created successfully!', events.length, 'total events');
-    
+
     // Log sample match dates to help debug
     const matchEvents = events.filter(e => e.type === 'challenge' && e.subtype?.startsWith('campionat-social'));
     if (matchEvents.length > 0) {
       console.log('🗓️ Sample match dates:', matchEvents.slice(0, 3).map(e => ({
         title: e.title,
-        date: e.start.toLocaleDateString('ca-ES')
+        date: e.start.toLocaleDateString('ca-ES'),
+        time: e.start.toLocaleTimeString('ca-ES')
       })));
+    } else {
+      console.log('⚠️ No social league matches found in calendar events');
+    }
+
+    // Debug the partidesCalendari raw data
+    if ($partidesCalendari.length > 0) {
+      console.log('🏆 Raw partides data (first 2):', $partidesCalendari.slice(0, 2));
     }
     
     return events.sort((a, b) => a.start.getTime() - b.start.getTime());
@@ -287,25 +295,30 @@ export async function loadPartidesCalendari(): Promise<void> {
   try {
     calendarLoading.set(true);
     calendarError.set(null);
-    
-    // Simplified query: get published events first, then filter partides
+
+    // Get published events first
     const { data: publishedEvents, error: eventsError } = await supabase
       .from('events')
       .select('id')
       .eq('calendari_publicat', true);
-    
+
     if (eventsError) {
+      console.error('❌ Error getting published events:', eventsError);
       throw new Error(`Error getting published events: ${eventsError.message}`);
     }
-    
+
+    console.log('📋 Published events found:', publishedEvents?.length || 0);
+
     if (!publishedEvents || publishedEvents.length === 0) {
+      console.log('⚠️ No published events found, calendar will be empty');
       partidesCalendari.set([]);
       return;
     }
-    
+
     const eventIds = publishedEvents.map(e => e.id);
-    
-    // Now add the relations back step by step
+    console.log('🎯 Looking for matches in events:', eventIds);
+
+    // Query matches with proper relations
     const { data, error } = await supabase
       .from('calendari_partides')
       .select(`
@@ -316,60 +329,78 @@ export async function loadPartidesCalendari(): Promise<void> {
         estat,
         observacions_junta,
         event_id,
+        categoria_id,
+        jugador1_id,
+        jugador2_id,
         jugador1:jugador1_id(
+          id,
           nom,
           socis(nom, cognoms)
         ),
         jugador2:jugador2_id(
+          id,
           nom,
           socis(nom, cognoms)
         ),
-        events(nom),
-        categories(nom)
+        events(id, nom),
+        categories(id, nom)
       `)
       .eq('estat', 'validat')
       .in('event_id', eventIds)
+      .not('data_programada', 'is', null)
+      .not('hora_inici', 'is', null)
       .order('data_programada', { ascending: true });
-    
-    if (error) {
-      throw new Error(`Error getting partides: ${error.message}`);
-    }
-
-
 
     if (error) {
       console.error('❌ Supabase query error:', error);
-      throw new Error(`Supabase error: ${error.message} (Code: ${error.code})`);
+      throw new Error(`Error getting partides: ${error.message} (Code: ${error.code})`);
     }
-    
+
+    console.log('🏆 Raw matches data received:', data?.length || 0);
+
     if (!data || data.length === 0) {
+      console.log('⚠️ No validated matches found for published events');
       partidesCalendari.set([]);
       return;
     }
-    
+
     // Create partides with proper player data
-    const partides: PartidaCalendari[] = data.map(item => ({
-      id: item.id,
-      jugador1_nom: (item.jugador1 as any)?.socis ? 
-        `${(item.jugador1 as any).socis.nom} ${(item.jugador1 as any).socis.cognoms}` : 
-        ((item.jugador1 as any)?.nom || 'Desconegut'),
-      jugador2_nom: (item.jugador2 as any)?.socis ? 
-        `${(item.jugador2 as any).socis.nom} ${(item.jugador2 as any).socis.cognoms}` : 
-        ((item.jugador2 as any)?.nom || 'Desconegut'),
-      // Afegir dades dels jugadors per format correcte
-      jugador1: item.jugador1,
-      jugador2: item.jugador2,
-      data_programada: item.data_programada,
-      hora_inici: item.hora_inici,
-      taula_assignada: item.taula_assignada,
-      estat: item.estat,
-      event_nom: (item.events as any)?.nom || 'Campionat',
-      categoria_nom: (item.categories as any)?.nom || 'Categoria',
-      observacions_junta: item.observacions_junta
-    }));
-    
+    const partides: PartidaCalendari[] = data.map(item => {
+      console.log('🔄 Processing match:', {
+        id: item.id,
+        data_programada: item.data_programada,
+        hora_inici: item.hora_inici,
+        jugador1: item.jugador1,
+        jugador2: item.jugador2,
+        events: item.events,
+        categories: item.categories
+      });
+
+      return {
+        id: item.id,
+        jugador1_nom: (item.jugador1 as any)?.socis ?
+          `${(item.jugador1 as any).socis.nom} ${(item.jugador1 as any).socis.cognoms}` :
+          ((item.jugador1 as any)?.nom || 'Desconegut'),
+        jugador2_nom: (item.jugador2 as any)?.socis ?
+          `${(item.jugador2 as any).socis.nom} ${(item.jugador2 as any).socis.cognoms}` :
+          ((item.jugador2 as any)?.nom || 'Desconegut'),
+        // Add original player data for proper formatting
+        jugador1: item.jugador1,
+        jugador2: item.jugador2,
+        data_programada: item.data_programada,
+        hora_inici: item.hora_inici,
+        taula_assignada: item.taula_assignada,
+        estat: item.estat,
+        event_nom: (item.events as any)?.nom || 'Campionat',
+        categoria_nom: (item.categories as any)?.nom || 'Categoria',
+        observacions_junta: item.observacions_junta
+      };
+    });
+
+    console.log('✅ Successfully processed matches:', partides.length);
     partidesCalendari.set(partides);
   } catch (error: any) {
+    console.error('❌ Error in loadPartidesCalendari:', error);
     calendarError.set(error.message);
     partidesCalendari.set([]);
   } finally {
@@ -392,7 +423,7 @@ export async function deleteEsdeveniment(id: string): Promise<void> {
     }
     
     // Actualitzar els stores eliminant l'esdeveniment
-    esdeveniments.update(events => events.filter(event => event.id !== id));
+    esdeveniments.update((events: EsdevenimentClub[]) => events.filter((event: EsdevenimentClub) => event.id !== id));
     
   } catch (error: any) {
     calendarError.set(error.message);
@@ -420,7 +451,7 @@ export function navigateToToday(): void {
 }
 
 export function navigateMonth(direction: 1 | -1): void {
-  currentDate.update(date => {
+  currentDate.update((date: Date) => {
     const newDate = new Date(date);
     newDate.setMonth(newDate.getMonth() + direction);
     return newDate;
@@ -428,7 +459,7 @@ export function navigateMonth(direction: 1 | -1): void {
 }
 
 export function navigateWeek(direction: 1 | -1): void {
-  currentDate.update(date => {
+  currentDate.update((date: Date) => {
     const newDate = new Date(date);
     newDate.setDate(newDate.getDate() + (direction * 7));
     return newDate;

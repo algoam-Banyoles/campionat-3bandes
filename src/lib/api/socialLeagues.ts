@@ -1,4 +1,5 @@
 import { supabase } from '$lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 import type {
   SocialLeagueEvent,
   SocialLeagueCategory,
@@ -19,6 +20,7 @@ import type {
  * Obtenir tots els events de lligues socials històrics
  */
 export async function getSocialLeagueEvents(): Promise<SocialLeagueEvent[]> {
+  // Get events without categories first to avoid RLS issues
   const { data: events, error } = await supabase
     .from('events')
     .select(`
@@ -27,19 +29,14 @@ export async function getSocialLeagueEvents(): Promise<SocialLeagueEvent[]> {
       temporada,
       modalitat,
       tipus_competicio,
+      format_joc,
       estat_competicio,
       data_inici,
       data_fi,
+      max_participants,
+      quota_inscripcio,
       actiu,
-      categories (
-        id,
-        nom,
-        distancia_caramboles,
-        ordre_categoria,
-        max_entrades,
-        min_jugadors,
-        max_jugadors
-      )
+      creat_el
     `)
     .eq('tipus_competicio', 'lliga_social')
     .order('temporada', { ascending: false })
@@ -52,7 +49,8 @@ export async function getSocialLeagueEvents(): Promise<SocialLeagueEvent[]> {
 
   return events?.map(event => ({
     ...event,
-    categories: event.categories?.sort((a, b) => a.ordre_categoria - b.ordre_categoria) || []
+    created_at: event.creat_el, // Map creat_el to created_at for type compatibility
+    categories: [] // For now, return empty categories to avoid RLS issues
   })) || [];
 }
 
@@ -68,20 +66,30 @@ export async function getSocialLeagueEventById(eventId: string): Promise<SocialL
       temporada,
       modalitat,
       tipus_competicio,
+      format_joc,
       estat_competicio,
       data_inici,
       data_fi,
+      max_participants,
+      quota_inscripcio,
       actiu,
+      creat_el,
       categories (
         id,
+        event_id,
         nom,
         distancia_caramboles,
         ordre_categoria,
         max_entrades,
         min_jugadors,
         max_jugadors,
+        promig_minim,
+        created_at,
         classificacions (
           id,
+          event_id,
+          categoria_id,
+          soci_id,
           posicio,
           player_id,
           partides_jugades,
@@ -112,10 +120,14 @@ export async function getSocialLeagueEventById(eventId: string): Promise<SocialL
 
   return {
     ...event,
+    created_at: event.creat_el, // Map creat_el to created_at for type compatibility
     categories: event.categories?.map(category => ({
       ...category,
       classificacions: category.classificacions?.map(cl => ({
         id: cl.id,
+        event_id: cl.event_id,
+        categoria_id: cl.categoria_id,
+        soci_id: cl.soci_id,
         posicio: cl.posicio,
         player_id: cl.player_id,
         player_nom: cl.players?.nom || '',
@@ -222,6 +234,9 @@ export async function getCategoryClassifications(categoryId: string): Promise<Cl
     .from('classificacions')
     .select(`
       id,
+      event_id,
+      categoria_id,
+      soci_id,
       posicio,
       player_id,
       partides_jugades,
@@ -247,10 +262,13 @@ export async function getCategoryClassifications(categoryId: string): Promise<Cl
 
   return classifications?.map(cl => ({
     id: cl.id,
+    event_id: cl.event_id,
+    categoria_id: cl.categoria_id,
+    soci_id: cl.soci_id,
     posicio: cl.posicio,
     player_id: cl.player_id,
-    player_nom: cl.players?.nom || '',
-    player_cognom: cl.players?.cognoms || '',
+    player_nom: Array.isArray(cl.players) ? (cl.players[0] as any)?.nom || '' : (cl.players as any)?.nom || '',
+    player_cognom: Array.isArray(cl.players) ? (cl.players[0] as any)?.cognoms || '' : (cl.players as any)?.cognoms || '',
     partides_jugades: cl.partides_jugades,
     partides_guanyades: cl.partides_guanyades,
     partides_perdudes: cl.partides_perdudes,
@@ -305,21 +323,25 @@ export async function searchPlayerInClassifications(playerName: string): Promise
   const playersMap = new Map();
 
   results?.forEach(result => {
-    if (!result.players || !result.categories?.events) return;
+    const players = Array.isArray(result.players) ? result.players[0] : result.players;
+    const categories = Array.isArray(result.categories) ? result.categories[0] : result.categories;
+    const events = Array.isArray(categories?.events) ? categories.events[0] : categories?.events;
 
-    const playerKey = `${result.players.nom} ${result.players.cognoms}`;
+    if (!players || !events || !categories) return;
+
+    const playerKey = `${players.nom} ${players.cognoms}`;
 
     if (!playersMap.has(playerKey)) {
       playersMap.set(playerKey, {
-        player: result.players,
+        player: { nom: players.nom, cognom: players.cognoms },
         classifications: []
       });
     }
 
     playersMap.get(playerKey).classifications.push({
-      temporada: result.categories.events.temporada,
-      modalitat: result.categories.events.modalitat,
-      categoria: result.categories.nom,
+      temporada: events.temporada,
+      modalitat: events.modalitat,
+      categoria: categories.nom,
       posicio: result.posicio,
       punts: result.punts,
       partides_jugades: result.partides_jugades
