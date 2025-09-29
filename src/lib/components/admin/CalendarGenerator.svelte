@@ -984,10 +984,11 @@
     <!-- Configuració del calendari -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="data-inici" class="block text-sm font-medium text-gray-700 mb-2">
           Data d'inici
         </label>
         <input
+          id="data-inici"
           type="date"
           bind:value={dataInici}
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -996,10 +997,11 @@
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="data-fi" class="block text-sm font-medium text-gray-700 mb-2">
           Data de fi del campionat
         </label>
         <input
+          id="data-fi"
           type="date"
           bind:value={dataFi}
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1018,10 +1020,10 @@
     </div>
 
     <!-- Dies de la setmana -->
-    <div class="mt-4">
-      <label class="block text-sm font-medium text-gray-700 mb-2">
+    <fieldset class="mt-4">
+      <legend class="block text-sm font-medium text-gray-700 mb-2">
         Dies disponibles
-      </label>
+      </legend>
       <div class="flex flex-wrap gap-2">
         {#each [
           { code: 'dl', name: 'Dilluns' },
@@ -1043,13 +1045,13 @@
           </label>
         {/each}
       </div>
-    </div>
+    </fieldset>
 
     <!-- Hores disponibles -->
-    <div class="mt-4">
-      <label class="block text-sm font-medium text-gray-700 mb-2">
+    <fieldset class="mt-4">
+      <legend class="block text-sm font-medium text-gray-700 mb-2">
         Hores disponibles
-      </label>
+      </legend>
       <div class="flex flex-wrap gap-2">
         {#each ['17:30', '18:00', '18:30', '19:00', '19:30', '20:00'] as hora}
           <label class="flex items-center">
@@ -1066,15 +1068,16 @@
       <p class="mt-1 text-xs text-gray-500">
         Per defecte: 18:00 i 19:00 (horaris habituals del club)
       </p>
-    </div>
+    </fieldset>
 
     <!-- Configuració avançada -->
     <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="taules-per-hora" class="block text-sm font-medium text-gray-700 mb-2">
           Taules per hora
         </label>
         <input
+          id="taules-per-hora"
           type="number"
           min="1"
           max="10"
@@ -1084,10 +1087,11 @@
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="max-partits-setmana" class="block text-sm font-medium text-gray-700 mb-2">
           Màx partits per setmana
         </label>
         <input
+          id="max-partits-setmana"
           type="number"
           min="1"
           max="7"
@@ -1097,10 +1101,11 @@
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="max-partits-dia" class="block text-sm font-medium text-gray-700 mb-2">
           Màx partits per dia
         </label>
         <input
+          id="max-partits-dia"
           type="number"
           min="1"
           max="3"

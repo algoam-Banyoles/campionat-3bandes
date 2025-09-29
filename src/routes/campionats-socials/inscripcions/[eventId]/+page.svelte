@@ -407,10 +407,10 @@
           </h3>
 
           <!-- Days of the week -->
-          <div class="mb-6">
-            <label class="text-base font-medium text-gray-900">Dies de la setmana que pots jugar</label>
+          <fieldset class="mb-6">
+            <legend class="text-base font-medium text-gray-900">Dies de la setmana que pots jugar</legend>
             <p class="text-sm leading-5 text-gray-500">Selecciona els dies que pots i vols jugar. Si no selecciones cap dia, podràs jugar qualsevol dia.</p>
-            <fieldset class="mt-4">
+            <div class="mt-4">
               <div class="space-y-4">
                 {#each daysOfWeek as day}
                   <div class="flex items-center">
@@ -428,14 +428,14 @@
                   </div>
                 {/each}
               </div>
-            </fieldset>
-          </div>
+            </div>
+          </fieldset>
 
           <!-- Time slots -->
-          <div class="mb-6">
-            <label class="text-base font-medium text-gray-900">Hores que pots jugar</label>
+          <fieldset class="mb-6">
+            <legend class="text-base font-medium text-gray-900">Hores que pots jugar</legend>
             <p class="text-sm leading-5 text-gray-500">Tria les franges horàries que pots i vols jugar. Si no selecciones cap hora, podràs jugar a qualsevol hora disponible.</p>
-            <fieldset class="mt-4">
+            <div class="mt-4">
               <div class="space-y-4">
                 {#each timeSlots as slot}
                   <div class="flex items-center">
@@ -453,8 +453,8 @@
                   </div>
                 {/each}
               </div>
-            </fieldset>
-          </div>
+            </div>
+          </fieldset>
 
           <!-- Special restrictions -->
           <div class="mb-6">

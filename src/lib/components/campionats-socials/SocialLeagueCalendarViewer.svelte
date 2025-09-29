@@ -11,7 +11,7 @@
   export let isAdmin: boolean = false;
   export let eventData: any = null;
   export let defaultMode: 'category' | 'timeline' = 'timeline';
-  export let editMode: boolean = false;
+  export const editMode: boolean = false;
 
   // Funció per imprimir només la taula cronològica
   function printCalendar() {
@@ -155,7 +155,7 @@
         <table class="calendar-table pending-matches-table">
           <thead>
             <tr>
-              <th class="category-column">Categoria</th>
+              ${isAdmin ? '<th class="category-column">Categoria</th>' : ''}
               <th class="player-column">Jugador 1</th>
               <th class="player-column">Jugador 2</th>
               <th class="date-column">Data límit</th>
@@ -165,7 +165,7 @@
           <tbody>
             ${pendingMatches.map(match => `
               <tr>
-                <td class="category-cell">${getCategoryName(match.categoria_id)}</td>
+                ${isAdmin ? `<td class="category-cell">${getCategoryName(match.categoria_id)}</td>` : ''}
                 <td class="player-cell">${formatPlayerName(match.jugador1)}</td>
                 <td class="player-cell">${formatPlayerName(match.jugador2)}</td>
                 <td class="date-cell">${match.data_limit ? new Date(match.data_limit).toLocaleDateString('ca-ES') : 'Per definir'}</td>
@@ -198,7 +198,7 @@
 
     // Estimar quants dies caben per pàgina (optimitzat amb marges ajustats)
     const maxSlotsPerPage = 60; // Tornat a 60 amb marges de peu optimitzats
-    const pages: { leftColumn: any[], rightColumn: any[] }[] = [];
+    const pages: { leftColumn: [string, Map<string, any[]>][], rightColumn: [string, Map<string, any[]>][] }[] = [];
     
     let currentPageDays: typeof daysWithSlotCount = [];
     let currentPageSlots = 0;
@@ -243,8 +243,8 @@
   }
 
   // Crear pàgina dividint dies consecutivament
-  function createPageFromDays(pageDays: any[]): { leftColumn: any[], rightColumn: any[] } {
-    const daysForPage = pageDays.map(day => [day.dateStr, day.hourGroups]);
+  function createPageFromDays(pageDays: { dateStr: string, hourGroups: Map<string, any[]>, totalSlots: number, index: number }[]): { leftColumn: [string, Map<string, any[]>][], rightColumn: [string, Map<string, any[]>][] } {
+    const daysForPage: [string, Map<string, any[]>][] = pageDays.map(day => [day.dateStr, day.hourGroups]);
     const splitPoint = Math.ceil(daysForPage.length / 2);
     
     return {
@@ -254,7 +254,7 @@
   }
 
   // Generar HTML per una pàgina específica
-  function generatePageHTML(page: { leftColumn: any[], rightColumn: any[] }, pageIndex: number): string {
+  function generatePageHTML(page: { leftColumn: [string, Map<string, any[]>][], rightColumn: [string, Map<string, any[]>][] }, pageIndex: number): string {
     // Salt de pàgina més robust per navegadors diversos
     const pageBreak = pageIndex > 0 ? `
       <div class="print-page-break"></div>
@@ -273,7 +273,7 @@
                 <th class="day-column">Dia</th>
                 <th class="hour-column">Hora</th>
                 <th class="table-column">Billar</th>
-                <th class="category-column">Cat</th>
+                ${isAdmin ? '<th class="category-column">Cat</th>' : ''}
                 <th class="player-column">Jugador 1</th>
                 <th class="player-column">Jugador 2</th>
               </tr>
@@ -290,7 +290,7 @@
                 <th class="day-column">Dia</th>
                 <th class="hour-column">Hora</th>
                 <th class="table-column">Billar</th>
-                <th class="category-column">Cat</th>
+                ${isAdmin ? '<th class="category-column">Cat</th>' : ''}
                 <th class="player-column">Jugador 1</th>
                 <th class="player-column">Jugador 2</th>
               </tr>
@@ -305,13 +305,13 @@
   }
 
   // Funció auxiliar per generar HTML d'una columna
-  function generateColumnHTML(columnDays: any[]): string {
+  function generateColumnHTML(columnDays: [string, Map<string, any[]>][]): string {
     let columnHTML = '';
 
     if (columnDays.length === 0) {
       return `
         <tr>
-          <td colspan="6" style="text-align: center; padding: 20px; color: #666; font-style: italic;">
+          <td colspan="${isAdmin ? '6' : '5'}" style="text-align: center; padding: 20px; color: #666; font-style: italic;">
             No hi ha més partides
           </td>
         </tr>
@@ -350,7 +350,7 @@
           // Columnes de contingut
           columnHTML += `
             <td class="table-cell">B${slot.taula}</td>
-            <td class="category-cell">${slot.match ? getCategoryName(slot.match.categoria_id) : '-'}</td>
+            ${isAdmin ? `<td class="category-cell">${slot.match ? getCategoryName(slot.match.categoria_id) : '-'}</td>` : ''}
             <td class="player-cell">${slot.match ? formatPlayerName(slot.match.jugador1) : '-'}</td>
             <td class="player-cell">${slot.match ? formatPlayerName(slot.match.jugador2) : '-'}</td>
           `;
@@ -372,7 +372,7 @@
             <th class="day-column">Dia</th>
             <th class="hour-column">Hora</th>
             <th class="table-column">Billar</th>
-            <th class="category-column">Cat</th>
+            ${isAdmin ? '<th class="category-column">Cat</th>' : ''}
             <th class="player-column">Jugador 1</th>
             <th class="player-column">Jugador 2</th>
           </tr>
@@ -383,7 +383,7 @@
     if (timelineGrouped.size === 0) {
       tableHTML += `
         <tr>
-          <td colspan="6" style="text-align: center; padding: 30px; color: #666; font-style: italic; font-size: 18px;">
+          <td colspan="${isAdmin ? '6' : '5'}" style="text-align: center; padding: 30px; color: #666; font-style: italic; font-size: 18px;">
             No hi ha partides programades per mostrar
           </td>
         </tr>
@@ -1366,7 +1366,7 @@
 <style>
   @media print {
     /* Amagar TOT el contingut de la pàgina */
-    body * {
+    :global(body *) {
       visibility: hidden !important;
     }
 
@@ -1408,7 +1408,7 @@
     }
 
     /* Reset de la pàgina per impressió */
-    html, body {
+    :global(html), :global(body) {
       width: 100% !important;
       height: auto !important;
       margin: 0 !important;
@@ -1429,7 +1429,7 @@
     }
 
     /* Estils generals optimitzats per llegibilitat */
-    body {
+    :global(body) {
       font-family: Arial, sans-serif !important;
       font-size: 12px !important;
       line-height: 1.3 !important;
@@ -1490,20 +1490,20 @@
       max-width: 40px !important;
     }
 
-    .calendar-table .category-column {
+    :global(.calendar-table .category-column) {
       width: 50px !important;
       min-width: 50px !important;
       max-width: 50px !important;
     }
 
-    .calendar-table .player-column {
+    :global(.calendar-table .player-column) {
       width: 120px !important;
       min-width: 120px !important;
       max-width: 120px !important;
     }
 
     /* Estil compacte per noms de jugadors */
-    .player-name-compact {
+    :global(.player-name-compact) {
       font-size: 10px !important;
       font-weight: normal !important;
       margin: 0 !important;
@@ -1513,12 +1513,12 @@
       text-overflow: ellipsis !important;
     }
 
-    .player-name-compact .font-semibold {
+    :global(.player-name-compact .font-semibold) {
       font-weight: bold !important;
       font-size: 10px !important;
     }
 
-    .vs-separator {
+    :global(.vs-separator) {
       font-size: 8px !important;
       color: #666 !important;
       margin: 0 4px !important;
@@ -1526,7 +1526,7 @@
     }
 
     /* Estils específics per categories compactes */
-    .category-compact {
+    :global(.category-compact) {
       font-size: 8px !important;
       padding: 1px 4px !important;
       border-radius: 2px !important;
@@ -1573,7 +1573,7 @@
     }
 
     /* Capçaleres de seccions */
-    h3, h4, h5 {
+    :global(h3), :global(h4) {
       margin: 10px 0 5px 0 !important;
       font-size: 14px !important;
       font-weight: bold !important;
@@ -1628,7 +1628,7 @@
       color: #666 !important;
     }
 
-    .print-date {
+    :global(.print-date) {
       font-size: 10px !important;
       font-style: italic !important;
       margin: 0 !important;
@@ -1639,13 +1639,13 @@
       flex: 0 0 auto !important;
     }
 
-    .print-contact {
+    :global(.print-contact) {
       text-align: right !important;
       font-size: 10px !important;
       line-height: 1.4 !important;
     }
 
-    .print-contact-line {
+    :global(.print-contact-line) {
       margin-bottom: 2px !important;
       color: #666 !important;
     }
@@ -1657,13 +1657,13 @@
     }
 
     /* Divisions de dies */
-    .calendar-day-section {
+    :global(.calendar-day-section) {
       page-break-inside: avoid !important;
       margin-bottom: 15px !important;
     }
 
     /* Capçaleres de dia més prominents */
-    .day-header {
+    :global(.day-header) {
       background-color: #e0e0e0 !important;
       font-size: 13px !important;
       font-weight: bold !important;
@@ -1671,7 +1671,7 @@
     }
 
     /* Capçaleres d'hora */
-    .hour-header {
+    :global(.hour-header) {
       background-color: #f5f5f5 !important;
       font-size: 12px !important;
       font-weight: bold !important;
@@ -1692,14 +1692,14 @@
     }
 
     /* Separadors principals entre dies i hores */
-    .day-separator {
+    :global(.day-separator) {
       border-right: 4px solid #333 !important;
       background-color: #e8e8e8 !important;
       font-weight: bold !important;
       font-size: 14px !important;
     }
 
-    .hour-separator {
+    :global(.hour-separator) {
       border-right: 4px solid #333 !important;
       background-color: #f0f0f0 !important;
       font-weight: bold !important;
@@ -1723,11 +1723,11 @@
     }
 
     /* Línies de separació horitzontals específiques per calendari */
-    .day-separator-row {
+    :global(.day-separator-row) {
       border-top: 4px solid #333 !important;
     }
 
-    .hour-separator-row {
+    :global(.hour-separator-row) {
       border-top: 2px solid #666 !important;
     }
 
@@ -1737,22 +1737,22 @@
     }
 
     /* Files de canvi de dia més destacades */
-    tbody tr.new-day {
+    :global(tbody tr.new-day) {
       border-top: 4px solid #333 !important;
     }
 
     /* Files de canvi d'hora més destacades */
-    tbody tr.new-hour {
+    :global(tbody tr.new-hour) {
       border-top: 2px solid #666 !important;
     }
 
     /* Eliminar colors de fons que no siguin necessaris */
-    .bg-blue-50, .bg-gray-50, .bg-orange-50, .hover\:bg-gray-50 {
+    :global(.bg-gray-50), :global(.bg-orange-50), :global(.hover\:bg-gray-50) {
       background-color: transparent !important;
     }
 
     /* Força salts de pàgina entre dies si cal - compatibilitat multi-navegador */
-    .print-page-break {
+    :global(.print-page-break) {
       page-break-before: always !important;
       break-before: page !important; /* CSS3 modern */
       display: block !important;
@@ -1953,8 +1953,9 @@
     <!-- Filtres -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Categoria</label>
+        <label for="category-filter" class="block text-sm font-medium text-gray-700 mb-2">Categoria</label>
         <select
+          id="category-filter"
           bind:value={selectedCategory}
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
@@ -1966,8 +1967,9 @@
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Data</label>
+        <label for="date-filter" class="block text-sm font-medium text-gray-700 mb-2">Data</label>
         <input
+          id="date-filter"
           type="date"
           bind:value={selectedDate}
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1975,9 +1977,10 @@
       </div>
 
       <div class="relative print-header-hide player-search-container">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Jugador</label>
+        <label for="player-search" class="block text-sm font-medium text-gray-700 mb-2">Jugador</label>
         <div class="relative">
           <input
+            id="player-search"
             type="text"
             bind:value={playerSearch}
             placeholder="Escriu nom o cognoms..."
@@ -2306,8 +2309,9 @@
 
       <form on:submit|preventDefault={saveMatch} class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Data</label>
+          <label for="edit-date" class="block text-sm font-medium text-gray-700 mb-1">Data</label>
           <input
+            id="edit-date"
             type="date"
             bind:value={editForm.data_programada}
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -2315,8 +2319,9 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Hora</label>
+          <label for="edit-time" class="block text-sm font-medium text-gray-700 mb-1">Hora</label>
           <input
+            id="edit-time"
             type="time"
             bind:value={editForm.hora_inici}
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -2324,8 +2329,9 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Taula</label>
+          <label for="edit-table-input" class="block text-sm font-medium text-gray-700 mb-1">Taula</label>
           <input
+            id="edit-table-input"
             type="number"
             min="1"
             max="10"
@@ -2335,8 +2341,9 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Estat</label>
+          <label for="edit-status" class="block text-sm font-medium text-gray-700 mb-1">Estat</label>
           <select
+            id="edit-status"
             bind:value={editForm.estat}
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
@@ -2347,8 +2354,9 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Observacions</label>
+          <label for="edit-observations" class="block text-sm font-medium text-gray-700 mb-1">Observacions</label>
           <textarea
+            id="edit-observations"
             bind:value={editForm.observacions_junta}
             rows="3"
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

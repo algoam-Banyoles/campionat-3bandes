@@ -62,8 +62,13 @@
   function getEventColor(event: CalendarEvent): string {
     // Si és un partit de campionat social, usar color per categoria
     if (event.type === 'challenge' && event.subtype?.startsWith('campionat-social')) {
-      const categoria = event.data?.categoria_nom;
-      if (categoria) {
+      // Type guard to check if data has categoria_nom property
+      const hasCategoriaNom = (data: any): data is { categoria_nom: string } => {
+        return data && typeof data.categoria_nom === 'string';
+      };
+      
+      if (hasCategoriaNom(event.data)) {
+        const categoria = event.data.categoria_nom;
         // Primer provar amb la categoria exacta
         if (eventColors.categoria[categoria as keyof typeof eventColors.categoria]) {
           return eventColors.categoria[categoria as keyof typeof eventColors.categoria];

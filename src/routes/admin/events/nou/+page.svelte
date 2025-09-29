@@ -554,8 +554,9 @@
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Distància (caramboles)</label>
+                  <label for="new-category-distancia-{index}" class="block text-sm font-medium text-gray-700">Distància (caramboles)</label>
                   <input
+                    id="new-category-distancia-{index}"
                     type="number"
                     bind:value={category.distancia_caramboles}
                     min="1"
@@ -564,8 +565,9 @@
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Màxim Entrades</label>
+                  <label for="new-category-max-entrades-{index}" class="block text-sm font-medium text-gray-700">Màxim Entrades</label>
                   <input
+                    id="new-category-max-entrades-{index}"
                     type="number"
                     bind:value={category.max_entrades}
                     min="1"
@@ -574,8 +576,9 @@
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Min. Jugadors</label>
+                  <label for="new-category-min-jugadors-{index}" class="block text-sm font-medium text-gray-700">Min. Jugadors</label>
                   <input
+                    id="new-category-min-jugadors-{index}"
                     type="number"
                     bind:value={category.min_jugadors}
                     min="1"
@@ -584,8 +587,9 @@
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Max. Jugadors</label>
+                  <label for="new-category-max-jugadors-{index}" class="block text-sm font-medium text-gray-700">Max. Jugadors</label>
                   <input
+                    id="new-category-max-jugadors-{index}"
                     type="number"
                     bind:value={category.max_jugadors}
                     min="1"
@@ -594,8 +598,9 @@
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Promig Mínim Promoció</label>
+                  <label for="new-category-promig-minim-{index}" class="block text-sm font-medium text-gray-700">Promig Mínim Promoció</label>
                   <input
+                    id="new-category-promig-minim-{index}"
                     type="number"
                     bind:value={category.promig_minim}
                     step="0.001"

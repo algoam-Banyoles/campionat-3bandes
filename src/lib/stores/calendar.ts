@@ -50,7 +50,7 @@ export type CalendarEvent = {
   end?: Date;
   type: 'challenge' | 'event';
   subtype?: string;
-  data?: EsdevenimentClub | RepteCalendari;
+  data?: EsdevenimentClub | RepteCalendari | PartidaCalendari;
 };
 
 // Store per la data actual del calendari

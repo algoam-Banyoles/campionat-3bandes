@@ -186,8 +186,9 @@
 
     <!-- Selector d'esdeveniment -->
     <div class="mb-6">
-      <label class="block text-sm font-medium mb-2">Esdeveniment:</label>
+      <label for="event-selector" class="block text-sm font-medium mb-2">Esdeveniment:</label>
       <select
+        id="event-selector"
         bind:value={selectedEventId}
         on:change={handleEventChange}
         class="w-full max-w-md rounded-xl border px-3 py-2"

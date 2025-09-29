@@ -4,7 +4,7 @@
   import { user } from '$lib/stores/auth';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
-  import PlayerSearcher from '$lib/components/general/PlayerSearcher.svelte';
+  import PlayerSearcher from '$lib/components/general/UnifiedPlayerSearcher.svelte';
   import { formatSupabaseError } from '$lib/ui/alerts';
 
   let loading = true;
@@ -325,13 +325,13 @@
         {#if showAddPlayer}
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Selecciona Jugador
-              </label>
               <PlayerSearcher
-                bind:selectedPlayer
+                searchType="active_players"
+                title="Selecciona Jugador"
+                description="Cerca jugador per nom o número de soci"
                 placeholder="Cerca jugador per nom o número de soci..."
-                showPlayerInfo={true}
+                allowSelection={true}
+                on:playerSelected={(event) => selectedPlayer = event.detail}
               />
             </div>
 

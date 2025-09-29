@@ -10,4 +10,4 @@
   import CrearRanquingInicial from './admin/CrearRanquingInicial.svelte';
 </script>
 
-<CrearRanquingInicial {...$$props} />
+<CrearRanquingInicial />

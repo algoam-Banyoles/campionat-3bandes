@@ -72,12 +72,16 @@
   <!-- Modal backdrop -->
   <div
     class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
     on:click={closeModal}
+    on:keydown={(e) => e.key === 'Escape' && closeModal()}
   >
     <!-- Modal content -->
     <div
       class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/5 lg:w-1/2 shadow-lg rounded-md bg-white"
-      on:click|stopPropagation
+      role="document"
     >
       <!-- Header -->
       <div class="flex items-center justify-between mb-4">
@@ -87,6 +91,7 @@
         <button
           on:click={closeModal}
           class="text-gray-400 hover:text-gray-600"
+          aria-label="Tancar modal"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -97,10 +102,10 @@
       <!-- Form -->
       <form on:submit|preventDefault={saveRestrictions}>
         <!-- Dies preferits -->
-        <div class="mb-6">
-          <label class="block text-sm font-medium text-gray-700 mb-3">
+        <fieldset class="mb-6">
+          <legend class="block text-sm font-medium text-gray-700 mb-3">
             Dies preferits de la setmana
-          </label>
+          </legend>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
             {#each [
               { code: 'dl', name: 'Dilluns' },
@@ -125,13 +130,13 @@
           <p class="mt-1 text-xs text-gray-500">
             Si no selecciones cap dia, s'assumeix que tots els dies estan bé
           </p>
-        </div>
+        </fieldset>
 
         <!-- Hores preferides -->
-        <div class="mb-6">
-          <label class="block text-sm font-medium text-gray-700 mb-3">
+        <fieldset class="mb-6">
+          <legend class="block text-sm font-medium text-gray-700 mb-3">
             Hores preferides
-          </label>
+          </legend>
           <div class="grid grid-cols-3 md:grid-cols-3 gap-2">
             {#each ['18:00', '19:00', '17:30', '18:30', '19:30', '20:00'] as hora}
               <label class="flex items-center">
@@ -148,14 +153,15 @@
           <p class="mt-1 text-xs text-gray-500">
             Horaris habituals: 18:00 i 19:00. Si no selecciones cap hora, s'assumeix que totes estan bé.
           </p>
-        </div>
+        </fieldset>
 
         <!-- Restriccions especials -->
         <div class="mb-6">
-          <label class="block text-sm font-medium text-gray-700 mb-2">
+          <label for="restriccions-especials" class="block text-sm font-medium text-gray-700 mb-2">
             Restriccions especials o observacions
           </label>
           <textarea
+            id="restriccions-especials"
             bind:value={restriccions_especials}
             rows="5"
             placeholder="Exemples:&#10;- No disponible del 15 al 22 de desembre&#10;- Del 1/12 al 5/12 no puc jugar&#10;- Del 1 al 15 d'octubre NO&#10;- 24 de desembre NO&#10;- Vacances del 20-07 al 30-07"
