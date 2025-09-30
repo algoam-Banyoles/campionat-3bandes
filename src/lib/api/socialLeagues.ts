@@ -449,12 +449,12 @@ export async function searchActivePlayers(playerName: string): Promise<{
   email: string | null;
   historicalAverage: number | null;
 }[]> {
-  // Buscar socis actius
+  // Buscar socis actius - cerca en nom o cognoms
   const { data: socis, error } = await supabase
     .from('socis')
     .select('numero_soci, nom, cognoms, telefon, email')
-    .ilike('nom', `%${playerName}%`)
     .eq('de_baixa', false)
+    .or(`nom.ilike.%${playerName}%,cognoms.ilike.%${playerName}%`)
     .order('nom');
 
   if (error) {
@@ -500,4 +500,78 @@ export async function searchActivePlayers(playerName: string): Promise<{
       historicalAverage: bestMitjana
     };
   });
+}
+
+/**
+ * Obtenir l'històric de mitjanes d'un jugador per modalitat
+ */
+export async function getPlayerAverageHistory(playerNumeroSoci: number, modalitat?: string) {
+  // Get player ID from numero_soci
+  const { data: player, error: playerError } = await supabase
+    .from('players')
+    .select('id')
+    .eq('numero_soci', playerNumeroSoci)
+    .single();
+
+  if (playerError || !player) {
+    console.error('Error fetching player:', playerError);
+    return [];
+  }
+
+  // Build query to get classifications with event and category info
+  let query = supabase
+    .from('classificacions')
+    .select(`
+      id,
+      posicio,
+      mitjana_particular,
+      punts,
+      caramboles_favor,
+      caramboles_contra,
+      partides_jugades,
+      partides_guanyades,
+      partides_perdudes,
+      event_id,
+      categories (
+        nom
+      ),
+      events!inner (
+        id,
+        nom,
+        temporada,
+        modalitat,
+        tipus_competicio
+      )
+    `)
+    .eq('player_id', player.id)
+    .eq('events.tipus_competicio', 'lliga_social')
+    .order('events.temporada', { ascending: true });
+
+  // Filter by modality if provided
+  if (modalitat) {
+    query = query.eq('events.modalitat', modalitat);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching player history:', error);
+    return [];
+  }
+
+  // Transform and group by temporada and modalitat
+  return (data || []).map((classification: any) => ({
+    temporada: classification.events.temporada,
+    modalitat: classification.events.modalitat,
+    event_nom: classification.events.nom,
+    categoria_nom: classification.categories?.nom || '',
+    posicio: classification.posicio,
+    mitjana_particular: classification.mitjana_particular,
+    punts: classification.punts,
+    caramboles_favor: classification.caramboles_favor,
+    caramboles_contra: classification.caramboles_contra,
+    partides_jugades: classification.partides_jugades,
+    partides_guanyades: classification.partides_guanyades,
+    partides_perdudes: classification.partides_perdudes
+  }));
 }

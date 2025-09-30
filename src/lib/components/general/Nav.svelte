@@ -41,7 +41,7 @@
       links: [
         { href: '/campionats-socials?view=active', label: 'Campionats en Curs' },
         { href: '/campionats-socials?view=history', label: 'Historial' },
-        { href: '/campionats-socials?view=players', label: 'Cerca Jugadors' }
+        { href: '/campionats-socials/cerca-jugadors', label: 'Cerca Jugadors' }
       ],
       userLinks: [
         { href: '/campionats-socials/inscripcions', label: 'Inscripcions Obertes' }

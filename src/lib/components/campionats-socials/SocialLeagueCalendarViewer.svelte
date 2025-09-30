@@ -739,6 +739,63 @@
 
       console.log('✅ Loaded calendar matches:', matchDataRaw?.length || 0);
 
+      // Carregar també partides no programades (només si l'usuari està autenticat)
+      console.log('🔍 Loading unprogrammed matches (only for authenticated users)...');
+      let unprogrammedRaw = [];
+      let unprogrammedError = null;
+      
+      // Verificar si l'usuari està autenticat
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      console.log('🔍 User authentication status:', user ? 'Authenticated' : 'Anonymous');
+      
+      if (user) {
+        try {
+          // Si està autenticat, intentar carregar partides no programades
+          console.log('🔍 User authenticated, loading unprogrammed matches...');
+          const result = await supabase
+            .from('calendari_partides')
+            .select('*')
+            .eq('event_id', eventId)
+            .is('data_programada', null);
+            
+          unprogrammedRaw = result.data;
+          unprogrammedError = result.error;
+          
+          // Si no funciona amb data_programada null, provar amb estat
+          if (!unprogrammedRaw || unprogrammedRaw.length === 0) {
+            console.log('🔍 Trying with estat = pendent_programar...');
+            const altResult = await supabase
+              .from('calendari_partides')
+              .select('*')
+              .eq('event_id', eventId)
+              .eq('estat', 'pendent_programar');
+              
+            if (altResult.data && altResult.data.length > 0) {
+              unprogrammedRaw = altResult.data;
+              unprogrammedError = altResult.error;
+              console.log('✅ Found via estat filter:', unprogrammedRaw.length);
+            }
+          }
+        } catch (err) {
+          console.warn('⚠️ Error loading unprogrammed matches for authenticated user:', err);
+          unprogrammedError = err;
+        }
+      } else {
+        console.log('ℹ️ Anonymous user - unprogrammed matches not available due to RLS policies');
+      }
+
+      console.log('🔍 Unprogrammed query result:', { 
+        data: unprogrammedRaw?.length || 0, 
+        error: unprogrammedError 
+      });
+
+      if (unprogrammedError) {
+        console.warn('⚠️ Could not load unprogrammed matches:', unprogrammedError);
+        // Continuar sense partides no programades si hi ha error de permisos
+      }
+
+      console.log('✅ Loaded unprogrammed matches:', unprogrammedRaw?.length || 0);
+
       // Transformar les dades RPC al format esperat pel component
       const matchData = matchDataRaw?.map(match => ({
         id: match.id,
@@ -768,6 +825,41 @@
         }
       })) || [];
 
+      // Transformar les partides no programades al mateix format
+      const unprogrammedData = unprogrammedRaw?.map(match => ({
+        id: match.id,
+        categoria_id: match.categoria_id,
+        data_programada: match.data_programada,
+        hora_inici: match.hora_inici,
+        jugador1_id: match.jugador1_id,
+        jugador2_id: match.jugador2_id,
+        estat: match.estat,
+        taula_assignada: match.taula_assignada,
+        observacions_junta: match.observacions_junta,
+        jugador1: {
+          id: match.jugador1_id,
+          numero_soci: null,
+          socis: {
+            nom: 'Jugador 1',
+            cognoms: '(No programat)'
+          }
+        },
+        jugador2: {
+          id: match.jugador2_id,
+          numero_soci: null,
+          socis: {
+            nom: 'Jugador 2', 
+            cognoms: '(No programat)'
+          }
+        }
+      })) || [];
+
+      console.log('🔍 Unprogrammed data processed:', unprogrammedData.length);
+
+      // Combinar les dades programades i no programades
+      const allMatchData = [...matchData, ...unprogrammedData];
+      console.log('📊 Total matches (programmed + unprogrammed):', allMatchData.length);
+
       // Debug: comprovar taules assignades
       // const withTables = matchData.filter(m => m.taula_assignada).length;
       // const withoutTables = matchData.filter(m => !m.taula_assignada).length;
@@ -794,7 +886,7 @@
       }
 
       // Combinar dades de partits amb categories
-      const matchesWithCategories = (matchData || []).map(match => {
+      const matchesWithCategories = (allMatchData || []).map(match => {
         const category = finalCategories.find(c => c.id === match.categoria_id);
         return {
           ...match,
@@ -1047,27 +1139,11 @@
 
   // Separar partits programats i no programats
   $: programmedMatches = filteredMatches.filter(match => match.data_programada && !['pendent_programar'].includes(match.estat));
-  
-  // TEMPORAL: Simular partides no programades per testing
   $: {
-    const realUnprogrammed = filteredMatches.filter(match => !match.data_programada || match.estat === 'pendent_programar');
-    
-    if (realUnprogrammed.length === 0 && matches.length > 0 && selectedCategory === '' && selectedDate === '' && playerSearch === '') {
-      console.log('🧪 SIMULACIÓ: No hi ha partides no programades reals, simulant-ne 3...');
-      // Agafar les primeres 3 partides i simular que no estan programades
-      unprogrammedMatches = matches.slice(0, 3).map(match => ({
-        ...match,
-        data_programada: null,
-        hora_inici: null,
-        taula_assignada: null,
-        estat: 'pendent_programar'
-      }));
-      console.log('🧪 SIMULACIÓ: ' + unprogrammedMatches.length + ' partides no programades simulades');
-    } else {
-      unprogrammedMatches = realUnprogrammed;
-      if (realUnprogrammed.length > 0) {
-        console.log('✅ REAL: ' + realUnprogrammed.length + ' partides no programades reals trobades');
-      }
+    unprogrammedMatches = filteredMatches.filter(match => !match.data_programada || match.estat === 'pendent_programar');
+    console.log('🔍 Reactive unprogrammedMatches:', unprogrammedMatches.length, 'from filteredMatches:', filteredMatches.length);
+    if (unprogrammedMatches.length > 0) {
+      console.log('🔍 Sample unprogrammed match:', unprogrammedMatches[0]);
     }
   }
   
