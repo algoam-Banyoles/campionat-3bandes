@@ -273,7 +273,6 @@
                 <th class="day-column">Dia</th>
                 <th class="hour-column">Hora</th>
                 <th class="table-column">Billar</th>
-                ${isAdmin ? '<th class="category-column">Cat</th>' : ''}
                 <th class="player-column">Jugador 1</th>
                 <th class="player-column">Jugador 2</th>
               </tr>
@@ -290,7 +289,6 @@
                 <th class="day-column">Dia</th>
                 <th class="hour-column">Hora</th>
                 <th class="table-column">Billar</th>
-                ${isAdmin ? '<th class="category-column">Cat</th>' : ''}
                 <th class="player-column">Jugador 1</th>
                 <th class="player-column">Jugador 2</th>
               </tr>
@@ -350,7 +348,6 @@
           // Columnes de contingut
           columnHTML += `
             <td class="table-cell">B${slot.taula}</td>
-            ${isAdmin ? `<td class="category-cell">${slot.match ? getCategoryName(slot.match.categoria_id) : '-'}</td>` : ''}
             <td class="player-cell">${slot.match ? formatPlayerName(slot.match.jugador1) : '-'}</td>
             <td class="player-cell">${slot.match ? formatPlayerName(slot.match.jugador2) : '-'}</td>
           `;
@@ -757,6 +754,14 @@
         }
       })) || [];
 
+      // Debug: comprovar taules assignades
+      const withTables = matchData.filter(m => m.taula_assignada).length;
+      const withoutTables = matchData.filter(m => !m.taula_assignada).length;
+      console.log('🔍 Matches with taula_assignada:', withTables, 'without:', withoutTables);
+      if (matchData.length > 0) {
+        console.log('🔍 Sample match taula_assignada:', matchData[0].taula_assignada, typeof matchData[0].taula_assignada);
+      }
+
       // Carregar categories si no es passen per prop
       let finalCategories = categories;
       if (categories.length === 0) {
@@ -779,7 +784,7 @@
         const category = finalCategories.find(c => c.id === match.categoria_id);
         return {
           ...match,
-          categories: category || null
+          categoria: category || null
         };
       });
 
@@ -792,7 +797,8 @@
         hora_inici: matches[0].hora_inici,
         jugador1: matches[0].jugador1?.socis?.nom,
         jugador2: matches[0].jugador2?.socis?.nom,
-        categories: matches[0].categories
+        categoria: matches[0].categoria?.nom,
+        taula_assignada: matches[0].taula_assignada
       } : 'No matches');
 
     } catch (e) {
@@ -992,19 +998,11 @@
   });
 
   $: filteredTimeline = timelineData.filter(slot => {
-
-    
-    // SEMPRE mostrar només slots amb partits programats (eliminar slots buits)
-    if (!slot.match) return false;
-    
-    // Filtrar per data seleccionada
-    if (selectedDate && slot.dateStr !== selectedDate) return false;
-    
-    // Filtrar per categoria seleccionada
-    if (selectedCategory && slot.match.categoria_id !== selectedCategory) return false;
-    
-    // Si hi ha cerca de jugador, filtrar pels jugadors
+    // Si hi ha cerca de jugador, només mostrar slots amb partits d'aquell jugador
     if (playerSearch.length >= 2) {
+      // Només slots amb partits quan es cerca jugador
+      if (!slot.match) return false;
+      
       const searchLower = playerSearch.toLowerCase().trim();
       const player1Match = matchPlayerSearchText(slot.match.jugador1, searchLower);
       const player2Match = matchPlayerSearchText(slot.match.jugador2, searchLower);
@@ -1012,6 +1010,12 @@
       // Si el partit no té el jugador cercat, no mostrar aquest slot
       if (!player1Match && !player2Match) return false;
     }
+    
+    // Filtrar per data seleccionada (aplicable tant a slots buits com amb partits)
+    if (selectedDate && slot.dateStr !== selectedDate) return false;
+    
+    // Filtrar per categoria seleccionada (només aplicable a slots amb partits)
+    if (selectedCategory && slot.match && slot.match.categoria_id !== selectedCategory) return false;
     
     return true;
   });
@@ -1271,6 +1275,66 @@
     editingMatch = null;
   }
 
+  async function convertToUnprogrammed(match: any) {
+    if (!isAdmin) return;
+
+    const confirmation = confirm(
+      `Estàs segur que vols convertir aquesta partida en no programada?\n\n` +
+      `${formatPlayerName(match.jugador1)} vs ${formatPlayerName(match.jugador2)}\n` +
+      `Data: ${formatDate(new Date(match.data_programada))} a les ${match.hora_inici}\n\n` +
+      `Aquesta acció eliminarà la data i hora programades.`
+    );
+
+    if (!confirmation) return;
+
+    try {
+      const { error: updateError } = await supabase
+        .from('calendari_partides')
+        .update({
+          data_programada: null,
+          hora_inici: null,
+          taula_assignada: null,
+          estat: 'pendent_programar',
+          observacions_junta: match.observacions_junta ? 
+            `${match.observacions_junta}\n[${new Date().toLocaleDateString('ca-ES')}] Convertida a no programada per indisponibilitat de jugador.` :
+            `[${new Date().toLocaleDateString('ca-ES')}] Convertida a no programada per indisponibilitat de jugador.`
+        })
+        .eq('id', match.id);
+
+      if (updateError) throw updateError;
+
+      await loadCalendarData();
+      dispatch('matchUpdated');
+
+      alert('Partida convertida a no programada correctament.');
+
+    } catch (e) {
+      console.error('Error converting match to unprogrammed:', e);
+      error = formatSupabaseError(e);
+      alert('Error al convertir la partida: ' + error);
+    }
+  }
+
+  async function programEmptySlot(slot: any) {
+    if (!isAdmin) return;
+
+    // Obrir modal per seleccionar partida pendent
+    // Per ara, una implementació simple amb prompt
+    const confirmation = confirm(
+      `Vols programar una partida en aquest slot?\n\n` +
+      `Data: ${formatDate(new Date(slot.dateStr))}\n` +
+      `Hora: ${slot.hora}\n` +
+      `Billar: ${slot.taula}\n\n` +
+      `Se t'obrirà la vista de partides pendents per seleccionar-ne una.`
+    );
+
+    if (confirmation) {
+      // Per ara, redirigir a la secció de partides pendents
+      alert('Funcionalitat en desenvolupament: Se\'t dirigirà a la secció de partides pendents per programar.');
+      // TODO: Implementar modal per seleccionar partida pendent de programar
+    }
+  }
+
   async function saveMatch() {
     if (!editingMatch || !isAdmin) return;
 
@@ -1485,9 +1549,11 @@
     }
 
     .calendar-table .table-column {
-      width: 40px !important;
-      min-width: 40px !important;
-      max-width: 40px !important;
+      width: 60px !important;
+      min-width: 60px !important;
+      max-width: 60px !important;
+      visibility: visible !important;
+      display: table-cell !important;
     }
 
     :global(.calendar-table .category-column) {
@@ -1833,6 +1899,28 @@
   .calendar-table tbody tr:where(.border-t-2) {
     border-top: 2px solid #6b7280 !important;
   }
+
+  /* Estils específics per a la pantalla (no print) */
+  @media screen {
+    .table-column {
+      min-width: 100px !important;
+      width: 100px !important;
+      visibility: visible !important;
+      display: table-cell !important;
+    }
+
+    .table-number-compact {
+      display: inline-block !important;
+      visibility: visible !important;
+    }
+
+    /* Forçar visibilitat de la columna del billar */
+    .calendar-table .table-column {
+      opacity: 1 !important;
+      visibility: visible !important;
+      display: table-cell !important;
+    }
+  }
 </style>
 
 <div class="space-y-6 main-calendar-container">
@@ -2098,12 +2186,23 @@
                     </td>
                     {#if isAdmin}
                       <td class="px-6 py-4 whitespace-nowrap text-sm font-medium print-hide">
-                        <button
-                          on:click={() => startEditing(match)}
-                          class="text-blue-600 hover:text-blue-900"
-                        >
-                          Editar
-                        </button>
+                        <div class="flex flex-col space-y-1">
+                          <button
+                            on:click={() => startEditing(match)}
+                            class="text-blue-600 hover:text-blue-900"
+                          >
+                            Editar
+                          </button>
+                          {#if match.data_programada}
+                            <button
+                              on:click={() => convertToUnprogrammed(match)}
+                              class="text-orange-600 hover:text-orange-900 text-xs"
+                              title="Convertir a no programada"
+                            >
+                              No programar
+                            </button>
+                          {/if}
+                        </div>
                       </td>
                     {/if}
                   </tr>
@@ -2144,7 +2243,7 @@
               <tr>
                 <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-4 border-gray-800 day-column">Dia</th>
                 <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-4 border-gray-800 hour-column">Hora</th>
-                <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 table-column">Billar</th>
+                <th class="px-6 py-4 text-center text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 table-column min-w-[100px]">Billar</th>
                 <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 player-column">Jugador 1</th>
                 <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 player-column">Jugador 2</th>
                 {#if isAdmin}
@@ -2180,8 +2279,16 @@
                       {/if}
 
                       <!-- Table column -->
-                      <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base text-gray-900 border-r-2 border-gray-400 table-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
-                        <span class="table-number-compact">B{slot.taula}</span>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm md:text-base text-gray-900 border-r-2 border-gray-400 table-column text-center font-medium min-w-[100px]" class:match-cell={slot.match} class:empty-cell={!slot.match}>
+                        {#if slot.match && slot.match.taula_assignada}
+                          <span class="table-number-compact bg-green-100 px-3 py-2 rounded-full text-green-800 font-bold text-lg">B{slot.match.taula_assignada}</span>
+                        {:else if slot.match}
+                          <!-- Match but no taula_assignada -->
+                          <span class="table-number-compact bg-orange-100 px-3 py-2 rounded-full text-orange-800 font-bold text-lg">B{slot.taula}</span>
+                        {:else}
+                          <!-- Empty slot -->
+                          <span class="table-number-compact bg-blue-100 px-3 py-2 rounded-full text-blue-800 font-bold text-lg">B{slot.taula}</span>
+                        {/if}
                       </td>
 
 
@@ -2190,8 +2297,6 @@
                       <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base text-gray-900 border-r-2 border-gray-400 player-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
                         {#if slot.match}
                           <span class="font-semibold">{formatPlayerName(slot.match.jugador1)}</span>
-                        {:else}
-                          <span class="text-gray-500 text-sm md:text-base font-medium">-</span>
                         {/if}
                       </td>
 
@@ -2199,8 +2304,6 @@
                       <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base text-gray-900 border-r-2 border-gray-400 player-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
                         {#if slot.match}
                           <span class="font-semibold">{formatPlayerName(slot.match.jugador2)}</span>
-                        {:else}
-                          <span class="text-gray-500 text-sm md:text-base font-medium">-</span>
                         {/if}
                       </td>
 
@@ -2210,14 +2313,32 @@
                       {#if isAdmin}
                         <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base font-medium print-hide">
                           {#if slot.match}
-                            <button
-                              on:click={() => startEditing(slot.match)}
-                              class="text-blue-600 hover:text-blue-900 text-sm md:text-base font-semibold"
-                            >
-                              Editar
-                            </button>
+                            <div class="flex flex-col space-y-1">
+                              <button
+                                on:click={() => startEditing(slot.match)}
+                                class="text-blue-600 hover:text-blue-900 text-sm md:text-base font-semibold"
+                              >
+                                Editar
+                              </button>
+                              {#if slot.match.data_programada}
+                                <button
+                                  on:click={() => convertToUnprogrammed(slot.match)}
+                                  class="text-orange-600 hover:text-orange-900 text-xs md:text-sm font-medium"
+                                  title="Convertir a no programada"
+                                >
+                                  No programar
+                                </button>
+                              {/if}
+                            </div>
                           {:else}
-                            <span class="text-gray-500 font-medium">-</span>
+                            <!-- Empty slot actions -->
+                            <button
+                              on:click={() => programEmptySlot(slot)}
+                              class="text-green-600 hover:text-green-900 text-sm md:text-base font-semibold"
+                              title="Programar partida en aquest slot"
+                            >
+                              + Programar
+                            </button>
                           {/if}
                         </td>
                       {/if}
