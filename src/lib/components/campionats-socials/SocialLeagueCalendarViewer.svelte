@@ -617,6 +617,7 @@
   let matches: any[] = [];
   let availableDates: Date[] = [];
   let timelineData: any[] = [];
+  let unprogrammedMatches: any[] = [];
   let calendarConfig: any = {
     dies_setmana: ['dl', 'dt', 'dc', 'dj', 'dv'],
     hores_disponibles: ['18:00', '19:00'],
@@ -671,16 +672,29 @@
 
   // Generar dates disponibles per la vista timeline
   $: availableDates = generateAvailableDates(matches);
-  $: timelineData = generateTimelineData(matches, calendarConfig, availableDates);
+  $: timelineData = matches.length > 0 ? generateTimelineData(matches, calendarConfig, availableDates) : [];
   
   // Debug reactiu
-  $: {
-    if (matches.length > 0) {
-      console.log('🔍 Reactive update - matches:', matches.length);
-      console.log('🔍 Reactive update - availableDates:', availableDates?.length || 0);
-      console.log('🔍 Reactive update - timelineData:', timelineData?.length || 0);
-    }
-  }
+  // $: {
+  //   if (matches.length > 0) {
+  //     console.log('🔍 Reactive update - matches:', matches.length);
+  //     console.log('🔍 Reactive update - availableDates:', availableDates?.length || 0);
+  //     console.log('🔍 Reactive update - timelineData:', timelineData?.length || 0);
+  //   }
+  // }
+
+  // Estat combinat de loading - només considera carregat quan tenim dades reals
+  $: isDataReady = !loading && matches.length > 0;
+  
+  // Debug per veure quan es considera que les dades estan llestes
+  // $: {
+  //   console.log('🔍 Data ready check:', {
+  //     loading,
+  //     matchesLength: matches.length,
+  //     isDataReady,
+  //     timelineDataLength: timelineData.length
+  //   });
+  // }
 
   async function loadCalendarData() {
     if (!eventId) return;
@@ -755,12 +769,12 @@
       })) || [];
 
       // Debug: comprovar taules assignades
-      const withTables = matchData.filter(m => m.taula_assignada).length;
-      const withoutTables = matchData.filter(m => !m.taula_assignada).length;
-      console.log('🔍 Matches with taula_assignada:', withTables, 'without:', withoutTables);
-      if (matchData.length > 0) {
-        console.log('🔍 Sample match taula_assignada:', matchData[0].taula_assignada, typeof matchData[0].taula_assignada);
-      }
+      // const withTables = matchData.filter(m => m.taula_assignada).length;
+      // const withoutTables = matchData.filter(m => !m.taula_assignada).length;
+      // console.log('🔍 Matches with taula_assignada:', withTables, 'without:', withoutTables);
+      // if (matchData.length > 0) {
+      //   console.log('🔍 Sample match taula_assignada:', matchData[0].taula_assignada, typeof matchData[0].taula_assignada);
+      // }
 
       // Carregar categories si no es passen per prop
       let finalCategories = categories;
@@ -1033,7 +1047,29 @@
 
   // Separar partits programats i no programats
   $: programmedMatches = filteredMatches.filter(match => match.data_programada && !['pendent_programar'].includes(match.estat));
-  $: unprogrammedMatches = filteredMatches.filter(match => !match.data_programada || match.estat === 'pendent_programar');
+  
+  // TEMPORAL: Simular partides no programades per testing
+  $: {
+    const realUnprogrammed = filteredMatches.filter(match => !match.data_programada || match.estat === 'pendent_programar');
+    
+    if (realUnprogrammed.length === 0 && matches.length > 0 && selectedCategory === '' && selectedDate === '' && playerSearch === '') {
+      console.log('🧪 SIMULACIÓ: No hi ha partides no programades reals, simulant-ne 3...');
+      // Agafar les primeres 3 partides i simular que no estan programades
+      unprogrammedMatches = matches.slice(0, 3).map(match => ({
+        ...match,
+        data_programada: null,
+        hora_inici: null,
+        taula_assignada: null,
+        estat: 'pendent_programar'
+      }));
+      console.log('🧪 SIMULACIÓ: ' + unprogrammedMatches.length + ' partides no programades simulades');
+    } else {
+      unprogrammedMatches = realUnprogrammed;
+      if (realUnprogrammed.length > 0) {
+        console.log('✅ REAL: ' + realUnprogrammed.length + ' partides no programades reals trobades');
+      }
+    }
+  }
   
   // Comptar slots amb partits del jugador cercat (per debugging)
   $: playerMatchSlots = playerSearch.length >= 2 
@@ -2124,10 +2160,12 @@
   {/if}
 
   <!-- Loading -->
-  {#if loading}
+  {#if !isDataReady}
     <div class="bg-white border border-gray-200 rounded-lg p-8 text-center print-header-hide">
       <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      <p class="mt-2 text-gray-600">Carregant calendari...</p>
+      <p class="mt-2 text-gray-600">
+        {loading ? 'Carregant calendari...' : 'Esperant dades del calendari...'}
+      </p>
     </div>
   {:else if viewMode === 'category'}
     <!-- Vista per Categories -->

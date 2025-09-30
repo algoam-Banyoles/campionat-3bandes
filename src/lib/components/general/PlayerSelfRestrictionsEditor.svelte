@@ -93,11 +93,16 @@
     <!-- Modal content -->
     <div
       class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/5 lg:w-1/2 shadow-lg rounded-md bg-white"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      tabindex="-1"
       on:click|stopPropagation
+      on:keydown={handleKeydown}
     >
       <!-- Header -->
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-medium text-gray-900">
+        <h3 id="modal-title" class="text-lg font-medium text-gray-900">
           Restriccions de {inscription.socis?.nom || 'Jugador'} {inscription.socis?.cognoms || ''}
         </h3>
         <button
