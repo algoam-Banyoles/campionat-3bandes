@@ -152,6 +152,11 @@
     const pendingTableHTML = `
       <div class="pending-matches-section">
         <h3 class="pending-matches-title">PARTIDES PENDENTS DE PROGRAMAR</h3>
+        <div class="pending-matches-info">
+          <span class="pending-matches-info-text">
+            Informació: Aquestes partides no s'han pogut programar automàticament dins el període establert del campionat. Caldrà programar-les per part dels jugadors implicats.
+          </span>
+        </div>
         <table class="calendar-table pending-matches-table">
           <thead>
             <tr>
@@ -163,15 +168,22 @@
             </tr>
           </thead>
           <tbody>
-            ${pendingMatches.map(match => `
-              <tr>
-                ${isAdmin ? `<td class="category-cell">${getCategoryName(match.categoria_id)}</td>` : ''}
-                <td class="player-cell">${formatPlayerName(match.jugador1)}</td>
-                <td class="player-cell">${formatPlayerName(match.jugador2)}</td>
-                <td class="date-cell">${match.data_limit ? new Date(match.data_limit).toLocaleDateString('ca-ES') : 'Per definir'}</td>
-                <td class="observations-cell">${match.observacions || '-'}</td>
-              </tr>
-            `).join('')}
+            ${pendingMatches.map(match => {
+              // Si tenim categoria_nom, mostrar-la; si no, usar getCategoryName
+              const categoriaText = match.categoria_nom ? match.categoria_nom : getCategoryName(match.categoria_id);
+              // Si tenim jugador1.nom, mostrar-lo; si no, usar formatPlayerName
+              const jugador1Text = match.jugador1 && match.jugador1.nom ? `${match.jugador1.nom} ${match.jugador1.cognoms}` : formatPlayerName(match.jugador1);
+              const jugador2Text = match.jugador2 && match.jugador2.nom ? `${match.jugador2.nom} ${match.jugador2.cognoms}` : formatPlayerName(match.jugador2);
+              return `
+                <tr>
+                  ${isAdmin ? `<td class="category-cell">${categoriaText}</td>` : ''}
+                  <td class="player-cell">${jugador1Text}</td>
+                  <td class="player-cell">${jugador2Text}</td>
+                  <td class="date-cell">${match.data_limit ? new Date(match.data_limit).toLocaleDateString('ca-ES') : 'Per definir'}</td>
+                  <td class="observations-cell">${match.observacions || '-'}</td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
       </div>
@@ -702,7 +714,9 @@
     loading = true;
     error = null;
 
-    try {
+  let categoriesMap = new Map();
+  let playersMap = new Map();
+  try {
       // Carregar configuració del calendari (només per admins per evitar errors RLS)
       if (isAdmin) {
         try {
@@ -750,31 +764,72 @@
       
       if (user) {
         try {
-          // Si està autenticat, intentar carregar partides no programades
-          console.log('🔍 User authenticated, loading unprogrammed matches...');
+          // Carregar partides no programades amb els filtres correctes
+          console.log('🔍 User authenticated, loading unprogrammed matches (estat=pendent_programar, data_programada=null)...');
           const result = await supabase
             .from('calendari_partides')
             .select('*')
             .eq('event_id', eventId)
+            .eq('estat', 'pendent_programar')
             .is('data_programada', null);
-            
+
           unprogrammedRaw = result.data;
           unprogrammedError = result.error;
-          
-          // Si no funciona amb data_programada null, provar amb estat
-          if (!unprogrammedRaw || unprogrammedRaw.length === 0) {
-            console.log('🔍 Trying with estat = pendent_programar...');
-            const altResult = await supabase
-              .from('calendari_partides')
-              .select('*')
-              .eq('event_id', eventId)
-              .eq('estat', 'pendent_programar');
-              
-            if (altResult.data && altResult.data.length > 0) {
-              unprogrammedRaw = altResult.data;
-              unprogrammedError = altResult.error;
-              console.log('✅ Found via estat filter:', unprogrammedRaw.length);
+
+          // Si hi ha partides, buscar noms reals de jugadors i categories
+          if (unprogrammedRaw && unprogrammedRaw.length > 0) {
+            // Eliminar duplicats, nulls, undefined i strings buits
+            const jugadorIds = Array.from(new Set([
+              ...unprogrammedRaw.map(m => m.jugador1_id),
+              ...unprogrammedRaw.map(m => m.jugador2_id)
+            ].filter(id => id && typeof id === 'string' && id.trim().length > 0)));
+
+            // Primer consultem 'players' per obtenir numero_soci
+            if (jugadorIds.length > 0) {
+              const { data: playersData } = await supabase
+                .from('players')
+                .select('id, numero_soci')
+                .in('id', jugadorIds);
+              if (playersData && playersData.length > 0) {
+                const socisIds = playersData.map(p => p.numero_soci).filter(Boolean);
+                const { data: socisData } = await supabase
+                  .from('socis')
+                  .select('numero_soci, nom, cognoms')
+                  .in('numero_soci', socisIds);
+                if (socisData) {
+                  playersData.forEach(p => {
+                    const soci = socisData.find(s => s.numero_soci === p.numero_soci);
+                    if (soci) {
+                      const inicialNom = soci.nom ? soci.nom.trim().charAt(0).toUpperCase() : '';
+                      const primerCognom = soci.cognoms ? soci.cognoms.trim().split(' ')[0] : '';
+                      playersMap.set(p.id, { nom: inicialNom, cognoms: primerCognom });
+                    }
+                  });
+                }
+              }
             }
+            const categoriaIds = [...new Set(unprogrammedRaw.map(m => m.categoria_id).filter(Boolean))];
+
+            // Carregar categories
+            if (categoriaIds.length > 0) {
+              const { data: categoriesData } = await supabase
+                .from('categories')
+                .select('id, nom')
+                .in('id', categoriaIds);
+              if (categoriesData) {
+                categoriesData.forEach(c => {
+                  categoriesMap.set(c.id, c.nom);
+                });
+              }
+            }
+
+            // Afegir noms reals a les partides
+            unprogrammedRaw = unprogrammedRaw.map(match => ({
+              ...match,
+              categoria_nom: categoriesMap.get(match.categoria_id) || '',
+              jugador1: playersMap.get(match.jugador1_id) || { nom: 'J.', cognoms: '(No programat)' },
+              jugador2: playersMap.get(match.jugador2_id) || { nom: 'J.', cognoms: '(No programat)' }
+            }));
           }
         } catch (err) {
           console.warn('⚠️ Error loading unprogrammed matches for authenticated user:', err);
@@ -829,6 +884,7 @@
       const unprogrammedData = unprogrammedRaw?.map(match => ({
         id: match.id,
         categoria_id: match.categoria_id,
+        categoria_nom: categoriesMap.get(match.categoria_id) || '',
         data_programada: match.data_programada,
         hora_inici: match.hora_inici,
         jugador1_id: match.jugador1_id,
@@ -836,22 +892,8 @@
         estat: match.estat,
         taula_assignada: match.taula_assignada,
         observacions_junta: match.observacions_junta,
-        jugador1: {
-          id: match.jugador1_id,
-          numero_soci: null,
-          socis: {
-            nom: 'Jugador 1',
-            cognoms: '(No programat)'
-          }
-        },
-        jugador2: {
-          id: match.jugador2_id,
-          numero_soci: null,
-          socis: {
-            nom: 'Jugador 2', 
-            cognoms: '(No programat)'
-          }
-        }
+        jugador1: playersMap.get(match.jugador1_id) || { nom: 'J.', cognoms: '(No programat)' },
+        jugador2: playersMap.get(match.jugador2_id) || { nom: 'J.', cognoms: '(No programat)' }
       })) || [];
 
       console.log('🔍 Unprogrammed data processed:', unprogrammedData.length);
@@ -2497,7 +2539,7 @@
             {#each unprogrammedMatches as match}
               <tr class="hover:bg-orange-50">
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {getCategoryName(match.categoria_id)}
+                  {match.categoria_nom || getCategoryName(match.categoria_id)}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   <div class="flex flex-col">

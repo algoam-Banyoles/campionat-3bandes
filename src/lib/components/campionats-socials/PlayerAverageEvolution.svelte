@@ -38,107 +38,111 @@
   function updateChart() {
     if (!chart || history.length === 0) return;
 
-    // Prepare data for the chart
-    const temporades = history.map(h => h.temporada);
-    const mitjanes = history.map(h => h.mitjana_particular || 0);
-    const posicions = history.map(h => h.posicio);
-    const categories = history.map(h => h.categoria_nom);
+    // Group data by modality
+    const modalitats = ['tres_bandes', 'lliure', 'banda'];
+    const modalitatColors = {
+      'tres_bandes': '#3b82f6', // Blue
+      'lliure': '#10b981',      // Green
+      'banda': '#f59e0b'        // Orange
+    };
+
+    // Get all unique temporades
+    const allTemporades = [...new Set(history.map(h => h.temporada))].sort();
+
+    // Prepare series data for each modality
+    const series = modalitats.map(mod => {
+      const modData = history.filter(h => h.modalitat === mod);
+
+      // Create data array with null for missing temporades
+      const data = allTemporades.map(temp => {
+        const record = modData.find(d => d.temporada === temp);
+        return record ? record.mitjana_particular : null;
+      });
+
+      return {
+        name: getModalitatName(mod),
+        type: 'line',
+        data: data,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 8,
+        connectNulls: false,
+        lineStyle: {
+          width: 3,
+          color: modalitatColors[mod]
+        },
+        itemStyle: {
+          color: modalitatColors[mod]
+        },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: modalitatColors[mod] + '40' },
+            { offset: 1, color: modalitatColors[mod] + '10' }
+          ])
+        }
+      };
+    }).filter(s => s.data.some(d => d !== null)); // Only include modalities with data
 
     const option = {
       title: {
         text: `Evolució de Mitjanes - ${playerName}`,
         subtext: modalitat ? `Modalitat: ${getModalitatName(modalitat)}` : 'Totes les modalitats',
-        left: 'center'
+        left: 'center',
+        top: 10
       },
       tooltip: {
         trigger: 'axis',
         formatter: (params: any) => {
-          const dataIndex = params[0].dataIndex;
-          return `
-            <strong>${temporades[dataIndex]}</strong><br/>
-            Categoria: ${categories[dataIndex]}<br/>
-            Mitjana: <strong>${mitjanes[dataIndex].toFixed(3)}</strong><br/>
-            Posició: ${posicions[dataIndex]}
-          `;
+          if (!params || params.length === 0) return '';
+
+          const temporada = params[0].axisValue;
+          let tooltip = `<strong>${temporada}</strong><br/>`;
+
+          params.forEach((param: any) => {
+            if (param.value !== null) {
+              const record = history.find(h => h.temporada === temporada && h.modalitat ===
+                (param.seriesName === '3 Bandes' ? 'tres_bandes' :
+                 param.seriesName === 'Lliure' ? 'lliure' : 'banda'));
+
+              tooltip += `<span style="color:${param.color}">●</span> ${param.seriesName}: <strong>${param.value.toFixed(3)}</strong>`;
+              if (record) {
+                tooltip += ` (${record.categoria_nom})`;
+              }
+              tooltip += '<br/>';
+            }
+          });
+
+          return tooltip;
         }
       },
       legend: {
-        data: ['Mitjana Particular', 'Posició'],
-        top: 40
+        data: series.map(s => s.name),
+        top: 60,
+        left: 'center'
       },
       grid: {
         left: '3%',
         right: '4%',
         bottom: '3%',
+        top: '100px',
         containLabel: true
       },
       xAxis: {
         type: 'category',
         boundaryGap: false,
-        data: temporades,
+        data: allTemporades,
         axisLabel: {
           rotate: 45
         }
       },
-      yAxis: [
-        {
-          type: 'value',
-          name: 'Mitjana',
-          position: 'left',
-          axisLabel: {
-            formatter: '{value}'
-          }
-        },
-        {
-          type: 'value',
-          name: 'Posició',
-          position: 'right',
-          inverse: true,
-          axisLabel: {
-            formatter: '{value}'
-          }
+      yAxis: {
+        type: 'value',
+        name: 'Mitjana',
+        axisLabel: {
+          formatter: '{value}'
         }
-      ],
-      series: [
-        {
-          name: 'Mitjana Particular',
-          type: 'line',
-          data: mitjanes,
-          smooth: true,
-          symbol: 'circle',
-          symbolSize: 8,
-          lineStyle: {
-            width: 3,
-            color: '#3b82f6'
-          },
-          itemStyle: {
-            color: '#3b82f6'
-          },
-          areaStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: 'rgba(59, 130, 246, 0.3)' },
-              { offset: 1, color: 'rgba(59, 130, 246, 0.05)' }
-            ])
-          }
-        },
-        {
-          name: 'Posició',
-          type: 'line',
-          yAxisIndex: 1,
-          data: posicions,
-          smooth: true,
-          symbol: 'diamond',
-          symbolSize: 8,
-          lineStyle: {
-            width: 2,
-            color: '#f59e0b',
-            type: 'dashed'
-          },
-          itemStyle: {
-            color: '#f59e0b'
-          }
-        }
-      ]
+      },
+      series: series
     };
 
     chart.setOption(option);

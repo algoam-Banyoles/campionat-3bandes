@@ -445,16 +445,25 @@ export async function searchActivePlayers(playerName: string): Promise<{
   numero_soci: number;
   nom: string;
   cognoms: string;
-  telefon: string | null;
   email: string | null;
   historicalAverage: number | null;
 }[]> {
-  // Buscar socis actius - cerca en nom o cognoms
+  // Normalitzar el text de cerca (eliminar accents i convertir a minúscules)
+  const normalizeText = (text: string): string => {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, ''); // Elimina els accents
+  };
+
+  const searchTermNormalized = normalizeText(playerName);
+
+  // Buscar socis actius - cerca en nom o cognoms (insensible a accents i majúscules)
+  // Obtenim tots els socis actius i filtrem en el client per poder buscar sense accents
   const { data: socis, error } = await supabase
     .from('socis')
-    .select('numero_soci, nom, cognoms, telefon, email')
+    .select('numero_soci, nom, cognoms, email')
     .eq('de_baixa', false)
-    .or(`nom.ilike.%${playerName}%,cognoms.ilike.%${playerName}%`)
     .order('nom');
 
   if (error) {
@@ -462,40 +471,59 @@ export async function searchActivePlayers(playerName: string): Promise<{
     throw error;
   }
 
-  if (!socis || socis.length === 0) {
+  // Filtrar en el client per cerca insensible a accents i majúscules
+  const filteredSocis = socis?.filter(soci => {
+    const nomNormalized = normalizeText(soci.nom || '');
+    const cognomsNormalized = normalizeText(soci.cognoms || '');
+    return nomNormalized.includes(searchTermNormalized) ||
+           cognomsNormalized.includes(searchTermNormalized);
+  }) || [];
+
+  if (filteredSocis.length === 0) {
     return [];
   }
 
-  // Obtenir mitjanes històriques de les dues últimes temporades
-  // Temporada 2024/2025 = any 2025, Temporada 2023/2024 = any 2024
-  const currentYear = new Date().getFullYear();
-  const lastTwoYears = [currentYear, currentYear - 1];
+  // Obtenir la millor mitjana històrica de les classificacions
+  // Primer necessitem obtenir els player_id corresponents als numero_soci
+  const socisNumbers = filteredSocis.map(s => s.numero_soci);
 
-  const socisNumbers = socis.map(s => s.numero_soci);
+  const { data: players, error: playersErr } = await supabase
+    .from('players')
+    .select('id, numero_soci')
+    .in('numero_soci', socisNumbers);
 
-  const { data: mitjanes, error: mitjErr } = await supabase
-    .from('mitjanes_historiques')
-    .select('soci_id, mitjana, year, modalitat')
-    .in('soci_id', socisNumbers)
-    .in('year', lastTwoYears)
-    .eq('modalitat', '3 BANDES'); // Default to 3 BANDES for social leagues
+  if (playersErr) {
+    console.warn('Error fetching players:', playersErr);
+  }
 
-  if (mitjErr) {
-    console.warn('Error fetching historical averages:', mitjErr);
+  // Crear un map de numero_soci -> player_id
+  const playerIdMap = new Map(players?.map(p => [p.numero_soci, p.id]) || []);
+
+  // Obtenir les millors mitjanes de classificacions
+  const playerIds = players?.map(p => p.id) || [];
+
+  const { data: classificacions, error: classErr } = await supabase
+    .from('classificacions')
+    .select('player_id, mitjana_particular')
+    .in('player_id', playerIds)
+    .gt('mitjana_particular', 0);
+
+  if (classErr) {
+    console.warn('Error fetching classifications:', classErr);
   }
 
   // Combinar dades dels socis amb les seves millors mitjanes històriques
-  return socis.map(soci => {
-    const playerMitjanes = mitjanes?.filter(m => m.soci_id === soci.numero_soci) || [];
-    const bestMitjana = playerMitjanes.length > 0
-      ? Math.max(...playerMitjanes.map(m => m.mitjana))
+  return filteredSocis.map(soci => {
+    const playerId = playerIdMap.get(soci.numero_soci);
+    const playerClassificacions = classificacions?.filter(c => c.player_id === playerId) || [];
+    const bestMitjana = playerClassificacions.length > 0
+      ? Math.max(...playerClassificacions.map(c => c.mitjana_particular))
       : null;
 
     return {
       numero_soci: soci.numero_soci,
       nom: soci.nom,
       cognoms: soci.cognoms || '',
-      telefon: soci.telefon,
       email: soci.email,
       historicalAverage: bestMitjana
     };
@@ -506,50 +534,23 @@ export async function searchActivePlayers(playerName: string): Promise<{
  * Obtenir l'històric de mitjanes d'un jugador per modalitat
  */
 export async function getPlayerAverageHistory(playerNumeroSoci: number, modalitat?: string) {
-  // Get player ID from numero_soci
-  const { data: player, error: playerError } = await supabase
-    .from('players')
-    .select('id')
-    .eq('numero_soci', playerNumeroSoci)
-    .single();
+  // Mapatge de modalitats
+  const modalitatMapping: Record<string, string> = {
+    'tres_bandes': '3 BANDES',
+    'lliure': 'LLIURE',
+    'banda': 'BANDA'
+  };
 
-  if (playerError || !player) {
-    console.error('Error fetching player:', playerError);
-    return [];
-  }
-
-  // Build query to get classifications with event and category info
+  // Build query to get historical averages
   let query = supabase
-    .from('classificacions')
-    .select(`
-      id,
-      posicio,
-      mitjana_particular,
-      punts,
-      caramboles_favor,
-      caramboles_contra,
-      partides_jugades,
-      partides_guanyades,
-      partides_perdudes,
-      event_id,
-      categories (
-        nom
-      ),
-      events!inner (
-        id,
-        nom,
-        temporada,
-        modalitat,
-        tipus_competicio
-      )
-    `)
-    .eq('player_id', player.id)
-    .eq('events.tipus_competicio', 'lliga_social')
-    .order('events.temporada', { ascending: true });
+    .from('mitjanes_historiques')
+    .select('soci_id, year, modalitat, mitjana')
+    .eq('soci_id', playerNumeroSoci)
+    .order('year', { ascending: true });
 
   // Filter by modality if provided
-  if (modalitat) {
-    query = query.eq('events.modalitat', modalitat);
+  if (modalitat && modalitatMapping[modalitat]) {
+    query = query.eq('modalitat', modalitatMapping[modalitat]);
   }
 
   const { data, error } = await query;
@@ -559,19 +560,27 @@ export async function getPlayerAverageHistory(playerNumeroSoci: number, modalita
     return [];
   }
 
-  // Transform and group by temporada and modalitat
-  return (data || []).map((classification: any) => ({
-    temporada: classification.events.temporada,
-    modalitat: classification.events.modalitat,
-    event_nom: classification.events.nom,
-    categoria_nom: classification.categories?.nom || '',
-    posicio: classification.posicio,
-    mitjana_particular: classification.mitjana_particular,
-    punts: classification.punts,
-    caramboles_favor: classification.caramboles_favor,
-    caramboles_contra: classification.caramboles_contra,
-    partides_jugades: classification.partides_jugades,
-    partides_guanyades: classification.partides_guanyades,
-    partides_perdudes: classification.partides_perdudes
+  // Transform data to match expected format
+  const modalitatInverseMapping: Record<string, string> = {
+    '3 BANDES': 'tres_bandes',
+    'LLIURE': 'lliure',
+    'BANDA': 'banda'
+  };
+
+  const results = (data || []).map((record: any) => ({
+    temporada: `${record.year - 1}-${record.year}`, // Convert year to temporada format (e.g., 2024 -> 2023-2024)
+    modalitat: modalitatInverseMapping[record.modalitat] || record.modalitat.toLowerCase(),
+    event_nom: `Lliga Social ${record.modalitat} ${record.year - 1}-${record.year}`,
+    categoria_nom: '', // Not available in mitjanes_historiques
+    posicio: 0, // Not available in mitjanes_historiques
+    mitjana_particular: record.mitjana,
+    punts: 0, // Not available
+    caramboles_favor: 0, // Not available
+    caramboles_contra: 0, // Not available
+    partides_jugades: 0, // Not available
+    partides_guanyades: 0, // Not available
+    partides_perdudes: 0 // Not available
   }));
+
+  return results;
 }

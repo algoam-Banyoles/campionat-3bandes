@@ -159,14 +159,6 @@
                   <div class="font-medium text-gray-900 text-sm">
                     {player.nom} {player.cognoms}
                   </div>
-                  <div class="text-xs text-gray-600 mt-1">
-                    Soci #{player.numero_soci}
-                  </div>
-                  {#if player.historicalAverage !== null}
-                    <div class="text-xs font-medium text-blue-600 mt-1">
-                      Millor mitjana: {player.historicalAverage.toFixed(2)}
-                    </div>
-                  {/if}
                 </button>
               {/each}
             </div>
@@ -194,7 +186,6 @@
                 <h2 class="text-2xl font-bold text-gray-900">
                   {selectedPlayer.nom} {selectedPlayer.cognoms}
                 </h2>
-                <p class="text-sm text-gray-600 mt-1">Soci #{selectedPlayer.numero_soci}</p>
               </div>
               <button
                 on:click={clearSelection}
@@ -255,25 +246,19 @@
                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Modalitat
                       </th>
-                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Categoria
-                      </th>
-                      <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Posició
-                      </th>
                       <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Mitjana
-                      </th>
-                      <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Punts
-                      </th>
-                      <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Partides
                       </th>
                     </tr>
                   </thead>
                   <tbody class="bg-white divide-y divide-gray-200">
-                    {#each playerHistory as record}
+                    {#each playerHistory.sort((a, b) => {
+                      // Sort by modalitat first, then by temporada descending
+                      if (a.modalitat !== b.modalitat) {
+                        return a.modalitat.localeCompare(b.modalitat);
+                      }
+                      return b.temporada.localeCompare(a.temporada);
+                    }) as record}
                       <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {record.temporada}
@@ -281,22 +266,8 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                           {getModalitatName(record.modalitat)}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {record.categoria_nom}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
-                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {record.posicio}
-                          </span>
-                        </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-center font-semibold text-gray-900">
                           {record.mitjana_particular.toFixed(3)}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-600">
-                          {record.punts}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-600">
-                          {record.partides_jugades} ({record.partides_guanyades}V - {record.partides_perdudes}D)
                         </td>
                       </tr>
                     {/each}
