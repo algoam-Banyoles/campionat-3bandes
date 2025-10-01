@@ -115,7 +115,7 @@
 </script>
 
 <div
-  class="min-h-[180px] p-2 border border-slate-200 cursor-pointer transition-colors hover:bg-slate-50
+  class="min-h-[120px] sm:min-h-[140px] lg:min-h-[180px] p-1 sm:p-2 border border-slate-200 cursor-pointer transition-colors hover:bg-slate-50 text-xs sm:text-sm
     {isCurrentMonth ? 'bg-white' : 'bg-slate-50 text-slate-400'}
     {isToday ? 'ring-2 ring-blue-500 bg-blue-50' : ''}
     {isSelected ? 'ring-2 ring-blue-300' : ''}"
@@ -125,12 +125,12 @@
   on:keydown={(e) => e.key === 'Enter' && handleDayClick()}
 >
   <!-- Número del dia -->
-  <div class="flex justify-between items-start mb-2">
-    <span class="text-sm font-semibold {isToday ? 'text-blue-600' : ''}">
+  <div class="flex justify-between items-start mb-1 sm:mb-2">
+    <span class="text-sm sm:text-base font-semibold {isToday ? 'text-blue-600' : ''}">
       {date.getDate()}
     </span>
     {#if events.length > 0}
-      <span class="text-xs text-slate-500">
+      <span class="text-xs text-slate-500 bg-slate-100 rounded-full px-1 min-w-[16px] text-center">
         {events.length}
       </span>
     {/if}
@@ -140,16 +140,25 @@
   <div class="space-y-0.5">
     {#each visibleEvents as event (event.id)}
       <button
-        class="w-full text-left text-xs px-1 py-0.5 rounded border truncate leading-tight {getEventColor(event)}"
+        class="w-full text-left px-1 py-0.5 sm:py-1 rounded border leading-tight touch-manipulation min-h-[28px] sm:min-h-[32px] lg:min-h-[36px] xl:min-h-[48px] {getEventColor(event)}"
         on:click={(e) => handleEventClick(event, e)}
         title={event.description || event.title}
       >
-        {event.title}
+        <div class="flex items-center justify-between">
+          <span class="text-base sm:text-lg lg:text-xl xl:text-4xl truncate flex-1 font-medium">
+            {event.title}
+          </span>
+          {#if event.tableInfo}
+            <span class="text-xs text-slate-600 ml-1 flex-shrink-0">
+              {event.tableInfo}
+            </span>
+          {/if}
+        </div>
       </button>
     {/each}
 
     {#if moreEventsCount > 0}
-      <div class="text-xs text-slate-500 px-2">
+      <div class="text-xs sm:text-sm lg:text-base text-slate-500 px-1 py-0.5 bg-slate-100 rounded mt-1">
         +{moreEventsCount} més
       </div>
     {/if}

@@ -210,7 +210,7 @@
       <!-- Header amb dies de la setmana -->
       <div class="grid grid-cols-7 bg-slate-50 border-b border-slate-200">
         {#each weekDays as day}
-          <div class="p-3 text-center text-sm font-semibold text-slate-600">
+          <div class="p-2 sm:p-3 text-center text-xs sm:text-sm font-semibold text-slate-600">
             {day}
           </div>
         {/each}
@@ -273,7 +273,7 @@
       <div class="space-y-3">
         <div>
           <span class="text-sm font-medium text-slate-600">Data:</span>
-          <span class="ml-2">{selectedEvent.start.toLocaleDateString('ca-ES', { 
+          <span class="ml-2 text-base sm:text-lg lg:text-xl xl:text-4xl font-bold text-slate-900">{selectedEvent.start.toLocaleDateString('ca-ES', { 
             weekday: 'long', 
             year: 'numeric', 
             month: 'long', 
@@ -292,7 +292,7 @@
         
         <div>
           <span class="text-sm font-medium text-slate-600">Tipus:</span>
-          <span class="ml-2 capitalize">
+          <span class="ml-2 text-base sm:text-lg lg:text-xl xl:text-4xl font-bold capitalize">
             {#if selectedEvent.subtype?.includes('campionat-social')}
               Campionat Social
             {:else if selectedEvent.type === 'challenge'}
@@ -386,21 +386,21 @@
         <div class="space-y-2">
           {#each getEventsForDate(selectedDate) as event}
             <button
-              class="w-full text-left p-3 rounded border border-slate-200 hover:bg-slate-50 transition-colors"
+              class="w-full text-left p-2 sm:p-3 rounded border border-slate-200 hover:bg-slate-50 transition-colors"
               on:click={() => {
                 selectedEvent = event;
                 selectedDate = null;
               }}
             >
-              <div class="font-medium">{event.title}</div>
-              <div class="text-sm text-slate-600">
+              <div class="font-bold text-base sm:text-lg lg:text-xl xl:text-4xl text-slate-900">{event.title}</div>
+              <div class="text-sm sm:text-base lg:text-lg xl:text-3xl text-slate-600 font-bold mt-1">
                 {event.start.toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' })}
                 {#if event.end}
                   - {event.end.toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' })}
                 {/if}
               </div>
               {#if event.description}
-                <div class="text-sm text-slate-500 mt-1">{event.description}</div>
+                <div class="text-xs sm:text-sm lg:text-base text-slate-500 mt-2">{event.description}</div>
               {/if}
             </button>
           {/each}

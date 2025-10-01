@@ -4,10 +4,15 @@
   import { user, status, adminStore, isLoading } from "$lib/stores/auth";
   import { initAuthClient, signOut } from "$lib/utils/auth-client";
   import { initializeNotifications } from '$lib/stores/notifications';
+  import { setupFocusManagement } from "$lib/utils/focus-management";
   import Toasts from '$lib/components/general/Toasts.svelte';
   import Nav from '$lib/components/general/Nav.svelte';
+  import AccessibilityButton from "$lib/components/accessibility/AccessibilityButton.svelte";
+  import AccessibilityModal from "$lib/components/accessibility/AccessibilityModal.svelte";
+  import SkipLink from "$lib/components/accessibility/SkipLink.svelte";
 
   let showInscripcio = false;
+  let showAccessibilityModal = false;
 
   type SessionUser = { email: string | null } | null;
 
@@ -133,21 +138,43 @@
 
     // Inicialitza sistema de notificacions push
     initializeNotifications();
+
+    // Configura gestió del focus per accessibilitat
+    setupFocusManagement();
   });
 
 
     $: if ($status === 'authenticated') {
       void refreshInscripcioVisibility($user);
     }
+
+  function openAccessibilityModal() {
+    showAccessibilityModal = true;
+  }
+
+  function closeAccessibilityModal() {
+    showAccessibilityModal = false;
+  }
 </script>
 
+
+<SkipLink />
+
+<!-- Accessibility button -->
+<AccessibilityButton on:open={openAccessibilityModal} />
+
+<!-- Accessibility modal -->
+<AccessibilityModal
+  bind:isOpen={showAccessibilityModal}
+  on:close={closeAccessibilityModal}
+/>
 
 {#if $isLoading}
   <div class="fullpage-spinner">Carregant sessió…</div>
 {:else}
   <Nav />
 
-  <main class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+  <main id="main-content" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8" tabindex="-1">
     <slot />
   </main>
 

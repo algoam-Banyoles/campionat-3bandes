@@ -13,6 +13,8 @@
     import { applyDisagreementDrop } from '$lib/applyDisagreementDrop';
     import PullToRefresh from '$lib/components/general/gestures/PullToRefresh.svelte';
     import { formatPlayerDisplayName } from '$lib/utils/playerName';
+    import PlayerEvolutionBadges from '$lib/components/campionat-continu/PlayerEvolutionBadges.svelte';
+    import { getPlayerChallengeHistory, type ChallengeResult } from '$lib/stores/playerChallengeHistory';
 
   export let badges: VPlayerBadges[] = [];
   export let badgesLoaded = false;
@@ -40,6 +42,7 @@
   let highlightIds = new Set<string>();
   let shouldFetchBadges = !badgesLoaded;
   let badgeMap = new Map<string, VPlayerBadges>();
+  let playerHistoryMap = new Map<string, ChallengeResult[]>();
   let intervalRef: NodeJS.Timeout;
 
   $: if (badgesLoaded) {
@@ -70,6 +73,7 @@
         }
         
         void loadBadges();
+        void loadPlayerHistories();
         
         // Si ja tenim myPlayerId, evaluar challenges
         if (myPlayerId && supabaseClient) {
@@ -188,6 +192,28 @@
     }
   }
 
+  async function loadPlayerHistories(): Promise<void> {
+    if (!eventId || rows.length === 0) return;
+    
+    try {
+      const historyPromises = rows.map(async (row) => {
+        const history = await getPlayerChallengeHistory(row.player_id, eventId!, 6);
+        return { playerId: row.player_id, history };
+      });
+      
+      const results = await Promise.all(historyPromises);
+      const newHistoryMap = new Map<string, ChallengeResult[]>();
+      
+      results.forEach(({ playerId, history }) => {
+        newHistoryMap.set(playerId, history);
+      });
+      
+      playerHistoryMap = newHistoryMap;
+    } catch (error) {
+      console.error('Error loading player histories:', error);
+    }
+  }
+
   // Forçar refresh complet amb invalidació de cache
   async function forceRefresh(): Promise<void> {
     try {
@@ -203,6 +229,8 @@
         refreshActiveChallenges(),
         loadBadges(true)
       ]);
+      
+      await loadPlayerHistories();
       
     } catch (e: any) {
       error = e?.message ?? 'Error actualitzant dades';
@@ -228,6 +256,7 @@
       refreshActiveChallenges(),
       loadBadges(true)
     ]);
+    await loadPlayerHistories();
   }
 
   function openEvolution(id: string, name: string) {
@@ -249,6 +278,7 @@
       await applyDisagreementDrop(supabaseClient, eventId, playerA, playerB);
       await refreshRanking();
       await loadBadges(true);
+      await loadPlayerHistories();
       const after = get(ranking);
       const beforeMap = new Map((before as any).map((r: any) => [r.player_id, r.posicio]));
       highlightIds = new Set(
@@ -300,85 +330,102 @@
 {:else if rows.length === 0}
   <p class="text-slate-500">Encara no hi ha posicions al rànquing.</p>
 {:else}
-  <div class="overflow-x-auto rounded-lg border border-slate-200">
-    <table class="min-w-full text-sm">
-      <thead class="bg-slate-50">
+  <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+    <table class="min-w-full">
+      <thead class="bg-gradient-to-r from-blue-50 to-slate-50 border-b border-slate-200">
         <tr>
-          <th class="px-2 sm:px-3 py-2 text-left font-semibold text-xs sm:text-sm">Pos.</th>
-          <th class="px-2 sm:px-3 py-2 text-left font-semibold text-xs sm:text-sm">Jugador</th>
-          <th class="px-2 sm:px-3 py-2 text-left font-semibold text-xs sm:text-sm hidden sm:table-cell">Mitjana</th>
-          <th class="px-2 sm:px-3 py-2 text-left font-semibold text-xs sm:text-sm hidden sm:table-cell">Estat</th>
-          <th class="px-2 sm:px-3 py-2 text-left font-semibold text-xs sm:text-sm"></th>
+          <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Pos.</th>
+          <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Jugador</th>
+          {#if myPlayerId}
+            <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800 hidden sm:table-cell">Mitjana</th>
+            <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800 hidden sm:table-cell">Estat</th>
+            <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Accions</th>
+          {:else}
+            <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Evolució</th>
+          {/if}
         </tr>
       </thead>
-      <tbody>
-        {#each rows as r}
+      <tbody class="divide-y divide-slate-100">
+        {#each rows as r, index}
           {@const badge = badgeMap.get(r.player_id)}
           {@const badgeView = getBadgeView(badge)}
           {@const displayName = r.nom ? formatPlayerDisplayName(r.nom, r.cognoms) : 'Desconegut'}
           {@const fullName = r.nom && r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom || 'Desconegut'}
-          <tr class="border-t" class:bg-yellow-100={r.moved}>
-            <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm">{r.posicio}</td>
-            <td class="px-2 sm:px-3 py-2">
-              <div class="flex flex-wrap items-center gap-1 sm:gap-2">
+          {@const isTopThree = r.posicio <= 3}
+          {@const isCurrentUser = r.player_id === myPlayerId}
+          <tr class="hover:bg-slate-50 transition-colors duration-150" 
+              class:bg-yellow-50={r.moved} 
+              class:bg-blue-50={isCurrentUser}
+              class:border-l-4={isTopThree}
+              class:border-l-yellow-400={r.posicio === 1}
+              class:border-l-gray-400={r.posicio === 2}
+              class:border-l-orange-400={r.posicio === 3}>
+            <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
+              <div class="flex items-center gap-2">
+                {#if r.posicio === 1}
+                  <span class="text-2xl" title="Primer classificat">🥇</span>
+                {:else if r.posicio === 2}
+                  <span class="text-2xl" title="Segon classificat">🥈</span>
+                {:else if r.posicio === 3}
+                  <span class="text-2xl" title="Tercer classificat">🥉</span>
+                {/if}
+                <span class="text-sm sm:text-base lg:text-lg font-bold" class:text-yellow-600={r.posicio === 1} class:text-gray-600={r.posicio === 2} class:text-orange-600={r.posicio === 3}>
+                  {r.posicio}
+                </span>
+              </div>
+            </td>
+            <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
+              <div class="flex items-center gap-2 sm:gap-3">
                 <button
-                  class="text-blue-600 hover:underline text-xs sm:text-sm"
+                  class="text-blue-700 hover:text-blue-900 hover:underline text-base sm:text-lg lg:text-xl xl:text-2xl font-semibold transition-colors"
                   on:click={() => openEvolution(r.player_id, fullName)}
                   class:font-bold={r.player_id === myPlayerId}
+                  class:text-blue-900={isCurrentUser}
                   title={fullName}
                 >
                   {displayName}
                 </button>
 
-                <!-- Badge per identificar el jugador logat -->
+                <!-- Badge només per identificar el jugador logat -->
                 {#if r.player_id === myPlayerId}
                   <span
-                    class="px-1.5 py-0.5 text-xs rounded bg-blue-100 text-blue-700 font-medium"
+                    class="px-2 py-1 text-sm sm:text-base rounded-full bg-blue-100 text-blue-900 font-bold border-2 border-blue-300"
                     title="Aquest ets tu"
                   >
-                    Tu
-                  </span>
-                {/if}
-
-                {#if badge?.in_cooldown}
-                  {@const daysLeft = badge?.cooldown_days_left ?? 0}
-                  {@const unit = daysLeft === 1 ? 'dia' : 'dies'}
-                  {@const cooldownText = `${daysLeft} ${unit} per poder reptar`}
-                  {@const shortCooldownText = `${daysLeft}d`}
-                  <span
-                    class="px-1.5 py-0.5 text-xs rounded bg-orange-100 text-orange-700 font-medium"
-                    aria-label={cooldownText}
-                    title={cooldownText}
-                  >
-                    <span class="hidden sm:inline">{cooldownText}</span>
-                    <span class="sm:hidden">{shortCooldownText}</span>
-                  </span>
-                {:else if badgeView}
-                  <span
-                    class={badgeView.className}
-                    aria-label={badgeView.label}
-                    title={badgeTooltip(badge) ?? undefined}
-                  >
-                    {badgeView.text}
+                    <span class="hidden sm:inline">Tu</span>
+                    <span class="sm:hidden">👤</span>
                   </span>
                 {/if}
               </div>
             </td>
-            <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm hidden sm:table-cell">{fmtMitjana(r.mitjana)}</td>
-            <td class="px-2 sm:px-3 py-2 text-xs sm:text-sm capitalize hidden sm:table-cell">{fmtEstat(r.estat)}</td>
-            <td class="px-2 sm:px-3 py-2">
-              {#if myPlayerId && r.player_id !== myPlayerId}
-                <button
-                  class="rounded-2xl border px-2 sm:px-3 py-1 text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={!r.canChallenge}
-                  title={r.canChallenge ? 'Clic per reptar aquest jugador' : r.reason || 'No pots reptar aquest jugador'}
-                  on:click={() => reptar(r.player_id)}
-                >
-                  <span class="hidden sm:inline">Reptar</span>
-                  <span class="sm:hidden">⚔️</span>
-                </button>
-              {/if}
-            </td>
+            {#if myPlayerId}
+              <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-base sm:text-lg lg:text-xl xl:text-2xl font-bold text-slate-800 hidden sm:table-cell">{fmtMitjana(r.mitjana)}</td>
+              <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-base sm:text-lg lg:text-xl xl:text-2xl font-bold text-slate-800 capitalize hidden sm:table-cell">{fmtEstat(r.estat)}</td>
+              <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
+                {#if r.player_id !== myPlayerId}
+                  <button
+                    class="rounded-lg border-2 px-3 sm:px-4 py-2 text-sm sm:text-base lg:text-lg xl:text-xl font-bold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    class:border-green-500={r.canChallenge}
+                    class:bg-green-50={r.canChallenge}
+                    class:text-green-800={r.canChallenge}
+                    class:hover:bg-green-100={r.canChallenge}
+                    class:border-slate-300={!r.canChallenge}
+                    class:bg-slate-50={!r.canChallenge}
+                    class:text-slate-500={!r.canChallenge}
+                    disabled={!r.canChallenge}
+                    title={r.canChallenge ? 'Clic per reptar aquest jugador' : r.reason || 'No pots reptar aquest jugador'}
+                    on:click={() => reptar(r.player_id)}
+                  >
+                    <span class="hidden sm:inline">⚔️ Reptar</span>
+                    <span class="sm:hidden">⚔️</span>
+                  </button>
+                {/if}
+              </td>
+            {:else}
+              <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
+                <PlayerEvolutionBadges results={playerHistoryMap.get(r.player_id) || []} />
+              </td>
+            {/if}
           </tr>
         {/each}
       </tbody>

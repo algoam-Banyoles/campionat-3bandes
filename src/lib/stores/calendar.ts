@@ -46,6 +46,7 @@ export type PartidaCalendari = {
 export type CalendarEvent = {
   id: string;
   title: string;
+  tableInfo?: string; // Informació de taula (B1, B2, B3, etc.)
   description?: string;
   start: Date;
   end?: Date;
@@ -160,6 +161,7 @@ export const calendarEvents = derived(
         events.push({
           id: `match-${partida.id}`,
           title: `${jugador1Format} vs ${jugador2Format}`,
+          tableInfo: `B${partida.taula_assignada}`, // Informació de taula separada
           description: `${partida.event_nom} - ${partida.categoria_nom}\nTaula: ${partida.taula_assignada}${partida.observacions_junta ? `\n${partida.observacions_junta}` : ''}`,
           start: dataHora,
           type: 'challenge',

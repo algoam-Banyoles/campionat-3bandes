@@ -201,33 +201,33 @@
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
-                  <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th class="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                     Pos.
                   </th>
-                  <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th class="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                     Jugador
                   </th>
                   {#if categoryGroup.participants.some((p: any) => p.isClassification)}
-                    <th class="hidden sm:table-cell px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th class="hidden sm:table-cell px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                       Punts
                     </th>
-                    <th class="hidden lg:table-cell px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th class="hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                       Car. Tot.
                     </th>
-                    <th class="hidden lg:table-cell px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th class="hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                       Ent. Tot.
                     </th>
-                    <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th class="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                       Mitjana
                     </th>
-                    <th class="hidden md:table-cell px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th class="hidden md:table-cell px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                       M. Part.
                     </th>
                   {:else}
-                    <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th class="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                       Mitjana
                     </th>
-                    <th class="hidden sm:table-cell px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th class="hidden sm:table-cell px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                       Estat
                     </th>
                   {/if}
@@ -236,11 +236,11 @@
               <tbody class="bg-white divide-y divide-gray-200">
                 {#each categoryGroup.participants as participant, index}
                   <tr class="hover:bg-gray-50">
-                    <td class="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td class="px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm sm:text-base font-medium text-gray-900">
                       {participant.posicio || index + 1}
                     </td>
-                    <td class="px-3 sm:px-6 py-3 sm:py-4">
-                      <div class="text-xs sm:text-sm font-medium text-gray-900 truncate max-w-32 sm:max-w-none">
+                    <td class="px-2 sm:px-4 lg:px-6 py-3 sm:py-4">
+                      <div class="text-sm sm:text-base font-medium text-gray-900 truncate max-w-32 sm:max-w-none">
                         {#if participant.isClassification}
                           {formatarNomJugador(participant.player?.nom || 'Nom no disponible')}
                         {:else if participant.socis}
@@ -251,34 +251,34 @@
                       </div>
                     </td>
                     {#if participant.isClassification}
-                      <td class="hidden sm:table-cell px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
+                      <td class="hidden sm:table-cell px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-500">
                         {participant.punts || 0}
                       </td>
-                      <td class="hidden lg:table-cell px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
+                      <td class="hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-500">
                         {participant.caramboles_favor || 0}
                       </td>
-                      <td class="hidden lg:table-cell px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
+                      <td class="hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-500">
                         {participant.caramboles_contra || 0}
                       </td>
-                      <td class="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
+                      <td class="px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm sm:text-base font-medium text-gray-900">
                         {participant.caramboles_favor && participant.caramboles_contra
                           ? (participant.caramboles_favor / participant.caramboles_contra).toFixed(3)
                           : '-'}
                       </td>
-                      <td class="hidden md:table-cell px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
+                      <td class="hidden md:table-cell px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-500">
                         {participant.mitjana_particular ? participant.mitjana_particular.toFixed(3) : '-'}
                       </td>
                     {:else}
-                      <td class="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
+                      <td class="px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm sm:text-base font-medium text-gray-900">
                         {getPlayerAverage(participant)}
                       </td>
-                      <td class="hidden sm:table-cell px-3 sm:px-6 py-3 sm:py-4">
+                      <td class="hidden sm:table-cell px-2 sm:px-4 lg:px-6 py-3 sm:py-4">
                         <div class="flex flex-col space-y-1">
-                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {participant.confirmat ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs sm:text-sm font-medium {participant.confirmat ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
                             {participant.confirmat ? 'Confirmat' : 'Pendent'}
                           </span>
                           {#if event.quota_inscripcio > 0}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {participant.pagat ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs sm:text-sm font-medium {participant.pagat ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}">
                               {participant.pagat ? 'Pagat' : 'Pendent pagament'}
                             </span>
                           {/if}

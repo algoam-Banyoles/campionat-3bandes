@@ -25,13 +25,13 @@
   // Estructura principal de navegació
   const navegacio: Record<string, NavSection> = {
     general: {
-      label: 'General',
+      label: 'Inici i Informació',
       icon: '🏠',
       color: 'gray',
       links: [
-        { href: '/', label: 'Inici' },
-        { href: '/general/calendari', label: 'Calendari General' },
-        { href: '/general/multimedia', label: 'Multimedia' }
+        { href: '/', label: 'Pàgina Principal' },
+        { href: '/general/calendari', label: 'Calendari de Partides' },
+        { href: '/general/multimedia', label: 'Multimèdia' }
       ]
     },
     socials: {
@@ -39,12 +39,12 @@
       icon: '🏆',
       color: 'green',
       links: [
-        { href: '/campionats-socials?view=active', label: 'Campionats en Curs' },
-        { href: '/campionats-socials?view=history', label: 'Historial' },
-        { href: '/campionats-socials/cerca-jugadors', label: 'Cerca Jugadors' }
+        { href: '/campionats-socials?view=active', label: 'Veure Campionats Actius' },
+        { href: '/campionats-socials?view=history', label: 'Historial de Campionats' },
+        { href: '/campionats-socials/cerca-jugadors', label: 'Buscar Jugadors' }
       ],
       userLinks: [
-        { href: '/campionats-socials/inscripcions', label: 'Inscripcions Obertes' }
+        { href: '/campionats-socials/inscripcions', label: 'Inscriure\'s a Campionats' }
       ]
     },
     ranking: {
@@ -52,14 +52,14 @@
       icon: '📊',
       color: 'blue',
       links: [
-        { href: '/campionat-continu/ranking', label: 'Classificació' },
-        { href: '/campionat-continu/reptes', label: 'Reptes' },
-        { href: '/campionat-continu/llista-espera', label: "Llista d'espera" },
-        { href: '/campionat-continu/historial', label: 'Historial' }
+        { href: '/campionat-continu/ranking', label: 'Veure Classificació' },
+        { href: '/campionat-continu/reptes', label: 'Tots els Reptes' },
+        { href: '/campionat-continu/historial', label: 'Historial de Partides' },
+        { href: '/campionat-continu/llista-espera', label: "Llista d'Espera" }
       ],
       userLinks: [
-        { href: '/campionat-continu/reptes/me', label: 'Els meus reptes' },
-        { href: '/campionat-continu/reptes/nou', label: 'Nou repte' }
+        { href: '/campionat-continu/reptes/nou', label: 'Crear Nou Repte' },
+        { href: '/campionat-continu/reptes/me', label: 'Els Meus Reptes Actius' }
       ]
     },
     handicap: {
@@ -105,8 +105,6 @@
   }
 
   let selectedSection = getCurrentSection();
-  let open = false;
-  let dropdownOpen = false;
   let mobileMenuOpen = false;
   let activeDropdown: string | null = null;
 
@@ -119,8 +117,8 @@
   }
 
   // Tancar dropdown quan es clica fora
-  function handleClickOutside(event) {
-    if (activeDropdown && !event.target.closest('[data-dropdown]')) {
+  function handleClickOutside(event: MouseEvent) {
+    if (activeDropdown && !(event.target as Element)?.closest('[data-dropdown]')) {
       activeDropdown = null;
     }
   }
@@ -151,34 +149,34 @@
 <nav class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <!-- Navegació principal -->
-    <div class="flex h-16 justify-between">
+    <div class="flex h-20 justify-between">
       <!-- Logo -->
       <div class="flex flex-shrink-0 items-center">
         <a href="/" class="flex items-center space-x-3">
-          <img src="/logo.png" alt="Foment Martinenc" class="h-10 w-10 object-contain" />
+          <img src="/logo.png" alt="Foment Martinenc" class="h-12 w-12 object-contain" />
           <div class="hidden sm:flex sm:flex-col">
-            <span class="text-sm font-bold text-gray-900 leading-tight">Secció de Billar del</span>
-            <span class="text-sm font-bold text-gray-900 leading-tight">Foment Martinenc</span>
+            <span class="text-base font-bold text-gray-900 leading-tight">Secció de Billar del</span>
+            <span class="text-base font-bold text-gray-900 leading-tight">Foment Martinenc</span>
           </div>
-          <span class="text-sm font-bold text-gray-900 sm:hidden">Foment Martinenc</span>
+          <span class="text-base font-bold text-gray-900 sm:hidden">Foment Martinenc</span>
         </a>
       </div>
 
       <!-- Seccions principals centrades (Desktop) -->
-      <div class="hidden lg:flex lg:items-center lg:justify-center flex-1 h-16">
+      <div class="hidden lg:flex lg:items-center lg:justify-center flex-1 h-20">
         <div class="flex items-center space-x-4 xl:space-x-8">
           {#each Object.entries(navegacio) as [key, section]}
             {#if !section.adminOnly || $isAdmin}
               <div class="relative" data-dropdown>
                 <button
                   on:click={() => toggleDropdown(key)}
-                  class="inline-flex items-center px-2 xl:px-3 py-2 border-b-2 text-sm font-medium {
+                  class="inline-flex items-center px-3 xl:px-4 py-3 border-b-3 text-lg font-semibold min-h-[56px] rounded-t-lg transition-all duration-200 {
                     selectedSection === key
-                      ? 'border-' + section.color + '-500 text-' + section.color + '-600'
-                      : 'border-transparent text-gray-900 hover:text-gray-700 hover:border-gray-300'
+                      ? 'border-' + section.color + '-500 text-' + section.color + '-700 bg-' + section.color + '-50'
+                      : 'border-transparent text-gray-900 hover:text-gray-700 hover:border-gray-400 hover:bg-gray-50'
                   }"
                 >
-                  <span class="mr-1">{section.icon}</span>
+                  <span class="mr-2 text-xl">{section.icon}</span>
                   {section.label}
                   <svg class="ml-1 h-4 w-4 transition-transform duration-200 {
                     activeDropdown === key ? 'rotate-180' : ''
@@ -189,16 +187,16 @@
 
                 <!-- Dropdown -->
                 {#if activeDropdown === key}
-                  <div class="absolute top-full left-0 mt-1 w-64 bg-white rounded-md shadow-lg border border-gray-200 z-50">
-                    <div class="py-2">
+                  <div class="absolute top-full left-0 mt-1 w-72 bg-white rounded-lg shadow-xl border-2 border-gray-200 z-50">
+                    <div class="py-3">
                       {#each section.links as link}
                         <a
                           href={link.href}
                           on:click={closeDropdownOnNavigate}
-                          class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 {
+                          class="block px-5 py-4 text-lg font-medium text-gray-800 hover:bg-gray-100 min-h-[56px] flex items-center transition-colors duration-200 {
                             link.disabled ? 'opacity-50 cursor-not-allowed' : ''
                           } {
-                            isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-700' : ''
+                            isActive(link.href) ? 'bg-' + section.color + '-100 text-' + section.color + '-800 border-l-4 border-' + section.color + '-500' : ''
                           }"
                           class:pointer-events-none={link.disabled}
                         >
@@ -208,13 +206,16 @@
 
                       <!-- User links si n'hi ha -->
                       {#if $user && section.userLinks && section.userLinks.length > 0}
-                        <hr class="my-2">
+                        <hr class="my-3 border-gray-300">
+                        <div class="px-3 py-2">
+                          <span class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Les Meves Accions</span>
+                        </div>
                         {#each section.userLinks as link}
                           <a
                             href={link.href}
                             on:click={closeDropdownOnNavigate}
-                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 {
-                              isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-700' : ''
+                            class="block px-5 py-4 text-lg font-medium text-gray-800 hover:bg-gray-100 min-h-[56px] flex items-center transition-colors duration-200 {
+                              isActive(link.href) ? 'bg-' + section.color + '-100 text-' + section.color + '-800 border-l-4 border-' + section.color + '-500' : ''
                             }"
                           >
                             {link.label}
@@ -233,17 +234,17 @@
       <!-- Menú d'usuari (Dreta) -->
       <div class="hidden lg:ml-6 lg:flex lg:items-center">
         {#if $user}
-          <span class="text-sm text-gray-700 mr-4">{$user.email}</span>
+          <span class="text-lg text-gray-700 mr-4">{$user.email}</span>
           <button
             on:click={signOut}
-            class="bg-gray-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-700"
+            class="bg-gray-800 text-white px-5 py-4 rounded-md text-lg font-medium hover:bg-gray-700 min-h-[56px] flex items-center"
           >
             Sortir
           </button>
         {:else}
           <a
             href="/general/login"
-            class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+            class="bg-blue-600 text-white px-5 py-4 rounded-md text-lg font-medium hover:bg-blue-700 min-h-[56px] flex items-center"
           >
             Iniciar Sessió
           </a>
@@ -272,14 +273,14 @@
           {#each Object.entries(navegacio) as [, section]}
             {#if !section.adminOnly || $isAdmin}
               <div class="px-2">
-                <div class="text-gray-500 font-medium text-xs uppercase tracking-wider py-2">
+                <div class="text-gray-600 font-medium text-sm uppercase tracking-wider py-3">
                   {section.icon} {section.label}
                 </div>
                 {#each section.links as link}
                   <a
                     href={link.href}
                     on:click={closeMobileMenuOnNavigate}
-                    class="block pl-4 pr-4 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 {
+                    class="mobile-nav-item block pl-4 pr-4 py-4 text-base sm:text-lg font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 min-h-[56px] flex items-center {
                       link.disabled ? 'opacity-50 cursor-not-allowed' : ''
                     } {
                       isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-700' : ''
@@ -296,7 +297,7 @@
                     <a
                       href={link.href}
                       on:click={closeMobileMenuOnNavigate}
-                      class="block pl-4 pr-4 py-2 text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 {
+                      class="mobile-nav-item block pl-4 pr-4 py-4 text-base sm:text-lg font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 min-h-[56px] flex items-center {
                         isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-700' : ''
                       }"
                     >
@@ -313,12 +314,12 @@
         <div class="pt-4 pb-3 border-t border-gray-200">
           {#if $user}
             <div class="px-4">
-              <div class="text-base font-medium text-gray-800">{$user.email}</div>
+              <div class="text-lg font-medium text-gray-800">{$user.email}</div>
             </div>
             <div class="mt-3 px-2">
               <button
                 on:click={() => { signOut(); closeMobileMenuOnNavigate(); }}
-                class="block w-full text-left px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                class="mobile-nav-item block w-full text-left px-4 py-4 text-base sm:text-lg font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 min-h-[56px] flex items-center"
               >
                 Sortir
               </button>
@@ -328,7 +329,7 @@
               <a
                 href="/general/login"
                 on:click={closeMobileMenuOnNavigate}
-                class="block px-4 py-2 text-base font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                class="mobile-nav-item block px-4 py-4 text-base sm:text-lg font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 min-h-[56px] flex items-center"
               >
                 Iniciar Sessió
               </a>

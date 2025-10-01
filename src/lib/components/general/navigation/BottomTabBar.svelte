@@ -40,10 +40,10 @@
     right: 0;
     display: flex;
     background-color: white;
-    border-top: 1px solid #e5e7eb;
+    border-top: 2px solid #e5e7eb;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
     z-index: 100;
-    height: 64px;
+    height: 68px;
     padding-bottom: env(safe-area-inset-bottom);
   }
   
@@ -53,11 +53,11 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 8px 4px;
+    padding: 10px 6px;
     text-decoration: none;
-    color: #6b7280;
+    color: #4b5563;
     transition: all 0.2s ease;
-    min-height: 64px;
+    min-height: 68px;
     position: relative;
   }
   
@@ -65,9 +65,12 @@
     background-color: #f9fafb;
   }
   
-  .tab-item:focus-visible {
-    outline: 2px solid #3b82f6;
-    outline-offset: -2px;
+  /* Focus styles only apply on non-desktop (mobile/tablet) */
+  @media not all and (hover: hover) and (pointer: fine) {
+    .tab-item:focus-visible {
+      outline: 2px solid #3b82f6;
+      outline-offset: -2px;
+    }
   }
   
   .tab-item.active {
@@ -93,24 +96,24 @@
   }
   
   .tab-label {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     font-weight: 500;
     text-align: center;
-    line-height: 1;
+    line-height: 1.2;
   }
   
   /* Add bottom padding to body to account for fixed bottom bar */
   :global(body) {
-    padding-bottom: 64px;
+    padding-bottom: 68px;
   }
   
   @media (max-width: 480px) {
     .tab-label {
-      font-size: 0.625rem;
+      font-size: 0.75rem;
     }
-    
+
     .tab-icon {
-      font-size: 1.125rem;
+      font-size: 1.25rem;
     }
   }
   
@@ -128,11 +131,11 @@
     }
     
     .bottom-tab-bar {
-      height: 56px;
+      height: 60px;
     }
     
     :global(body) {
-      padding-bottom: 56px;
+      padding-bottom: 60px;
     }
   }
 </style>

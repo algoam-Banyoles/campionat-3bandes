@@ -6,6 +6,467 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Font size multiplier system for accessibility */
+:root {
+  --font-size-multiplier: 1;
+  --base-font-size: calc(1rem * var(--font-size-multiplier));
+}
+
+/* Updated font sizes with multiplier support - respecting responsive breakpoints */
+.text-xs {
+  font-size: calc(0.75rem * var(--font-size-multiplier)) !important;
+}
+.text-sm {
+  font-size: calc(0.875rem * var(--font-size-multiplier)) !important;
+}
+.text-base {
+  font-size: calc(1rem * var(--font-size-multiplier)) !important;
+}
+.text-lg {
+  font-size: calc(1.125rem * var(--font-size-multiplier)) !important;
+}
+.text-xl {
+  font-size: calc(1.25rem * var(--font-size-multiplier)) !important;
+}
+.text-2xl {
+  font-size: calc(1.5rem * var(--font-size-multiplier)) !important;
+}
+.text-3xl {
+  font-size: calc(1.875rem * var(--font-size-multiplier)) !important;
+}
+
+/* Responsive font adjustments to maintain mobile usability */
+@media (max-width: 640px) {
+  .text-xs {
+    font-size: calc(0.75rem * var(--font-size-multiplier)) !important;
+  }
+  .text-sm {
+    font-size: calc(0.875rem * var(--font-size-multiplier)) !important;
+  }
+  .text-base {
+    font-size: calc(1rem * var(--font-size-multiplier)) !important;
+  }
+  .text-lg {
+    font-size: calc(1.125rem * var(--font-size-multiplier)) !important;
+  }
+  .text-xl {
+    font-size: calc(1.25rem * var(--font-size-multiplier)) !important;
+  }
+  .text-2xl {
+    font-size: calc(1.5rem * var(--font-size-multiplier)) !important;
+  }
+  .text-3xl {
+    font-size: calc(1.75rem * var(--font-size-multiplier)) !important;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .text-lg {
+    font-size: calc(1.125rem * var(--font-size-multiplier)) !important;
+  }
+  .text-xl {
+    font-size: calc(1.25rem * var(--font-size-multiplier)) !important;
+  }
+  .text-2xl {
+    font-size: calc(1.5rem * var(--font-size-multiplier)) !important;
+  }
+  .text-3xl {
+    font-size: calc(1.875rem * var(--font-size-multiplier)) !important;
+  }
+}
+
+/* Responsive table improvements */
+@media (max-width: 768px) {
+  /* Hide non-essential columns on mobile */
+  .hidden-mobile {
+    display: none !important;
+  }
+
+  /* Stack table cells vertically on mobile */
+  .mobile-stack tbody,
+  .mobile-stack tr,
+  .mobile-stack td {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .mobile-stack thead {
+    display: none !important;
+  }
+
+  .mobile-stack td {
+    text-align: left !important;
+    padding: 8px 16px !important;
+    border: none !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    position: relative !important;
+  }
+
+  .mobile-stack td:before {
+    content: attr(data-label) ": ";
+    font-weight: 600;
+    display: inline-block;
+    width: 120px;
+    margin-right: 10px;
+  }
+
+  /* Calendar specific mobile improvements */
+  .calendar-table {
+    font-size: calc(0.875rem * var(--font-size-multiplier)) !important;
+  }
+
+  .calendar-table th,
+  .calendar-table td {
+    padding: 8px 4px !important;
+  }
+
+  /* Navigation mobile improvements */
+  .mobile-nav-item {
+    padding: 16px !important;
+    font-size: calc(1rem * var(--font-size-multiplier)) !important;
+    min-height: 56px !important;
+  }
+
+  /* Button spacing improvements */
+  .btn-group-mobile {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .btn-group-mobile button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* Very small screens (iPhone SE, etc.) */
+@media (max-width: 480px) {
+  /* Even smaller text for ultra-compact screens */
+  .calendar-table {
+    font-size: calc(0.75rem * var(--font-size-multiplier)) !important;
+  }
+
+  .calendar-table th,
+  .calendar-table td {
+    padding: 6px 2px !important;
+  }
+
+  /* Reduce padding on cards */
+  .mobile-card {
+    padding: 12px !important;
+    margin-bottom: 12px !important;
+  }
+
+  /* Compact navigation */
+  .mobile-nav-item {
+    padding: 12px !important;
+    font-size: calc(0.9rem * var(--font-size-multiplier)) !important;
+    min-height: 48px !important;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+  .mobile-title {
+    font-size: calc(1.5rem * var(--font-size-multiplier)) !important;
+  }
+
+  .mobile-nav-item {
+    padding: 12px !important;
+    min-height: 48px !important;
+  }
+}
+
+/* High contrast mode */
+.high-contrast {
+  --text-primary: #000000;
+  --text-secondary: #000000;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --border-color: #000000;
+  --link-color: #0000ee;
+  --link-visited: #551a8b;
+  --focus-color: #ff0000;
+}
+
+/* Base high contrast styles - more selective */
+.high-contrast {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Text elements that should be black on white */
+.high-contrast p,
+.high-contrast span:not(.text-white):not(.text-blue-600):not(.text-green-600):not(.text-red-600),
+.high-contrast div:not([class*="bg-"]):not([class*="text-white"]),
+.high-contrast h1, .high-contrast h2, .high-contrast h3, .high-contrast h4, .high-contrast h5, .high-contrast h6,
+.high-contrast label,
+.high-contrast li {
+  color: var(--text-primary) !important;
+}
+
+/* Links with enhanced visibility */
+.high-contrast a {
+  color: var(--link-color) !important;
+  text-decoration: underline !important;
+  font-weight: 600 !important;
+}
+
+.high-contrast a:visited {
+  color: var(--link-visited) !important;
+}
+
+/* Buttons - preserve functional color coding but ensure contrast */
+.high-contrast button:not(.bg-blue-600):not(.bg-green-600):not(.bg-red-600):not(.bg-gray-800) {
+  background: var(--bg-primary) !important;
+  border: 3px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Blue buttons/elements - maintain blue but ensure white text */
+.high-contrast .bg-blue-600,
+.high-contrast .bg-blue-500,
+.high-contrast .bg-blue-700,
+.high-contrast button.bg-blue-600 {
+  background: #0000cc !important;
+  color: #ffffff !important;
+  border: 3px solid #000000 !important;
+}
+
+/* Light blue backgrounds - convert to high contrast */
+.high-contrast .bg-blue-50 {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #0000cc !important;
+}
+
+/* Yellow/warning backgrounds */
+.high-contrast .bg-yellow-50,
+.high-contrast .bg-yellow-100,
+.high-contrast .bg-yellow-200 {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #cc6600 !important;
+}
+
+/* Hover states for colored backgrounds */
+.high-contrast .hover\:bg-blue-700:hover,
+.high-contrast .hover\:bg-blue-600:hover,
+.high-contrast .hover\:bg-blue-500:hover {
+  background: #000088 !important;
+  color: #ffffff !important;
+}
+
+.high-contrast .hover\:bg-green-700:hover,
+.high-contrast .hover\:bg-green-600:hover {
+  background: #004400 !important;
+  color: #ffffff !important;
+}
+
+.high-contrast .hover\:bg-blue-50:hover,
+.high-contrast .hover\:bg-blue-100:hover,
+.high-contrast .hover\:bg-blue-200:hover {
+  background: #f0f0f0 !important;
+  color: #000000 !important;
+  border: 2px solid #0000cc !important;
+}
+
+/* Colored text elements - enhance contrast */
+.high-contrast .text-blue-600,
+.high-contrast .text-blue-700,
+.high-contrast .text-blue-900 {
+  color: #0000cc !important;
+  font-weight: 600 !important;
+}
+
+.high-contrast .text-red-600,
+.high-contrast .text-red-700,
+.high-contrast .text-red-800 {
+  color: #cc0000 !important;
+  font-weight: 600 !important;
+}
+
+.high-contrast .text-green-600,
+.high-contrast .text-green-700,
+.high-contrast .text-green-800 {
+  color: #006600 !important;
+  font-weight: 600 !important;
+}
+
+/* Error/success/warning message containers */
+.high-contrast .bg-red-50 {
+  background: #ffffff !important;
+  color: #cc0000 !important;
+  border: 3px solid #cc0000 !important;
+}
+
+.high-contrast .bg-green-50 {
+  background: #ffffff !important;
+  color: #006600 !important;
+  border: 3px solid #006600 !important;
+}
+
+.high-contrast .bg-blue-100 {
+  background: #ffffff !important;
+  color: #0000cc !important;
+  border: 2px solid #0000cc !important;
+}
+
+/* Green buttons/elements */
+.high-contrast .bg-green-600,
+.high-contrast .bg-green-500,
+.high-contrast .bg-green-700 {
+  background: #006600 !important;
+  color: #ffffff !important;
+  border: 3px solid #000000 !important;
+}
+
+/* Red/danger buttons/elements */
+.high-contrast .bg-red-600,
+.high-contrast .bg-red-500,
+.high-contrast .bg-red-700 {
+  background: #cc0000 !important;
+  color: #ffffff !important;
+  border: 3px solid #000000 !important;
+}
+
+/* Gray/dark buttons */
+.high-contrast .bg-gray-800,
+.high-contrast .bg-gray-900 {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border: 3px solid #ffffff !important;
+}
+
+/* White text that should remain white */
+.high-contrast .text-white,
+.high-contrast .bg-blue-600 *,
+.high-contrast .bg-blue-500 *,
+.high-contrast .bg-blue-700 *,
+.high-contrast .bg-green-600 *,
+.high-contrast .bg-green-500 *,
+.high-contrast .bg-green-700 *,
+.high-contrast .bg-red-600 *,
+.high-contrast .bg-red-500 *,
+.high-contrast .bg-red-700 *,
+.high-contrast .bg-gray-800 *,
+.high-contrast .bg-gray-900 * {
+  color: #ffffff !important;
+}
+
+/* Form elements */
+.high-contrast input,
+.high-contrast select,
+.high-contrast textarea {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  border: 3px solid var(--border-color) !important;
+}
+
+/* Cards and containers */
+.high-contrast .mobile-card,
+.high-contrast .modal-content {
+  background: var(--bg-primary) !important;
+  border: 3px solid var(--border-color) !important;
+}
+
+/* Borders for all elements */
+.high-contrast * {
+  border-color: var(--border-color) !important;
+}
+
+/* Focus styles */
+.high-contrast *:focus {
+  outline: 4px solid var(--focus-color) !important;
+  outline-offset: 2px !important;
+}
+
+/* Enhanced focus styles for accessibility - DESKTOP ONLY */
+@media (hover: hover) and (pointer: fine) {
+  /* Enhanced focus for desktop keyboard navigation */
+  *:focus-visible {
+    outline: 4px solid #2563eb;
+    outline-offset: 4px;
+    border-radius: 6px;
+    transition: outline 0.15s ease-in-out;
+  }
+
+  /* Specific focus styles for interactive elements */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 4px solid #2563eb;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 2px white, 0 0 0 7px #2563eb, 0 0 12px rgba(37, 99, 235, 0.3);
+  }
+
+  /* Enhanced focus for navigation elements */
+  nav button:focus-visible,
+  nav a:focus-visible {
+    outline: 4px solid #2563eb;
+    outline-offset: 4px;
+    box-shadow: 0 0 0 3px white, 0 0 0 8px #2563eb, 0 0 16px rgba(37, 99, 235, 0.4);
+    background-color: rgba(37, 99, 235, 0.05);
+  }
+
+  /* Focus for form elements with enhanced visibility */
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 4px solid #2563eb;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px white, 0 0 0 7px #2563eb, inset 0 0 0 1px #2563eb;
+    border-color: #2563eb;
+  }
+
+  /* High contrast focus - enhanced for desktop */
+  .high-contrast *:focus-visible {
+    outline: 5px solid #ff0000 !important;
+    outline-offset: 3px !important;
+    box-shadow: 0 0 0 3px white, 0 0 0 10px #ff0000, 0 0 20px rgba(255, 0, 0, 0.6) !important;
+  }
+
+  /* Ensure focus is visible on dark backgrounds */
+  .bg-blue-600 *:focus-visible,
+  .bg-gray-800 *:focus-visible,
+  .bg-gray-900 *:focus-visible {
+    outline: 4px solid #fbbf24;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 2px currentColor, 0 0 0 7px #fbbf24, 0 0 12px rgba(251, 191, 36, 0.4);
+  }
+
+  /* Custom focus for dropdown menus */
+  [role="menuitem"]:focus-visible,
+  [role="option"]:focus-visible {
+    outline: 3px solid #2563eb;
+    outline-offset: 2px;
+    background-color: rgba(37, 99, 235, 0.1);
+    box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.2);
+  }
+
+  /* Focus for card-like elements */
+  .mobile-card:focus-visible,
+  .mobile-list-item:focus-visible {
+    outline: 4px solid #2563eb;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px white, 0 0 0 7px #2563eb, 0 4px 20px rgba(37, 99, 235, 0.15);
+    transform: translateY(-2px);
+  }
+}
+
+/* Fallback focus styles for non-desktop devices */
+@media not all and (hover: hover) and (pointer: fine) {
+  *:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+  }
+}
+
 /* Custom animations */
 @keyframes slideDown {
   from {
@@ -20,4 +481,43 @@
 
 .animate-slideDown {
   animation: slideDown 0.2s ease-out;
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Disable transform animations */
+  .btn-touch:hover,
+  .btn-touch:active {
+    transform: none !important;
+  }
+
+  /* Disable loading animations */
+  .loading-skeleton {
+    animation: none !important;
+    background: #f0f0f0 !important;
+  }
+
+  /* Disable slide animations */
+  .animate-slideDown {
+    animation: none !important;
+  }
+
+  /* Disable focus transforms for reduced motion - desktop only */
+  @media (hover: hover) and (pointer: fine) {
+    *:focus-visible {
+      transition: none !important;
+    }
+
+    .mobile-card:focus-visible,
+    .mobile-list-item:focus-visible {
+      transform: none !important;
+    }
+  }
 }

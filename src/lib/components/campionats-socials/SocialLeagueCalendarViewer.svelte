@@ -657,6 +657,10 @@
     observacions_junta: ''
   };
 
+  // Variables per l'intercanvi de partides
+  let selectedMatches: Set<string> = new Set();
+  let swapMode: boolean = false;
+
   const dayNames = {
     'dl': 'Dilluns',
     'dt': 'Dimarts',
@@ -1130,6 +1134,16 @@
 
   // Filtrar dades
   $: filteredMatches = matches.filter(match => {
+    // Filtrar partides passades - només mostrar partides futures o d'avui
+    if (match.data_programada) {
+      const matchDate = new Date(match.data_programada);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Resetear a inici del dia
+
+      // Si la partida és anterior a avui, no la mostrem
+      if (matchDate < today) return false;
+    }
+
     if (selectedCategory && match.categoria_id !== selectedCategory) return false;
     if (selectedDate) {
       const matchDate = match.data_programada ?
@@ -1146,25 +1160,33 @@
   });
 
   $: filteredTimeline = timelineData.filter(slot => {
+    // Filtrar slots de dates passades - només mostrar dates futures o d'avui
+    const slotDate = new Date(slot.dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Resetear a inici del dia
+
+    // Si el slot és anterior a avui, no el mostrem
+    if (slotDate < today) return false;
+
     // Si hi ha cerca de jugador, només mostrar slots amb partits d'aquell jugador
     if (playerSearch.length >= 2) {
       // Només slots amb partits quan es cerca jugador
       if (!slot.match) return false;
-      
+
       const searchLower = playerSearch.toLowerCase().trim();
       const player1Match = matchPlayerSearchText(slot.match.jugador1, searchLower);
       const player2Match = matchPlayerSearchText(slot.match.jugador2, searchLower);
-      
+
       // Si el partit no té el jugador cercat, no mostrar aquest slot
       if (!player1Match && !player2Match) return false;
     }
-    
+
     // Filtrar per data seleccionada (aplicable tant a slots buits com amb partits)
     if (selectedDate && slot.dateStr !== selectedDate) return false;
-    
+
     // Filtrar per categoria seleccionada (només aplicable a slots amb partits)
     if (selectedCategory && slot.match && slot.match.categoria_id !== selectedCategory) return false;
-    
+
     return true;
   });
 
@@ -1575,6 +1597,104 @@
       error = formatSupabaseError(e);
     } finally {
       publishing = false;
+    }
+  }
+
+  // Funcions per l'intercanvi de partides
+  function toggleSwapMode() {
+    swapMode = !swapMode;
+    if (!swapMode) {
+      selectedMatches.clear();
+      selectedMatches = selectedMatches; // trigger reactivity
+    }
+  }
+
+  function toggleMatchSelection(matchId: string) {
+    if (selectedMatches.has(matchId)) {
+      selectedMatches.delete(matchId);
+    } else {
+      // Limit to 2 selections for swapping
+      if (selectedMatches.size >= 2) {
+        alert('Només pots seleccionar 2 partides per intercanviar.');
+        return;
+      }
+      selectedMatches.add(matchId);
+    }
+    selectedMatches = selectedMatches; // trigger reactivity
+  }
+
+  async function swapMatches() {
+    if (selectedMatches.size !== 2) {
+      error = 'Has de seleccionar exactament 2 partides per intercanviar.';
+      return;
+    }
+
+    const matchIds = Array.from(selectedMatches);
+    const match1 = matches.find(m => m.id === matchIds[0]);
+    const match2 = matches.find(m => m.id === matchIds[1]);
+
+    if (!match1 || !match2) {
+      error = 'No s\'han pogut trobar les partides seleccionades.';
+      return;
+    }
+
+    // Validar que les partides tinguin dates i hores assignades
+    if (!match1.data_programada || !match1.hora_inici || !match2.data_programada || !match2.hora_inici) {
+      error = 'Les partides han de tenir data i hora assignades per poder-les intercanviar.';
+      return;
+    }
+
+    // Confirmar l'intercanvi
+    const confirmSwap = confirm(
+      `Estàs segur que vols intercanviar aquestes partides?\n\n` +
+      `Partida 1: ${formatPlayerName(match1.jugador1)} vs ${formatPlayerName(match1.jugador2)}\n` +
+      `Data actual: ${formatDate(new Date(match1.data_programada))} a les ${match1.hora_inici}\n\n` +
+      `Partida 2: ${formatPlayerName(match2.jugador1)} vs ${formatPlayerName(match2.jugador2)}\n` +
+      `Data actual: ${formatDate(new Date(match2.data_programada))} a les ${match2.hora_inici}\n\n` +
+      `Després de l'intercanvi, les dates i hores s'intercanviaran.`
+    );
+
+    if (!confirmSwap) return;
+
+    try {
+      // Intercanviar les dates i hores
+      const { error: error1 } = await supabase
+        .from('calendari_partides')
+        .update({
+          data_programada: match2.data_programada,
+          hora_inici: match2.hora_inici,
+          taula_assignada: match2.taula_assignada
+        })
+        .eq('id', match1.id);
+
+      if (error1) throw error1;
+
+      const { error: error2 } = await supabase
+        .from('calendari_partides')
+        .update({
+          data_programada: match1.data_programada,
+          hora_inici: match1.hora_inici,
+          taula_assignada: match1.taula_assignada
+        })
+        .eq('id', match2.id);
+
+      if (error2) throw error2;
+
+      // Recarregar les dades
+      await loadCalendarData();
+
+      // Resetear la selecció
+      selectedMatches.clear();
+      selectedMatches = selectedMatches;
+      swapMode = false;
+
+      dispatch('matchesSwapped', { match1Id: match1.id, match2Id: match2.id });
+
+      alert('✅ Partides intercanviades correctament!');
+
+    } catch (e) {
+      console.error('Error intercanviant partides:', e);
+      error = formatSupabaseError(e);
     }
   }
 </script>
@@ -2157,6 +2277,43 @@
           </button>
         {/if}
 
+        <!-- Controls d'intercanvi de partides (només per admins) -->
+        {#if isAdmin}
+          <div class="btn-group-mobile lg:flex lg:items-center lg:gap-2">
+            <button
+              on:click={toggleSwapMode}
+              class="no-print px-3 sm:px-4 py-2 text-xs sm:text-sm rounded font-semibold flex items-center justify-center gap-2"
+              class:bg-orange-600={swapMode}
+              class:text-white={swapMode}
+              class:hover:bg-orange-700={swapMode}
+              class:bg-orange-100={!swapMode}
+              class:text-orange-800={!swapMode}
+              class:hover:bg-orange-200={!swapMode}
+              title="Activar/desactivar mode d'intercanvi de partides"
+            >
+              🔄 <span class="hidden sm:inline">{swapMode ? 'Cancel·lar Intercanvi' : 'Intercanviar Partides'}</span>
+              <span class="sm:hidden">{swapMode ? 'Cancel·lar' : 'Intercanviar'}</span>
+            </button>
+
+            {#if swapMode && selectedMatches.size === 2}
+              <button
+                on:click={swapMatches}
+                class="no-print px-3 sm:px-4 py-2 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700 font-semibold flex items-center justify-center gap-1"
+                title="Confirmar intercanvi de les partides seleccionades"
+              >
+                ✅ <span class="hidden sm:inline">Confirmar Intercanvi</span>
+                <span class="sm:hidden">Confirmar</span>
+              </button>
+            {/if}
+
+            {#if swapMode}
+              <span class="text-xs sm:text-sm text-gray-600 text-center lg:text-left">
+                Seleccionades: {selectedMatches.size}/2
+              </span>
+            {/if}
+          </div>
+        {/if}
+
         <!-- Selecció de vista -->
         <div class="flex bg-gray-100 rounded-lg p-1">
           <button
@@ -2308,10 +2465,13 @@
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Taula</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Enfrontament</th>
+                  {#if isAdmin && swapMode}
+                    <th class="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase print-hide">Sel.</th>
+                  {/if}
+                  <th class="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
+                  <th class="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
+                  <th class="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">Taula</th>
+                  <th class="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Enfrontament</th>
                   {#if isAdmin}
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase print-hide">Accions</th>
                   {/if}
@@ -2319,17 +2479,34 @@
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 {#each categoryMatches as match}
-                  <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {match.data_programada ? formatDate(new Date(match.data_programada)) : 'No programada'}
+                  <tr class="hover:bg-gray-50" class:bg-blue-50={swapMode && selectedMatches.has(match.id)}>
+                    {#if isAdmin && swapMode}
+                      <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-center print-hide">
+                        <input
+                          type="checkbox"
+                          checked={selectedMatches.has(match.id)}
+                          on:change={() => toggleMatchSelection(match.id)}
+                          class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          disabled={!match.data_programada || !match.hora_inici}
+                        />
+                      </td>
+                    {/if}
+                    <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                      <div class="flex flex-col">
+                        <span>{match.data_programada ? formatDate(new Date(match.data_programada)) : 'No programada'}</span>
+                        <span class="text-xs text-gray-500 sm:hidden">
+                          {match.hora_inici || '-'}
+                          {#if match.taula_assignada}• B{match.taula_assignada}{/if}
+                        </span>
+                      </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                       {match.hora_inici || '-'}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td class="hidden sm:table-cell px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                       {match.taula_assignada ? `B${match.taula_assignada}` : 'No assignada'}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                       <div class="flex flex-col">
                         <span class="font-medium">
                           {formatPlayerName(match.jugador1)}
@@ -2397,11 +2574,15 @@
           <table class="min-w-full divide-y divide-gray-500 calendar-table border-collapse">
             <thead class="bg-gray-100">
               <tr>
-                <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-4 border-gray-800 day-column">Dia</th>
-                <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-4 border-gray-800 hour-column">Hora</th>
-                <th class="px-6 py-4 text-center text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 table-column min-w-[100px]">Billar</th>
-                <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 player-column">Jugador 1</th>
-                <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 player-column">Jugador 2</th>
+                {#if isAdmin && swapMode}
+                  <th class="px-3 py-4 text-center text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 print-hide">Seleccionar</th>
+                {/if}
+                <th class="px-2 sm:px-3 py-2 sm:py-4 text-left text-sm sm:text-base lg:text-lg xl:text-xl font-semibold text-gray-800 uppercase border-r-4 border-gray-800 day-column">Dia</th>
+                <th class="px-2 sm:px-3 py-2 sm:py-4 text-left text-sm sm:text-base lg:text-lg xl:text-xl font-semibold text-gray-800 uppercase border-r-4 border-gray-800 hour-column">Hora</th>
+                <th class="px-2 sm:px-6 py-2 sm:py-4 text-center text-xs sm:text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 table-column min-w-[60px] sm:min-w-[100px]">Billar</th>
+                <th class="px-2 sm:px-3 py-2 sm:py-4 text-left text-sm sm:text-base lg:text-lg xl:text-xl font-semibold text-gray-800 uppercase border-r-2 border-gray-400 player-column hidden sm:table-cell">Jugador 1</th>
+                <th class="px-2 sm:px-3 py-2 sm:py-4 text-left text-sm sm:text-base lg:text-lg xl:text-xl font-semibold text-gray-800 uppercase border-r-2 border-gray-400 player-column hidden sm:table-cell">Jugador 2</th>
+                <th class="px-2 sm:px-3 py-2 sm:py-4 text-left text-sm sm:text-base lg:text-lg xl:text-xl font-semibold text-gray-800 uppercase border-r-2 border-gray-400 player-column sm:hidden">Partida</th>
                 {#if isAdmin}
                   <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase print-hide">Accions</th>
                 {/if}
@@ -2416,26 +2597,43 @@
                         class:border-t-4={hourIndex === 0 && slotIndex === 0 && dayIndex > 0}
                         class:border-t-gray-600={hourIndex === 0 && slotIndex === 0 && dayIndex > 0}
                         class:border-t-2={hourIndex > 0 && slotIndex === 0}
-                        class:border-t-gray-400={hourIndex > 0 && slotIndex === 0}>
+                        class:border-t-gray-400={hourIndex > 0 && slotIndex === 0}
+                        class:bg-blue-50={swapMode && slot.match && selectedMatches.has(slot.match.id)}>
+
+                      <!-- Checkbox column for swap mode -->
+                      {#if isAdmin && swapMode}
+                        <td class="px-3 py-4 whitespace-nowrap text-center border-r-2 border-gray-400 print-hide">
+                          {#if slot.match}
+                            <input
+                              type="checkbox"
+                              checked={selectedMatches.has(slot.match.id)}
+                              on:change={() => toggleMatchSelection(slot.match.id)}
+                              class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              disabled={!slot.match.data_programada || !slot.match.hora_inici}
+                            />
+                          {/if}
+                        </td>
+                      {/if}
+
                       <!-- Day column with rowspan -->
                       {#if hourIndex === 0 && slotIndex === 0}
-                        <td class="px-3 py-4 text-sm md:text-base font-bold text-gray-900 border-r-4 border-gray-800 bg-gray-50 align-top day-column" rowspan={totalSlotsForDay}>
+                        <td class="px-2 sm:px-3 py-2 sm:py-4 text-base sm:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 border-r-4 border-gray-800 bg-gray-50 align-top day-column" rowspan={totalSlotsForDay}>
                           <div class="sticky top-0 print-day-header">
-                            <div class="print-date-main">{formatDate(new Date(dateStr))}</div>
-                            <div class="print-day-name">{dayNames[getDayOfWeekCode(new Date(dateStr + 'T00:00:00').getDay())]}</div>
+                            <div class="print-date-main text-base sm:text-lg lg:text-xl xl:text-2xl">{formatDate(new Date(dateStr))}</div>
+                            <div class="print-day-name text-xs sm:text-sm hidden sm:block">{dayNames[getDayOfWeekCode(new Date(dateStr + 'T00:00:00').getDay())]}</div>
                           </div>
                         </td>
                       {/if}
 
                       <!-- Hour column with rowspan for each hour group -->
                       {#if slotIndex === 0}
-                        <td class="px-3 py-4 text-sm md:text-base font-bold text-gray-800 border-r-4 border-gray-800 bg-gray-100 align-top hour-column" rowspan={slots.length}>
+                        <td class="px-2 sm:px-3 py-2 sm:py-4 text-base sm:text-lg lg:text-xl xl:text-2xl font-bold text-gray-800 border-r-4 border-gray-800 bg-gray-100 align-top hour-column" rowspan={slots.length}>
                           <div class="print-hour-header">{hora}</div>
                         </td>
                       {/if}
 
                       <!-- Table column -->
-                      <td class="px-6 py-4 whitespace-nowrap text-sm md:text-base text-gray-900 border-r-2 border-gray-400 table-column text-center font-medium min-w-[100px]" class:match-cell={slot.match} class:empty-cell={!slot.match}>
+                      <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm md:text-base text-gray-900 border-r-2 border-gray-400 table-column text-center font-medium min-w-[60px] sm:min-w-[100px]" class:match-cell={slot.match} class:empty-cell={!slot.match}>
                         {#if slot.match && slot.match.taula_assignada}
                           <span class="table-number-compact bg-green-100 px-3 py-2 rounded-full text-green-800 font-bold text-lg">B{slot.match.taula_assignada}</span>
                         {:else if slot.match}
@@ -2449,17 +2647,28 @@
 
 
 
-                      <!-- Jugador 1 -->
-                      <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base text-gray-900 border-r-2 border-gray-400 player-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
+                      <!-- Jugador 1 (hidden on mobile) -->
+                      <td class="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-base sm:text-lg lg:text-xl xl:text-2xl text-gray-900 border-r-2 border-gray-400 player-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
                         {#if slot.match}
                           <span class="font-semibold">{formatPlayerName(slot.match.jugador1)}</span>
                         {/if}
                       </td>
 
-                      <!-- Jugador 2 -->
-                      <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base text-gray-900 border-r-2 border-gray-400 player-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
+                      <!-- Jugador 2 (hidden on mobile) -->
+                      <td class="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-base sm:text-lg lg:text-xl xl:text-2xl text-gray-900 border-r-2 border-gray-400 player-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
                         {#if slot.match}
                           <span class="font-semibold">{formatPlayerName(slot.match.jugador2)}</span>
+                        {/if}
+                      </td>
+
+                      <!-- Combined players column (visible only on mobile) -->
+                      <td class="sm:hidden px-2 py-2 text-sm text-gray-900 border-r-2 border-gray-400 player-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
+                        {#if slot.match}
+                          <div class="flex flex-col">
+                            <span class="font-semibold text-sm">{formatPlayerName(slot.match.jugador1)}</span>
+                            <span class="text-xs text-gray-500">vs</span>
+                            <span class="font-semibold text-sm">{formatPlayerName(slot.match.jugador2)}</span>
+                          </div>
                         {/if}
                       </td>
 

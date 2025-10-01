@@ -725,9 +725,9 @@
   <title>Campionats Socials - Campionat 3 Bandes</title>
 </svelte:head>
 
-<div class="px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-6">
+<div class="px-6 sm:px-8 lg:px-12 space-y-8 sm:space-y-8 lg:space-y-10">
   <!-- Header -->
-  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
     <div class="flex-1 min-w-0">
       <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold leading-7 text-gray-900">
         Campionats Socials
@@ -895,7 +895,7 @@
         <p class="mt-2 text-gray-600">Carregant campionats...</p>
       </div>
     {:else if preparationEvents.length > 0}
-      <div class="space-y-6">
+      <div class="space-y-8">
         <!-- Campionats en Preparació - Vista pública -->
         <div class="bg-white shadow rounded-lg">
           <div class="px-4 py-5 sm:p-6">
@@ -904,7 +904,7 @@
             </h3>
             
 
-            <div class="space-y-4">
+            <div class="space-y-6">
               {#each preparationEvents as event}
                 <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
                   <div class="flex items-center justify-between">
@@ -974,7 +974,7 @@
 
               <!-- Navegació de gestió -->
               <div class="border-b border-gray-200 mb-6">
-                <nav class="-mb-px flex space-x-8">
+                <nav class="-mb-px flex space-x-10 sm:space-x-12">
                   <button
                     on:click={() => managementView = 'inscriptions'}
                     class="py-2 px-1 border-b-2 font-medium text-sm"
@@ -1067,7 +1067,7 @@
                   on:inscriptionUpdated={loadInscriptionsData}
                 />
               {:else if managementView === 'categories'}
-                <div class="space-y-6">
+                <div class="space-y-8">
                   <!-- Individual category management -->
                   <CategoryManagement
                     eventId={selectedEventId}
@@ -1121,7 +1121,7 @@
                   }}
                 />
               {:else if managementView === 'view-calendar'}
-                <div class="space-y-6">
+                <div class="space-y-8">
                   <!-- Header with validation/publish buttons -->
                   <div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div>
@@ -1147,24 +1147,24 @@
                         {/if}
                       </div>
                     </div>
-                    <div class="flex space-x-3">
+                    <div class="flex space-x-4 sm:space-x-6">
                       <button
                         on:click={() => downloadCalendariCSV(selectedEventId, selectedEvent.nom)}
-                        class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                        class="inline-flex items-center px-4 py-3 border border-gray-300 text-base leading-5 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 min-h-[48px]"
                         title="Exportar calendari a CSV"
                       >
                         📄 Exportar CSV
                       </button>
                       <button
                         on:click={() => managementView = 'generate-calendar'}
-                        class="inline-flex items-center px-3 py-2 border border-blue-300 text-sm leading-4 font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50"
+                        class="inline-flex items-center px-4 py-3 border border-blue-300 text-base leading-5 font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 min-h-[48px]"
                       >
                         🔨 Regenerar
                       </button>
                       {#if calendarStatus === 'generated' || calendarStatus === 'partially-validated'}
                         <button
                           on:click={validateCalendar}
-                          class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                          class="inline-flex items-center px-4 py-3 border border-transparent text-base leading-5 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 min-h-[48px]"
                         >
                           ✅ Validar Calendari
                         </button>
@@ -1214,11 +1214,11 @@
         <p class="mt-2 text-gray-600">Carregant campionats...</p>
       </div>
     {:else if activeEvents.length > 0}
-      <div class="space-y-6">
+      <div class="space-y-8">
 
         <!-- Informació Completa del Campionat Seleccionat - Visible per tots -->
         {#if selectedEventId && selectedEvent && activeEvents.find(e => e.id === selectedEventId)}
-          <div class="space-y-6">
+          <div class="space-y-8">
 
             {#if isUserAdmin}
               <!-- Vista Admin: Selector de campionat i navegació completa -->
@@ -1228,10 +1228,10 @@
                     <h3 class="text-lg leading-6 font-medium text-gray-900">
                       {selectedEvent.nom} - Gestió Admin
                     </h3>
-                    <div class="flex space-x-3">
+                    <div class="flex space-x-4 sm:space-x-6">
                       <button
                         on:click={() => downloadCalendariCSV(selectedEventId, selectedEvent.nom)}
-                        class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                        class="inline-flex items-center px-4 py-3 border border-gray-300 text-base leading-5 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 min-h-[48px]"
                         title="Exportar calendari a CSV"
                       >
                         📄 Exportar CSV
@@ -1252,7 +1252,7 @@
 
                 <!-- Navegació interna del campionat -->
                 <div class="border-b border-gray-200 mb-6">
-                  <nav class="-mb-px flex space-x-8">
+                  <nav class="-mb-px flex space-x-10 sm:space-x-12">
                     <button
                       on:click={() => managementView = 'view-calendar'}
                       class="py-2 px-1 border-b-2 font-medium text-sm"
@@ -1328,7 +1328,7 @@
 
                 {:else if managementView === 'results'}
                   <!-- Resultats de partides -->
-                  <div class="space-y-4">
+                  <div class="space-y-6">
                     <h4 class="text-lg font-medium text-gray-900">Resultats de Partides</h4>
                     <SocialLeagueMatchResults
                       eventId={selectedEventId}
@@ -1338,11 +1338,11 @@
 
                 {:else if managementView === 'standings'}
                   <!-- Classificació -->
-                  <div class="space-y-6">
+                  <div class="space-y-8">
                     <h4 class="text-lg font-medium text-gray-900">Classificació per Categories</h4>
 
                     {#if selectedEvent.categories && selectedEvent.categories.length > 0}
-                      <div class="space-y-6">
+                      <div class="space-y-8">
                         {#each selectedEvent.categories as category}
                           {@const categoryInscriptions = inscriptions.filter(i => i.categoria_assignada_id === category.id)}
                           <div class="bg-gray-50 rounded-lg p-6">
@@ -1473,7 +1473,7 @@
                 <!-- Navegació per pestanyes públiques -->
                 <div class="bg-white shadow rounded-lg">
                   <div class="border-b border-gray-200">
-                    <nav class="-mb-px flex space-x-8 px-6">
+                    <nav class="-mb-px flex space-x-10 sm:space-x-12 px-6">
                       <button
                         on:click={() => managementView = 'inscriptions'}
                         class="py-3 px-1 border-b-2 font-medium text-sm"
@@ -1550,11 +1550,11 @@
 
                     {:else if managementView === 'standings'}
                       <!-- Classificacions -->
-                      <div class="space-y-6">
+                      <div class="space-y-8">
                         <h4 class="text-lg font-medium text-gray-900">Classificació per Categories</h4>
 
                         {#if selectedEvent.categories && selectedEvent.categories.length > 0}
-                          <div class="space-y-6">
+                          <div class="space-y-8">
                             {#each selectedEvent.categories as category}
                               {@const categoryInscriptions = inscriptions.filter(i => i.categoria_assignada_id === category.id)}
                               <div class="bg-gray-50 rounded-lg p-6">
@@ -1680,7 +1680,7 @@
         <!-- Filtres -->
         <div class="mb-6 bg-gray-50 rounded-lg p-4">
           <h4 class="text-sm font-medium text-gray-900 mb-3">Filtres</h4>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <!-- Filtre de Modalitat -->
             <div>
               <label for="history-modalitat" class="block text-xs font-medium text-gray-700 mb-1">Modalitat</label>
@@ -1727,7 +1727,7 @@
         </div>
 
         {#if filteredHistoricalEvents.length > 0}
-          <div class="space-y-4">
+          <div class="space-y-6">
             {#each filteredHistoricalEvents.slice(0, displayLimit) as event}
               <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                 <div class="flex items-center justify-between">
@@ -1795,7 +1795,7 @@
           Inscripcions Obertes
         </h3>
         {#if openRegistrations.length > 0}
-          <div class="space-y-4">
+          <div class="space-y-6">
             {#each openRegistrations as event}
               <div class="border border-green-200 rounded-lg p-4 bg-green-50">
                 <div class="flex items-center justify-between">
