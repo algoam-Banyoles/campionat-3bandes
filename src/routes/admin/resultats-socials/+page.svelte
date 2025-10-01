@@ -281,6 +281,9 @@
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-xl font-semibold text-gray-900">
           Partides Pendents
+          <span class="text-sm font-normal text-gray-600 ml-2">
+            • Total partides: {calendarMatches.length}
+          </span>
           {#if selectedMatch}
             <span class="text-sm font-normal text-gray-600 ml-2">
               • Seleccionada: {selectedMatch.soci1?.nom} {selectedMatch.soci1?.cognoms} vs {selectedMatch.soci2?.nom} {selectedMatch.soci2?.cognoms}

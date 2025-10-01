@@ -6,6 +6,7 @@
   export let categories: any[] = [];
 
   let matches: any[] = [];
+  let unprogrammedMatches: any[] = [];
   let loading = false;
   let error: string | null = null;
   let selectedCategory = 'all';
@@ -26,14 +27,23 @@
     error = null;
 
     try {
+      // Programmed and completed matches
       const { data, error: matchesError } = await supabase
         .rpc('get_match_results_public', { 
           p_event_id: eventId 
         });
 
       if (matchesError) throw matchesError;
-
       matches = data || [];
+
+      // Unprogrammed matches (estat = 'pendent_programar')
+      const { data: unprogrammed, error: unprogrammedError } = await supabase
+        .from('calendari_partides')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('estat', 'pendent_programar');
+      if (unprogrammedError) throw unprogrammedError;
+      unprogrammedMatches = unprogrammed || [];
     } catch (e) {
       console.error('Error loading matches:', e);
       error = 'Error carregant els resultats';
@@ -178,7 +188,7 @@
     <!-- Summary stats -->
     <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
       <div class="text-center">
-        <div class="text-2xl font-bold text-gray-900">{matches.length}</div>
+        <div class="text-2xl font-bold text-gray-900">{matches.length + (unprogrammedMatches ? unprogrammedMatches.length : 0)}</div>
         <div class="text-sm text-gray-500">Total Partides</div>
       </div>
       <div class="text-center">

@@ -21,7 +21,7 @@
   let selectedEventId = '';
   let selectedEvent: any = null;
   let loading = false;
-  let activeView: 'preparation' | 'active' | 'history' | 'players' | 'inscriptions' = 'active';
+  let activeView: 'preparation' | 'active' | 'history' | 'players' | 'inscriptions' | 'pagaments' = 'active';
 
   // Filtres per historial
   let historyModalityFilter = '';
@@ -48,6 +48,123 @@
 
   // Computed per verificar si és admin (comprovant tots dos sistemes)
   $: isUserAdmin = $adminStore || $isAdminNew;
+
+  // Categories per la pestanya de pagaments
+  $: paymentCategories = selectedEvent?.categories || [];
+
+  // Inscripcions ordenades per pagaments
+  $: sortedInscriptions = inscriptions
+    .filter(i => i && i.socis && i.socis.nom && i.socis.cognoms)
+    .sort((a, b) => {
+      const nomA = `${a.socis.cognoms || ''} ${a.socis.nom || ''}`.trim();
+      const nomB = `${b.socis.cognoms || ''} ${b.socis.nom || ''}`.trim();
+      return nomA.localeCompare(nomB);
+    });
+
+  // Funció per imprimir el llistat de pagaments
+  function printPaymentList() {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const eventName = selectedEvent?.nom || 'Campionat Social';
+
+    // Dividir en dues columnes
+    const half = Math.ceil(sortedInscriptions.length / 2);
+    const column1 = sortedInscriptions.slice(0, half);
+    const column2 = sortedInscriptions.slice(half);
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Llistat de Pagaments - ${eventName}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: Arial, sans-serif;
+            padding: 20mm;
+            font-size: 12pt;
+          }
+          h1 {
+            text-align: center;
+            margin-bottom: 5mm;
+            font-size: 18pt;
+          }
+          .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 10mm;
+            font-size: 11pt;
+          }
+          .columns {
+            display: flex;
+            gap: 15mm;
+          }
+          .column {
+            flex: 1;
+          }
+          .item {
+            display: flex;
+            align-items: center;
+            padding: 3mm 0;
+            border-bottom: 1px solid #ddd;
+          }
+          .checkbox {
+            width: 5mm;
+            height: 5mm;
+            border: 2px solid #000;
+            margin-right: 3mm;
+            flex-shrink: 0;
+            display: inline-block;
+          }
+          .checkbox.checked::before {
+            content: "✓";
+            font-size: 14pt;
+            font-weight: bold;
+            line-height: 5mm;
+            display: block;
+            text-align: center;
+          }
+          .name {
+            flex: 1;
+          }
+          @media print {
+            body { padding: 10mm; }
+          }
+        </style>
+      </head>
+      <body>
+        <h1>${eventName}</h1>
+        <div class="subtitle">Llistat de Pagaments</div>
+        <div class="columns">
+          <div class="column">
+            ${column1.map(i => `
+              <div class="item">
+                <span class="checkbox ${i.pagat ? 'checked' : ''}"></span>
+                <span class="name">${i.socis.cognoms}, ${i.socis.nom}</span>
+              </div>
+            `).join('')}
+          </div>
+          <div class="column">
+            ${column2.map(i => `
+              <div class="item">
+                <span class="checkbox ${i.pagat ? 'checked' : ''}"></span>
+                <span class="name">${i.socis.cognoms}, ${i.socis.nom}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  }
 
   // Funció manual per recalcular filtres i fer debug
   function recalculateFilters() {
@@ -656,25 +773,78 @@
           >
             🔧 Preparació
           </button>
+          <button
+            on:click={() => activeView = 'pagaments'}
+            class="flex-1 sm:flex-none px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors"
+            class:bg-white={activeView === 'pagaments'}
+            class:text-gray-900={activeView === 'pagaments'}
+            class:shadow-sm={activeView === 'pagaments'}
+            class:text-gray-500={activeView !== 'pagaments'}
+            class:hover:text-gray-700={activeView !== 'pagaments'}
+          >
+            💶 Pagaments
+          </button>
         {/if}
       </div>
-
-      <!-- Informació d'usuari -->
-      {#if isUserAdmin}
-        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-          👑 Administrator
-        </span>
-      {:else if $user}
-        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          👤 {$user.email}
-        </span>
-      {:else}
-        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-          👤 Visitant anònim
-        </span>
-      {/if}
     </div>
   </div>
+
+  <!-- Pestanya de pagaments (només admins) -->
+  {#if activeView === 'pagaments' && isUserAdmin}
+    {#if selectedEventId}
+      <div class="bg-white border border-gray-200 rounded-lg p-6 mt-4">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900">Pagaments d'inscripció</h2>
+            <p class="text-sm text-gray-600 mt-1">Marca si cada jugador ha pagat la inscripció. Només visible per administradors.</p>
+          </div>
+          <button
+            on:click={printPaymentList}
+            class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Imprimir
+          </button>
+        </div>
+
+        <!-- Llista de pagaments -->
+        <div class="space-y-2">
+          {#each sortedInscriptions as inscripcio}
+            <div class="flex items-center py-2 border-b border-gray-200">
+              <input
+                type="checkbox"
+                checked={inscripcio.pagat}
+                on:change={async (e) => {
+                  const nouPagat = e.target.checked;
+                  const { error } = await supabase
+                    .from('inscripcions')
+                    .update({ pagat: nouPagat })
+                    .eq('id', inscripcio.id);
+                  if (!error) {
+                    inscripcio.pagat = nouPagat;
+                    await loadInscriptionsData();
+                  } else {
+                    alert('Error actualitzant pagament: ' + error.message);
+                  }
+                }}
+                class="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label class="ml-3 text-sm font-medium text-gray-900 flex-1">
+                {inscripcio.socis.cognoms}, {inscripcio.socis.nom}
+                <span class="text-xs text-gray-500 ml-2">
+                  ({paymentCategories.find(c => c.id === inscripcio.categoria_assignada_id)?.nom || '-'})
+                </span>
+              </label>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {:else}
+      <p class="text-sm text-gray-500">Selecciona un campionat per veure els pagaments.</p>
+    {/if}
+  {/if}
 
   <!-- Barra d'informació d'usuari -->
   {#if !$user}
@@ -1733,6 +1903,131 @@
         </div>
       </div>
     </div>
-
   {/if}
 </div>
+
+<style>
+  /* Estils normals - ocultar header en pantalla */
+  .payment-list-header {
+    display: none;
+  }
+
+  @media print {
+    /* Ocultar elements no necessaris per imprimir */
+    :global(nav),
+    :global(header),
+    :global(footer),
+    :global(.no-print),
+    :global(button) {
+      display: none !important;
+    }
+
+    /* Ocultar wrapper principal */
+    :global(.px-4),
+    :global(.sm\:px-6),
+    :global(.lg\:px-8) {
+      padding: 0 !important;
+    }
+
+    :global(body) {
+      background: white !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    :global(#svelte),
+    :global(main) {
+      all: unset !important;
+      display: block !important;
+    }
+
+    /* Assegurar que el contenidor de pagaments sigui visible */
+    .payment-list-container {
+      display: block !important;
+      visibility: visible !important;
+      position: relative !important;
+    }
+
+    /* Mostrar títol només en impressió */
+    .payment-list-header {
+      display: block !important;
+      text-align: center !important;
+      margin-bottom: 2rem !important;
+    }
+
+    .payment-list-header h1 {
+      font-size: 20pt !important;
+      font-weight: bold !important;
+      color: black !important;
+      margin-bottom: 0.5rem !important;
+    }
+
+    .payment-list-header p {
+      font-size: 12pt !important;
+      color: #666 !important;
+    }
+
+    /* Ajustar pàgina */
+    @page {
+      margin: 1.5cm;
+      size: A4;
+    }
+
+    /* Dues columnes en impressió */
+    .payment-grid {
+      display: grid !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 0 2rem !important;
+      column-gap: 2rem !important;
+    }
+
+    /* Estil checkbox per imprimir */
+    .payment-grid input[type="checkbox"] {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      width: 16px !important;
+      height: 16px !important;
+      border: 2px solid black !important;
+      border-radius: 3px !important;
+      margin-right: 8px !important;
+      position: relative;
+      background: white !important;
+      flex-shrink: 0 !important;
+    }
+
+    .payment-grid input[type="checkbox"]:checked::before {
+      content: "✓";
+      position: absolute;
+      top: -2px;
+      left: 1px;
+      font-size: 14px;
+      font-weight: bold;
+      color: black;
+    }
+
+    /* Estils de les línies */
+    .payment-grid > div {
+      break-inside: avoid;
+      page-break-inside: avoid;
+      border-bottom: 1px solid #ccc !important;
+      padding: 0.5rem 0 !important;
+      display: flex !important;
+      align-items: center !important;
+    }
+
+    .payment-grid label {
+      font-size: 11pt !important;
+      color: black !important;
+      margin-left: 0.5rem !important;
+      line-height: 1.2 !important;
+    }
+
+    /* Assegurar que tot el contingut sigui visible */
+    * {
+      color-adjust: exact !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+</style>
