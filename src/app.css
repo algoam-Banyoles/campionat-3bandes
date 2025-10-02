@@ -671,19 +671,35 @@
 }
 /* Fix navbar dropdown styling on mobile - override padding reduction */
 @media (max-width: 768px) {
-  nav .bg-white {
-    padding: revert !important;
-    background-color: white !important;
+  /* Target dropdown container specifically */
+  nav .absolute.top-full {
+    background-color: #ffffff !important;
+    padding: 0 !important;
+  }
+
+  nav .absolute.top-full > div {
+    padding: 0.75rem 0 !important;
+    background-color: #ffffff !important;
   }
 
   nav .shadow-xl {
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
   }
+
+  /* Ensure dropdown links have white background on hover */
+  nav .absolute.top-full a:hover {
+    background-color: #f3f4f6 !important;
+  }
 }
 
 @media (max-width: 480px) {
-  nav .bg-white {
-    padding: revert !important;
-    background-color: white !important;
+  nav .absolute.top-full {
+    background-color: #ffffff !important;
+    padding: 0 !important;
+  }
+
+  nav .absolute.top-full > div {
+    padding: 0.75rem 0 !important;
+    background-color: #ffffff !important;
   }
 }
