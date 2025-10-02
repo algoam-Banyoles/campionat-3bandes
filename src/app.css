@@ -284,8 +284,36 @@
   }
 
   .mobile-nav-item {
-    padding: 12px !important;
-    min-height: 48px !important;
+    padding: 8px 12px !important;
+    min-height: 40px !important;
+    font-size: calc(0.9rem * var(--font-size-multiplier)) !important;
+  }
+
+  /* Compact navbar in landscape */
+  nav {
+    position: sticky !important;
+    top: 0 !important;
+  }
+
+  /* Reduce navbar height in landscape */
+  nav > div > div {
+    height: 3.5rem !important;
+  }
+
+  /* Compact logo in landscape */
+  nav img {
+    height: 2rem !important;
+    width: 2rem !important;
+  }
+
+  /* Reduce spacing in mobile menu sections */
+  .lg\:hidden .space-y-1 {
+    gap: 0.25rem !important;
+  }
+
+  .lg\:hidden .py-3 {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
   }
 }
 
