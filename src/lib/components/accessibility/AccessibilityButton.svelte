@@ -18,37 +18,38 @@
   <span class="accessibility-icon" aria-hidden="true">
     <span class="text-large">A</span><span class="text-small">a</span>
   </span>
-  <span class="accessibility-text">Accessibilitat</span>
 </button>
 
 <style>
   .accessibility-button {
     position: fixed;
-    top: 50%;
-    right: 0;
-    transform: translateY(-50%);
+    bottom: 20px;
+    right: 20px;
     z-index: 1000;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
+    justify-content: center;
+    gap: 2px;
+    padding: 12px;
     background: #3b82f6;
     color: white;
     border: none;
-    border-radius: 8px 0 0 8px;
+    border-radius: 50%;
     cursor: pointer;
     transition: all 0.2s ease;
     font-size: 1rem;
     font-weight: 600;
-    box-shadow: -4px 0 12px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    min-width: 48px;
     min-height: 48px;
-    writing-mode: horizontal-tb;
+    width: 48px;
+    height: 48px;
   }
 
   .accessibility-button:hover {
     background: #2563eb;
-    transform: translateY(-50%) translateX(-4px);
-    box-shadow: -6px 0 16px rgba(59, 130, 246, 0.4);
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
   }
 
   /* Enhanced focus for desktop */
@@ -57,7 +58,7 @@
       outline: 4px solid #fbbf24;
       outline-offset: 3px;
       box-shadow: 0 0 0 2px white, 0 0 0 7px #fbbf24, 0 0 16px rgba(251, 191, 36, 0.4);
-      transform: translateY(-50%) translateX(-6px);
+      transform: scale(1.15);
     }
   }
 
@@ -79,57 +80,38 @@
   }
 
   .text-large {
-    font-size: 1.25rem;
+    font-size: 1.125rem;
   }
 
   .text-small {
-    font-size: 0.875rem;
-  }
-
-  .accessibility-text {
-    white-space: nowrap;
+    font-size: 0.8rem;
   }
 
   /* Mobile responsive */
   @media (max-width: 768px) {
     .accessibility-button {
-      position: fixed;
-      bottom: 80px;
-      left: 16px;
-      right: auto;
-      top: auto;
-      transform: none;
-      padding: 14px 18px;
-      border-radius: 50px;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-    }
-
-    .accessibility-button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+      bottom: 16px;
+      right: 16px;
     }
   }
 
   @media (max-width: 480px) {
     .accessibility-button {
-      bottom: 88px;
-      left: 12px;
-      padding: 12px;
-      border-radius: 50%;
-      min-width: 56px;
-      min-height: 56px;
-    }
-
-    .accessibility-text {
-      display: none;
+      bottom: 16px;
+      right: 16px;
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 10px;
     }
 
     .text-large {
-      font-size: 1.125rem;
+      font-size: 1rem;
     }
 
     .text-small {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
     }
   }
 
@@ -152,13 +134,7 @@
     }
 
     .accessibility-button:hover {
-      transform: translateY(-50%);
-    }
-
-    @media (max-width: 768px) {
-      .accessibility-button:hover {
-        transform: none;
-      }
+      transform: none;
     }
   }
 </style>

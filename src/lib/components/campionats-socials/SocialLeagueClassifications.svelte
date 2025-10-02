@@ -20,11 +20,13 @@
     }
   });
 
-  // Expand all categories by default when classifications load
-  $: if (classifications.length > 0 && expandedCategories.size === 0) {
+  // Expand all categories by default when classifications first load
+  let hasInitialized = false;
+  $: if (classifications.length > 0 && !hasInitialized) {
     expandedCategories = new Set(
       Array.from(new Set(classifications.map(c => c.categoria_id)))
     );
+    hasInitialized = true;
   }
 
   function toggleCategory(categoryId: string) {
@@ -303,6 +305,9 @@
                     Jugador
                   </th>
                   <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                    PJ
+                  </th>
+                  <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                     Punts
                   </th>
                   <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
@@ -333,6 +338,11 @@
                       <div class="font-medium text-gray-900">
                         {formatPlayerName(classification)}
                       </div>
+                    </td>
+                    <td class="px-3 py-4 text-sm text-center">
+                      <span class="font-medium text-gray-700">
+                        {classification.partides_jugades}
+                      </span>
                     </td>
                     <td class="px-3 py-4 text-sm text-center">
                       <span class="font-bold text-lg text-indigo-600">
