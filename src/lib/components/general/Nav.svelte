@@ -147,7 +147,7 @@
 
 <svelte:window on:click={handleClickOutside} />
 
-<nav class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+<nav class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm" role="navigation" aria-label="Navegació principal">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <!-- Navegació principal -->
     <div class="flex h-20 justify-between">
