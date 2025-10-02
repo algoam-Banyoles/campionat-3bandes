@@ -6,42 +6,102 @@
   export let showDetails: boolean = false;
 
   let classifications: any[] = [];
+  let loadedCategories: any[] = [];
   let loading = false;
   let error: string | null = null;
   let selectedCategory = 'all';
-
-
+  let lastMatchDate: Date | null = null;
+  let expandedCategories: Set<string> = new Set();
 
   onMount(() => {
     if (event?.id) {
+      loadCategories();
       loadClassifications();
     }
   });
 
+  // Expand all categories by default when classifications load
+  $: if (classifications.length > 0 && expandedCategories.size === 0) {
+    expandedCategories = new Set(
+      Array.from(new Set(classifications.map(c => c.categoria_id)))
+    );
+  }
+
+  function toggleCategory(categoryId: string) {
+    if (expandedCategories.has(categoryId)) {
+      expandedCategories.delete(categoryId);
+    } else {
+      expandedCategories.add(categoryId);
+    }
+    expandedCategories = expandedCategories; // Trigger reactivity
+  }
+
   $: if (event?.id) {
+    loadCategories();
     loadClassifications();
   }
 
-  async function loadClassifications() {
+  async function loadCategories() {
     if (!event?.id) return;
+
+    try {
+      const { data, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('event_id', event.id)
+        .order('ordre_categoria', { ascending: true });
+
+      if (categoriesError) throw categoriesError;
+      loadedCategories = data || [];
+      console.log('📁 Loaded categories:', loadedCategories.length, loadedCategories);
+    } catch (e) {
+      console.error('Error loading categories:', e);
+    }
+  }
+
+  async function loadClassifications() {
+    if (!event?.id) {
+      console.log('🔍 SocialLeagueClassifications: No event ID', event);
+      return;
+    }
 
     loading = true;
     error = null;
 
     try {
-      // Load classifications for this event using RPC (pass null to get all categories)
+      console.log('🔍 Loading classifications for event:', event.id);
+      // Load real-time classifications for social leagues from calendari_partides
       const { data, error: classificationsError } = await supabase
-        .rpc('get_classifications_public', { 
-          event_id_param: event.id,
-          category_ids: null
+        .rpc('get_social_league_classifications', {
+          p_event_id: event.id
         });
 
       if (classificationsError) throw classificationsError;
 
       classifications = data || [];
+      console.log('✅ Loaded', classifications.length, 'classifications');
+      if (classifications.length > 0) {
+        console.log('Sample:', classifications[0]);
+      }
+
+      // Load last match date
+      const { data: lastMatch, error: lastMatchError } = await supabase
+        .from('calendari_partides')
+        .select('data_joc')
+        .eq('event_id', event.id)
+        .eq('estat', 'validat')
+        .not('caramboles_jugador1', 'is', null)
+        .not('caramboles_jugador2', 'is', null)
+        .order('data_joc', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!lastMatchError && lastMatch) {
+        lastMatchDate = new Date(lastMatch.data_joc);
+      }
 
     } catch (e) {
-      console.error('Error loading classifications:', e);
+      console.error('❌ Error loading classifications:', e);
       error = 'Error carregant les classificacions';
     } finally {
       loading = false;
@@ -49,9 +109,28 @@
   }
 
   function formatPlayerName(classification: any) {
-    if (classification.socis) {
-      return `${classification.socis.nom} ${classification.socis.cognoms}`;
+    const nom = classification.soci_nom;
+    const cognoms = classification.soci_cognoms;
+
+    if (!nom && !cognoms) return `Soci #${classification.soci_numero}`;
+
+    // Format: inicial(s) del nom + primer cognom
+    let inicials = '';
+    if (nom) {
+      const noms = nom.trim().split(/\s+/);
+      inicials = noms.map(n => n.charAt(0).toUpperCase() + '.').join('');
     }
+
+    const primerCognom = cognoms ? cognoms.trim().split(/\s+/)[0] : '';
+
+    if (inicials && primerCognom) {
+      return `${inicials} ${primerCognom}`;
+    } else if (inicials) {
+      return inicials;
+    } else if (primerCognom) {
+      return primerCognom;
+    }
+
     return `Soci #${classification.soci_numero}`;
   }
 
@@ -88,10 +167,29 @@
     return groups;
   }, {} as Record<string, any[]>);
 
-  // Get sorted categories from event
-  $: sortedCategories = (event?.categories || []).sort((a: any, b: any) =>
-    (a.ordre_categoria || 0) - (b.ordre_categoria || 0)
-  );
+  // Extract unique categories from classifications
+  $: categoriesFromClassifications = Array.from(
+    new Map(
+      classifications.map(c => [
+        c.categoria_id,
+        {
+          id: c.categoria_id,
+          nom: c.categoria_nom,
+          ordre_categoria: c.categoria_ordre,
+          distancia_caramboles: c.categoria_distancia_caramboles || 0
+        }
+      ])
+    ).values()
+  ).sort((a, b) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0));
+
+  // Use loaded categories first, then from event prop, then from classifications
+  $: sortedCategories = loadedCategories.length > 0
+    ? loadedCategories
+    : (event?.categories && event.categories.length > 0)
+    ? event.categories.sort((a: any, b: any) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0))
+    : categoriesFromClassifications;
+
+  $: console.log('📊 SocialLeagueClassifications - Categories:', sortedCategories.length, 'Classifications:', classifications.length, 'Loaded categories:', loadedCategories.length);
 
   // Filter categories based on selected filter
   $: filteredCategories = selectedCategory === 'all'
@@ -157,14 +255,26 @@
       {@const categoryClassifications = classificationsByCategory[category.id] || []}
 
       <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <!-- Category header -->
-        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+        <!-- Category header - Clickable to expand/collapse -->
+        <button
+          on:click={() => toggleCategory(category.id)}
+          class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 hover:from-blue-700 hover:to-indigo-700 transition-colors"
+        >
           <div class="flex items-center justify-between">
-            <div>
-              <h4 class="text-xl font-bold text-white">{category.nom}</h4>
-              <p class="text-blue-100 text-sm">
-                {category.distancia_caramboles} caramboles
-              </p>
+            <div class="flex items-center gap-3">
+              <div class="text-white text-2xl">
+                {#if expandedCategories.has(category.id)}
+                  ▼
+                {:else}
+                  ▶
+                {/if}
+              </div>
+              <div class="text-left">
+                <h4 class="text-xl font-bold text-white">{category.nom}</h4>
+                <p class="text-blue-100 text-sm">
+                  {category.distancia_caramboles || 0} caramboles
+                </p>
+              </div>
             </div>
             <div class="text-right">
               <div class="text-2xl font-bold text-white">
@@ -173,15 +283,16 @@
               <div class="text-blue-100 text-sm">classificats</div>
             </div>
           </div>
-        </div>
+        </button>
 
-        {#if categoryClassifications.length === 0}
-          <div class="p-6 text-center">
-            <p class="text-gray-500">No hi ha classificacions disponibles per aquesta categoria.</p>
-          </div>
-        {:else}
-          <!-- Classification table -->
-          <div class="overflow-x-auto">
+        {#if expandedCategories.has(category.id)}
+          {#if categoryClassifications.length === 0}
+            <div class="p-6 text-center">
+              <p class="text-gray-500">No hi ha classificacions disponibles per aquesta categoria.</p>
+            </div>
+          {:else}
+            <!-- Classification table -->
+            <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-300">
               <thead class="bg-gray-50">
                 <tr>
@@ -192,39 +303,24 @@
                     Jugador
                   </th>
                   <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                    PJ
+                    Punts
                   </th>
                   <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                    PG
+                    Caramboles
                   </th>
                   <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                    PP
-                  </th>
-                  <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                    % Vict.
-                  </th>
-                  <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                    CF
-                  </th>
-                  <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                    CR
-                  </th>
-                  <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                    Diferència
+                    Entrades
                   </th>
                   <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                     Mitjana
                   </th>
                   <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                    Punts
+                    Millor Mitjana
                   </th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200 bg-white">
-                {#each categoryClassifications as classification (classification.id)}
-                  {@const winPercentage = calculateWinPercentage(classification.partides_guanyades, classification.partides_jugades)}
-                  {@const goalDifference = calculateGoalDifference(classification.caramboles_fetes, classification.caramboles_rebudes)}
-
+                {#each categoryClassifications as classification (classification.player_id + classification.categoria_id)}
                   <tr class="hover:bg-gray-50 {classification.posicio <= 3 ? 'bg-gradient-to-r from-yellow-50 to-orange-50' : ''}">
                     <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                       <div class="flex items-center justify-center">
@@ -234,47 +330,26 @@
                       </div>
                     </td>
                     <td class="px-3 py-4 text-sm">
-                      <div>
-                        <div class="font-medium text-gray-900">
-                          {formatPlayerName(classification)}
-                        </div>
-                        <div class="text-gray-500 text-xs">
-                          Soci #{classification.soci_numero}
-                        </div>
+                      <div class="font-medium text-gray-900">
+                        {formatPlayerName(classification)}
                       </div>
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center font-medium text-gray-900">
-                      {classification.partides_jugades}
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center text-green-600 font-medium">
-                      {classification.partides_guanyades}
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center text-red-600 font-medium">
-                      {classification.partides_perdudes}
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center">
-                      <span class="px-2 py-1 rounded-full text-xs font-medium {winPercentage >= 70 ? 'bg-green-100 text-green-800' : winPercentage >= 50 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}">
-                        {winPercentage}%
-                      </span>
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center text-blue-600 font-medium">
-                      {classification.caramboles_fetes}
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center text-orange-600 font-medium">
-                      {classification.caramboles_rebudes}
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center">
-                      <span class="font-medium {goalDifference > 0 ? 'text-green-600' : goalDifference < 0 ? 'text-red-600' : 'text-gray-500'}">
-                        {goalDifference > 0 ? '+' : ''}{goalDifference}
-                      </span>
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center font-mono font-medium text-purple-600">
-                      {classification.mitjana?.toFixed(2) || '0.00'}
                     </td>
                     <td class="px-3 py-4 text-sm text-center">
                       <span class="font-bold text-lg text-indigo-600">
                         {classification.punts}
                       </span>
+                    </td>
+                    <td class="px-3 py-4 text-sm text-center text-blue-600 font-medium">
+                      {classification.caramboles_totals}
+                    </td>
+                    <td class="px-3 py-4 text-sm text-center text-gray-900 font-medium">
+                      {classification.entrades_totals}
+                    </td>
+                    <td class="px-3 py-4 text-sm text-center font-mono font-medium text-purple-600">
+                      {classification.mitjana_general?.toFixed(3) || '0.000'}
+                    </td>
+                    <td class="px-3 py-4 text-sm text-center font-mono font-medium text-green-600">
+                      {classification.millor_mitjana?.toFixed(3) || '0.000'}
                     </td>
                   </tr>
                 {/each}
@@ -284,38 +359,44 @@
 
           {#if showDetails}
             <!-- Category statistics -->
-            <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+            {@const totalPartides = categoryClassifications.reduce((sum, c) => sum + c.partides_jugades, 0) / 2}
+            {@const totalCaramboles = categoryClassifications.reduce((sum, c) => sum + c.caramboles_totals, 0)}
+            {@const totalEntrades = categoryClassifications.reduce((sum, c) => sum + c.entrades_totals, 0)}
+            {@const mitjanaCategoria = totalEntrades > 0 ? (totalCaramboles / totalEntrades) : 0}
+
+            <div class="bg-gradient-to-r from-gray-50 to-blue-50 px-6 py-4 border-t border-gray-200">
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div class="text-center">
-                  <div class="font-medium text-gray-900">
-                    {categoryClassifications.reduce((sum, c) => sum + c.partides_jugades, 0)}
+                  <div class="font-bold text-2xl text-blue-700">
+                    {Math.floor(totalPartides)}
                   </div>
-                  <div class="text-gray-500">Total Partides</div>
+                  <div class="text-gray-600 font-medium">Total Partides</div>
                 </div>
                 <div class="text-center">
-                  <div class="font-medium text-gray-900">
-                    {categoryClassifications.reduce((sum, c) => sum + c.caramboles_fetes, 0)}
+                  <div class="font-bold text-2xl text-green-700">
+                    {totalCaramboles}
                   </div>
-                  <div class="text-gray-500">Total Caramboles</div>
+                  <div class="text-gray-600 font-medium">Total Caramboles</div>
                 </div>
                 <div class="text-center">
-                  <div class="font-medium text-gray-900">
-                    {categoryClassifications.length > 0 ?
-                      (categoryClassifications.reduce((sum, c) => sum + (c.mitjana || 0), 0) / categoryClassifications.length).toFixed(2) :
-                      '0.00'}
+                  <div class="font-bold text-2xl text-purple-700">
+                    {mitjanaCategoria.toFixed(3)}
                   </div>
-                  <div class="text-gray-500">Mitjana Categoria</div>
+                  <div class="text-gray-600 font-medium">Mitjana Categoria</div>
                 </div>
                 <div class="text-center">
-                  <div class="font-medium text-gray-900">
-                    {categoryClassifications.length > 0 && categoryClassifications[0]?.data_actualitzacio ?
-                      new Date(categoryClassifications[0].data_actualitzacio).toLocaleDateString('ca-ES') :
-                      'No actualitzat'}
+                  <div class="font-bold text-lg text-gray-700">
+                    {#if lastMatchDate}
+                      {lastMatchDate.toLocaleDateString('ca-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {:else}
+                      Sense partides
+                    {/if}
                   </div>
-                  <div class="text-gray-500">Última Actualització</div>
+                  <div class="text-gray-600 font-medium">Última Actualització</div>
                 </div>
               </div>
             </div>
+          {/if}
           {/if}
         {/if}
       </div>
@@ -323,36 +404,42 @@
 
     {#if selectedCategory === 'all' && filteredCategories.length > 1}
       <!-- Overall summary -->
+      {@const totalJugadors = classifications.length}
+      {@const totalPartides = classifications.reduce((sum, c) => sum + c.partides_jugades, 0) / 2}
+      {@const totalCaramboles = classifications.reduce((sum, c) => sum + c.caramboles_totals, 0)}
+      {@const totalEntrades = classifications.reduce((sum, c) => sum + c.entrades_totals, 0)}
+      {@const mitjanaGeneral = totalEntrades > 0 ? (totalCaramboles / totalEntrades) : 0}
+
       <div class="bg-white border border-gray-200 rounded-lg p-6">
         <h4 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
           <span class="mr-2">📊</span>
-          Resum General de Classificacions
+          Resum General del Campionat
         </h4>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div class="text-center">
             <div class="text-2xl font-bold text-blue-600">
-              {classifications.length}
+              {totalJugadors}
             </div>
-            <div class="text-sm text-gray-500">Total Jugadors Classificats</div>
+            <div class="text-sm text-gray-500">Total Jugadors Inscrits</div>
           </div>
           <div class="text-center">
             <div class="text-2xl font-bold text-green-600">
-              {classifications.reduce((sum, c) => sum + c.partides_jugades, 0)}
+              {Math.floor(totalPartides)}
             </div>
             <div class="text-sm text-gray-500">Total Partides Jugades</div>
           </div>
           <div class="text-center">
             <div class="text-2xl font-bold text-purple-600">
-              {classifications.reduce((sum, c) => sum + c.caramboles_fetes, 0)}
+              {totalCaramboles}
             </div>
             <div class="text-sm text-gray-500">Total Caramboles Fetes</div>
           </div>
           <div class="text-center">
             <div class="text-2xl font-bold text-indigo-600">
-              {filteredCategories.length}
+              {mitjanaGeneral.toFixed(3)}
             </div>
-            <div class="text-sm text-gray-500">Categories Actives</div>
+            <div class="text-sm text-gray-500">Mitjana General Campionat</div>
           </div>
         </div>
       </div>

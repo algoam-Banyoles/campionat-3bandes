@@ -32,8 +32,11 @@
 
     try {
       fullEventData = await getSocialLeagueEventById(event.id);
+      console.log('🔍 PublicSocialLeagueDashboard - fullEventData loaded:', fullEventData);
+      console.log('   - ID:', fullEventData?.id);
+      console.log('   - Categories:', fullEventData?.categories?.length);
     } catch (e) {
-      console.error('Error loading full event data:', e);
+      console.error('❌ Error loading full event data:', e);
       error = 'Error carregant les dades del campionat';
     } finally {
       loading = false;
@@ -190,10 +193,17 @@
 
     <!-- Classificacions -->
     {:else if activeTab === 'classifications'}
-      <SocialLeagueClassifications
-        event={fullEventData}
-        showDetails={true}
-      />
+      {#if fullEventData?.id}
+        <SocialLeagueClassifications
+          event={fullEventData}
+          showDetails={true}
+        />
+      {:else}
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <p class="text-yellow-800">⚠️ DEBUG: fullEventData no té ID</p>
+          <pre class="text-xs mt-2">{JSON.stringify(fullEventData, null, 2)}</pre>
+        </div>
+      {/if}
     {/if}
   {/if}
 </div>

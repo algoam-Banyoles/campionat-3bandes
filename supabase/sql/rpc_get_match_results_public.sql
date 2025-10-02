@@ -1,4 +1,5 @@
 -- RPC function to get match results for public access (no authentication required)
+-- Updated to read results directly from calendari_partides (for social leagues)
 CREATE OR REPLACE FUNCTION get_match_results_public(p_event_id UUID)
 RETURNS TABLE (
   id UUID,
@@ -29,7 +30,7 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
   RETURN QUERY
-  SELECT 
+  SELECT
     cp.id,
     cp.categoria_id,
     cp.data_programada,
@@ -47,10 +48,15 @@ BEGIN
     p2.numero_soci as jugador2_numero_soci,
     cat.nom as categoria_nom,
     cat.distancia_caramboles as categoria_distancia,
-    m.caramboles_reptador,
-    m.caramboles_reptat,
-    m.entrades,
-    m.resultat::text,
+    -- For social leagues, results are stored directly in calendari_partides
+    cp.caramboles_jugador1 as caramboles_reptador,
+    cp.caramboles_jugador2 as caramboles_reptat,
+    cp.entrades,
+    CASE
+      WHEN cp.caramboles_jugador1 > cp.caramboles_jugador2 THEN 'guanya_reptador'
+      WHEN cp.caramboles_jugador2 > cp.caramboles_jugador1 THEN 'guanya_reptat'
+      ELSE 'empat'
+    END as resultat,
     cp.match_id
   FROM calendari_partides cp
   LEFT JOIN players p1 ON cp.jugador1_id = p1.id
@@ -58,9 +64,10 @@ BEGIN
   LEFT JOIN players p2 ON cp.jugador2_id = p2.id
   LEFT JOIN socis s2 ON p2.numero_soci = s2.numero_soci
   LEFT JOIN categories cat ON cp.categoria_id = cat.id
-  LEFT JOIN matches m ON cp.match_id = m.id
-  WHERE cp.event_id = p_event_id 
+  WHERE cp.event_id = p_event_id
     AND cp.estat = 'validat'
+    AND cp.caramboles_jugador1 IS NOT NULL
+    AND cp.caramboles_jugador2 IS NOT NULL
   ORDER BY cp.data_programada DESC, cp.hora_inici DESC;
 END;
 $$;

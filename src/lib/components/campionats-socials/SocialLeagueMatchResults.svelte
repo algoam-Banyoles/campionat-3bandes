@@ -7,19 +7,38 @@
 
   let matches: any[] = [];
   let unprogrammedMatches: any[] = [];
+  let allMatches: any[] = []; // All matches for total count
+  let loadedCategories: any[] = []; // Categories loaded directly
   let loading = false;
   let error: string | null = null;
-  let selectedCategory = 'all';
-  let selectedStatus = 'all'; // all, completed, scheduled, pending
+  let selectedCategories: Set<string> = new Set(); // Multiple category selection
+  let searchPlayer = ''; // Search text for player filter
 
   onMount(() => {
     if (eventId) {
       loadMatches();
+      loadCategories();
     }
   });
 
   $: if (eventId) {
     loadMatches();
+    loadCategories();
+  }
+
+  async function loadCategories() {
+    try {
+      const { data, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('event_id', eventId)
+        .order('ordre_categoria', { ascending: true });
+
+      if (categoriesError) throw categoriesError;
+      loadedCategories = data || [];
+    } catch (e) {
+      console.error('Error loading categories:', e);
+    }
   }
 
   async function loadMatches() {
@@ -29,12 +48,21 @@
     try {
       // Programmed and completed matches
       const { data, error: matchesError } = await supabase
-        .rpc('get_match_results_public', { 
-          p_event_id: eventId 
+        .rpc('get_match_results_public', {
+          p_event_id: eventId
         });
 
       if (matchesError) throw matchesError;
       matches = data || [];
+
+      // Load ALL matches for total count
+      const { data: allMatchesData, error: allMatchesError } = await supabase
+        .from('calendari_partides')
+        .select('id, estat, caramboles_jugador1, caramboles_jugador2, data_programada')
+        .eq('event_id', eventId);
+
+      if (allMatchesError) throw allMatchesError;
+      allMatches = allMatchesData || [];
 
       // Unprogrammed matches (estat = 'pendent_programar')
       const { data: unprogrammed, error: unprogrammedError } = await supabase
@@ -54,15 +82,32 @@
 
   function formatPlayerName(nom: string, cognoms: string, numeroSoci?: number) {
     if (!nom && !cognoms) return 'Jugador desconegut';
-    
-    // Format: "Nom Cognoms" or just use what we have
-    const fullName = `${nom || ''} ${cognoms || ''}`.trim();
-    return fullName || 'Jugador desconegut';
+
+    // Format: inicial(s) del nom + primer cognom
+    // Example: "Joan Pere" "García López" -> "J.P. García"
+
+    let inicials = '';
+    if (nom) {
+      const noms = nom.trim().split(/\s+/);
+      inicials = noms.map(n => n.charAt(0).toUpperCase() + '.').join('');
+    }
+
+    const primerCognom = cognoms ? cognoms.trim().split(/\s+/)[0] : '';
+
+    if (inicials && primerCognom) {
+      return `${inicials} ${primerCognom}`;
+    } else if (inicials) {
+      return inicials;
+    } else if (primerCognom) {
+      return primerCognom;
+    }
+
+    return 'Jugador desconegut';
   }
 
   function getMatchStatus(match: any) {
     // Una partida està completada si té resultats registrats
-    if (match.caramboles_reptador !== null && match.caramboles_reptat !== null && match.match_id !== null) {
+    if (match.caramboles_reptador !== null && match.caramboles_reptat !== null) {
       return 'completed';
     }
     if (match.data_programada && new Date(match.data_programada) < new Date()) return 'pending';
@@ -71,9 +116,8 @@
 
   // Funció per verificar si una partida està completada
   function isMatchCompleted(match: any) {
-    return match.caramboles_reptador !== null && 
-           match.caramboles_reptat !== null && 
-           match.match_id !== null;
+    return match.caramboles_reptador !== null &&
+           match.caramboles_reptat !== null;
   }
 
   function getStatusColor(status: string) {
@@ -95,13 +139,19 @@
   }
 
   function getMatchWinner(match: any) {
-    if (match.estat !== 'completada' || match.resultat_jugador1 === null || match.resultat_jugador2 === null) {
+    if (!isMatchCompleted(match)) {
       return null;
     }
 
-    if (match.resultat_jugador1 > match.resultat_jugador2) return 1;
-    if (match.resultat_jugador2 > match.resultat_jugador1) return 2;
+    if (match.caramboles_reptador > match.caramboles_reptat) return 1;
+    if (match.caramboles_reptat > match.caramboles_reptador) return 2;
     return 0; // tie
+  }
+
+  // Calcular mitjana d'un jugador en una partida
+  function calcularMitjana(caramboles: number, entrades: number): string {
+    if (!entrades || entrades === 0) return '0.000';
+    return (caramboles / entrades).toFixed(3);
   }
 
   function formatMatchDate(dateStr: string) {
@@ -119,21 +169,35 @@
     return timeStr.substring(0, 5); // HH:MM
   }
 
-  // Filter matches based on selected category and status
-  // For public users, only show completed matches
+  // Toggle category selection
+  function toggleCategory(categoryId: string) {
+    if (selectedCategories.has(categoryId)) {
+      selectedCategories.delete(categoryId);
+    } else {
+      selectedCategories.add(categoryId);
+    }
+    selectedCategories = selectedCategories; // Trigger reactivity
+  }
+
+  // Filter matches based on selected categories and player search
   $: filteredMatches = matches.filter(match => {
     // Only show completed matches (with results)
     if (!isMatchCompleted(match)) {
       return false;
     }
 
-    if (selectedCategory !== 'all' && match.categoria_id !== selectedCategory) {
+    // Filter by category (if any selected)
+    if (selectedCategories.size > 0 && !selectedCategories.has(match.categoria_id)) {
       return false;
     }
 
-    if (selectedStatus !== 'all') {
-      const status = getMatchStatus(match);
-      if (status !== selectedStatus) {
+    // Filter by player name
+    if (searchPlayer.trim() !== '') {
+      const searchLower = searchPlayer.toLowerCase();
+      const player1Name = formatPlayerName(match.jugador1_nom, match.jugador1_cognoms, match.jugador1_numero_soci).toLowerCase();
+      const player2Name = formatPlayerName(match.jugador2_nom, match.jugador2_cognoms, match.jugador2_numero_soci).toLowerCase();
+
+      if (!player1Name.includes(searchLower) && !player2Name.includes(searchLower)) {
         return false;
       }
     }
@@ -148,60 +212,85 @@
     scheduled: matches.filter(m => getMatchStatus(m) === 'scheduled').length
   };
 
+  // Use loaded categories if available, otherwise use prop
+  $: finalCategories = loadedCategories.length > 0 ? loadedCategories : categories;
+
   // Sort categories by order
-  $: sortedCategories = categories.sort((a, b) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0));
+  $: sortedCategories = finalCategories.sort((a, b) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0));
 </script>
 
 <div class="space-y-6">
-  <!-- Filters and summary -->
+  <!-- Filters -->
   <div class="bg-white border border-gray-200 rounded-lg p-6">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-      <h3 class="text-lg font-medium text-gray-900 flex items-center mb-4 sm:mb-0">
-        <span class="mr-2">⚡</span>
-        Resultats de Partides
-      </h3>
-
-      <!-- Filters -->
-      <div class="flex flex-col sm:flex-row gap-3">
-        <select
-          bind:value={selectedCategory}
-          class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">Totes les categories</option>
+    <div class="space-y-6">
+      <!-- Category filter with buttons (multiple selection) -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-3">
+          Categories {selectedCategories.size > 0 ? `(${selectedCategories.size} seleccionades)` : ''}
+        </label>
+        <div class="flex flex-wrap gap-2">
           {#each sortedCategories as category}
-            <option value={category.id}>{category.nom}</option>
+            <button
+              on:click={() => toggleCategory(category.id)}
+              class="px-4 py-2 rounded-md text-sm font-medium transition-colors {
+                selectedCategories.has(category.id)
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }"
+            >
+              {category.nom}
+            </button>
           {/each}
-        </select>
+          {#if selectedCategories.size > 0}
+            <button
+              on:click={() => selectedCategories = new Set()}
+              class="px-4 py-2 rounded-md text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200"
+            >
+              Netejar filtres
+            </button>
+          {/if}
+        </div>
+      </div>
 
-        <select
-          bind:value={selectedStatus}
-          class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">Tots els estats</option>
-          <option value="completed">Completades</option>
-          <option value="pending">Pendents resultat</option>
-          <option value="scheduled">Programades</option>
-        </select>
+      <!-- Player search -->
+      <div>
+        <label for="player-search" class="block text-sm font-medium text-gray-700 mb-2">
+          Cerca per jugador
+        </label>
+        <div class="relative">
+          <input
+            id="player-search"
+            type="text"
+            bind:value={searchPlayer}
+            placeholder="Escriu nom o cognoms del jugador..."
+            class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+          <svg class="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          {#if searchPlayer}
+            <button
+              on:click={() => searchPlayer = ''}
+              class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+            >
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          {/if}
+        </div>
       </div>
-    </div>
 
-    <!-- Summary stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-      <div class="text-center">
-        <div class="text-2xl font-bold text-gray-900">{matches.length + (unprogrammedMatches ? unprogrammedMatches.length : 0)}</div>
-        <div class="text-sm text-gray-500">Total Partides</div>
-      </div>
-      <div class="text-center">
-        <div class="text-2xl font-bold text-green-600">{matchesByStatus.completed}</div>
-        <div class="text-sm text-gray-500">Completades</div>
-      </div>
-      <div class="text-center">
-        <div class="text-2xl font-bold text-red-600">{matchesByStatus.pending}</div>
-        <div class="text-sm text-gray-500">Pendents</div>
-      </div>
-      <div class="text-center">
-        <div class="text-2xl font-bold text-blue-600">{matchesByStatus.scheduled}</div>
-        <div class="text-sm text-gray-500">Programades</div>
+      <!-- Summary stats -->
+      <div class="grid grid-cols-2 gap-4">
+        <div class="text-center bg-gray-50 rounded-lg p-4">
+          <div class="text-2xl font-bold text-gray-900">{allMatches.length}</div>
+          <div class="text-sm text-gray-500">Total Partides</div>
+        </div>
+        <div class="text-center bg-green-50 rounded-lg p-4">
+          <div class="text-2xl font-bold text-green-600">{matchesByStatus.completed}</div>
+          <div class="text-sm text-gray-500">Partides Jugades</div>
+        </div>
       </div>
     </div>
   </div>
@@ -222,10 +311,10 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
       </svg>
       <h3 class="mt-2 text-sm font-medium text-gray-900">
-        {selectedCategory !== 'all' || selectedStatus !== 'all' ? 'No hi ha partides amb aquests filtres' : 'No hi ha resultats de partides'}
+        {selectedCategories.size > 0 || searchPlayer !== '' ? 'No hi ha partides amb aquests filtres' : 'No hi ha resultats de partides'}
       </h3>
       <p class="mt-1 text-sm text-gray-500">
-        {selectedCategory !== 'all' || selectedStatus !== 'all' ? 'Prova a canviar els filtres de categoria o estat.' : 'Només es mostren partides que ja s\'han jugat i tenen resultats.'}
+        {selectedCategories.size > 0 || searchPlayer !== '' ? 'Prova a canviar els filtres de categoria o cerca de jugador.' : 'Encara no s\'han jugat partides en aquest campionat.'}
       </p>
     </div>
   {:else}
@@ -236,22 +325,19 @@
           <thead class="bg-gray-50">
             <tr>
               <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                Data i Hora
-              </th>
-              <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                 Categoria
               </th>
               <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                Partida
+                Jugadors
               </th>
               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                Resultat
+                Caramboles
               </th>
-              <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                Estat
+              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                Mitjanes
               </th>
-              <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                Taula
+              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                Entrades
               </th>
             </tr>
           </thead>
@@ -262,23 +348,15 @@
               <tr class="hover:bg-gray-50">
                 <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                   <div>
-                    <div class="font-medium text-gray-900">
-                      {formatMatchDate(match.data_programada)}
-                    </div>
-                    <div class="text-gray-500">
-                      {formatMatchTime(match.hora_inici)}
-                    </div>
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {match.categoria_nom || 'Sense categoria'}
+                    </span>
+                    {#if match.categoria_distancia}
+                      <div class="text-xs text-gray-500 mt-1">
+                        {match.categoria_distancia} caramboles
+                      </div>
+                    {/if}
                   </div>
-                </td>
-                <td class="whitespace-nowrap px-3 py-4 text-sm">
-                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {match.categories?.nom || 'Sense categoria'}
-                  </span>
-                  {#if match.categories?.distancia_caramboles}
-                    <div class="text-xs text-gray-500 mt-1">
-                      {match.categories.distancia_caramboles} caramboles
-                    </div>
-                  {/if}
                 </td>
                 <td class="px-3 py-4 text-sm">
                   <div class="space-y-1">
@@ -295,32 +373,39 @@
                 </td>
                 <td class="px-3 py-4 text-sm text-center">
                   {#if status === 'completed'}
-                    <div class="font-mono text-lg">
-                      <span class={winner === 1 ? 'font-bold text-green-600' : 'text-gray-700'}>
-                        {match.resultat_jugador1 ?? '-'}
-                      </span>
-                      <span class="text-gray-400 mx-2">-</span>
-                      <span class={winner === 2 ? 'font-bold text-green-600' : 'text-gray-700'}>
-                        {match.resultat_jugador2 ?? '-'}
-                      </span>
+                    <div class="space-y-1">
+                      <div class="font-mono text-base {winner === 1 ? 'font-bold text-green-600' : 'text-gray-700'}">
+                        {match.caramboles_reptador ?? 0}
+                      </div>
+                      <div class="text-gray-400 text-xs">-</div>
+                      <div class="font-mono text-base {winner === 2 ? 'font-bold text-green-600' : 'text-gray-700'}">
+                        {match.caramboles_reptat ?? 0}
+                      </div>
                     </div>
-                    {#if winner === 0}
-                      <div class="text-xs text-yellow-600 mt-1">Empat</div>
-                    {/if}
                   {:else}
                     <span class="text-gray-400 text-sm">-</span>
                   {/if}
                 </td>
-                <td class="px-3 py-4 text-sm">
-                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {getStatusColor(status)}">
-                    {getStatusText(status)}
-                  </span>
-                </td>
-                <td class="px-3 py-4 text-sm text-gray-500">
-                  {#if match.taula_assignada}
-                    Billar {match.taula_assignada}
+                <td class="px-3 py-4 text-sm text-center">
+                  {#if status === 'completed' && match.entrades}
+                    <div class="space-y-1">
+                      <div class="font-mono text-sm {winner === 1 ? 'font-semibold text-green-600' : 'text-gray-600'}">
+                        {calcularMitjana(match.caramboles_reptador, match.entrades)}
+                      </div>
+                      <div class="text-gray-400 text-xs">-</div>
+                      <div class="font-mono text-sm {winner === 2 ? 'font-semibold text-green-600' : 'text-gray-600'}">
+                        {calcularMitjana(match.caramboles_reptat, match.entrades)}
+                      </div>
+                    </div>
                   {:else}
-                    Per assignar
+                    <span class="text-gray-400 text-sm">-</span>
+                  {/if}
+                </td>
+                <td class="px-3 py-4 text-sm text-center">
+                  {#if status === 'completed'}
+                    <span class="font-mono text-gray-700">{match.entrades ?? '-'}</span>
+                  {:else}
+                    <span class="text-gray-400">-</span>
                   {/if}
                 </td>
               </tr>
@@ -330,61 +415,5 @@
       </div>
     </div>
 
-    <!-- Results summary by category -->
-    {#if selectedCategory === 'all' && selectedStatus === 'all'}
-      <div class="bg-white border border-gray-200 rounded-lg p-6">
-        <h4 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
-          <span class="mr-2">📊</span>
-          Resum per Categories
-        </h4>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {#each sortedCategories as category}
-            {@const categoryMatches = matches.filter(m => m.categoria_id === category.id)}
-            {@const completedMatches = categoryMatches.filter(m => getMatchStatus(m) === 'completed')}
-            {@const pendingMatches = categoryMatches.filter(m => getMatchStatus(m) === 'pending')}
-            {@const scheduledMatches = categoryMatches.filter(m => getMatchStatus(m) === 'scheduled')}
-
-            {#if categoryMatches.length > 0}
-              <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h5 class="font-medium text-gray-900 mb-3">{category.nom}</h5>
-
-                <div class="space-y-2 text-sm">
-                  <div class="flex justify-between">
-                    <span class="text-gray-600">Total partides:</span>
-                    <span class="font-medium">{categoryMatches.length}</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-green-600">Completades:</span>
-                    <span class="font-medium">{completedMatches.length}</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-red-600">Pendents:</span>
-                    <span class="font-medium">{pendingMatches.length}</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-blue-600">Programades:</span>
-                    <span class="font-medium">{scheduledMatches.length}</span>
-                  </div>
-                </div>
-
-                <!-- Progress bar -->
-                <div class="mt-3">
-                  <div class="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      class="bg-green-600 h-2 rounded-full transition-all duration-300"
-                      style="width: {categoryMatches.length > 0 ? (completedMatches.length / categoryMatches.length) * 100 : 0}%"
-                    ></div>
-                  </div>
-                  <div class="text-xs text-gray-500 mt-1 text-center">
-                    {categoryMatches.length > 0 ? Math.round((completedMatches.length / categoryMatches.length) * 100) : 0}% completat
-                  </div>
-                </div>
-              </div>
-            {/if}
-          {/each}
-        </div>
-      </div>
-    {/if}
   {/if}
 </div>

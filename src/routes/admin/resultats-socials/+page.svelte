@@ -14,9 +14,6 @@
   let caramboles_jugador1 = 0;
   let caramboles_jugador2 = 0;
   let entrades = 0;
-  let serie_max_jugador1 = 0;
-  let serie_max_jugador2 = 0;
-  let data_joc = '';
   let observacions = '';
   let loading = false;
   let success = false;
@@ -126,41 +123,15 @@
     error = '';
 
     try {
-      // Determine winner
-      const guanyador_id = caramboles_jugador1 > caramboles_jugador2 ? 
-        selectedMatch.jugador1_id : selectedMatch.jugador2_id;
-      const perdedor_id = caramboles_jugador1 > caramboles_jugador2 ? 
-        selectedMatch.jugador2_id : selectedMatch.jugador1_id;
-
-      // Create match result
-      const matchData = {
-        challenge_id: null, // This is a social league match, not a challenge
-        data_joc: data_joc ? new Date(data_joc).toISOString() : new Date().toISOString(),
-        caramboles_reptador: caramboles_jugador1,
-        caramboles_reptat: caramboles_jugador2,
-        entrades: entrades,
-        serie_max_reptador: serie_max_jugador1,
-        serie_max_reptat: serie_max_jugador2,
-        resultat: caramboles_jugador1 > caramboles_jugador2 ? 'reptador_guanya' : 'reptat_guanya',
-        signat_reptador: true,
-        signat_reptat: true,
-        categoria_id: selectedCategory.id,
-        tipus_partida: 'social_league'
-      };
-
-      const { data: matchResult, error: matchError } = await supabase
-        .from('matches')
-        .insert(matchData)
-        .select()
-        .single();
-
-      if (matchError) throw matchError;
-
-      // Update calendar match with the match_id and set status to 'jugat'
+      // For social league matches, store results directly in calendari_partides
+      // This keeps social leagues separate from ranking championship
       const { error: updateError } = await supabase
         .from('calendari_partides')
         .update({
-          match_id: matchResult.id,
+          caramboles_jugador1: caramboles_jugador1,
+          caramboles_jugador2: caramboles_jugador2,
+          entrades: entrades,
+          data_joc: new Date().toISOString(),
           estat: 'validat',
           validat_per: (await supabase.auth.getUser()).data.user?.id,
           data_validacio: new Date().toISOString(),
@@ -171,15 +142,12 @@
       if (updateError) throw updateError;
 
       success = true;
-      
+
       // Reset form
       selectedMatch = null;
       caramboles_jugador1 = 0;
       caramboles_jugador2 = 0;
       entrades = 0;
-      serie_max_jugador1 = 0;
-      serie_max_jugador2 = 0;
-      data_joc = '';
       observacions = '';
 
       // Reload matches
@@ -202,9 +170,6 @@
     caramboles_jugador1 = 0;
     caramboles_jugador2 = 0;
     entrades = 0;
-    serie_max_jugador1 = 0;
-    serie_max_jugador2 = 0;
-    data_joc = '';
     observacions = '';
     error = '';
     success = false;
@@ -373,31 +338,17 @@
           <h3 class="font-semibold text-gray-900 mb-3">
             {selectedMatch.soci1?.nom} {selectedMatch.soci1?.cognoms}
           </h3>
-          <div class="space-y-3">
-            <div>
-              <label for="caramboles_j1" class="block text-sm font-medium text-gray-700 mb-1">
-                Caramboles
-              </label>
-              <input 
-                id="caramboles_j1"
-                type="number" 
-                bind:value={caramboles_jugador1}
-                min="0"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label for="serie_j1" class="block text-sm font-medium text-gray-700 mb-1">
-                Sèrie Màxima
-              </label>
-              <input 
-                id="serie_j1"
-                type="number" 
-                bind:value={serie_max_jugador1}
-                min="0"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+          <div>
+            <label for="caramboles_j1" class="block text-sm font-medium text-gray-700 mb-1">
+              Caramboles
+            </label>
+            <input
+              id="caramboles_j1"
+              type="number"
+              bind:value={caramboles_jugador1}
+              min="0"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
         </div>
 
@@ -406,60 +357,33 @@
           <h3 class="font-semibold text-gray-900 mb-3">
             {selectedMatch.soci2?.nom} {selectedMatch.soci2?.cognoms}
           </h3>
-          <div class="space-y-3">
-            <div>
-              <label for="caramboles_j2" class="block text-sm font-medium text-gray-700 mb-1">
-                Caramboles
-              </label>
-              <input 
-                id="caramboles_j2"
-                type="number" 
-                bind:value={caramboles_jugador2}
-                min="0"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label for="serie_j2" class="block text-sm font-medium text-gray-700 mb-1">
-                Sèrie Màxima
-              </label>
-              <input 
-                id="serie_j2"
-                type="number" 
-                bind:value={serie_max_jugador2}
-                min="0"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+          <div>
+            <label for="caramboles_j2" class="block text-sm font-medium text-gray-700 mb-1">
+              Caramboles
+            </label>
+            <input
+              id="caramboles_j2"
+              type="number"
+              bind:value={caramboles_jugador2}
+              min="0"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
         </div>
       </div>
 
       <!-- Additional Fields -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div>
-          <label for="entrades" class="block text-sm font-medium text-gray-700 mb-1">
-            Entrades
-          </label>
-          <input 
-            id="entrades"
-            type="number" 
-            bind:value={entrades}
-            min="0"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-        <div>
-          <label for="data_joc" class="block text-sm font-medium text-gray-700 mb-1">
-            Data del Joc
-          </label>
-          <input 
-            id="data_joc"
-            type="date" 
-            bind:value={data_joc}
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
+      <div class="mb-6">
+        <label for="entrades" class="block text-sm font-medium text-gray-700 mb-1">
+          Entrades
+        </label>
+        <input
+          id="entrades"
+          type="number"
+          bind:value={entrades}
+          min="0"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+        />
       </div>
 
       <div class="mb-6">
