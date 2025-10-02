@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { user, adminStore } from '$lib/stores/auth';
   import { checkIsAdmin } from '$lib/roles';
+  import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
   import Banner from '$lib/components/general/Banner.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
 
@@ -70,8 +71,8 @@
       return;
     }
 
-    const adm = await checkIsAdmin();
-    if (!adm) {
+    // Check admin status using new store system
+    if (!$adminChecked || !$isAdmin) {
       goto('/admin');
       return;
     }

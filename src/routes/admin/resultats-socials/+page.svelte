@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
 
-  let events: any[] = [];
+
   let selectedEvent: any = null;
   let categories: any[] = [];
   let selectedCategory: any = null;
@@ -21,53 +21,52 @@
   let matchesCollapsed = false;
 
   onMount(async () => {
-    await loadActiveEvents();
+    await loadActiveEvent();
   });
 
-  async function loadActiveEvents() {
+  async function loadActiveEvent() {
     try {
-      const { data, error } = await supabase
+      // Load the single active social league event
+      const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('*')
         .eq('actiu', true)
         .eq('tipus_competicio', 'lliga_social')
-        .order('temporada', { ascending: false });
+        .order('temporada', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (error) throw error;
-      events = data || [];
-    } catch (e) {
-      console.error('Error loading events:', e);
-      error = 'Error carregant els campionats';
-    }
-  }
+      if (eventError) throw eventError;
 
-  async function onEventSelected() {
-    if (!selectedEvent) return;
+      if (!eventData) {
+        error = 'No hi ha cap campionat social actiu';
+        return;
+      }
 
-    try {
-      // Load categories for selected event
+      selectedEvent = eventData;
+
+      // Load categories for the active event
       const { data: categoriesData, error: categoriesError } = await supabase
         .from('categories')
         .select('*')
         .eq('event_id', selectedEvent.id)
-        .order('nom');
+        .order('ordre_categoria');
 
       if (categoriesError) throw categoriesError;
       categories = categoriesData || [];
 
-      // Reset dependent selections
-      selectedCategory = null;
-      players = [];
-      calendarMatches = [];
-      selectedMatch = null;
     } catch (e) {
-      console.error('Error loading categories:', e);
-      error = 'Error carregant les categories';
+      console.error('Error loading active event:', e);
+      error = 'Error carregant el campionat actiu';
     }
   }
 
-  async function onCategorySelected() {
-    if (!selectedCategory) return;
+  async function selectCategory(category: any) {
+    selectedCategory = category;
+
+    // Reset dependent selections
+    selectedMatch = null;
+    calendarMatches = [];
 
     try {
       // Load calendar matches for selected category that are not yet played
@@ -81,6 +80,7 @@
         .eq('event_id', selectedEvent.id)
         .eq('categoria_id', selectedCategory.id)
         .is('match_id', null)
+        .is('caramboles_jugador1', null)
         .order('data_programada');
 
       if (matchesError) throw matchesError;
@@ -114,8 +114,9 @@
       return;
     }
 
-    if (caramboles_jugador1 === caramboles_jugador2) {
-      error = 'No es poden empatar en una partida de campionat social';
+    // Empats permesos: 1 punt per cada jugador
+    if (caramboles_jugador1 === 0 && caramboles_jugador2 === 0) {
+      error = 'Introdueix les caramboles per ambdós jugadors';
       return;
     }
 
@@ -125,7 +126,14 @@
     try {
       // For social league matches, store results directly in calendari_partides
       // This keeps social leagues separate from ranking championship
-      const { error: updateError } = await supabase
+      console.log('🔍 Guardant resultat:', {
+        match_id: selectedMatch.id,
+        caramboles_j1: caramboles_jugador1,
+        caramboles_j2: caramboles_jugador2,
+        entrades: entrades
+      });
+
+      const { data: updateData, error: updateError } = await supabase
         .from('calendari_partides')
         .update({
           caramboles_jugador1: caramboles_jugador1,
@@ -137,9 +145,15 @@
           data_validacio: new Date().toISOString(),
           observacions_junta: observacions
         })
-        .eq('id', selectedMatch.id);
+        .eq('id', selectedMatch.id)
+        .select();
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('❌ Error guardant a calendari_partides:', updateError);
+        throw updateError;
+      }
+
+      console.log('✅ Resultat guardat correctament:', updateData);
 
       success = true;
 
@@ -151,7 +165,9 @@
       observacions = '';
 
       // Reload matches
-      await onCategorySelected();
+      if (selectedCategory) {
+        await selectCategory(selectedCategory);
+      }
 
       setTimeout(() => {
         success = false;
@@ -193,54 +209,51 @@
 <div class="container mx-auto px-4 py-8">
   <h1 class="text-3xl font-bold text-gray-900 mb-8">Pujar Resultats - Campionats Socials</h1>
 
-  <!-- Event Selection -->
-  <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-    <h2 class="text-xl font-semibold text-gray-900 mb-4">Selecciona Campionat</h2>
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <label for="event" class="block text-sm font-medium text-gray-700 mb-2">
-          Campionat Actiu
-        </label>
-        <select 
-          id="event"
-          bind:value={selectedEvent}
-          on:change={onEventSelected}
-          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value={null}>Selecciona un campionat...</option>
-          {#each events as event}
-            <option value={event}>
-              {event.modalitat?.toUpperCase()} {event.temporada} - {event.nom}
-            </option>
-          {/each}
-        </select>
+  <!-- Active Event Info and Category Selection -->
+  {#if selectedEvent}
+    <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+      <div class="mb-4">
+        <h2 class="text-xl font-semibold text-gray-900 mb-1">
+          {selectedEvent.modalitat?.toUpperCase()} {selectedEvent.temporada}
+        </h2>
+        <p class="text-sm text-gray-600">{selectedEvent.nom}</p>
       </div>
 
-      {#if selectedEvent}
+      {#if categories.length > 0}
         <div>
-          <label for="category" class="block text-sm font-medium text-gray-700 mb-2">
-            Categoria
+          <label class="block text-sm font-medium text-gray-700 mb-3">
+            Selecciona Categoria
           </label>
-          <select 
-            id="category"
-            bind:value={selectedCategory}
-            on:change={onCategorySelected}
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value={null}>Selecciona una categoria...</option>
+          <div class="flex gap-2 flex-wrap">
             {#each categories as category}
-              <option value={category}>
-                {category.nom} ({category.distancia_caramboles} caramboles)
-              </option>
+              <button
+                type="button"
+                on:click={() => selectCategory(category)}
+                class="px-4 py-2 rounded-lg transition-colors font-medium"
+                class:bg-blue-600={selectedCategory?.id === category.id}
+                class:text-white={selectedCategory?.id === category.id}
+                class:shadow-lg={selectedCategory?.id === category.id}
+                class:bg-gray-100={selectedCategory?.id !== category.id}
+                class:text-gray-700={selectedCategory?.id !== category.id}
+                class:hover:bg-gray-200={selectedCategory?.id !== category.id}
+              >
+                {category.nom}
+                <span class="text-xs ml-1 opacity-75">
+                  ({category.distancia_caramboles})
+                </span>
+              </button>
             {/each}
-          </select>
+          </div>
         </div>
       {/if}
     </div>
-  </div>
+  {:else if error}
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
+      <p class="text-yellow-800">{error}</p>
+    </div>
+  {/if}
 
-  <!-- Match Selection -->
+    <!-- Match Selection -->
   {#if selectedCategory && calendarMatches.length > 0}
     <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
       <div class="flex items-center justify-between mb-4">
@@ -399,16 +412,26 @@
         ></textarea>
       </div>
 
-      <!-- Winner Preview -->
-      {#if caramboles_jugador1 !== caramboles_jugador2 && (caramboles_jugador1 > 0 || caramboles_jugador2 > 0)}
+      <!-- Result Preview -->
+      {#if caramboles_jugador1 > 0 || caramboles_jugador2 > 0}
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h4 class="font-medium text-blue-900 mb-2">Guanyador:</h4>
-          <p class="text-blue-800">
-            {caramboles_jugador1 > caramboles_jugador2 
-              ? `${selectedMatch.soci1?.nom} ${selectedMatch.soci1?.cognoms}` 
-              : `${selectedMatch.soci2?.nom} ${selectedMatch.soci2?.cognoms}`}
-          </p>
-          <p class="text-sm text-blue-700">
+          {#if caramboles_jugador1 === caramboles_jugador2}
+            <h4 class="font-medium text-yellow-900 mb-2">⚖️ Empat!</h4>
+            <p class="text-yellow-800">
+              Ambdós jugadors obtenen 1 punt
+            </p>
+          {:else}
+            <h4 class="font-medium text-blue-900 mb-2">🏆 Guanyador:</h4>
+            <p class="text-blue-800">
+              {caramboles_jugador1 > caramboles_jugador2
+                ? `${selectedMatch.soci1?.nom} ${selectedMatch.soci1?.cognoms}`
+                : `${selectedMatch.soci2?.nom} ${selectedMatch.soci2?.cognoms}`}
+            </p>
+            <p class="text-sm text-blue-700">
+              Guanyador: 2 punts • Perdedor: 0 punts
+            </p>
+          {/if}
+          <p class="text-sm text-blue-700 mt-2">
             Resultat: {caramboles_jugador1} - {caramboles_jugador2}
           </p>
         </div>
@@ -439,7 +462,7 @@
         <button 
           type="button"
           on:click={submitResult}
-          disabled={loading || !selectedMatch || caramboles_jugador1 === caramboles_jugador2}
+          disabled={loading || !selectedMatch || (caramboles_jugador1 === 0 && caramboles_jugador2 === 0)}
           class="px-6 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {#if loading}
