@@ -40,8 +40,11 @@ export async function refreshRanking(force = false): Promise<void> {
     const { data: finalRankingData, error: rankingError } = await supabase
       .from('ranking_positions')
       .select(`
+        id,
+        event_id,
         posicio,
         player_id,
+        created_at,
         players!inner (
           id,
           mitjana,
@@ -73,8 +76,11 @@ export async function refreshRanking(force = false): Promise<void> {
       const soci = player?.socis;
 
       return {
+        id: item.id,
+        event_id: item.event_id,
         posicio: item.posicio,
         player_id: item.player_id,
+        created_at: item.created_at,
         nom: soci?.nom || null,
         cognoms: soci?.cognoms || null,
         mitjana: player?.mitjana || null,

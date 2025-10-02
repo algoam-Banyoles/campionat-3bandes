@@ -265,7 +265,7 @@ class CacheStore {
 	 * Obtenir informació sobre el cache
 	 */
 	getInfo(): { memoryEntries: number; totalSize: number; metrics: CacheMetrics } {
-		const metrics = get(this.metrics);
+		const metrics = get(this.metrics) as CacheMetrics;
 		return {
 			memoryEntries: this.memoryCache.size,
 			totalSize: metrics.totalSize,

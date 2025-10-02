@@ -37,7 +37,7 @@ describe('getPlayerBadges', () => {
     const result = await getPlayerBadges();
 
     expect(fromMock).toHaveBeenCalledWith('v_player_badges');
-    expect(selectMock).toHaveBeenCalledWith('*');
+    expect(selectMock).toHaveBeenCalledWith('event_id, player_id, posicio, last_play_date, days_since_last, has_active_challenge, in_cooldown, can_be_challenged, cooldown_days_left');
     expect(result).toEqual(sample);
   });
 

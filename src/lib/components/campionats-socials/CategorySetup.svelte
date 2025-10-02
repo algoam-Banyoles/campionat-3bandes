@@ -567,35 +567,6 @@
       console.log('Champions loading disabled temporarily');
       return;
 
-      // Filtrar i processar els resultats
-      previousChampions.clear();
-
-      const filteredChampions = champions?.filter(champion => {
-        return champion.categories?.events?.modalitat === currentEvent.modalitat &&
-               champion.categories?.events?.temporada === previousSeason;
-      }) || [];
-
-      console.log('Filtered champions:', filteredChampions);
-
-      filteredChampions.forEach(champion => {
-        if (champion.socis && champion.categories?.events) {
-          const numeroSoci = champion.socis.numero_soci;
-          const championInfo = {
-            posicio: champion.posicio,
-            categoria_nom: champion.categories.nom,
-            modalitat: champion.categories.events.modalitat,
-            temporada: champion.categories.events.temporada,
-            nom: champion.socis.nom,
-            cognoms: champion.socis.cognoms
-          };
-
-          previousChampions.set(numeroSoci, championInfo);
-          console.log('Added champion:', championInfo);
-        }
-      });
-
-      console.log(`Loaded ${previousChampions.size} previous champions/runners-up for ${currentEvent.modalitat} from season ${previousSeason}`);
-
     } catch (error) {
       console.error('Error loading previous champions:', error);
     } finally {
@@ -703,10 +674,11 @@
     <!-- Mode Selection -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="proposal-mode" class="block text-sm font-medium text-gray-700 mb-2">
           Mode de creació
         </label>
         <select
+          id="proposal-mode"
           bind:value={proposalMode}
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
@@ -722,10 +694,11 @@
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="number-of-categories" class="block text-sm font-medium text-gray-700 mb-2">
           Nombre de categories
         </label>
         <input
+          id="number-of-categories"
           type="number"
           min="2"
           max="6"
@@ -883,8 +856,9 @@
               <h4 class="font-medium text-gray-900">{category.nom}</h4>
               <div class="flex items-center space-x-3 mt-2">
                 <div class="flex items-center space-x-2">
-                  <label class="text-sm text-gray-600">Caramboles:</label>
+                  <label for="caramboles-{index}" class="text-sm text-gray-600">Caramboles:</label>
                   <input
+                    id="caramboles-{index}"
                     type="number"
                     step="5"
                     bind:value={category.distancia_caramboles}

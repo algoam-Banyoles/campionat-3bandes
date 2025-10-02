@@ -30,15 +30,15 @@
         .select(`
           player_id,
           posicio,
-          categories!inner (
+          categories (
             nom,
             ordre_categoria,
-            events!inner (
+            events (
               modalitat,
               temporada
             )
           ),
-          players!inner (
+          players (
             numero_soci,
             nom
           )
@@ -56,15 +56,15 @@
       previousChampions.clear();
 
       champions?.forEach(champion => {
-        if (champion.players?.numero_soci) {
-          const numeroSoci = champion.players.numero_soci;
+        if (champion.players?.[0]?.numero_soci) {
+          const numeroSoci = champion.players[0].numero_soci;
           const championInfo = {
             posicio: champion.posicio,
-            categoria_nom: champion.categories.nom,
-            ordre_categoria: champion.categories.ordre_categoria,
-            modalitat: champion.categories.events.modalitat,
-            temporada: champion.categories.events.temporada,
-            nom: champion.players.nom
+            categoria_nom: champion.categories?.[0]?.nom,
+            ordre_categoria: champion.categories?.[0]?.ordre_categoria,
+            modalitat: champion.categories?.[0]?.events?.[0]?.modalitat,
+            temporada: champion.categories?.[0]?.events?.[0]?.temporada,
+            nom: champion.players?.[0]?.nom
           };
 
           previousChampions.set(numeroSoci, championInfo);

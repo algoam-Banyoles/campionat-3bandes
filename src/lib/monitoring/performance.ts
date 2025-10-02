@@ -299,10 +299,10 @@ class PerformanceMonitor {
 	 * Obtenir dashboard complet de rendiment
 	 */
 	async getDashboard(): Promise<PerformanceDashboard> {
-		const metrics = get(this.metrics);
-		const cacheMetrics = get(this.cacheMetrics);
-		const databaseMetrics = get(this.databaseMetrics);
-		const componentMetrics = get(this.componentMetrics);
+		const metrics = get(this.metrics) as PerformanceMetric[];
+		const cacheMetrics = get(this.cacheMetrics) as Record<string, CacheMetric>;
+		const databaseMetrics = get(this.databaseMetrics) as DatabaseMetric[];
+		const componentMetrics = get(this.componentMetrics) as ComponentMetric[];
 
 		// Calcular estadístiques sumàries
 		const totalRequests = metrics.length;
@@ -343,8 +343,8 @@ class PerformanceMonitor {
 	 */
 	getPerformanceAlerts(): string[] {
 		const alerts: string[] = [];
-		const cacheMetrics = get(this.cacheMetrics);
-		const databaseMetrics = get(this.databaseMetrics);
+		const cacheMetrics = get(this.cacheMetrics) as Record<string, CacheMetric>;
+		const databaseMetrics = get(this.databaseMetrics) as DatabaseMetric[];
 
 		// Alerta per hit rate baix de cache
 		const totalCacheAccess = Object.values(cacheMetrics).reduce((sum, m) => sum + m.totalCount, 0);
@@ -404,7 +404,7 @@ class PerformanceMonitor {
 		// Neteja de mètriques de cache antigues
 		this.cacheMetrics.update(metrics => {
 			const filtered: Record<string, CacheMetric> = {};
-			Object.entries(metrics).forEach(([key, metric]) => {
+			Object.entries(metrics as Record<string, CacheMetric>).forEach(([key, metric]) => {
 				if (metric.lastAccess > cutoffTime) {
 					filtered[key] = metric;
 				}

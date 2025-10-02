@@ -247,7 +247,7 @@
                 class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {
                   $viewMode === 'admin' ? 'translate-x-6' : 'translate-x-1'
                 }"
-              />
+              ></span>
             </button>
           {/if}
 

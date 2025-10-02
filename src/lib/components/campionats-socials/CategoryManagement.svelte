@@ -164,8 +164,9 @@
         <h4 class="font-medium text-blue-900 mb-4">Crear Nova Categoria</h4>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Nom de la categoria</label>
+            <label for="new-category-name" class="block text-sm font-medium text-gray-700 mb-1">Nom de la categoria</label>
             <input
+              id="new-category-name"
               type="text"
               bind:value={newCategoryName}
               placeholder="Ex: 1a, 2a, Promoció..."
@@ -173,8 +174,9 @@
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Distància (caramboles)</label>
+            <label for="new-category-distance" class="block text-sm font-medium text-gray-700 mb-1">Distància (caramboles)</label>
             <input
+              id="new-category-distance"
               type="number"
               bind:value={newCategoryDistance}
               min="30"
@@ -184,8 +186,9 @@
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Màxim entrades</label>
+            <label for="new-category-max-entries" class="block text-sm font-medium text-gray-700 mb-1">Màxim entrades</label>
             <input
+              id="new-category-max-entries"
               type="number"
               bind:value={newCategoryMaxEntries}
               min="20"
@@ -195,8 +198,9 @@
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Mínim jugadors</label>
+            <label for="new-category-min-players" class="block text-sm font-medium text-gray-700 mb-1">Mínim jugadors</label>
             <input
+              id="new-category-min-players"
               type="number"
               bind:value={newCategoryMinPlayers}
               min="4"
@@ -205,8 +209,9 @@
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Màxim jugadors</label>
+            <label for="new-category-max-players" class="block text-sm font-medium text-gray-700 mb-1">Màxim jugadors</label>
             <input
+              id="new-category-max-players"
               type="number"
               bind:value={newCategoryMaxPlayers}
               min="6"
@@ -268,6 +273,7 @@
                     disabled={index === 0}
                     class="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
                     title="Moure amunt"
+                    aria-label="Moure categoria amunt"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
@@ -278,6 +284,7 @@
                     disabled={index === categories.length - 1}
                     class="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
                     title="Moure avall"
+                    aria-label="Moure categoria avall"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -290,6 +297,7 @@
                   on:click={() => deleteCategory(category.id, category.nom)}
                   class="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
                   title="Eliminar categoria"
+                  aria-label="Eliminar categoria"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>

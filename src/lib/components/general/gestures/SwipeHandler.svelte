@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   
   interface Props {
+    children?: any;
     onSwipeLeft?: (() => void) | undefined;
     onSwipeRight?: (() => void) | undefined;
     onSwipeUp?: (() => void) | undefined;
@@ -12,6 +13,7 @@
   }
   
   let { 
+    children,
     onSwipeLeft = undefined, 
     onSwipeRight = undefined, 
     onSwipeUp = undefined, 
@@ -89,7 +91,7 @@
   role="region"
   aria-label="Zona de gestos deslitzament"
 >
-  <slot />
+  {@render children()}
 </div>
 
 <style>
@@ -102,10 +104,5 @@
   /* When only vertical swipes are enabled, allow horizontal scrolling */
   .swipe-handler:not(.horizontal-swipe) {
     touch-action: pan-x;
-  }
-  
-  /* When all swipes are enabled, handle touch events manually */
-  .swipe-handler.all-swipes {
-    touch-action: none;
   }
 </style>

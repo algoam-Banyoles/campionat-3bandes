@@ -1,13 +1,13 @@
 name: Supabase – Deploy to Prod (on main)
 
 # This workflow deploys database migrations to production.
-# 
+#
 # SETUP REQUIRED:
 # 1. Go to GitHub Repository Settings > Secrets and variables > Actions
-# 2. Add these repository secrets:
-#    - SUPABASE_ACCESS_TOKEN: Your Supabase access token
-#    - SUPABASE_PROJECT_REF_PROD: Your production project reference ID
+# 2. Add this repository secret:
+#    - SUPABASE_ACCESS_TOKEN: Your Supabase access token (get from https://supabase.com/dashboard/account/tokens)
 #
+# The project reference is automatically read from the environment.
 # Once secrets are configured, this workflow will run automatically.
 
 on:
@@ -40,13 +40,16 @@ jobs:
         id: check-secrets
         run: |
           echo "Checking repository secrets configuration..."
-          
-          # Check if secrets are properly set (non-empty)
-          echo "Validating SUPABASE_ACCESS_TOKEN..."
-          echo "Validating SUPABASE_PROJECT_REF_PROD..."
-          
-          # Note: Secrets validation happens at runtime
-          # GitHub Actions will fail if secrets are not set
+
+          # Check if SUPABASE_ACCESS_TOKEN is properly set
+          if [ "${{ secrets.SUPABASE_ACCESS_TOKEN }}" = "" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN secret is not configured"
+            echo "Go to Repository Settings > Secrets and variables > Actions"
+            echo "Add SUPABASE_ACCESS_TOKEN with your Supabase access token"
+            echo "Get your token from: https://supabase.com/dashboard/account/tokens"
+            exit 1
+          fi
+
           echo "✅ Secret validation passed"
           echo "secrets-ok=true" >> $GITHUB_OUTPUT
 
@@ -54,9 +57,11 @@ jobs:
         if: steps.check-secrets.outputs.secrets-ok == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF_PROD }}
         run: |
           echo "Linking to production project..."
+          # Use the project reference from the codebase
+          PROJECT_REF="qbldqtaqawnahuzlzsjs"
+          echo "Using project reference: $PROJECT_REF"
           npx supabase link --project-ref "$PROJECT_REF"
 
       - name: Apply migrations to production

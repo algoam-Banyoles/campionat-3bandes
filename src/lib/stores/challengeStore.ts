@@ -58,7 +58,7 @@ export async function refreshActiveChallenges(): Promise<void> {
       const offlinePlayers = await getAllOffline('socis');
       const playerMap = new Map<string, string>();
       offlinePlayers.forEach(player => {
-        const fullName = player.cognoms ? `${player.nom} ${player.cognoms}` : player.nom;
+        const fullName = player.cognom ? `${player.nom} ${player.cognom}` : player.nom;
         playerMap.set(player.id.toString(), fullName);
       });
 

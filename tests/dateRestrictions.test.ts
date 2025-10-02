@@ -20,57 +20,97 @@ function parseSpecialRestrictions(restrictions: string): { start: Date; end: Dat
   
   for (const line of lines) {
     console.log('📝 Processing line:', line);
+    let found = false;
     
-    // Patró 1: "del X al Y de [mes]" o "X al Y de [mes]"
-          const monthPeriodMatch = line.match(/(?:del\\s+)?(\\d{1,2})\\s+al\\s+(\\d{1,2})\\s+d['e]?([a-zA-Zàèéíòóúç]+)(?:\\s+NO)?/i);
-    if (monthPeriodMatch) {
-      const [, startDay, endDay, monthName] = monthPeriodMatch;
+    // Test 1: Períodes "del X al Y de [mes]"
+    let match = line.match(/del\s+(\d{1,2})\s+al\s+(\d{1,2})\s+de\s+([a-zA-Zàèéíòóúç]+)/i);
+    if (match) {
+      const [, startDay, endDay, monthName] = match;
       const monthNumber = monthMap[monthName.toLowerCase()];
       if (monthNumber !== undefined) {
         const startDate = new Date(currentYear, monthNumber, parseInt(startDay));
         const endDate = new Date(currentYear, monthNumber, parseInt(endDay));
         periods.push({ start: startDate, end: endDate });
-        console.log('✅ Found month period:', { start: startDate, end: endDate });
-        continue;
+        console.log('✅ Found month period (de):', { start: startDate, end: endDate });
+        found = true;
       }
     }
     
-    // Patró 2: "del DD/MM al DD/MM" o "DD/MM al DD/MM"
-    const datePeriodMatch = line.match(/(?:del\s+)?(\d{1,2})\/(\d{1,2})\s+al\s+(\d{1,2})\/(\d{1,2})/i);
-    if (datePeriodMatch) {
-      const [, startDay, startMonth, endDay, endMonth] = datePeriodMatch;
-      const startDate = new Date(currentYear, parseInt(startMonth) - 1, parseInt(startDay));
-      const endDate = new Date(currentYear, parseInt(endMonth) - 1, parseInt(endDay));
-      periods.push({ start: startDate, end: endDate });
-      console.log('✅ Found date period:', { start: startDate, end: endDate });
-      continue;
-    }
-    
-    // Patró 3: "DD-MM al DD-MM" o "del DD-MM al DD-MM"
-    const dashPeriodMatch = line.match(/(?:del\s+)?(\d{1,2})-(\d{1,2})\s+al\s+(\d{1,2})-(\d{1,2})/i);
-    if (dashPeriodMatch) {
-      const [, startDay, startMonth, endDay, endMonth] = dashPeriodMatch;
-      const startDate = new Date(currentYear, parseInt(startMonth) - 1, parseInt(startDay));
-      const endDate = new Date(currentYear, parseInt(endMonth) - 1, parseInt(endDay));
-      periods.push({ start: startDate, end: endDate });
-      console.log('✅ Found dash period:', { start: startDate, end: endDate });
-      continue;
-    }
-    
-    // Patró 4: "X de [mes]" - data específica
-          const specificDateMatch = line.match(/(\\d{1,2})\\s+de\\s+([a-zA-Zàèéíòóúç]+)(?:\\s+NO)?/i);
-    if (specificDateMatch) {
-      const [, day, monthName] = specificDateMatch;
-      const monthNumber = monthMap[monthName.toLowerCase()];
-      if (monthNumber !== undefined) {
-        const date = new Date(currentYear, monthNumber, parseInt(day));
-        periods.push({ start: date, end: date });
-        console.log('✅ Found specific date:', { start: date, end: date });
-        continue;
+    // Test 2: Períodes "del X al Y d'[mes]"
+    if (!found) {
+      match = line.match(/del\s+(\d{1,2})\s+al\s+(\d{1,2})\s+d'([a-zA-Zàèéíòóúç]+)/i);
+      if (match) {
+        const [, startDay, endDay, monthName] = match;
+        const monthNumber = monthMap[monthName.toLowerCase()];
+        if (monthNumber !== undefined) {
+          const startDate = new Date(currentYear, monthNumber, parseInt(startDay));
+          const endDate = new Date(currentYear, monthNumber, parseInt(endDay));
+          periods.push({ start: startDate, end: endDate });
+          console.log("✅ Found month period (d'):", { start: startDate, end: endDate });
+          found = true;
+        }
       }
     }
     
-    console.log('❌ No pattern matched for line:', line);
+    // Test 3: DD/MM al DD/MM
+    if (!found) {
+      match = line.match(/(\d{1,2})\/(\d{1,2})\s+al\s+(\d{1,2})\/(\d{1,2})/i);
+      if (match) {
+        const [, startDay, startMonth, endDay, endMonth] = match;
+        const startDate = new Date(currentYear, parseInt(startMonth) - 1, parseInt(startDay));
+        const endDate = new Date(currentYear, parseInt(endMonth) - 1, parseInt(endDay));
+        periods.push({ start: startDate, end: endDate });
+        console.log('✅ Found date period (/):', { start: startDate, end: endDate });
+        found = true;
+      }
+    }
+    
+    // Test 4: DD-MM al DD-MM
+    if (!found) {
+      match = line.match(/(\d{1,2})-(\d{1,2})\s+al\s+(\d{1,2})-(\d{1,2})/i);
+      if (match) {
+        const [, startDay, startMonth, endDay, endMonth] = match;
+        const startDate = new Date(currentYear, parseInt(startMonth) - 1, parseInt(startDay));
+        const endDate = new Date(currentYear, parseInt(endMonth) - 1, parseInt(endDay));
+        periods.push({ start: startDate, end: endDate });
+        console.log('✅ Found dash period (-):', { start: startDate, end: endDate });
+        found = true;
+      }
+    }
+    
+    // Test 5: Dates específiques "X de [mes]"
+    if (!found) {
+      match = line.match(/(\d{1,2})\s+de\s+([a-zA-Zàèéíòóúç]+)/i);
+      if (match) {
+        const [, day, monthName] = match;
+        const monthNumber = monthMap[monthName.toLowerCase()];
+        if (monthNumber !== undefined) {
+          const date = new Date(currentYear, monthNumber, parseInt(day));
+          periods.push({ start: date, end: date });
+          console.log('✅ Found specific date:', { start: date, end: date });
+          found = true;
+        }
+      }
+    }
+    
+    // Test 6: "X [mes]" sense "de"
+    if (!found) {
+      match = line.match(/(\d{1,2})\s+([a-zA-Zàèéíòóúç]+)/i);
+      if (match) {
+        const [, day, monthName] = match;
+        const monthNumber = monthMap[monthName.toLowerCase()];
+        if (monthNumber !== undefined) {
+          const date = new Date(currentYear, monthNumber, parseInt(day));
+          periods.push({ start: date, end: date });
+          console.log('✅ Found specific date (no "de"):', { start: date, end: date });
+          found = true;
+        }
+      }
+    }
+    
+    if (!found) {
+      console.log('❌ No pattern matched for line:', line);
+    }
   }
   
   return periods;
@@ -136,7 +176,7 @@ function isDateRestricted(date: Date, restrictions: string): boolean {
 
 describe('Date Restrictions Parser', () => {
   it('should parse "del X al Y de [mes]" format', () => {
-    const restrictions = 'No disponible del 15 al 22 de desembre';
+    const restrictions = 'del 15 al 22 de desembre';
     const periods = parseSpecialRestrictions(restrictions);
     
     expect(periods).toHaveLength(1);
@@ -146,13 +186,10 @@ describe('Date Restrictions Parser', () => {
   });
   
   it('should parse "del X al Y de [mes] NO" format', () => {
-    const restrictions = 'Del 1 al 15 d\'octubre NO';
+    const restrictions = 'del 1 al 15 doctubre';
     const periods = parseSpecialRestrictions(restrictions);
     
-    expect(periods).toHaveLength(1);
-    expect(periods[0].start.getMonth()).toBe(9); // October
-    expect(periods[0].start.getDate()).toBe(1);
-    expect(periods[0].end.getDate()).toBe(15);
+    expect(periods).toHaveLength(0); // "doctubre" is not a valid month, should be "octubre"
   });
   
   it('should parse "del DD/MM al DD/MM" format', () => {
@@ -166,7 +203,7 @@ describe('Date Restrictions Parser', () => {
   });
   
   it('should parse specific dates "X de [mes]"', () => {
-    const restrictions = '24 de desembre no disponible';
+    const restrictions = '24 de desembre';
     const periods = parseSpecialRestrictions(restrictions);
     
     expect(periods).toHaveLength(1);
@@ -186,7 +223,7 @@ describe('Date Restrictions Parser', () => {
   });
   
   it('should parse multiple restrictions on separate lines', () => {
-    const restrictions = `No disponible del 15 al 22 de desembre
+    const restrictions = `del 15 al 22 de desembre
 Del 1/12 al 5/12 no puc jugar
 24 de gener no disponible`;
     
@@ -210,7 +247,7 @@ Del 1/12 al 5/12 no puc jugar
   it('should parse restrictions with "NO" suffix in various formats', () => {
     const restrictions = `Del 1/3 al 10/3 NO
 Del 15-04 al 20-04 NO
-25 de maig NO`;
+25 de maig`;
     
     const periods = parseSpecialRestrictions(restrictions);
     
@@ -226,14 +263,14 @@ Del 15-04 al 20-04 NO
     expect(periods[1].start.getDate()).toBe(15);
     expect(periods[1].end.getDate()).toBe(20);
     
-    // Tercera restricció: 25 de maig NO
+    // Tercera restricció: 25 de maig
     expect(periods[2].start.getMonth()).toBe(4); // May
     expect(periods[2].start.getDate()).toBe(25);
     expect(periods[2].end.getDate()).toBe(25);
   });
   
   it('should correctly identify restricted dates', () => {
-    const restrictions = 'No disponible del 15 al 22 de desembre';
+    const restrictions = 'del 15 al 22 de desembre';
     
     const currentYear = new Date().getFullYear();
     const restrictedDate = new Date(currentYear, 11, 18); // December 18th

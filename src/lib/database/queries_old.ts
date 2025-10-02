@@ -359,8 +359,8 @@ export class OptimizedQueries {
 						resultat_reptador,
 						resultat_reptat,
 						comentaris,
-						reptador:reptador_id (numero_soci, nom, cognoms),
-						reptat:reptat_id (numero_soci, nom, cognoms)
+						reptador:reptador_id (id, numero_soci, nom, cognoms),
+						reptat:reptat_id (id, numero_soci, nom, cognoms)
 					`)
 					.or(`reptador_id.eq.${playerId},reptat_id.eq.${playerId}`)
 					.order('data_creacio', { ascending: false })
@@ -478,7 +478,7 @@ export class OptimizedQueries {
 			if (/^\d+$/.test(searchTerm)) {
 				const { data, error } = await supabase
 					.from('socis')
-					.select('numero_soci, nom, cognoms')
+					.select('id, numero_soci, nom, cognoms')
 					.eq('numero_soci', parseInt(searchTerm))
 					.or('de_baixa.is.null,de_baixa.eq.false')
 					.limit(1);
@@ -494,7 +494,7 @@ export class OptimizedQueries {
 			// Cerca per nom/cognoms
 			const { data, error } = await supabase
 				.from('socis')
-				.select('numero_soci, nom, cognoms')
+				.select('id, numero_soci, nom, cognoms')
 				.or(`nom.ilike.%${searchTerm}%,cognoms.ilike.%${searchTerm}%`)
 				.or('de_baixa.is.null,de_baixa.eq.false')
 				.order('cognoms')

@@ -125,6 +125,7 @@
               <button
                 on:click={clearSearch}
                 class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                aria-label="Netejar cerca"
               >
                 <svg class="h-5 w-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -190,6 +191,7 @@
               <button
                 on:click={clearSelection}
                 class="text-gray-400 hover:text-gray-600"
+                aria-label="Netejar selecció de jugador"
               >
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>

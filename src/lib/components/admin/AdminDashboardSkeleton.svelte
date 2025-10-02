@@ -1,5 +1,5 @@
 <script lang="ts">
-  import SkeletonLoader from './SkeletonLoader.svelte';
+  import SkeletonLoader from '../campionat-continu/SkeletonLoader.svelte';
   
   export let showSystemStatus: boolean = true;
   export let showUserStats: boolean = true;

@@ -33,7 +33,7 @@ describe('challenge helpers', () => {
       json: async () => ({ ok: true })
     });
     await scheduleChallenge({} as any, 'abc', '2024-01-02T00:00:00.000Z');
-    expect(authFetch).toHaveBeenCalledWith('/reptes/programar', {
+    expect(authFetch).toHaveBeenCalledWith('/campionat-continu/reptes/programar', {
       method: 'POST',
       body: JSON.stringify({ id: 'abc', data_iso: '2024-01-02T00:00:00.000Z' })
     });

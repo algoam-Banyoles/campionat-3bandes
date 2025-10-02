@@ -274,10 +274,10 @@
   <div class="bg-white border border-gray-200 rounded-lg p-6">
     <div class="space-y-6">
       <!-- Category filter with buttons (multiple selection) -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-3">
+      <fieldset>
+        <legend class="block text-sm font-medium text-gray-700 mb-3">
           Categories {selectedCategories.size > 0 ? `(${selectedCategories.size} seleccionades)` : ''}
-        </label>
+        </legend>
         <div class="flex flex-wrap gap-2">
           {#each sortedCategories as category}
             <button
@@ -300,7 +300,7 @@
             </button>
           {/if}
         </div>
-      </div>
+      </fieldset>
 
       <!-- Player search and checkbox in same row -->
       <div class="flex gap-4 items-start">
@@ -325,6 +325,7 @@
               <button
                 on:click={() => searchPlayer = ''}
                 class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                aria-label="Netejar cerca de jugador"
               >
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>

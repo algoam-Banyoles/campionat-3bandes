@@ -16,11 +16,11 @@ export function setupFocusManagement() {
         mainHeading.removeAttribute('tabindex');
       }, 100);
     } else if (mainContent) {
-      mainContent.setAttribute('tabindex', '-1');
-      mainContent.focus();
+      (mainContent as HTMLElement).setAttribute('tabindex', '-1');
+      (mainContent as HTMLElement).focus();
 
       setTimeout(() => {
-        mainContent.removeAttribute('tabindex');
+        (mainContent as HTMLElement).removeAttribute('tabindex');
       }, 100);
     }
 

@@ -5,7 +5,7 @@
 
   const dispatch = createEventDispatcher();
 
-  export let eventId: string = '';
+  export const eventId: string = '';
   export let inscriptions: any[] = [];
   export let socis: any[] = [];
   export let categories: any[] = [];

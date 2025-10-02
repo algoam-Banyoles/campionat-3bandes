@@ -263,8 +263,9 @@
     <!-- Filtres -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Categoria</label>
+        <label for="categoria-filter" class="block text-sm font-medium text-gray-700 mb-2">Categoria</label>
         <select
+          id="categoria-filter"
           bind:value={selectedCategory}
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
@@ -276,8 +277,9 @@
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Estat</label>
+        <label for="estat-filter" class="block text-sm font-medium text-gray-700 mb-2">Estat</label>
         <select
+          id="estat-filter"
           bind:value={selectedEstat}
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
@@ -289,8 +291,9 @@
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Data</label>
+        <label for="data-filter" class="block text-sm font-medium text-gray-700 mb-2">Data</label>
         <input
+          id="data-filter"
           type="date"
           bind:value={selectedDate}
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -440,8 +443,9 @@
 
       <form on:submit|preventDefault={saveMatch} class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Data</label>
+          <label for="edit-data" class="block text-sm font-medium text-gray-700 mb-1">Data</label>
           <input
+            id="edit-data"
             type="date"
             bind:value={editForm.data_programada}
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -449,8 +453,9 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Hora</label>
+          <label for="edit-hora" class="block text-sm font-medium text-gray-700 mb-1">Hora</label>
           <input
+            id="edit-hora"
             type="time"
             bind:value={editForm.hora_inici}
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -458,8 +463,9 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Taula</label>
+          <label for="edit-taula" class="block text-sm font-medium text-gray-700 mb-1">Taula</label>
           <input
+            id="edit-taula"
             type="number"
             min="1"
             max="10"
@@ -469,8 +475,9 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Estat</label>
+          <label for="edit-estat" class="block text-sm font-medium text-gray-700 mb-1">Estat</label>
           <select
+            id="edit-estat"
             bind:value={editForm.estat}
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
@@ -481,8 +488,9 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Observacions de la Junta</label>
+          <label for="edit-observacions" class="block text-sm font-medium text-gray-700 mb-1">Observacions de la Junta</label>
           <textarea
+            id="edit-observacions"
             bind:value={editForm.observacions_junta}
             rows="3"
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

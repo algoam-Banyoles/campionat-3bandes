@@ -816,6 +816,7 @@
           {#each sortedInscriptions as inscripcio}
             <div class="flex items-center py-2 border-b border-gray-200">
               <input
+                id="payment-{inscripcio.id}"
                 type="checkbox"
                 checked={inscripcio.pagat}
                 on:change={async (e) => {
@@ -833,7 +834,7 @@
                 }}
                 class="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
-              <label class="ml-3 text-sm font-medium text-gray-900 flex-1">
+              <label for="payment-{inscripcio.id}" class="ml-3 text-sm font-medium text-gray-900 flex-1">
                 {inscripcio.socis.cognoms}, {inscripcio.socis.nom}
                 <span class="text-xs text-gray-500 ml-2">
                   ({paymentCategories.find(c => c.id === inscripcio.categoria_assignada_id)?.nom || '-'})
@@ -1930,7 +1931,7 @@
 
     /* Assegurar que tot el contingut sigui visible */
     * {
-      color-adjust: exact !important;
+      print-color-adjust: exact !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }

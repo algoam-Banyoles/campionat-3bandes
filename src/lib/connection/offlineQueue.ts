@@ -180,7 +180,7 @@ class OfflineQueue {
     const processing = get(this.isProcessing);
     if (processing) return;
 
-    const queue = get(this.queue);
+    const queue = get(this.queue) as QueuedOperation[];
     if (queue.length === 0) return;
 
     const connected = get(connectionManager.isConnected());
@@ -238,7 +238,7 @@ class OfflineQueue {
       this.saveToStorage();
 
       // Continue processing if there are more operations
-      const remainingQueue = get(this.queue);
+      const remainingQueue = get(this.queue) as QueuedOperation[];
       if (remainingQueue.length > 0) {
         setTimeout(() => this.processQueue(), 1000);
       }
@@ -266,7 +266,7 @@ class OfflineQueue {
             total: queue.length,
             pending: queue.filter(op => op.retryCount === 0).length,
             processing: get(this.isProcessing) ? 1 : 0,
-            failed: get(this.failedOperations).length,
+            failed: (get(this.failedOperations) as string[]).length,
             byPriority: {
               critical: queue.filter(op => op.priority === 'critical').length,
               high: queue.filter(op => op.priority === 'high').length,
@@ -289,7 +289,7 @@ class OfflineQueue {
   }
 
   removeOperation(id: string): boolean {
-    const queue = get(this.queue);
+    const queue = get(this.queue) as QueuedOperation[];
     const operationExists = queue.some(op => op.id === id);
     
     if (operationExists) {
@@ -315,16 +315,16 @@ class OfflineQueue {
   }
 
   getQueueSize(): number {
-    return get(this.queue).length;
+    return (get(this.queue) as QueuedOperation[]).length;
   }
 
   hasOperationOfType(type: QueuedOperation['type']): boolean {
-    const queue = get(this.queue);
+    const queue = get(this.queue) as QueuedOperation[];
     return queue.some(op => op.type === type);
   }
 
   getOperationsByUser(userId: string): QueuedOperation[] {
-    const queue = get(this.queue);
+    const queue = get(this.queue) as QueuedOperation[];
     return queue.filter(op => op.userId === userId);
   }
 

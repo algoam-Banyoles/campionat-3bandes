@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import type { AppError } from '../errors/types';
-	import { handleError } from '../errors/handler';
-	import { logError } from '../errors/sentry';
+	import type { AppError } from '../../errors/types';
+	import { handleError } from '../../errors/handler';
+	import { logError } from '../../errors/sentry';
 
 	export let fallback: boolean = true;
 	export let showReload: boolean = true;

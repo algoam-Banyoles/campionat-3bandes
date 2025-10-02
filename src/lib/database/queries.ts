@@ -485,8 +485,8 @@ export class OptimizedQueries {
 			const player = {
 				id: playerRaw.id,
 				numero_soci: playerRaw.numero_soci,
-				nom: playerRaw.socis?.nom || '',
-				cognoms: playerRaw.socis?.cognoms || ''
+				nom: (playerRaw as any).socis?.nom || '',
+				cognoms: (playerRaw as any).socis?.cognoms || ''
 			};
 			
 			const currentPosition = rankingData.data?.posicio || null;
