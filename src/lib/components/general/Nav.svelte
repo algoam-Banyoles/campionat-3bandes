@@ -4,6 +4,7 @@
     import { isAdmin } from '$lib/stores/adminAuth';
     import { signOut } from '$lib/utils/auth-client';
     import { isDevUser } from '$lib/guards/devOnly';
+    import { viewMode, effectiveIsAdmin } from '$lib/stores/viewMode';
 
   // Tipus per als enllaços
   type NavLink = {
@@ -25,7 +26,7 @@
   // Estructura principal de navegació
   const navegacio: Record<string, NavSection> = {
     general: {
-      label: 'Inici i Informació',
+      label: 'Inici',
       icon: '🏠',
       color: 'gray',
       links: [
@@ -35,7 +36,7 @@
       ]
     },
     socials: {
-      label: 'Campionats Socials',
+      label: 'Socials',
       icon: '🏆',
       color: 'green',
       links: [
@@ -48,7 +49,7 @@
       ]
     },
     ranking: {
-      label: 'Campionat Ranking',
+      label: 'Continu',
       icon: '📊',
       color: 'blue',
       links: [
@@ -63,7 +64,7 @@
       ]
     },
     handicap: {
-      label: 'Campionat Hàndicap',
+      label: 'Hàndicap',
       icon: '⚖️',
       color: 'purple',
       links: [
@@ -150,15 +151,10 @@
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <!-- Navegació principal -->
     <div class="flex h-20 justify-between">
-      <!-- Logo -->
+      <!-- Logo (simplified) -->
       <div class="flex flex-shrink-0 items-center">
-        <a href="/" class="flex items-center space-x-3">
+        <a href="/" class="flex items-center" title="Secció de Billar del Foment Martinenc">
           <img src="/logo.png" alt="Foment Martinenc" class="h-12 w-12 object-contain" />
-          <div class="hidden sm:flex sm:flex-col">
-            <span class="text-base font-bold text-gray-900 leading-tight">Secció de Billar del</span>
-            <span class="text-base font-bold text-gray-900 leading-tight">Foment Martinenc</span>
-          </div>
-          <span class="text-base font-bold text-gray-900 sm:hidden">Foment Martinenc</span>
         </a>
       </div>
 
@@ -166,7 +162,7 @@
       <div class="hidden lg:flex lg:items-center lg:justify-center flex-1 h-20">
         <div class="flex items-center space-x-4 xl:space-x-8">
           {#each Object.entries(navegacio) as [key, section]}
-            {#if !section.adminOnly || $isAdmin}
+            {#if !section.adminOnly || $effectiveIsAdmin}
               <div class="relative" data-dropdown>
                 <button
                   on:click={() => toggleDropdown(key)}
@@ -175,9 +171,12 @@
                       ? 'border-' + section.color + '-500 text-' + section.color + '-700 bg-' + section.color + '-50'
                       : 'border-transparent text-gray-900 hover:text-gray-700 hover:border-gray-400 hover:bg-gray-50'
                   }"
+                  title={section.adminOnly ? section.label : ''}
                 >
-                  <span class="mr-2 text-xl">{section.icon}</span>
-                  {section.label}
+                  <span class="{section.adminOnly ? '' : 'mr-2'} text-xl">{section.icon}</span>
+                  {#if !section.adminOnly}
+                    {section.label}
+                  {/if}
                   <svg class="ml-1 h-4 w-4 transition-transform duration-200 {
                     activeDropdown === key ? 'rotate-180' : ''
                   }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -232,9 +231,27 @@
       </div>
 
       <!-- Menú d'usuari (Dreta) -->
-      <div class="hidden lg:ml-6 lg:flex lg:items-center">
+      <div class="hidden lg:ml-6 lg:flex lg:items-center lg:gap-4">
         {#if $user}
-          <span class="text-lg text-gray-700 mr-4">{$user.email}</span>
+          <!-- View Mode Switch (only for admins - simplified) -->
+          {#if $isAdmin}
+            <button
+              on:click={() => viewMode.toggleMode()}
+              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 {
+                $viewMode === 'admin' ? 'bg-blue-600' : 'bg-green-600'
+              }"
+              title={$viewMode === 'admin' ? 'Vista Admin - Clic per canviar a vista Jugador' : 'Vista Jugador - Clic per canviar a vista Admin'}
+            >
+              <span class="sr-only">Toggle view mode</span>
+              <span
+                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {
+                  $viewMode === 'admin' ? 'translate-x-6' : 'translate-x-1'
+                }"
+              />
+            </button>
+          {/if}
+
+          <span class="text-lg text-gray-700">{$user.email}</span>
           <button
             on:click={signOut}
             class="bg-gray-800 text-white px-5 py-4 rounded-md text-lg font-medium hover:bg-gray-700 min-h-[56px] flex items-center"
@@ -271,7 +288,7 @@
       <div class="lg:hidden">
         <div class="pt-2 pb-3 space-y-1">
           {#each Object.entries(navegacio) as [, section]}
-            {#if !section.adminOnly || $isAdmin}
+            {#if !section.adminOnly || $effectiveIsAdmin}
               <div class="px-2">
                 <div class="text-gray-600 font-medium text-sm uppercase tracking-wider py-3">
                   {section.icon} {section.label}

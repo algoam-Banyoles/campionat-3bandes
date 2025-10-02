@@ -13,6 +13,7 @@
   import PlayerRestrictionsTable from '$lib/components/campionats-socials/PlayerRestrictionsTable.svelte';
   import { adminStore, user } from '$lib/stores/auth';
   import { isAdmin as isAdminNew, adminUser } from '$lib/stores/adminAuth';
+  import { effectiveIsAdmin } from '$lib/stores/viewMode';
   import { getSocialLeagueEvents, exportCalendariToCSV } from '$lib/api/socialLeagues';
   import { supabase } from '$lib/supabaseClient';
 
@@ -47,8 +48,8 @@
   let loadingInscriptions = false;
   let calendarStatus = 'not-generated'; // 'not-generated', 'generated', 'validated', 'published'
 
-  // Computed per verificar si és admin (comprovant tots dos sistemes)
-  $: isUserAdmin = $adminStore || $isAdminNew;
+  // Computed per verificar si és admin (comprovant tots dos sistemes i view mode)
+  $: isUserAdmin = $adminStore || $effectiveIsAdmin;
 
   // Categories per la pestanya de pagaments
   $: paymentCategories = selectedEvent?.categories || [];
@@ -597,7 +598,7 @@
       // DEBUG: Verificar autenticació d'admin
       console.log('🔍 DEBUG ADMIN AUTH:');
       console.log('$adminStore (old system):', $adminStore);
-      console.log('$isAdminNew (new system):', $isAdminNew);
+      console.log('$effectiveIsAdmin (with view mode):', $effectiveIsAdmin);
       console.log('isUserAdmin (combined):', isUserAdmin);
       console.log('$user:', $user);
 
