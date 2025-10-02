@@ -16,13 +16,6 @@
     if (position === 3) return 'text-amber-600 font-bold';
     return 'text-gray-900';
   }
-
-  function getPositionBadge(position: number): string {
-    if (position === 1) return '🥇';
-    if (position === 2) return '🥈';
-    if (position === 3) return '🥉';
-    return '';
-  }
 </script>
 
 <div class="bg-white border border-gray-200 rounded-lg">
@@ -83,14 +76,9 @@
           {#each classifications as classification, index}
             <tr class={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
               <td class="px-4 sm:px-8 py-6 whitespace-nowrap text-base font-medium">
-                <div class="flex items-center space-x-3">
-                  <span class={getPositionClass(classification.posicio) + ' text-lg'}>
-                    {classification.posicio}
-                  </span>
-                  <span class="text-xl">
-                    {getPositionBadge(classification.posicio)}
-                  </span>
-                </div>
+                <span class={getPositionClass(classification.posicio) + ' text-lg'}>
+                  {classification.posicio}
+                </span>
               </td>
               <td class="px-4 sm:px-8 py-6">
                 <div class="text-base font-medium text-gray-900 mb-1">
