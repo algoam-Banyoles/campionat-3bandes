@@ -727,23 +727,23 @@
   <title>Campionats Socials - Campionat 3 Bandes</title>
 </svelte:head>
 
-<div class="px-6 sm:px-8 lg:px-12 space-y-8 sm:space-y-8 lg:space-y-10">
+<div class="px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8 lg:space-y-10 pb-safe">
   <!-- Header -->
-  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6">
     <div class="flex-1 min-w-0">
       <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold leading-7 text-gray-900">
         Campionats Socials
       </h2>
-      <p class="mt-1 text-sm text-gray-500">
+      <p class="mt-1 text-sm sm:text-base text-gray-500">
         Competicions socials per modalitats: Lliure, Banda i 3 Bandes
       </p>
     </div>
-    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:space-x-4">
-      <!-- Navegació ràpida -->
-      <div class="flex bg-gray-100 rounded-lg p-1 w-full sm:w-auto">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:space-x-4">
+      <!-- Navegació ràpida amb touch targets millors -->
+      <div class="flex bg-gray-100 rounded-lg p-1 w-full sm:w-auto min-h-[44px]">
         <button
           on:click={() => activeView = 'active'}
-          class="flex-1 sm:flex-none px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors"
+          class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px] touch-manipulation"
           class:bg-white={activeView === 'active'}
           class:text-gray-900={activeView === 'active'}
           class:shadow-sm={activeView === 'active'}
@@ -754,7 +754,7 @@
         </button>
         <button
           on:click={() => activeView = 'history'}
-          class="flex-1 sm:flex-none px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors"
+          class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px] touch-manipulation"
           class:bg-white={activeView === 'history'}
           class:text-gray-900={activeView === 'history'}
           class:shadow-sm={activeView === 'history'}
@@ -766,7 +766,7 @@
         {#if isUserAdmin}
           <button
             on:click={() => activeView = 'preparation'}
-            class="flex-1 sm:flex-none px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors"
+            class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px] touch-manipulation"
             class:bg-white={activeView === 'preparation'}
             class:text-gray-900={activeView === 'preparation'}
             class:shadow-sm={activeView === 'preparation'}
@@ -811,35 +811,37 @@
           </button>
         </div>
 
-        <!-- Llista de pagaments -->
-        <div class="space-y-2">
+        <!-- Llista de pagaments amb millor responsivitat -->
+        <div class="space-y-3">
           {#each sortedInscriptions as inscripcio}
-            <div class="flex items-center py-2 border-b border-gray-200">
-              <input
-                id="payment-{inscripcio.id}"
-                type="checkbox"
-                checked={inscripcio.pagat}
-                on:change={async (e) => {
-                  const nouPagat = e.target.checked;
-                  const { error } = await supabase
-                    .from('inscripcions')
-                    .update({ pagat: nouPagat })
-                    .eq('id', inscripcio.id);
-                  if (!error) {
-                    inscripcio.pagat = nouPagat;
-                    await loadInscriptionsData();
-                  } else {
-                    alert('Error actualitzant pagament: ' + error.message);
-                  }
-                }}
-                class="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <label for="payment-{inscripcio.id}" class="ml-3 text-sm font-medium text-gray-900 flex-1">
-                {inscripcio.socis.cognoms}, {inscripcio.socis.nom}
-                <span class="text-xs text-gray-500 ml-2">
-                  ({paymentCategories.find(c => c.id === inscripcio.categoria_assignada_id)?.nom || '-'})
-                </span>
-              </label>
+            <div class="flex items-center py-3 px-2 border-b border-gray-200 hover:bg-gray-50 rounded">
+              <div class="flex items-center min-h-[44px]">
+                <input
+                  id="payment-{inscripcio.id}"
+                  type="checkbox"
+                  checked={inscripcio.pagat}
+                  on:change={async (e) => {
+                    const nouPagat = e.target.checked;
+                    const { error } = await supabase
+                      .from('inscripcions')
+                      .update({ pagat: nouPagat })
+                      .eq('id', inscripcio.id);
+                    if (!error) {
+                      inscripcio.pagat = nouPagat;
+                      await loadInscriptionsData();
+                    } else {
+                      alert('Error actualitzant pagament: ' + error.message);
+                    }
+                  }}
+                  class="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 touch-manipulation"
+                />
+                <label for="payment-{inscripcio.id}" class="ml-4 text-sm sm:text-base font-medium text-gray-900 flex-1 cursor-pointer touch-manipulation">
+                  {inscripcio.socis.cognoms}, {inscripcio.socis.nom}
+                  <span class="block sm:inline text-xs text-gray-500 sm:ml-2">
+                    ({paymentCategories.find(c => c.id === inscripcio.categoria_assignada_id)?.nom || '-'})
+                  </span>
+                </label>
+              </div>
             </div>
           {/each}
         </div>
@@ -933,17 +935,17 @@
                       {#if isUserAdmin}
                         <button
                           on:click={() => { selectedEventId = event.id; }}
-                          class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700"
+                          class="inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-orange-600 hover:bg-orange-700 min-h-[44px] touch-manipulation"
                         >
-                          Gestionar Inscripcions
+                          📋 Gestionar Inscripcions
                         </button>
                       {:else if $user}
-                        <span class="inline-flex items-center px-3 py-2 text-sm text-blue-600">
-                          En preparació - Aviat disponible
+                        <span class="inline-flex items-center justify-center px-4 py-3 text-sm text-blue-600 min-h-[44px]">
+                          🔧 En preparació - Aviat disponible
                         </span>
                       {:else}
-                        <span class="inline-flex items-center px-3 py-2 text-sm text-gray-500">
-                          En preparació
+                        <span class="inline-flex items-center justify-center px-4 py-3 text-sm text-gray-500 min-h-[44px]">
+                          🔧 En preparació
                         </span>
                       {/if}
                     </div>
@@ -1150,34 +1152,32 @@
                         {/if}
                       </div>
                     </div>
-                    <div class="flex space-x-4 sm:space-x-6">
+                    <div class="flex flex-col sm:flex-row gap-4">
                       <button
                         on:click={() => downloadCalendariCSV(selectedEventId, selectedEvent.nom)}
-                        class="inline-flex items-center px-4 py-3 border border-gray-300 text-base leading-5 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 min-h-[48px]"
+                        class="inline-flex items-center justify-center px-4 py-3 border border-gray-300 text-sm sm:text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 min-h-[44px] touch-manipulation"
                         title="Exportar calendari a CSV"
                       >
                         📄 Exportar CSV
                       </button>
                       <button
                         on:click={() => managementView = 'generate-calendar'}
-                        class="inline-flex items-center px-4 py-3 border border-blue-300 text-base leading-5 font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 min-h-[48px]"
+                        class="inline-flex items-center justify-center px-4 py-3 border border-blue-300 text-sm sm:text-base font-medium rounded-lg text-blue-700 bg-white hover:bg-blue-50 min-h-[44px] touch-manipulation"
                       >
                         🔨 Regenerar
                       </button>
                       {#if calendarStatus === 'generated' || calendarStatus === 'partially-validated'}
                         <button
                           on:click={validateCalendar}
-                          class="inline-flex items-center px-4 py-3 border border-transparent text-base leading-5 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 min-h-[48px]"
+                          class="inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm sm:text-base font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 min-h-[44px] touch-manipulation"
                         >
                           ✅ Validar Calendari
                         </button>
                       {:else if calendarStatus === 'validated'}
-                        <span class="inline-flex items-center px-3 py-2 text-sm leading-4 font-medium text-green-700 bg-green-100 rounded-md">
+                        <span class="inline-flex items-center justify-center px-4 py-3 text-sm font-medium text-green-700 bg-green-100 rounded-lg min-h-[44px]">
                           ✅ Calendari Validat
                         </span>
                       {/if}
-
-
                     </div>
                   </div>
 
@@ -1231,25 +1231,29 @@
                     <h3 class="text-lg leading-6 font-medium text-gray-900">
                       {selectedEvent.nom} - Gestió Admin
                     </h3>
-                    <div class="flex space-x-4 sm:space-x-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-4">
                       <button
                         on:click={() => downloadCalendariCSV(selectedEventId, selectedEvent.nom)}
-                        class="inline-flex items-center px-4 py-3 border border-gray-300 text-base leading-5 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 min-h-[48px]"
+                        class="inline-flex items-center justify-center px-4 py-3 border border-gray-300 text-sm sm:text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 min-h-[44px] touch-manipulation order-2 sm:order-1"
                         title="Exportar calendari a CSV"
                       >
                         📄 Exportar CSV
                       </button>
-                      <select
-                        bind:value={selectedEventId}
-                        class="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      >
-                        <option value="">-- Tria un campionat --</option>
-                        {#each activeEvents as event}
-                          <option value={event.id}>
-                            {event.nom} - {event.temporada}
-                          </option>
-                        {/each}
-                      </select>
+                      <div class="flex-1 min-w-0 order-1 sm:order-2">
+                        <label for="admin-event-selector" class="block text-sm font-medium text-gray-700 mb-2">Campionat</label>
+                        <select
+                          id="admin-event-selector"
+                          bind:value={selectedEventId}
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[44px] touch-manipulation bg-white"
+                        >
+                          <option value="">-- Tria un campionat --</option>
+                          {#each activeEvents as event}
+                            <option value={event.id}>
+                              {event.nom} - {event.temporada}
+                            </option>
+                          {/each}
+                        </select>
+                      </div>
                     </div>
                   </div>
 
@@ -1354,21 +1358,25 @@
                 <!-- Només mostrem selector si hi ha més d'un campionat (cas excepcional) -->
                 <div class="bg-white shadow rounded-lg">
                   <div class="px-4 py-5 sm:p-6">
-                    <div class="flex items-center justify-between mb-4">
+                    <div class="flex flex-col space-y-4">
                       <h3 class="text-lg leading-6 font-medium text-gray-900">
                         Múltiples campionats actius - Selecciona un
                       </h3>
-                      <select
-                        bind:value={selectedEventId}
-                        class="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      >
-                        <option value="">-- Tria un campionat --</option>
-                        {#each activeEvents as event}
-                          <option value={event.id}>
-                            {event.nom} - {event.temporada}
-                          </option>
-                        {/each}
-                      </select>
+                      <div>
+                        <label for="public-event-selector" class="block text-sm font-medium text-gray-700 mb-2">Campionat</label>
+                        <select
+                          id="public-event-selector"
+                          bind:value={selectedEventId}
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[44px] touch-manipulation bg-white"
+                        >
+                          <option value="">-- Tria un campionat --</option>
+                          {#each activeEvents as event}
+                            <option value={event.id}>
+                              {event.nom} - {event.temporada}
+                            </option>
+                          {/each}
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1486,17 +1494,17 @@
           Historial de Campionats
         </h3>
 
-        <!-- Filtres -->
-        <div class="mb-6 bg-gray-50 rounded-lg p-4">
-          <h4 class="text-sm font-medium text-gray-900 mb-3">Filtres</h4>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Filtres amb millor responsivitat mòbil -->
+        <div class="mb-6 bg-gray-50 rounded-lg p-3 sm:p-4">
+          <h4 class="text-sm sm:text-base font-medium text-gray-900 mb-3">Filtres</h4>
+          <div class="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-4">
             <!-- Filtre de Modalitat -->
             <div>
-              <label for="history-modalitat" class="block text-xs font-medium text-gray-700 mb-1">Modalitat</label>
+              <label for="history-modalitat" class="block text-sm font-medium text-gray-700 mb-2">Modalitat</label>
               <select
                 id="history-modalitat"
                 bind:value={historyModalityFilter}
-                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[44px] touch-manipulation bg-white"
               >
                 <option value="">Totes les modalitats</option>
                 <option value="tres_bandes">3 Bandes</option>
@@ -1507,11 +1515,11 @@
 
             <!-- Filtre de Temporada -->
             <div>
-              <label for="history-temporada" class="block text-xs font-medium text-gray-700 mb-1">Temporada</label>
+              <label for="history-temporada" class="block text-sm font-medium text-gray-700 mb-2">Temporada</label>
               <select
                 id="history-temporada"
                 bind:value={historySeasonFilter}
-                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[44px] touch-manipulation bg-white"
               >
                 <option value="">Totes les temporades</option>
                 {#each [...new Set(historicalEvents.map(e => e.temporada))].sort().reverse() as temporada}
@@ -1527,34 +1535,34 @@
                   historyModalityFilter = '';
                   historySeasonFilter = '';
                 }}
-                class="w-full px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+                class="w-full px-4 py-3 text-sm sm:text-base bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors min-h-[44px] touch-manipulation font-medium"
               >
-                Netejar filtres
+                🗑️ Netejar filtres
               </button>
             </div>
           </div>
         </div>
 
         {#if filteredHistoricalEvents.length > 0}
-          <div class="space-y-6">
+          <div class="space-y-4">
             {#each filteredHistoricalEvents.slice(0, displayLimit) as event}
-              <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div class="flex items-center justify-between">
-                  <div class="flex-1">
-                    <h4 class="font-medium text-gray-900">{event.nom}</h4>
-                    <p class="text-sm text-gray-500">
+              <div class="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div class="flex-1 min-w-0">
+                    <h4 class="font-medium text-gray-900 text-base sm:text-lg">{event.nom}</h4>
+                    <p class="text-sm text-gray-500 mt-1">
                       Temporada {event.temporada} •
                       {event.modalitat === 'tres_bandes' ? '3 Bandes' :
                        event.modalitat === 'lliure' ? 'Lliure' : 'Banda'}
                     </p>
                   </div>
-                  <div class="flex items-center gap-3">
-                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      Finalitzat
+                  <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <span class="inline-flex items-center justify-center px-3 py-2 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                      ✅ Finalitzat
                     </span>
                     <a
                       href="/campionats-socials/{event.id}/classificacio?from=history"
-                      class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                      class="inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors min-h-[44px] touch-manipulation"
                     >
                       📊 Classificació
                     </a>
@@ -1564,17 +1572,17 @@
             {/each}
           </div>
 
-          <!-- Controls de paginació -->
-          <div class="mt-6 flex items-center justify-between">
-            <div class="text-sm text-gray-500">
+          <!-- Controls de paginació amb millor touch targets -->
+          <div class="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="text-sm text-gray-500 text-center sm:text-left">
               Mostrant {Math.min(displayLimit, filteredHistoricalEvents.length)} de {filteredHistoricalEvents.length} campionats
             </div>
             {#if filteredHistoricalEvents.length > displayLimit}
               <button
                 on:click={() => displayLimit += 10}
-                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-600 bg-blue-100 hover:bg-blue-200 transition-colors"
+                class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-blue-600 bg-blue-100 hover:bg-blue-200 transition-colors min-h-[44px] touch-manipulation"
               >
-                Mostrar més campionats
+                📋 Mostrar més campionats
               </button>
             {/if}
           </div>
@@ -1632,16 +1640,16 @@
                     <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
                       ✅ Inscripcions Obertes
                     </span>
-                    <div class="flex space-x-2">
+                    <div class="flex flex-col sm:flex-row gap-3">
                       <button
                         on:click={() => { selectedEventId = event.id; activeView = 'inscriptions'; }}
-                        class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
+                        class="inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-blue-700 bg-blue-100 hover:bg-blue-200 min-h-[44px] touch-manipulation"
                       >
                         📋 Veure Calendari
                       </button>
                       {#if isUserAdmin}
                         <button
-                          class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                          class="inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 min-h-[44px] touch-manipulation"
                         >
                           ⚙️ Gestionar Inscripcions
                         </button>
@@ -1682,7 +1690,7 @@
             {#if isUserAdmin}
               <div class="mt-6">
                 <button
-                  class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  class="inline-flex items-center justify-center w-full sm:w-auto px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 min-h-[48px] touch-manipulation"
                 >
                   ➕ Obrir Inscripcions per a un Campionat
                 </button>

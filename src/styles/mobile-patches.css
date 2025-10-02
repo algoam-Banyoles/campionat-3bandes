@@ -1,0 +1,132 @@
+/* Mobile Responsiveness Patches */
+
+/* Safe area support */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.pt-safe {
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+
+.pl-safe {
+  padding-left: max(1rem, env(safe-area-inset-left));
+}
+
+.pr-safe {
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+/* Touch manipulation for better touch response */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Enhanced touch targets for small screens */
+@media (max-width: 640px) {
+  /* Ensure minimum touch target size */
+  button, 
+  .btn,
+  a[role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px 12px;
+  }
+
+  /* Better spacing for small screens */
+  .space-y-8 > * + * {
+    margin-top: 1.5rem !important;
+  }
+
+  .space-y-6 > * + * {
+    margin-top: 1rem !important;
+  }
+
+  /* Table improvements for mobile */
+  .table-mobile-optimize {
+    font-size: 14px;
+  }
+
+  .table-mobile-optimize th,
+  .table-mobile-optimize td {
+    padding: 8px 4px;
+    white-space: nowrap;
+  }
+
+  /* Better form controls */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  select,
+  textarea {
+    min-height: 44px;
+    padding: 12px 16px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  /* Improved modals and dropdowns */
+  .modal-content {
+    margin: 10px;
+    max-width: calc(100vw - 20px);
+  }
+
+  /* Better cards on mobile */
+  .card-mobile {
+    margin: 8px;
+    padding: 16px;
+    border-radius: 12px;
+  }
+}
+
+/* Landscape mobile optimizations */
+@media (max-height: 640px) and (orientation: landscape) {
+  /* Reduce padding in landscape mode */
+  .py-8 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .space-y-8 > * + * {
+    margin-top: 1rem !important;
+  }
+
+  /* Navbar adjustments for landscape */
+  nav {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+}
+
+/* High DPI screen optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Sharper borders and shadows */
+  .border {
+    border-width: 0.5px;
+  }
+  
+  .shadow-sm {
+    box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* Prevent text size adjust on iOS */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Better focus indicators for touch devices */
+@media (hover: none) and (pointer: coarse) {
+  button:focus,
+  a:focus,
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: 3px solid #3b82f6;
+    outline-offset: 2px;
+  }
+}

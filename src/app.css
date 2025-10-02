@@ -1,6 +1,7 @@
 /* Import mobile and gesture styles */
 @import './styles/mobile.css';
 @import './styles/gestures.css';
+@import './styles/mobile-patches.css';
 
 @tailwind base;
 @tailwind components;
