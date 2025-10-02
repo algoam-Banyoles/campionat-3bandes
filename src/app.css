@@ -78,6 +78,18 @@
 
 /* Responsive table improvements */
 @media (max-width: 768px) {
+  /* Reduce container padding on mobile */
+  .container {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+
+  /* Reduce card/section padding */
+  .bg-white,
+  .border {
+    padding: 0.75rem !important;
+  }
+
   /* Hide non-essential columns on mobile */
   .hidden-mobile {
     display: none !important;
@@ -111,60 +123,157 @@
     margin-right: 10px;
   }
 
+  /* Table improvements - reduce padding significantly */
+  table {
+    font-size: calc(0.8rem * var(--font-size-multiplier)) !important;
+  }
+
+  table th,
+  table td {
+    padding: 4px 2px !important;
+  }
+
+  /* First and last columns get slightly more padding */
+  table th:first-child,
+  table td:first-child {
+    padding-left: 4px !important;
+  }
+
+  table th:last-child,
+  table td:last-child {
+    padding-right: 4px !important;
+  }
+
   /* Calendar specific mobile improvements */
   .calendar-table {
-    font-size: calc(0.875rem * var(--font-size-multiplier)) !important;
+    font-size: calc(0.8rem * var(--font-size-multiplier)) !important;
   }
 
   .calendar-table th,
   .calendar-table td {
-    padding: 8px 4px !important;
+    padding: 4px 2px !important;
   }
 
   /* Navigation mobile improvements */
   .mobile-nav-item {
-    padding: 16px !important;
-    font-size: calc(1rem * var(--font-size-multiplier)) !important;
-    min-height: 56px !important;
+    padding: 12px !important;
+    font-size: calc(0.95rem * var(--font-size-multiplier)) !important;
+    min-height: 52px !important;
   }
 
   /* Button spacing improvements */
   .btn-group-mobile {
     display: flex !important;
     flex-direction: column !important;
-    gap: 8px !important;
+    gap: 6px !important;
     width: 100% !important;
   }
 
   .btn-group-mobile button {
     width: 100% !important;
     justify-content: center !important;
+    padding: 8px 12px !important;
+  }
+
+  /* Headings with reduced margins */
+  h1 {
+    font-size: calc(1.5rem * var(--font-size-multiplier)) !important;
+    margin-bottom: 1rem !important;
+  }
+
+  h2 {
+    font-size: calc(1.25rem * var(--font-size-multiplier)) !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  h3 {
+    font-size: calc(1.1rem * var(--font-size-multiplier)) !important;
+    margin-bottom: 0.5rem !important;
   }
 }
 
 /* Very small screens (iPhone SE, etc.) */
 @media (max-width: 480px) {
-  /* Even smaller text for ultra-compact screens */
+  /* Ultra-compact padding */
+  .container {
+    padding-left: 0.25rem !important;
+    padding-right: 0.25rem !important;
+  }
+
+  .bg-white,
+  .border {
+    padding: 0.5rem !important;
+  }
+
+  /* Maintain readable text but minimize padding */
+  table {
+    font-size: calc(0.75rem * var(--font-size-multiplier)) !important;
+  }
+
+  table th,
+  table td {
+    padding: 3px 1px !important;
+  }
+
   .calendar-table {
     font-size: calc(0.75rem * var(--font-size-multiplier)) !important;
   }
 
   .calendar-table th,
   .calendar-table td {
-    padding: 6px 2px !important;
+    padding: 3px 1px !important;
   }
 
   /* Reduce padding on cards */
   .mobile-card {
-    padding: 12px !important;
-    margin-bottom: 12px !important;
+    padding: 8px !important;
+    margin-bottom: 8px !important;
   }
 
   /* Compact navigation */
   .mobile-nav-item {
-    padding: 12px !important;
-    font-size: calc(0.9rem * var(--font-size-multiplier)) !important;
-    min-height: 48px !important;
+    padding: 10px !important;
+    font-size: calc(0.85rem * var(--font-size-multiplier)) !important;
+    min-height: 44px !important;
+  }
+
+  /* Compact headings */
+  h1 {
+    font-size: calc(1.35rem * var(--font-size-multiplier)) !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  h2 {
+    font-size: calc(1.1rem * var(--font-size-multiplier)) !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  /* Buttons with minimal padding */
+  button {
+    padding: 6px 10px !important;
+  }
+}
+
+/* Portrait orientation notification for mobile devices */
+@media (max-width: 768px) and (orientation: portrait) {
+  body::before {
+    content: "Per a una millor experiència, si us plau gira el teu dispositiu a horitzontal 🔄";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #fbbf24;
+    color: #000;
+    text-align: center;
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    z-index: 9999;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  body {
+    padding-top: 40px;
   }
 }
 
