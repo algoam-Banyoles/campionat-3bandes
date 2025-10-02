@@ -55,7 +55,6 @@
 
       if (categoriesError) throw categoriesError;
       loadedCategories = data || [];
-      console.log('📁 Loaded categories:', loadedCategories.length, loadedCategories);
     } catch (e) {
       console.error('Error loading categories:', e);
     }
@@ -63,7 +62,6 @@
 
   async function loadClassifications() {
     if (!event?.id) {
-      console.log('🔍 SocialLeagueClassifications: No event ID', event);
       return;
     }
 
@@ -71,7 +69,6 @@
     error = null;
 
     try {
-      console.log('🔍 Loading classifications for event:', event.id);
       // Load real-time classifications for social leagues from calendari_partides
       const { data, error: classificationsError } = await supabase
         .rpc('get_social_league_classifications', {
@@ -81,10 +78,6 @@
       if (classificationsError) throw classificationsError;
 
       classifications = data || [];
-      console.log('✅ Loaded', classifications.length, 'classifications');
-      if (classifications.length > 0) {
-        console.log('Sample:', classifications[0]);
-      }
 
       // Load last match date
       const { data: lastMatch, error: lastMatchError } = await supabase
@@ -172,15 +165,17 @@
   // Extract unique categories from classifications
   $: categoriesFromClassifications = Array.from(
     new Map(
-      classifications.map(c => [
-        c.categoria_id,
-        {
-          id: c.categoria_id,
-          nom: c.categoria_nom,
-          ordre_categoria: c.categoria_ordre,
-          distancia_caramboles: c.categoria_distancia_caramboles || 0
-        }
-      ])
+      classifications
+        .filter(c => c.categoria_id) // Filter out classifications without categoria_id
+        .map(c => [
+          c.categoria_id,
+          {
+            id: c.categoria_id,
+            nom: c.categoria_nom,
+            ordre_categoria: c.categoria_ordre,
+            distancia_caramboles: c.categoria_distancia_caramboles || 0
+          }
+        ])
     ).values()
   ).sort((a, b) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0));
 
@@ -325,7 +320,7 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200 bg-white">
-                {#each categoryClassifications as classification (classification.player_id + classification.categoria_id)}
+                {#each categoryClassifications as classification (classification.soci_numero + classification.categoria_id)}
                   <tr class="hover:bg-gray-50 {classification.posicio <= 3 ? 'bg-gradient-to-r from-yellow-50 to-orange-50' : ''}">
                     <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                       <div class="flex items-center justify-center">

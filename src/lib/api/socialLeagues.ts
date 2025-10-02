@@ -20,7 +20,7 @@ import type {
  * Obtenir tots els events de campionats socials històrics
  */
 export async function getSocialLeagueEvents(): Promise<SocialLeagueEvent[]> {
-  // Get events without categories first to avoid RLS issues
+  // Get events first
   const { data: events, error } = await supabase
     .from('events')
     .select(`
@@ -47,11 +47,36 @@ export async function getSocialLeagueEvents(): Promise<SocialLeagueEvent[]> {
     throw error;
   }
 
-  return events?.map(event => ({
+  if (!events || events.length === 0) {
+    return [];
+  }
+
+  // Get all categories for these events
+  const eventIds = events.map(e => e.id);
+  const { data: categories, error: catError } = await supabase
+    .from('categories')
+    .select('*')
+    .in('event_id', eventIds)
+    .order('ordre_categoria');
+
+  if (catError) {
+    console.error('Error fetching categories:', catError);
+  }
+
+  // Group categories by event_id
+  const categoriesByEvent = new Map<string, any[]>();
+  categories?.forEach(cat => {
+    if (!categoriesByEvent.has(cat.event_id)) {
+      categoriesByEvent.set(cat.event_id, []);
+    }
+    categoriesByEvent.get(cat.event_id)!.push(cat);
+  });
+
+  return events.map(event => ({
     ...event,
     created_at: event.creat_el, // Map creat_el to created_at for type compatibility
-    categories: [] // For now, return empty categories to avoid RLS issues
-  })) || [];
+    categories: categoriesByEvent.get(event.id) || []
+  }));
 }
 
 /**

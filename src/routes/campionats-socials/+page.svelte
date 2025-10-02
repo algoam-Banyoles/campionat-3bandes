@@ -1340,108 +1340,11 @@
                   </div>
 
                 {:else if managementView === 'standings'}
-                  <!-- Classificació -->
-                  <div class="space-y-8">
-                    <h4 class="text-lg font-medium text-gray-900">Classificació per Categories</h4>
-
-                    {#if selectedEvent.categories && selectedEvent.categories.length > 0}
-                      <div class="space-y-8">
-                        {#each selectedEvent.categories as category}
-                          {@const categoryInscriptions = inscriptions.filter(i => i.categoria_assignada_id === category.id)}
-                          <div class="bg-gray-50 rounded-lg p-6">
-                            <div class="flex items-center justify-between mb-4">
-                              <h5 class="text-lg font-medium text-gray-900">{category.nom}</h5>
-                              <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                                {categoryInscriptions.length} participants
-                              </span>
-                            </div>
-
-                            {#if categoryInscriptions.length > 0}
-                              <div class="bg-white rounded-lg overflow-hidden shadow">
-                                <table class="min-w-full divide-y divide-gray-200">
-                                  <thead class="bg-gray-50">
-                                    <tr>
-                                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Posició
-                                      </th>
-                                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Jugador
-                                      </th>
-                                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        PJ
-                                      </th>
-                                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        PG
-                                      </th>
-                                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        PP
-                                      </th>
-                                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Punts
-                                      </th>
-                                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        %
-                                      </th>
-                                    </tr>
-                                  </thead>
-                                  <tbody class="bg-white divide-y divide-gray-200">
-                                    {#each categoryInscriptions.sort((a, b) => (b.socis?.nom || '').localeCompare(a.socis?.nom || '')) as inscription, index}
-                                      <tr class="hover:bg-gray-50">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                          {index + 1}
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                          <div class="flex items-center">
-                                            <div>
-                                              <div class="text-sm font-medium text-gray-900">
-                                                {inscription.socis?.nom} {inscription.socis?.cognoms}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                          0
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                          0
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                          0
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                          0
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                          0%
-                                        </td>
-                                      </tr>
-                                    {/each}
-                                  </tbody>
-                                </table>
-                              </div>
-                              <div class="mt-3 text-center">
-                                <p class="text-sm text-gray-500">
-                                  💡 Les estadístiques es calcularan automàticament quan es juguin les partides
-                                </p>
-                              </div>
-                            {:else}
-                              <div class="text-center py-8">
-                                <p class="text-gray-500">No hi ha participants en aquesta categoria</p>
-                              </div>
-                            {/if}
-                          </div>
-                        {/each}
-                      </div>
-                    {:else}
-                      <div class="bg-gray-50 rounded-lg p-8 text-center">
-                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">No hi ha categories configurades</h3>
-                        <p class="mt-1 text-sm text-gray-500">Les categories es mostraran aquí quan estiguin disponibles</p>
-                      </div>
-                    {/if}
-                  </div>
+                  <!-- Classificacions en temps real -->
+                  <SocialLeagueClassifications
+                    event={selectedEvent}
+                    showDetails={true}
+                  />
                 {/if}
               </div>
             </div>

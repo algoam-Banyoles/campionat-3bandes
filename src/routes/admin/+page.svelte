@@ -1,8 +1,8 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { goto, invalidateAll, invalidate } from '$app/navigation';
-    import { user, adminStore } from '$lib/stores/auth';
-    import { checkIsAdmin } from '$lib/roles';
+    import { user } from '$lib/stores/auth';
+    import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
@@ -64,12 +64,6 @@
         return;
       }
 
-      const adm = await checkIsAdmin();
-      if (!adm) {
-        error = errText('Només els administradors poden accedir a aquesta pàgina.');
-        return;
-      }
-
       await loadRecent();
 
     } catch (e) {
@@ -78,6 +72,15 @@
       loading = false;
     }
   });
+
+  // Reactively check admin status
+  $: {
+    if ($adminChecked && !$isAdmin && $user?.email) {
+      error = errText('Només els administradors poden accedir a aquesta pàgina.');
+    } else if ($adminChecked && $isAdmin) {
+      error = null;
+    }
+  }
 
   async function applyPenalty() {
     try {
@@ -266,7 +269,7 @@
   <p class="text-slate-500">Carregant…</p>
 {:else if error}
   <Banner type="error" message={error} />
-{:else if $adminStore}
+{:else if $isAdmin}
   <!-- SECCIÓ: DADES GENERALS -->
   <div class="mb-8">
     <h2 class="text-xl font-bold text-gray-900 mb-1 flex items-center">

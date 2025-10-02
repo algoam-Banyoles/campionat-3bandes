@@ -1,11 +1,10 @@
 import type { LayoutLoad } from './$types';
-import { supabase } from '$lib/supabaseClient';
-import { ensureAdmin } from '$lib/guards/adminOnly';
 
 export const ssr = false;
 export const prerender = false;
 
 export const load: LayoutLoad = async () => {
-  await ensureAdmin(supabase);
+  // Admin check is now handled in +layout.svelte using effectiveIsAdmin
+  // This allows the viewMode toggle to work properly
   return {};
 };

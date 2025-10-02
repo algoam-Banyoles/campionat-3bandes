@@ -162,7 +162,7 @@
       <div class="hidden lg:flex lg:items-center lg:justify-center flex-1 h-20">
         <div class="flex items-center space-x-4 xl:space-x-8">
           {#each Object.entries(navegacio) as [key, section]}
-            {#if !section.adminOnly || $effectiveIsAdmin}
+            {#if !section.adminOnly || $isAdmin}
               <div class="relative" data-dropdown>
                 <button
                   on:click={() => toggleDropdown(key)}
@@ -288,7 +288,7 @@
       <div class="lg:hidden">
         <div class="pt-2 pb-3 space-y-1">
           {#each Object.entries(navegacio) as [, section]}
-            {#if !section.adminOnly || $effectiveIsAdmin}
+            {#if !section.adminOnly || $isAdmin}
               <div class="px-2">
                 <div class="text-gray-600 font-medium text-sm uppercase tracking-wider py-3">
                   {section.icon} {section.label}
