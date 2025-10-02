@@ -1,5 +1,6 @@
 <script lang="ts">
   import { supabase } from '$lib/supabaseClient';
+  import { user } from '$lib/stores/auth';
   import { onMount } from 'svelte';
 
   export let eventId: string = '';
@@ -13,6 +14,8 @@
   let error: string | null = null;
   let selectedCategories: Set<string> = new Set(); // Multiple category selection
   let searchPlayer = ''; // Search text for player filter
+  let showOnlyMyResults = false;
+  let myPlayerData: any = null;
 
   onMount(() => {
     if (eventId) {
@@ -25,6 +28,47 @@
     loadMatches();
     loadCategories();
   }
+
+  // Load player data for logged-in user
+  async function loadMyPlayerData() {
+    if (!$user) {
+      myPlayerData = null;
+      return;
+    }
+
+    try {
+      // Use email to find player since players table doesn't have user_id
+      const { data: playerData, error: playerError } = await supabase
+        .from('players')
+        .select('id, numero_soci, nom, email')
+        .eq('email', $user.email)
+        .single();
+
+      if (playerError) {
+        console.log('No player data found for user email:', $user.email);
+        myPlayerData = null;
+      } else {
+        myPlayerData = playerData;
+        console.log('✅ Loaded player data for user:', myPlayerData);
+      }
+    } catch (e) {
+      console.error('Error loading player data:', e);
+      myPlayerData = null;
+    }
+  }
+
+  // React to user changes
+  $: if ($user) {
+    console.log('🔍 User detected in results, loading player data:', $user.id);
+    loadMyPlayerData();
+  } else {
+    console.log('🔍 No user in results');
+    myPlayerData = null;
+    showOnlyMyResults = false;
+  }
+
+  // Debug myPlayerData changes
+  $: console.log('🎯 Results - myPlayerData:', myPlayerData, 'showOnlyMyResults:', showOnlyMyResults);
 
   async function loadCategories() {
     try {
@@ -186,6 +230,12 @@
       return false;
     }
 
+    // Filter "Les meves dades" per jugador logat
+    if (showOnlyMyResults && myPlayerData) {
+      const isMyMatch = match.jugador1_id === myPlayerData.id || match.jugador2_id === myPlayerData.id;
+      if (!isMyMatch) return false;
+    }
+
     // Filter by category (if any selected)
     if (selectedCategories.size > 0 && !selectedCategories.has(match.categoria_id)) {
       return false;
@@ -264,6 +314,7 @@
             bind:value={searchPlayer}
             placeholder="Escriu nom o cognoms del jugador..."
             class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={showOnlyMyResults}
           />
           <svg class="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -277,6 +328,24 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
               </svg>
             </button>
+          {/if}
+        </div>
+
+        <!-- Checkbox "Els meus resultats" per jugadors logats -->
+        <div class="mt-2">
+          {#if myPlayerData}
+            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                bind:checked={showOnlyMyResults}
+                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span class="font-medium">🎯 Els meus resultats</span>
+            </label>
+          {:else}
+            <div class="text-xs text-gray-400">
+              DEBUG: user={$user ? 'YES' : 'NO'}, myPlayerData={myPlayerData ? 'YES' : 'NO'}
+            </div>
           {/if}
         </div>
       </div>

@@ -646,6 +646,8 @@
   let selectedWeek = '';
   let playerSearch = '';
   let playerSuggestions = [];
+  let showOnlyMyMatches = false;
+  let myPlayerData: any = null;
 
   // Edició (només per admins)
   let editingMatch: any = null;
@@ -711,6 +713,47 @@
   //     timelineDataLength: timelineData.length
   //   });
   // }
+
+  // Load player data for logged-in user
+  async function loadMyPlayerData() {
+    if (!$user) {
+      myPlayerData = null;
+      return;
+    }
+
+    try {
+      // Use email to find player since players table doesn't have user_id
+      const { data: playerData, error: playerError } = await supabase
+        .from('players')
+        .select('id, numero_soci, nom, email')
+        .eq('email', $user.email)
+        .single();
+
+      if (playerError) {
+        console.log('No player data found for user email:', $user.email);
+        myPlayerData = null;
+      } else {
+        myPlayerData = playerData;
+        console.log('✅ Loaded player data for user:', myPlayerData);
+      }
+    } catch (e) {
+      console.error('Error loading player data:', e);
+      myPlayerData = null;
+    }
+  }
+
+  // React to user changes
+  $: if ($user) {
+    console.log('🔍 User detected in calendar, loading player data:', $user.id);
+    loadMyPlayerData();
+  } else {
+    console.log('🔍 No user in calendar');
+    myPlayerData = null;
+    showOnlyMyMatches = false;
+  }
+
+  // Debug myPlayerData changes
+  $: console.log('🎯 Calendar - myPlayerData:', myPlayerData, 'showOnlyMyMatches:', showOnlyMyMatches);
 
   async function loadCalendarData() {
     if (!eventId) return;
@@ -1144,6 +1187,12 @@
       if (matchDate < today) return false;
     }
 
+    // Filtrar "Les meves dades" per jugador logat
+    if (showOnlyMyMatches && myPlayerData) {
+      const isMyMatch = match.jugador1_id === myPlayerData.id || match.jugador2_id === myPlayerData.id;
+      if (!isMyMatch) return false;
+    }
+
     if (selectedCategory && match.categoria_id !== selectedCategory) return false;
     if (selectedDate) {
       const matchDate = match.data_programada ?
@@ -1167,6 +1216,13 @@
 
     // Si el slot és anterior a avui, no el mostrem
     if (slotDate < today) return false;
+
+    // Filtrar "Les meves dades" per jugador logat
+    if (showOnlyMyMatches && myPlayerData) {
+      if (!slot.match) return false;
+      const isMyMatch = slot.match.jugador1_id === myPlayerData.id || slot.match.jugador2_id === myPlayerData.id;
+      if (!isMyMatch) return false;
+    }
 
     // Si hi ha cerca de jugador, només mostrar slots amb partits d'aquell jugador
     if (playerSearch.length >= 2) {
@@ -2384,6 +2440,7 @@
             bind:value={playerSearch}
             placeholder="Escriu nom o cognoms..."
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
+            disabled={showOnlyMyMatches}
           />
           {#if playerSearch}
             <button
@@ -2393,6 +2450,24 @@
             >
               ✕
             </button>
+          {/if}
+        </div>
+
+        <!-- Checkbox "Les meves dades" per jugadors logats -->
+        <div class="mt-2">
+          {#if myPlayerData}
+            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                bind:checked={showOnlyMyMatches}
+                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span class="font-medium">🎯 Les meves partides</span>
+            </label>
+          {:else}
+            <div class="text-xs text-gray-400">
+              DEBUG: user={$user ? 'YES' : 'NO'}, myPlayerData={myPlayerData ? 'YES' : 'NO'}
+            </div>
           {/if}
         </div>
 
