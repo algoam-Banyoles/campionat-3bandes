@@ -42,14 +42,14 @@ jobs:
           echo "Checking repository secrets configuration..."
           
           # This step will fail if secrets are not configured
-          if [ "${{ secrets.SUPABASE_ACCESS_TOKEN }}" = "" ]; then
+          if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then
             echo "::error::SUPABASE_ACCESS_TOKEN secret is not configured"
             echo "Go to Repository Settings > Secrets and variables > Actions"
             echo "Add SUPABASE_ACCESS_TOKEN with your Supabase access token"
             exit 1
           fi
           
-          if [ "${{ secrets.SUPABASE_PROJECT_REF_PROD }}" = "" ]; then
+          if [ -z "${{ secrets.SUPABASE_PROJECT_REF_PROD }}" ]; then
             echo "::error::SUPABASE_PROJECT_REF_PROD secret is not configured"
             echo "Go to Repository Settings > Secrets and variables > Actions"
             echo "Add SUPABASE_PROJECT_REF_PROD with your production project ID"

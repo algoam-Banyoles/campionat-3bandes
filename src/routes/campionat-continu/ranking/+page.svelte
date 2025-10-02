@@ -361,18 +361,9 @@
               class:border-l-gray-400={r.posicio === 2}
               class:border-l-orange-400={r.posicio === 3}>
             <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-              <div class="flex items-center gap-2">
-                {#if r.posicio === 1}
-                  <span class="text-2xl" title="Primer classificat">🥇</span>
-                {:else if r.posicio === 2}
-                  <span class="text-2xl" title="Segon classificat">🥈</span>
-                {:else if r.posicio === 3}
-                  <span class="text-2xl" title="Tercer classificat">🥉</span>
-                {/if}
-                <span class="text-sm sm:text-base lg:text-lg font-bold" class:text-yellow-600={r.posicio === 1} class:text-gray-600={r.posicio === 2} class:text-orange-600={r.posicio === 3}>
-                  {r.posicio}
-                </span>
-              </div>
+              <span class="text-sm sm:text-base lg:text-lg font-bold" class:text-yellow-600={r.posicio === 1} class:text-gray-600={r.posicio === 2} class:text-orange-600={r.posicio === 3}>
+                {r.posicio}
+              </span>
             </td>
             <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
               <div class="flex items-center gap-2 sm:gap-3">
