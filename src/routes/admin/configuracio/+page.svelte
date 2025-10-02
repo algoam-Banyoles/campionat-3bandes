@@ -133,7 +133,7 @@
   <p class="text-slate-500">Carregant configuració…</p>
 {:else if error}
   <Banner type="error" message={error} />
-{:else if $adminStore && settings}
+{:else if $isAdmin && settings}
   <div class="max-w-2xl space-y-6">
     {#if saveSuccess}
       <Banner type="success" message={saveSuccess} />
