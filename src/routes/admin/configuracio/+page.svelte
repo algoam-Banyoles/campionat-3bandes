@@ -1,12 +1,7 @@
 <script lang="ts">
-  import { onMount } fr      // Use reactive admin check
-      if (!$adminChecked || !$isAdmin) {
-        error = 'Només els administradors poden accedir a aquesta pàgina.';
-        return;
-      }velte';
+  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { user, adminStore } from '$lib/stores/auth';
-  import { checkIsAdmin } from '$lib/roles';
+  import { user } from '$lib/stores/auth';
   import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
   import Banner from '$lib/components/general/Banner.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';

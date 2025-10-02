@@ -221,9 +221,9 @@
 
       {#if categories.length > 0}
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-3">
+          <div class="block text-sm font-medium text-gray-700 mb-3">
             Selecciona Categoria
-          </label>
+          </div>
           <div class="flex gap-2 flex-wrap">
             {#each categories as category}
               <button
