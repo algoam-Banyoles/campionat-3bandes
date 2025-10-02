@@ -2,7 +2,10 @@
     import { page } from '$app/stores';
     import { user } from '$lib/stores/auth';
     import { isAdmin } from '$lib/stores/adminAuth';
-    import { signOut } from '$lib/utils/auth-client';
+    import { signOut } fr                <!-- Dropdown -->
+                {#if activeDropdown === key}
+                  <div class="absolute top-full left-0 mt-1 w-72 bg-white rounded-lg shadow-xl border-2 border-gray-200 z-[9999] backdrop-blur-sm">
+                    <div class="py-3 bg-white rounded-lg relative overflow-hidden">$lib/utils/auth-client';
     import { isDevUser } from '$lib/guards/devOnly';
     import { viewMode, effectiveIsAdmin } from '$lib/stores/viewMode';
 
@@ -147,7 +150,7 @@
 
 <svelte:window on:click={handleClickOutside} />
 
-<nav class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm" role="navigation" aria-label="Navegació principal">
+<nav class="sticky top-0 z-[9998] bg-white border-b border-gray-200 shadow-sm" role="navigation" aria-label="Navegació principal">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <!-- Navegació principal -->
     <div class="flex h-20 justify-between">
