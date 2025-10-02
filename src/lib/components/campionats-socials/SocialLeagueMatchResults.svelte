@@ -302,39 +302,42 @@
         </div>
       </div>
 
-      <!-- Player search -->
-      <div>
-        <label for="player-search" class="block text-sm font-medium text-gray-700 mb-2">
-          Cerca per jugador
-        </label>
-        <div class="relative">
-          <input
-            id="player-search"
-            type="text"
-            bind:value={searchPlayer}
-            placeholder="Escriu nom o cognoms del jugador..."
-            class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            disabled={showOnlyMyResults}
-          />
-          <svg class="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-          </svg>
-          {#if searchPlayer}
-            <button
-              on:click={() => searchPlayer = ''}
-              class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
-            >
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
-          {/if}
+      <!-- Player search and checkbox in same row -->
+      <div class="flex gap-4 items-start">
+        <!-- Player search (more narrow) -->
+        <div class="flex-1 max-w-md">
+          <label for="player-search" class="block text-sm font-medium text-gray-700 mb-2">
+            Cerca per jugador
+          </label>
+          <div class="relative">
+            <input
+              id="player-search"
+              type="text"
+              bind:value={searchPlayer}
+              placeholder="Escriu nom o cognoms..."
+              class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={showOnlyMyResults}
+            />
+            <svg class="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            {#if searchPlayer}
+              <button
+                on:click={() => searchPlayer = ''}
+                class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+              >
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            {/if}
+          </div>
         </div>
 
-        <!-- Checkbox "Els meus resultats" per jugadors logats -->
-        <div class="mt-2">
+        <!-- Checkbox "Els meus resultats" al costat -->
+        <div class="flex-shrink-0 pt-8">
           {#if myPlayerData}
-            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer whitespace-nowrap">
               <input
                 type="checkbox"
                 bind:checked={showOnlyMyResults}
@@ -347,18 +350,6 @@
               DEBUG: user={$user ? 'YES' : 'NO'}, myPlayerData={myPlayerData ? 'YES' : 'NO'}
             </div>
           {/if}
-        </div>
-      </div>
-
-      <!-- Summary stats -->
-      <div class="grid grid-cols-2 gap-4">
-        <div class="text-center bg-gray-50 rounded-lg p-4">
-          <div class="text-2xl font-bold text-gray-900">{allMatches.length}</div>
-          <div class="text-sm text-gray-500">Total Partides</div>
-        </div>
-        <div class="text-center bg-green-50 rounded-lg p-4">
-          <div class="text-2xl font-bold text-green-600">{matchesByStatus.completed}</div>
-          <div class="text-sm text-gray-500">Partides Jugades</div>
         </div>
       </div>
     </div>
@@ -481,6 +472,24 @@
             {/each}
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- Summary stats at the end -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6">
+      <h4 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
+        <span class="mr-2">📊</span>
+        Resum de Partides
+      </h4>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="text-center bg-gray-50 rounded-lg p-6">
+          <div class="text-3xl font-bold text-gray-900">{allMatches.length}</div>
+          <div class="text-sm text-gray-600 mt-1">Total Partides</div>
+        </div>
+        <div class="text-center bg-green-50 rounded-lg p-6">
+          <div class="text-3xl font-bold text-green-600">{matchesByStatus.completed}</div>
+          <div class="text-sm text-gray-600 mt-1">Partides Jugades</div>
+        </div>
       </div>
     </div>
 
