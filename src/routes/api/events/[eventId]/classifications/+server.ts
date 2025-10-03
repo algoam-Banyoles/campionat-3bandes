@@ -10,14 +10,10 @@ export const GET: RequestHandler = async ({ params, request }) => {
   }
 
   try {
-    console.log('🔍 API: Loading classifications for event:', eventId);
-    
     // Use hardcoded values for debugging (these should be in environment later)
     const supabaseUrl = 'https://qbldqtaqawnahuzlzsjs.supabase.co';
     const serviceRoleKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFibGRxdGFxYXduYWh1emx6c2pzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzA1OTIwOCwiZXhwIjoyMDcyNjM1MjA4fQ.-tP6NsvVa6vMFcYXRbXjqQsKC-rm5DxUYi6MzJuiAVI';
     
-    console.log('🔧 Using hardcoded credentials for debugging');
-
     // Create Supabase client with service role for historical events access
     const supabaseAdmin = createClient(
       supabaseUrl,
@@ -77,11 +73,6 @@ export const GET: RequestHandler = async ({ params, request }) => {
       .eq('event_id', eventId)
       .order('posicio', { ascending: true });
 
-    console.log('📊 API: Classifications query result:', {
-      dataLength: classificacionsData?.length || 0,
-      error: classificacionsError
-    });
-
     if (classificacionsError) {
       console.error('❌ API: Error loading classifications:', classificacionsError);
       return json({ error: 'Error loading classifications' }, { status: 500 });
@@ -89,7 +80,6 @@ export const GET: RequestHandler = async ({ params, request }) => {
 
     // If no classifications found, try to get inscriptions as fallback
     if (!classificacionsData || classificacionsData.length === 0) {
-      console.log('ℹ️ API: No classifications found, trying inscriptions');
 
       const { data: inscriptionsData, error: inscriptionsError } = await supabaseAdmin
         .from('inscripcions')

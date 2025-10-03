@@ -423,11 +423,6 @@
                       ✅ Es pot reptar
                     </span>
                   {/if}
-                  
-                  <!-- Badge de debug temporal -->
-                  <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-sm">
-                    🔍 Pos={r.posicio || 'null'} Gen={r.generallyChallengeable ? '✅' : '❌'} Rep={r.reptable ? '✅' : '❌'}
-                  </span>
 
                   <!-- Botó reptar modernitzat -->
                   {#if myPlayerId && r.reptable}

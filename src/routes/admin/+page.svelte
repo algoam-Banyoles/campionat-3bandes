@@ -374,7 +374,7 @@
               <li>
                 {new Date(r.creat_el).toLocaleDateString()} ·
                 {r.posicio_anterior ?? '—'}→{r.posicio_nova ?? '—'} ·
-                {recentPlayers[r.player_id] ?? r.player_id} ·
+                {recentPlayers[r.player_id] ?? 'Jugador desconegut'} ·
                 {(r.motiu ?? '').slice(0, 30)}
               </li>
             {/each}

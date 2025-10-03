@@ -1561,9 +1561,8 @@
     );
 
     if (confirmation) {
-      // Per ara, redirigir a la secció de partides pendents
-      alert('Funcionalitat en desenvolupament: Se\'t dirigirà a la secció de partides pendents per programar.');
-      // TODO: Implementar modal per seleccionar partida pendent de programar
+      // Funcionalitat pendent d'implementar
+      return;
     }
   }
 
@@ -2374,30 +2373,32 @@
         <div class="flex bg-gray-100 rounded-lg p-1">
           <button
             on:click={() => viewMode = 'category'}
-            class="px-3 py-1 rounded text-sm transition-colors"
+            class="px-2 md:px-3 py-1 rounded text-xs md:text-sm transition-colors"
             class:bg-white={viewMode === 'category'}
             class:shadow-sm={viewMode === 'category'}
             class:text-gray-900={viewMode === 'category'}
             class:text-gray-600={viewMode !== 'category'}
           >
-            📋 Per Categoria
+            <span class="md:hidden">📋 Categoria</span>
+            <span class="hidden md:inline">📋 Per Categoria</span>
           </button>
           <button
             on:click={() => viewMode = 'timeline'}
-            class="px-3 py-1 rounded text-sm transition-colors"
+            class="px-2 md:px-3 py-1 rounded text-xs md:text-sm transition-colors"
             class:bg-white={viewMode === 'timeline'}
             class:shadow-sm={viewMode === 'timeline'}
             class:text-gray-900={viewMode === 'timeline'}
             class:text-gray-600={viewMode !== 'timeline'}
           >
-            📅 Cronològica
+            <span class="md:hidden">📅 Cronològ.</span>
+            <span class="hidden md:inline">📅 Cronològica</span>
           </button>
         </div>
 
         <!-- Botó d'impressió -->
         <button
           on:click={printCalendar}
-          class="no-print px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 flex items-center gap-1"
+          class="no-print hidden md:flex px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 items-center gap-1"
           title="Imprimir calendari cronològic"
         >
           🖨️ Imprimir

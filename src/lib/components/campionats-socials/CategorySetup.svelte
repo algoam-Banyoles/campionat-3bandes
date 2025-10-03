@@ -564,7 +564,6 @@
       });
 
       // Temporalment deshabilitat fins a configurar correctament la relació
-      console.log('Champions loading disabled temporarily');
       return;
 
     } catch (error) {

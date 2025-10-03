@@ -157,7 +157,7 @@
           {#each filtered as r}
             <tr class="border-t">
               <td class="p-2 whitespace-nowrap">{new Date(r.creat_el).toLocaleString()}</td>
-              <td class="p-2">{players[r.player_id] ?? r.player_id}</td>
+              <td class="p-2">{players[r.player_id] ?? 'Jugador desconegut'}</td>
               <td class="p-2">
                 {r.posicio_anterior ?? '—'} → {r.posicio_nova ?? '—'}
               </td>
