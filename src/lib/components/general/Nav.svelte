@@ -367,23 +367,54 @@
 
       <!-- Layout horitzontal (landscape) - Dues columnes -->
       <div class="portrait:xl:hidden landscape:2xl:hidden portrait:hidden landscape:block">
-        <div class="flex h-[calc(100vh-3.5rem)]">
+        <div class="flex h-[calc(100vh-3.5rem)] relative">
           <!-- Columna esquerra: Icones de seccions -->
-          <div class="w-20 bg-gray-100 border-r border-gray-300 overflow-y-auto">
-            {#each Object.entries(navegacio) as [key, section]}
-              {#if !section.adminOnly || $isAdmin}
+          <div class="w-20 bg-gray-100 border-r border-gray-300 overflow-y-auto flex flex-col">
+            <!-- Seccions de navegació -->
+            <div class="flex-1 overflow-y-auto">
+              {#each Object.entries(navegacio) as [key, section]}
+                {#if !section.adminOnly || $isAdmin}
+                  <button
+                    on:click={() => toggleMobileSection(key)}
+                    class="w-full flex flex-col items-center justify-center py-3 px-2 hover:bg-gray-200 transition-colors border-b border-gray-300 {
+                      mobileExpandedSection === key ? 'bg-' + section.color + '-100 border-l-4 border-' + section.color + '-500' : ''
+                    }"
+                    title={section.label}
+                  >
+                    <span class="text-2xl mb-1">{section.icon}</span>
+                    <span class="text-[10px] font-medium text-gray-700 text-center leading-tight">{section.label}</span>
+                  </button>
+                {/if}
+              {/each}
+            </div>
+            
+            <!-- User menu (fixat a baix) -->
+            <div class="flex-shrink-0 border-t-2 border-gray-400 bg-gray-100">
+              {#if $user}
                 <button
-                  on:click={() => toggleMobileSection(key)}
-                  class="w-full flex flex-col items-center justify-center py-3 px-2 hover:bg-gray-200 transition-colors border-b border-gray-300 {
-                    mobileExpandedSection === key ? 'bg-' + section.color + '-100 border-l-4 border-' + section.color + '-500' : ''
+                  on:click={() => toggleMobileSection('user')}
+                  class="w-full flex flex-col items-center justify-center py-3 px-2 hover:bg-gray-200 transition-colors {
+                    mobileExpandedSection === 'user' ? 'bg-blue-100 border-l-4 border-blue-500' : ''
                   }"
-                  title={section.label}
+                  title="Compte d'usuari"
                 >
-                  <span class="text-2xl mb-1">{section.icon}</span>
-                  <span class="text-[10px] font-medium text-gray-700 text-center leading-tight">{section.label}</span>
+                  <span class="text-2xl mb-1">👤</span>
+                  <span class="text-[10px] font-medium text-gray-700 text-center leading-tight truncate w-full px-1">
+                    {$user.email?.split('@')[0] || 'Usuari'}
+                  </span>
                 </button>
+              {:else}
+                <a
+                  href="/general/login"
+                  on:click={closeMobileMenuOnNavigate}
+                  class="w-full flex flex-col items-center justify-center py-3 px-2 hover:bg-blue-100 transition-colors"
+                  title="Iniciar sessió"
+                >
+                  <span class="text-2xl mb-1">🔐</span>
+                  <span class="text-[10px] font-medium text-blue-600 text-center leading-tight">Login</span>
+                </a>
               {/if}
-            {/each}
+            </div>
           </div>
 
           <!-- Columna dreta: Contingut de la secció seleccionada -->
@@ -437,9 +468,46 @@
             {/if}
           </div>
         </div>
-      </div>
+          <!-- Popup del menú d'usuari (només si està obert) -->
+          {#if mobileExpandedSection === 'user' && $user}
+            <div class="absolute bottom-0 left-20 w-64 bg-white border border-gray-300 shadow-lg z-50">
+              <div class="p-3">
+                <div class="text-xs font-medium text-gray-600 mb-1">Sessió iniciada com:</div>
+                <div class="text-sm font-semibold text-gray-900 truncate mb-3">{$user.email}</div>
 
-      <!-- User menu mòbil (portrait - a baix del tot) -->
+                {#if $isAdmin}
+                  <div class="flex items-center justify-between mb-3 pb-3 border-b border-gray-200">
+                    <span class="text-xs font-medium text-gray-700">Vista {$viewMode === 'admin' ? 'Admin' : 'Jugador'}</span>
+                    <button
+                      on:click={() => viewMode.toggleMode()}
+                      class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors {
+                        $viewMode === 'admin' ? 'bg-blue-600' : 'bg-green-600'
+                      }"
+                    >
+                      <span class="sr-only">Toggle view mode</span>
+                      <span
+                        class="inline-block h-3 w-3 transform rounded-full bg-white transition-transform {
+                          $viewMode === 'admin' ? 'translate-x-5' : 'translate-x-1'
+                        }"
+                      ></span>
+                    </button>
+                  </div>
+                {/if}
+
+                <button
+                  on:click={() => { signOut(); closeMobileMenuOnNavigate(); }}
+                  class="w-full px-3 py-2 text-sm font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                >
+                  Sortir
+                </button>
+              </div>
+            </div>
+          {/if}
+      </div>
+    {/if}
+
+    <!-- User menu mòbil (portrait - a baix del tot) -->
+    {#if mobileMenuOpen}
       <div class="portrait:block landscape:hidden pt-3 pb-3 border-t-2 border-gray-300 bg-gray-50">
         {#if $user}
           <div class="px-4 py-2">
@@ -483,71 +551,6 @@
             </a>
           </div>
         {/if}
-      </div>
-
-      <!-- User menu mòbil (landscape - com a icona a baix de la columna esquerra) -->
-      <div class="portrait:hidden landscape:block">
-        <div class="absolute bottom-0 left-0 w-20 bg-gray-100 border-t-2 border-gray-400">
-          {#if $user}
-            <button
-              on:click={() => toggleMobileSection('user')}
-              class="w-full flex flex-col items-center justify-center py-3 px-2 hover:bg-gray-200 transition-colors {
-                mobileExpandedSection === 'user' ? 'bg-blue-100 border-l-4 border-blue-500' : ''
-              }"
-              title="Compte d'usuari"
-            >
-              <span class="text-2xl mb-1">👤</span>
-              <span class="text-[10px] font-medium text-gray-700 text-center leading-tight truncate w-full px-1">
-                {$user.email?.split('@')[0] || 'Usuari'}
-              </span>
-            </button>
-
-            {#if mobileExpandedSection === 'user'}
-              <div class="absolute bottom-0 left-20 w-64 bg-white border border-gray-300 shadow-lg">
-                <div class="p-3">
-                  <div class="text-xs font-medium text-gray-600 mb-1">Sessió iniciada com:</div>
-                  <div class="text-sm font-semibold text-gray-900 truncate mb-3">{$user.email}</div>
-
-                  {#if $isAdmin}
-                    <div class="flex items-center justify-between mb-3 pb-3 border-b border-gray-200">
-                      <span class="text-xs font-medium text-gray-700">Vista {$viewMode === 'admin' ? 'Admin' : 'Jugador'}</span>
-                      <button
-                        on:click={() => viewMode.toggleMode()}
-                        class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors {
-                          $viewMode === 'admin' ? 'bg-blue-600' : 'bg-green-600'
-                        }"
-                      >
-                        <span class="sr-only">Toggle view mode</span>
-                        <span
-                          class="inline-block h-3 w-3 transform rounded-full bg-white transition-transform {
-                            $viewMode === 'admin' ? 'translate-x-5' : 'translate-x-1'
-                          }"
-                        ></span>
-                      </button>
-                    </div>
-                  {/if}
-
-                  <button
-                    on:click={() => { signOut(); closeMobileMenuOnNavigate(); }}
-                    class="w-full px-3 py-2 text-sm font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
-                  >
-                    Sortir
-                  </button>
-                </div>
-              </div>
-            {/if}
-          {:else}
-            <a
-              href="/general/login"
-              on:click={closeMobileMenuOnNavigate}
-              class="w-full flex flex-col items-center justify-center py-3 px-2 hover:bg-blue-100 transition-colors"
-              title="Iniciar sessió"
-            >
-              <span class="text-2xl mb-1">🔐</span>
-              <span class="text-[10px] font-medium text-blue-600 text-center leading-tight">Login</span>
-            </a>
-          {/if}
-        </div>
       </div>
     {/if}
   </div>
