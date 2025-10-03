@@ -280,7 +280,7 @@
       </div>
 
       <!-- Menú mòbil button -->
-      <div class="flex items-center lg:hidden">
+      <div class="flex items-center lg:hidden ml-2">
         <button
           on:click={() => mobileMenuOpen = !mobileMenuOpen}
           class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
