@@ -10,6 +10,7 @@
   import AccessibilityButton from "$lib/components/accessibility/AccessibilityButton.svelte";
   import AccessibilityModal from "$lib/components/accessibility/AccessibilityModal.svelte";
   import SkipLink from "$lib/components/accessibility/SkipLink.svelte";
+  import OrientationBanner from "$lib/components/general/OrientationBanner.svelte";
 
   let showInscripcio = false;
   let showAccessibilityModal = false;
@@ -159,6 +160,9 @@
 
 
 <SkipLink />
+
+<!-- Orientation banner for mobile devices -->
+<OrientationBanner />
 
 <!-- Accessibility button -->
 <AccessibilityButton on:open={openAccessibilityModal} />

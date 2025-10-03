@@ -255,28 +255,7 @@
   }
 }
 
-/* Portrait orientation notification for mobile devices */
-@media (max-width: 768px) and (orientation: portrait) {
-  body::before {
-    content: "Per a una millor experiència, si us plau gira el teu dispositiu a horitzontal 🔄";
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: #fbbf24;
-    color: #000;
-    text-align: center;
-    padding: 8px 16px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    z-index: 9999;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  }
-
-  body {
-    padding-top: 40px;
-  }
-}
+/* Portrait orientation notification removed - now handled by OrientationBanner component */
 
 /* Landscape orientation adjustments */
 @media (max-width: 768px) and (orientation: landscape) {
