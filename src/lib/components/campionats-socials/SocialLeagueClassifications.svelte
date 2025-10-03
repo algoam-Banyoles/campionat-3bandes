@@ -421,29 +421,6 @@
                 </div>
               {/each}
             </div>
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center">
-                      <span class="font-bold text-lg text-indigo-600">
-                        {classification.punts}
-                      </span>
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center text-blue-600 font-medium">
-                      {classification.caramboles_totals}
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center text-gray-900 font-medium">
-                      {classification.entrades_totals}
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center font-mono font-medium text-purple-600">
-                      {classification.mitjana_general?.toFixed(3) || '0.000'}
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center font-mono font-medium text-green-600">
-                      {classification.millor_mitjana?.toFixed(3) || '0.000'}
-                    </td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
 
           {#if showDetails}
             <!-- Category statistics -->

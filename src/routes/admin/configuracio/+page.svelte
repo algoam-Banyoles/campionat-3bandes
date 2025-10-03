@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { user } from '$lib/stores/auth';
   import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
+  import { checkIsAdmin } from '$lib/roles';
   import Banner from '$lib/components/general/Banner.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
 

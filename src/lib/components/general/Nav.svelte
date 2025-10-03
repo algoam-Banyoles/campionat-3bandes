@@ -2,10 +2,7 @@
     import { page } from '$app/stores';
     import { user } from '$lib/stores/auth';
     import { isAdmin } from '$lib/stores/adminAuth';
-    import { signOut } fr                <!-- Dropdown -->
-                {#if activeDropdown === key}
-                  <div class="absolute top-full left-0 mt-1 w-72 bg-white rounded-lg shadow-xl border-2 border-gray-200 z-[9999] backdrop-blur-sm">
-                    <div class="py-3 bg-white rounded-lg relative overflow-hidden">$lib/utils/auth-client';
+    import { signOut } from '$lib/utils/auth-client';
     import { isDevUser } from '$lib/guards/devOnly';
     import { viewMode, effectiveIsAdmin } from '$lib/stores/viewMode';
 
