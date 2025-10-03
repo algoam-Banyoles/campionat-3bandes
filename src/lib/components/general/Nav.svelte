@@ -34,7 +34,7 @@
       color: 'gray',
       links: [
         { href: '/', label: 'Pàgina Principal' },
-        { href: '/general/calendari', label: 'Calendari de Partides' },
+        { href: '/general/calendari', label: 'Calendari General' },
         { href: '/general/multimedia', label: 'Multimèdia' }
       ]
     },
