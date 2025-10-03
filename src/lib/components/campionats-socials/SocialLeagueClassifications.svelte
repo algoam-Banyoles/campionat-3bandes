@@ -370,53 +370,52 @@
             </table>
             </div>
 
-            <!-- Mobile Card View -->
-            <div class="md:hidden space-y-4">
+            <!-- Mobile Compact List View -->
+            <div class="md:hidden space-y-2">
               {#each categoryClassifications as classification (classification.soci_numero + classification.categoria_id)}
-                <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm {classification.posicio <= 3 ? 'ring-2 ring-yellow-300 bg-gradient-to-r from-yellow-50 to-orange-50' : ''}">
-                  <!-- Header -->
-                  <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center space-x-3">
-                      <span class="flex items-center justify-center w-12 h-12 rounded-full border-2 {getPositionColor(classification.posicio)} font-bold text-lg">
-                        {getPositionIcon(classification.posicio)}
+                <div class="bg-white border-l-4 {classification.posicio <= 3 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'} rounded-r-lg shadow-sm overflow-hidden">
+                  <!-- Compact Header -->
+                  <div class="flex items-center justify-between p-3 pb-2">
+                    <div class="flex items-center space-x-2 flex-1 min-w-0">
+                      <span class="flex items-center justify-center w-8 h-8 rounded-full {getPositionColor(classification.posicio)} font-bold text-sm flex-shrink-0">
+                        {classification.posicio <= 3 ? getPositionIcon(classification.posicio) : classification.posicio}
                       </span>
-                      <div>
-                        <div class="font-semibold text-gray-900 text-lg leading-tight">
+                      <div class="min-w-0 flex-1">
+                        <div class="font-semibold text-gray-900 text-base leading-tight truncate">
                           {formatPlayerName(classification)}
                         </div>
-                        <div class="text-sm text-gray-500">Posició #{classification.posicio}</div>
                       </div>
                     </div>
-                    <div class="text-right">
-                      <div class="text-3xl font-bold text-blue-600">{classification.punts}</div>
-                      <div class="text-xs text-gray-500 uppercase tracking-wide">punts</div>
+                    <div class="text-right flex-shrink-0 ml-2">
+                      <div class="text-2xl font-bold text-blue-600">{classification.punts}</div>
+                      <div class="text-[10px] text-gray-500 uppercase">pts</div>
                     </div>
                   </div>
 
-                  <!-- Stats Grid -->
-                  <div class="grid grid-cols-2 gap-3 mb-4">
-                    <div class="bg-gray-50 rounded-lg p-3 text-center min-h-[60px] flex flex-col justify-center">
-                      <div class="text-xl font-bold text-gray-900">{classification.partides_jugades}</div>
-                      <div class="text-xs text-gray-500 uppercase tracking-wide">Partides</div>
+                  <!-- Compact Stats Row -->
+                  <div class="grid grid-cols-4 gap-1 px-3 pb-2 text-center">
+                    <div>
+                      <div class="text-sm font-bold text-gray-900">{classification.partides_jugades}</div>
+                      <div class="text-[10px] text-gray-500 uppercase">Part</div>
                     </div>
-                    <div class="bg-green-50 rounded-lg p-3 text-center min-h-[60px] flex flex-col justify-center">
-                      <div class="text-xl font-bold text-green-600">{classification.caramboles_totals}</div>
-                      <div class="text-xs text-gray-500 uppercase tracking-wide">Caramboles</div>
+                    <div>
+                      <div class="text-sm font-bold text-green-600">{classification.caramboles_totals}</div>
+                      <div class="text-[10px] text-gray-500 uppercase">Car</div>
                     </div>
-                    <div class="bg-purple-50 rounded-lg p-3 text-center min-h-[60px] flex flex-col justify-center">
-                      <div class="text-xl font-bold text-purple-600">{classification.entrades_totals}</div>
-                      <div class="text-xs text-gray-500 uppercase tracking-wide">Entrades</div>
+                    <div>
+                      <div class="text-sm font-bold text-purple-600">{classification.entrades_totals}</div>
+                      <div class="text-[10px] text-gray-500 uppercase">Ent</div>
                     </div>
-                    <div class="bg-indigo-50 rounded-lg p-3 text-center min-h-[60px] flex flex-col justify-center">
-                      <div class="text-xl font-bold text-indigo-600">{classification.mitjana_general}</div>
-                      <div class="text-xs text-gray-500 uppercase tracking-wide">Mitjana</div>
+                    <div>
+                      <div class="text-sm font-bold text-indigo-600">{classification.mitjana_general}</div>
+                      <div class="text-[10px] text-gray-500 uppercase">Mitj</div>
                     </div>
                   </div>
 
-                  <!-- Best Average (highlighted separately) -->
-                  <div class="bg-gradient-to-r from-purple-100 to-indigo-100 rounded-lg p-3 text-center">
-                    <div class="text-sm text-gray-600 mb-1">Millor Mitjana</div>
-                    <div class="text-2xl font-bold text-purple-700">{classification.millor_mitjana}</div>
+                  <!-- Best Average in Footer -->
+                  <div class="bg-gradient-to-r from-purple-50 to-indigo-50 px-3 py-1 flex justify-between items-center border-t border-gray-200">
+                    <span class="text-xs text-gray-600">Millor Mitjana</span>
+                    <span class="text-base font-bold text-purple-700">{classification.millor_mitjana}</span>
                   </div>
                 </div>
               {/each}
