@@ -533,6 +533,14 @@
     <p class="text-sm text-gray-600 mb-4">Gestió de competicions programades: campionats socials, hàndicap i eliminatòries</p>
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <!-- Targeta: gestió de socis -->
+      <a href="/admin/socis" class="block rounded-2xl border p-4 hover:shadow-sm bg-blue-50 border-blue-200">
+        <h2 class="font-semibold text-blue-800">👥 Gestió de Socis</h2>
+        <p class="text-sm text-blue-700 mt-1">
+          Gestiona els socis del club: alta, baixa, modificació de dades i consulta del cens.
+        </p>
+      </a>
+
       <!-- Targeta: gestió events i competicions -->
       <a href="/admin/events" class="block rounded-2xl border p-4 hover:shadow-sm bg-indigo-50 border-indigo-200">
         <h2 class="font-semibold text-indigo-800">🏟️ Gestió d'Events</h2>

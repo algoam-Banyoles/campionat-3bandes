@@ -77,6 +77,7 @@
       color: 'red',
       links: [
         { href: '/admin', label: 'Dashboard' },
+        { href: '/admin/socis', label: 'Gestió de Socis' },
         { href: '/admin/events', label: 'Events' },
         { href: '/admin/categories', label: 'Categories' },
         { href: '/admin/inscripcions', label: 'Inscripcions' },
