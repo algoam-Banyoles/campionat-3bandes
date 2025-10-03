@@ -11,8 +11,15 @@ if (workbox) {
   workbox.core.skipWaiting();
   workbox.core.clientsClaim();
 
-  // Configurar precaching automàtic
-  workbox.precaching.precacheAndRoute(self.__WB_MANIFEST || []);
+  // Configurar precaching automàtic amb gestió d'errors
+  try {
+    workbox.precaching.precacheAndRoute(self.__WB_MANIFEST || []);
+    
+    // Assegurar que offline.html està disponible
+    workbox.precaching.precacheAndRoute([{ url: '/offline.html', revision: null }]);
+  } catch (error) {
+    console.error('[SW] Error en precaching:', error);
+  }
 
   // Configurar estratègies de cache
   workbox.routing.registerRoute(
@@ -22,6 +29,20 @@ if (workbox) {
       plugins: [{
         cacheKeyWillBeUsed: async ({request}) => `${request.url}?v=${Date.now()}`
       }]
+    })
+  );
+  
+  // Configurar navegació fallback
+  workbox.routing.setDefaultHandler(
+    new workbox.strategies.NetworkFirst({
+      cacheName: 'pages',
+      plugins: [
+        {
+          handlerDidError: async () => {
+            return caches.match('/offline.html');
+          }
+        }
+      ]
     })
   );
 
@@ -84,21 +105,23 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  // Mostrar la notificació
-  event.waitUntil(
-    self.registration.showNotification(notificationData.title, {
-      body: notificationData.body,
-      icon: notificationData.icon,
-      badge: notificationData.badge,
-      tag: notificationData.tag,
-      data: notificationData.data,
-      actions: notificationData.actions,
-      requireInteraction: notificationData.requireInteraction,
-      silent: notificationData.silent,
-      vibrate: [200, 100, 200], // Vibració per mòbil
-      timestamp: Date.now()
-    })
-  );
+  // Mostrar la notificació amb gestió d'errors
+  const notificationPromise = self.registration.showNotification(notificationData.title, {
+    body: notificationData.body,
+    icon: notificationData.icon,
+    badge: notificationData.badge,
+    tag: notificationData.tag,
+    data: notificationData.data,
+    actions: notificationData.actions,
+    requireInteraction: notificationData.requireInteraction,
+    silent: notificationData.silent,
+    vibrate: [200, 100, 200], // Vibració per mòbil
+    timestamp: Date.now()
+  }).catch(error => {
+    console.error('[SW] Error showing notification:', error);
+  });
+
+  event.waitUntil(notificationPromise);
 });
 
 // Gestió de clics en notificacions
@@ -146,15 +169,23 @@ self.addEventListener('notificationclick', (event) => {
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           // Si trobem una finestra, naveguem i la enfoquem
-          client.navigate(targetUrl);
-          return client.focus();
+          return Promise.resolve(client.navigate(targetUrl))
+            .then(() => client.focus())
+            .catch(error => {
+              console.error('[SW] Error navigating to URL:', error);
+              return client.focus();
+            });
         }
       }
 
       // Si no hi ha finestra oberta, n'obrim una de nova
       if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
+        return clients.openWindow(targetUrl).catch(error => {
+          console.error('[SW] Error opening window:', error);
+        });
       }
+    }).catch(error => {
+      console.error('[SW] Error handling notification click:', error);
     })
   );
 });

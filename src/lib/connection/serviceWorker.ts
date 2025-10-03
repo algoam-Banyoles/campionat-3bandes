@@ -99,12 +99,30 @@ class CampionatServiceWorker implements ServiceWorkerManager {
       }
 
       const messageChannel = new MessageChannel();
+      const timeout = setTimeout(() => {
+        messageChannel.port1.close();
+        reject(new Error('Service worker message timeout'));
+      }, 5000); // 5 segons timeout
       
       messageChannel.port1.onmessage = (event) => {
+        clearTimeout(timeout);
+        messageChannel.port1.close();
         resolve(event.data);
       };
 
-      navigator.serviceWorker.controller.postMessage(message, [messageChannel.port2]);
+      messageChannel.port1.onmessageerror = (event) => {
+        clearTimeout(timeout);
+        messageChannel.port1.close();
+        reject(new Error('Service worker message error'));
+      };
+
+      try {
+        navigator.serviceWorker.controller.postMessage(message, [messageChannel.port2]);
+      } catch (error) {
+        clearTimeout(timeout);
+        messageChannel.port1.close();
+        reject(error);
+      }
     });
   }
 

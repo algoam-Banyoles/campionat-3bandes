@@ -4,6 +4,8 @@
   import { user, status, adminStore, isLoading } from "$lib/stores/auth";
   import { initAuthClient, signOut } from "$lib/utils/auth-client";
   import { initializeNotifications } from '$lib/stores/notifications';
+  import { pwaManager } from '$lib/connection/pwa-integration';
+  import '$lib/config/pwa-config'; // Importar configuració PWA per suprimir errors
   import { setupFocusManagement } from "$lib/utils/focus-management";
   import Toasts from '$lib/components/general/Toasts.svelte';
   import Nav from '$lib/components/general/Nav.svelte';
@@ -137,11 +139,20 @@
     // Inicialitza sessió + rol admin en muntar el layout
     initAuthClient();
 
+    // Inicialitza PWA (service workers, cache, offline support)
+    pwaManager.init().catch(console.error);
+
     // Inicialitza sistema de notificacions push
     initializeNotifications();
 
     // Configura gestió del focus per accessibilitat
     setupFocusManagement();
+
+    // Escoltar actualitzacions de PWA
+    window.addEventListener('pwa-update-available', (event) => {
+      console.log('PWA update available:', event.detail);
+      // Aquí es podria mostrar una notificació a l'usuari
+    });
   });
 
 

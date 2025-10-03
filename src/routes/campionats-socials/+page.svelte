@@ -1387,50 +1387,58 @@
                 <!-- Navegació per pestanyes públiques -->
                 <div class="bg-white shadow rounded-lg">
                   <div class="border-b border-gray-200">
-                    <nav class="-mb-px flex space-x-10 sm:space-x-12 px-6">
+                    <nav class="-mb-px flex space-x-4 md:space-x-8 px-6">
                       <button
                         on:click={() => managementView = 'inscriptions'}
-                        class="py-3 px-1 border-b-2 font-medium text-sm"
+                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
                         class:border-blue-500={managementView === 'inscriptions'}
                         class:text-blue-600={managementView === 'inscriptions'}
                         class:border-transparent={managementView !== 'inscriptions'}
                         class:text-gray-500={managementView !== 'inscriptions'}
                         class:hover:text-gray-700={managementView !== 'inscriptions'}
+                        title="Jugadors per Categories"
                       >
-                        👥 Jugadors per Categories
+                        <span class="md:hidden">👥</span>
+                        <span class="hidden md:inline">👥 Jugadors per Categories</span>
                       </button>
                       <button
                         on:click={() => managementView = 'view-calendar'}
-                        class="py-3 px-1 border-b-2 font-medium text-sm"
+                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
                         class:border-blue-500={managementView === 'view-calendar'}
                         class:text-blue-600={managementView === 'view-calendar'}
                         class:border-transparent={managementView !== 'view-calendar'}
                         class:text-gray-500={managementView !== 'view-calendar'}
                         class:hover:text-gray-700={managementView !== 'view-calendar'}
+                        title="Calendari"
                       >
-                        📅 Calendari
+                        <span class="md:hidden">📅</span>
+                        <span class="hidden md:inline">📅 Calendari</span>
                       </button>
                       <button
                         on:click={() => managementView = 'results'}
-                        class="py-3 px-1 border-b-2 font-medium text-sm"
+                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
                         class:border-blue-500={managementView === 'results'}
                         class:text-blue-600={managementView === 'results'}
                         class:border-transparent={managementView !== 'results'}
                         class:text-gray-500={managementView !== 'results'}
                         class:hover:text-gray-700={managementView !== 'results'}
+                        title="Resultats"
                       >
-                        ⚡ Resultats
+                        <span class="md:hidden">⚡</span>
+                        <span class="hidden md:inline">⚡ Resultats</span>
                       </button>
                       <button
                         on:click={() => managementView = 'standings'}
-                        class="py-3 px-1 border-b-2 font-medium text-sm"
+                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
                         class:border-blue-500={managementView === 'standings'}
                         class:text-blue-600={managementView === 'standings'}
                         class:border-transparent={managementView !== 'standings'}
                         class:text-gray-500={managementView !== 'standings'}
                         class:hover:text-gray-700={managementView !== 'standings'}
+                        title="Classificacions"
                       >
-                        🏆 Classificacions
+                        <span class="md:hidden">🏆</span>
+                        <span class="hidden md:inline">🏆 Classificacions</span>
                       </button>
                     </nav>
                   </div>

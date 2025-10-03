@@ -86,46 +86,6 @@ export function initializeNotifications(): void {
   }
 }
 
-// Registrar service worker personalitzat per notificacions push
-async function registerServiceWorker(): Promise<void> {
-  try {
-    // Registrar el nostre service worker personalitzat
-    let registration: ServiceWorkerRegistration;
-
-    if ('serviceWorker' in navigator) {
-      // Intentar registrar el service worker
-      registration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/'
-      });
-
-      console.log('[Notifications] Service Worker registrat:', registration.scope);
-
-      // Gestionar actualitzacions del service worker
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing;
-        if (newWorker) {
-          console.log('[Notifications] Nova versió del Service Worker disponible');
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              console.log('[Notifications] Service Worker actualitzat i llest');
-            }
-          });
-        }
-      });
-
-      // Esperar que estigui actiu
-      await navigator.serviceWorker.ready;
-      console.log('[Notifications] Service Worker llest per notificacions push');
-
-    } else {
-      throw new Error('Service Workers no compatibles');
-    }
-  } catch (error) {
-    console.error('[Notifications] Error registrant Service Worker:', error);
-    notificationsError.set('Error amb Service Worker: ' + (error instanceof Error ? error.message : 'Error desconegut'));
-  }
-}
-
 // Comprovar subscripció existent
 async function checkExistingSubscription(): Promise<void> {
   try {
@@ -155,6 +115,23 @@ async function checkExistingSubscription(): Promise<void> {
     }
   } catch (error) {
     console.error('Error comprovant subscripció existent:', error);
+  }
+}
+
+// Registrar service worker personalitzat per notificacions push
+async function registerServiceWorker(): Promise<void> {
+  try {
+    // Usar la integració PWA per gestionar service workers
+    const { pwaManager } = await import('$lib/connection/pwa-integration');
+    const registration = await pwaManager.getNotificationRegistration();
+
+    if (!registration) {
+      throw new Error('No service worker registration available');
+    }
+
+    console.log('[Notifications] Service worker registration ready');
+  } catch (error) {
+    console.error('[Notifications] Error registering service worker:', error);
   }
 }
 

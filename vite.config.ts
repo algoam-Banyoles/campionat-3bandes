@@ -19,22 +19,29 @@ export default defineConfig({
       },
       base: '/',
       scope: '/',
-      injectRegister: false,
+      injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'robots.txt', 'icons/*.png'],
       manifest: false, // Usarem el nostre manifest.json personalitzat
       strategies: 'generateSW',
-      filename: 'sw.js',
+      filename: 'service-worker.js', // Canviat per evitar conflicte amb sw.js personalitzat
       workbox: {
         cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
         navigateFallback: '/offline.html',
-        navigateFallbackDenylist: [/^\/api/, /^\/admin/],
+        navigateFallbackDenylist: [/^\/api/, /^\/admin/, /^\/auth/],
+        additionalManifestEntries: [
+          { url: '/offline.html', revision: null }
+        ],
         globPatterns: [
           'client/**/*.{js,css,ico,png,svg,webp,woff,woff2}',
           '*.{html,json,ico,png,svg,webp}',
-          'offline.html'
+          'offline.html',
+          'prerendered/**/*.html'
         ],
         globIgnores: [
           '**/service-worker.*',
+          '**/sw.js', // Ignorar el nostre sw.js personalitzat
           'server/**',
           '**/workbox-*.js'
         ],
