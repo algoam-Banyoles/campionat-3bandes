@@ -98,58 +98,62 @@
     <nav class="-mb-px flex space-x-4 md:space-x-8">
       <button
         on:click={() => handleTabChange('players')}
-        class="py-2 px-1 border-b-2 font-medium text-sm md:text-base"
+        class="py-2 px-1 border-b-2 font-medium text-2xl md:text-base"
         class:border-blue-500={activeTab === 'players'}
         class:text-blue-600={activeTab === 'players'}
         class:border-transparent={activeTab !== 'players'}
         class:text-gray-500={activeTab !== 'players'}
         class:hover:text-gray-700={activeTab !== 'players'}
         class:hover:border-gray-300={activeTab !== 'players'}
+        title="Jugadors per Categories"
       >
-        <span class="text-xl md:text-base">👥</span>
-        <span class="hidden md:inline"> Jugadors per Categories</span>
+        <span class="md:hidden">👥</span>
+        <span class="hidden md:inline">👥 Jugadors per Categories</span>
       </button>
 
       <button
         on:click={() => handleTabChange('calendar')}
-        class="py-2 px-1 border-b-2 font-medium text-sm md:text-base"
+        class="py-2 px-1 border-b-2 font-medium text-2xl md:text-base"
         class:border-blue-500={activeTab === 'calendar'}
         class:text-blue-600={activeTab === 'calendar'}
         class:border-transparent={activeTab !== 'calendar'}
         class:text-gray-500={activeTab !== 'calendar'}
         class:hover:text-gray-700={activeTab !== 'calendar'}
         class:hover:border-gray-300={activeTab !== 'calendar'}
+        title="Calendari"
       >
-        <span class="text-xl md:text-base">📅</span>
-        <span class="hidden md:inline"> Calendari</span>
+        <span class="md:hidden">📅</span>
+        <span class="hidden md:inline">📅 Calendari</span>
       </button>
 
       <button
         on:click={() => handleTabChange('results')}
-        class="py-2 px-1 border-b-2 font-medium text-sm md:text-base"
+        class="py-2 px-1 border-b-2 font-medium text-2xl md:text-base"
         class:border-blue-500={activeTab === 'results'}
         class:text-blue-600={activeTab === 'results'}
         class:border-transparent={activeTab !== 'results'}
         class:text-gray-500={activeTab !== 'results'}
         class:hover:text-gray-700={activeTab !== 'results'}
         class:hover:border-gray-300={activeTab !== 'results'}
+        title="Resultats"
       >
-        <span class="text-xl md:text-base">⚡</span>
-        <span class="hidden md:inline"> Resultats</span>
+        <span class="md:hidden">⚡</span>
+        <span class="hidden md:inline">⚡ Resultats</span>
       </button>
 
       <button
         on:click={() => handleTabChange('classifications')}
-        class="py-2 px-1 border-b-2 font-medium text-sm md:text-base"
+        class="py-2 px-1 border-b-2 font-medium text-2xl md:text-base"
         class:border-blue-500={activeTab === 'classifications'}
         class:text-blue-600={activeTab === 'classifications'}
         class:border-transparent={activeTab !== 'classifications'}
         class:text-gray-500={activeTab !== 'classifications'}
         class:hover:text-gray-700={activeTab !== 'classifications'}
         class:hover:border-gray-300={activeTab !== 'classifications'}
+        title="Classificacions"
       >
-        <span class="text-xl md:text-base">🏆</span>
-        <span class="hidden md:inline"> Classificacions</span>
+        <span class="md:hidden">🏆</span>
+        <span class="hidden md:inline">🏆 Classificacions</span>
       </button>
     </nav>
   </div>
