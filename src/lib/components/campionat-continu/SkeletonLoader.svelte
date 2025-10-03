@@ -56,7 +56,7 @@
   }
 
   .variant-rectangular {
-    /* Uses the borderRadius prop */
+    border-radius: var(--border-radius, 4px);
   }
 
   .variant-countdown {

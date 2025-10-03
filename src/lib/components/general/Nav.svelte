@@ -158,7 +158,7 @@
 
 <svelte:window on:click={handleClickOutside} />
 
-<nav class="sticky top-0 z-[9998] bg-white border-b border-gray-200 shadow-sm" role="navigation" aria-label="Navegació principal">
+<nav class="sticky top-0 z-[9998] bg-white border-b border-gray-200 shadow-sm" aria-label="Navegació principal">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <!-- Navegació principal -->
     <div class="flex h-20 justify-between">
@@ -203,7 +203,7 @@
                         <a
                           href={link.href}
                           on:click={closeDropdownOnNavigate}
-                          class="block px-5 py-4 text-lg font-medium text-gray-800 hover:bg-gray-100 min-h-[56px] flex items-center transition-colors duration-200 {
+                          class="flex items-center px-5 py-4 text-lg font-medium text-gray-800 hover:bg-gray-100 min-h-[56px] transition-colors duration-200 {
                             link.disabled ? 'opacity-50 cursor-not-allowed' : ''
                           } {
                             isActive(link.href) ? 'bg-' + section.color + '-100 text-' + section.color + '-800 border-l-4 border-' + section.color + '-500' : ''
@@ -224,7 +224,7 @@
                           <a
                             href={link.href}
                             on:click={closeDropdownOnNavigate}
-                            class="block px-5 py-4 text-lg font-medium text-gray-800 hover:bg-gray-100 min-h-[56px] flex items-center transition-colors duration-200 {
+                            class="flex items-center px-5 py-4 text-lg font-medium text-gray-800 hover:bg-gray-100 min-h-[56px] transition-colors duration-200 {
                               isActive(link.href) ? 'bg-' + section.color + '-100 text-' + section.color + '-800 border-l-4 border-' + section.color + '-500' : ''
                             }"
                           >

@@ -1725,7 +1725,7 @@
 
 <style>
   /* Estils normals - ocultar header en pantalla */
-  .payment-list-header {
+  :global(.payment-list-header) {
     display: none;
   }
 
@@ -1759,27 +1759,27 @@
     }
 
     /* Assegurar que el contenidor de pagaments sigui visible */
-    .payment-list-container {
+    :global(.payment-list-container) {
       display: block !important;
       visibility: visible !important;
       position: relative !important;
     }
 
     /* Mostrar títol només en impressió */
-    .payment-list-header {
+    :global(.payment-list-header) {
       display: block !important;
       text-align: center !important;
       margin-bottom: 2rem !important;
     }
 
-    .payment-list-header h1 {
+    :global(.payment-list-header h1) {
       font-size: 20pt !important;
       font-weight: bold !important;
       color: black !important;
       margin-bottom: 0.5rem !important;
     }
 
-    .payment-list-header p {
+    :global(.payment-list-header p) {
       font-size: 12pt !important;
       color: #666 !important;
     }
@@ -1791,7 +1791,7 @@
     }
 
     /* Dues columnes en impressió */
-    .payment-grid {
+    :global(.payment-grid) {
       display: grid !important;
       grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
       gap: 0 2rem !important;
@@ -1799,7 +1799,7 @@
     }
 
     /* Estil checkbox per imprimir */
-    .payment-grid input[type="checkbox"] {
+    :global(.payment-grid input[type="checkbox"]) {
       -webkit-appearance: none;
       -moz-appearance: none;
       appearance: none;
@@ -1813,7 +1813,7 @@
       flex-shrink: 0 !important;
     }
 
-    .payment-grid input[type="checkbox"]:checked::before {
+    :global(.payment-grid input[type="checkbox"]:checked::before) {
       content: "✓";
       position: absolute;
       top: -2px;
@@ -1824,7 +1824,7 @@
     }
 
     /* Estils de les línies */
-    .payment-grid > div {
+    :global(.payment-grid > div) {
       break-inside: avoid;
       page-break-inside: avoid;
       border-bottom: 1px solid #ccc !important;
@@ -1833,7 +1833,7 @@
       align-items: center !important;
     }
 
-    .payment-grid label {
+    :global(.payment-grid label) {
       font-size: 11pt !important;
       color: black !important;
       margin-left: 0.5rem !important;
