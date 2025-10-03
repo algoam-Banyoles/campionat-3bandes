@@ -170,7 +170,7 @@
       </div>
 
       <!-- Seccions principals centrades (Desktop) -->
-      <div class="hidden lg:flex lg:items-center lg:justify-center flex-1 h-20">
+      <div class="hidden xl:flex xl:items-center xl:justify-center flex-1 h-20">
         <div class="flex items-center space-x-4 xl:space-x-8">
           {#each Object.entries(navegacio) as [key, section]}
             {#if !section.adminOnly || $isAdmin}
