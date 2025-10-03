@@ -82,12 +82,10 @@ class PWAIntegration implements PWAManager {
     }
 
     // Escoltar canvis de controlador
+    // NOTA: No recarreguem automàticament per evitar bucles de reinici
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       console.log('[PWA] Service worker controller changed');
-      // Recarregar la pàgina després d'un petit delay per evitar problemes
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
+      // El service worker s\'actualitzarà en el proper reload natural
     });
   }
 
