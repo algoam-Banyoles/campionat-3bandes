@@ -170,7 +170,7 @@
       </div>
 
       <!-- Seccions principals centrades (Desktop) -->
-      <div class="hidden xl:flex xl:items-center xl:justify-center flex-1 h-20">
+      <div class="hidden portrait:xl:flex landscape:2xl:flex xl:items-center xl:justify-center flex-1 h-20">
         <div class="flex items-center space-x-4 xl:space-x-8">
           {#each Object.entries(navegacio) as [key, section]}
             {#if !section.adminOnly || $isAdmin}
@@ -241,8 +241,8 @@
         </div>
       </div>
 
-      <!-- Menú d'usuari (Dreta) - Only show on desktop, not on mobile landscape -->
-      <div class="hidden xl:ml-6 xl:flex xl:items-center xl:gap-4">
+      <!-- Menú d'usuari (Dreta) - Only show on desktop, hide on landscape mobile -->
+      <div class="hidden portrait:xl:flex landscape:2xl:flex xl:ml-6 xl:items-center xl:gap-4">
         {#if $user}
           <!-- View Mode Switch (only for admins - simplified) -->
           {#if $isAdmin}
@@ -279,8 +279,8 @@
         {/if}
       </div>
 
-      <!-- Menú mòbil button -->
-      <div class="flex items-center xl:hidden ml-2">
+      <!-- Menú mòbil button - Show on mobile and landscape below 2xl -->
+      <div class="flex items-center portrait:xl:hidden landscape:2xl:hidden ml-2">
         <button
           on:click={() => mobileMenuOpen = !mobileMenuOpen}
           class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
@@ -297,7 +297,7 @@
     <!-- Menú mòbil -->
     {#if mobileMenuOpen}
       <!-- Layout vertical (portrait) - Accordion tradicional -->
-      <div class="xl:hidden portrait:block landscape:hidden max-h-[calc(100vh-5.5rem)] overflow-y-auto">
+      <div class="portrait:xl:hidden landscape:2xl:hidden portrait:block landscape:hidden max-h-[calc(100vh-5.5rem)] overflow-y-auto">
         <div class="pt-2 pb-3">
           {#each Object.entries(navegacio) as [key, section]}
             {#if !section.adminOnly || $isAdmin}
@@ -366,7 +366,7 @@
       </div>
 
       <!-- Layout horitzontal (landscape) - Dues columnes -->
-      <div class="xl:hidden portrait:hidden landscape:block">
+      <div class="portrait:xl:hidden landscape:2xl:hidden portrait:hidden landscape:block">
         <div class="flex h-[calc(100vh-3.5rem)]">
           <!-- Columna esquerra: Icones de seccions -->
           <div class="w-20 bg-gray-100 border-r border-gray-300 overflow-y-auto">
