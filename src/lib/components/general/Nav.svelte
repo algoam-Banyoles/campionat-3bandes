@@ -161,11 +161,11 @@
 <nav class="sticky top-0 z-[9998] bg-white border-b border-gray-200 shadow-sm" aria-label="Navegació principal">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <!-- Navegació principal -->
-    <div class="flex h-20 justify-between">
+    <div class="flex h-20 landscape:h-14 justify-between">
       <!-- Logo (simplified) -->
       <div class="flex flex-shrink-0 items-center">
         <a href="/" class="flex items-center" title="Secció de Billar del Foment Martinenc">
-          <img src="/logo.png" alt="Foment Martinenc" class="h-12 w-12 object-contain" />
+          <img src="/logo.png" alt="Foment Martinenc" class="h-12 w-12 landscape:h-8 landscape:w-8 object-contain" />
         </a>
       </div>
 
@@ -296,15 +296,15 @@
 
     <!-- Menú mòbil -->
     {#if mobileMenuOpen}
-      <div class="lg:hidden max-h-[calc(100vh-5rem)] overflow-y-auto">
-        <div class="pt-2 pb-3">
+      <div class="lg:hidden max-h-[calc(100vh-5.5rem)] landscape:max-h-[calc(100vh-4rem)] overflow-y-auto">
+        <div class="pt-2 pb-3 landscape:pt-1 landscape:pb-1">
           {#each Object.entries(navegacio) as [key, section]}
             {#if !section.adminOnly || $isAdmin}
               <div class="border-b border-gray-200">
                 <!-- Capçalera de secció (accordion header) -->
                 <button
                   on:click={() => toggleMobileSection(key)}
-                  class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                  class="w-full flex items-center justify-between px-4 py-3 landscape:py-2 text-left hover:bg-gray-50 transition-colors"
                 >
                   <div class="flex items-center space-x-2">
                     <span class="text-xl">{section.icon}</span>
@@ -329,7 +329,7 @@
                       <a
                         href={link.href}
                         on:click={closeMobileMenuOnNavigate}
-                        class="mobile-nav-item block pl-8 pr-4 py-3 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors {
+                        class="mobile-nav-item block pl-8 pr-4 py-3 landscape:py-2 text-base landscape:text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors {
                           link.disabled ? 'opacity-50 cursor-not-allowed' : ''
                         } {
                           isActive(link.href) ? 'bg-' + section.color + '-100 text-' + section.color + '-800 border-l-4 border-' + section.color + '-500' : ''
@@ -342,15 +342,15 @@
 
                     <!-- User links si n'hi ha -->
                     {#if $user && section.userLinks && section.userLinks.length > 0}
-                      <div class="border-t border-gray-200 mt-2 pt-2">
-                        <div class="px-8 py-2">
+                      <div class="border-t border-gray-200 mt-2 landscape:mt-1 pt-2 landscape:pt-1">
+                        <div class="px-8 py-2 landscape:py-1">
                           <span class="text-xs font-semibold text-gray-500 uppercase">Les Meves Accions</span>
                         </div>
                         {#each section.userLinks as link}
                           <a
                             href={link.href}
                             on:click={closeMobileMenuOnNavigate}
-                            class="mobile-nav-item block pl-8 pr-4 py-3 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors {
+                            class="mobile-nav-item block pl-8 pr-4 py-3 landscape:py-2 text-base landscape:text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors {
                               isActive(link.href) ? 'bg-' + section.color + '-100 text-' + section.color + '-800 border-l-4 border-' + section.color + '-500' : ''
                             }"
                           >
@@ -367,15 +367,15 @@
         </div>
 
         <!-- User menu mòbil -->
-        <div class="pt-3 pb-3 border-t-2 border-gray-300 bg-gray-50">
+        <div class="pt-3 pb-3 landscape:pt-2 landscape:pb-2 border-t-2 border-gray-300 bg-gray-50">
           {#if $user}
-            <div class="px-4 py-2">
-              <div class="text-sm font-medium text-gray-600">Sessió iniciada com:</div>
-              <div class="text-base font-semibold text-gray-900 truncate">{$user.email}</div>
+            <div class="px-4 py-2 landscape:py-1">
+              <div class="text-sm landscape:text-xs font-medium text-gray-600">Sessió iniciada com:</div>
+              <div class="text-base landscape:text-sm font-semibold text-gray-900 truncate">{$user.email}</div>
             </div>
             {#if $isAdmin}
-              <div class="px-4 py-2 flex items-center justify-between">
-                <span class="text-sm font-medium text-gray-700">Vista {$viewMode === 'admin' ? 'Admin' : 'Jugador'}</span>
+              <div class="px-4 py-2 landscape:py-1 flex items-center justify-between">
+                <span class="text-sm landscape:text-xs font-medium text-gray-700">Vista {$viewMode === 'admin' ? 'Admin' : 'Jugador'}</span>
                 <button
                   on:click={() => viewMode.toggleMode()}
                   class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {
@@ -391,10 +391,10 @@
                 </button>
               </div>
             {/if}
-            <div class="px-2 mt-2">
+            <div class="px-2 mt-2 landscape:mt-1">
               <button
                 on:click={() => { signOut(); closeMobileMenuOnNavigate(); }}
-                class="mobile-nav-item block w-full text-left px-4 py-3 text-base font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                class="mobile-nav-item block w-full text-left px-4 py-3 landscape:py-2 text-base landscape:text-sm font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
               >
                 Sortir
               </button>
@@ -404,7 +404,7 @@
               <a
                 href="/general/login"
                 on:click={closeMobileMenuOnNavigate}
-                class="mobile-nav-item block px-4 py-3 text-base font-medium text-white bg-blue-600 hover:bg-blue-700 rounded text-center transition-colors"
+                class="mobile-nav-item block px-4 py-3 landscape:py-2 text-base landscape:text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded text-center transition-colors"
               >
                 Iniciar Sessió
               </a>
