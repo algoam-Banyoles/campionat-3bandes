@@ -111,6 +111,7 @@
   let selectedSection = getCurrentSection();
   let mobileMenuOpen = false;
   let activeDropdown: string | null = null;
+  let mobileExpandedSection: string | null = null;
 
   // Reactivitat per actualitzar la secció seleccionada
   $: selectedSection = getCurrentSection();
@@ -145,6 +146,16 @@
   function closeMobileMenuOnNavigate() {
     mobileMenuOpen = false;
     activeDropdown = null;
+    mobileExpandedSection = null;
+  }
+
+  // Toggle secció mòbil
+  function toggleMobileSection(sectionKey: string) {
+    if (mobileExpandedSection === sectionKey) {
+      mobileExpandedSection = null;
+    } else {
+      mobileExpandedSection = sectionKey;
+    }
   }
 </script>
 
@@ -288,42 +299,70 @@
 
     <!-- Menú mòbil -->
     {#if mobileMenuOpen}
-      <div class="lg:hidden">
-        <div class="pt-2 pb-3 space-y-1">
-          {#each Object.entries(navegacio) as [, section]}
+      <div class="lg:hidden max-h-[calc(100vh-5rem)] overflow-y-auto">
+        <div class="pt-2 pb-3">
+          {#each Object.entries(navegacio) as [key, section]}
             {#if !section.adminOnly || $isAdmin}
-              <div class="px-2">
-                <div class="text-gray-600 font-medium text-sm uppercase tracking-wider py-3">
-                  {section.icon} {section.label}
-                </div>
-                {#each section.links as link}
-                  <a
-                    href={link.href}
-                    on:click={closeMobileMenuOnNavigate}
-                    class="mobile-nav-item block pl-4 pr-4 py-4 text-base sm:text-lg font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 min-h-[56px] flex items-center {
-                      link.disabled ? 'opacity-50 cursor-not-allowed' : ''
-                    } {
-                      isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-700' : ''
+              <div class="border-b border-gray-200">
+                <!-- Capçalera de secció (accordion header) -->
+                <button
+                  on:click={() => toggleMobileSection(key)}
+                  class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                >
+                  <div class="flex items-center space-x-2">
+                    <span class="text-xl">{section.icon}</span>
+                    <span class="font-semibold text-gray-900">{section.label}</span>
+                  </div>
+                  <svg
+                    class="h-5 w-5 text-gray-500 transition-transform duration-200 {
+                      mobileExpandedSection === key ? 'rotate-180' : ''
                     }"
-                    class:pointer-events-none={link.disabled}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    {link.label}
-                  </a>
-                {/each}
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
 
-                <!-- User links si n'hi ha -->
-                {#if $user && section.userLinks && section.userLinks.length > 0}
-                  {#each section.userLinks as link}
-                    <a
-                      href={link.href}
-                      on:click={closeMobileMenuOnNavigate}
-                      class="mobile-nav-item block pl-4 pr-4 py-4 text-base sm:text-lg font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 min-h-[56px] flex items-center {
-                        isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-700' : ''
-                      }"
-                    >
-                      {link.label}
-                    </a>
-                  {/each}
+                <!-- Contingut expandible -->
+                {#if mobileExpandedSection === key}
+                  <div class="bg-gray-50">
+                    {#each section.links as link}
+                      <a
+                        href={link.href}
+                        on:click={closeMobileMenuOnNavigate}
+                        class="mobile-nav-item block pl-8 pr-4 py-3 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors {
+                          link.disabled ? 'opacity-50 cursor-not-allowed' : ''
+                        } {
+                          isActive(link.href) ? 'bg-' + section.color + '-100 text-' + section.color + '-800 border-l-4 border-' + section.color + '-500' : ''
+                        }"
+                        class:pointer-events-none={link.disabled}
+                      >
+                        {link.label}
+                      </a>
+                    {/each}
+
+                    <!-- User links si n'hi ha -->
+                    {#if $user && section.userLinks && section.userLinks.length > 0}
+                      <div class="border-t border-gray-200 mt-2 pt-2">
+                        <div class="px-8 py-2">
+                          <span class="text-xs font-semibold text-gray-500 uppercase">Les Meves Accions</span>
+                        </div>
+                        {#each section.userLinks as link}
+                          <a
+                            href={link.href}
+                            on:click={closeMobileMenuOnNavigate}
+                            class="mobile-nav-item block pl-8 pr-4 py-3 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors {
+                              isActive(link.href) ? 'bg-' + section.color + '-100 text-' + section.color + '-800 border-l-4 border-' + section.color + '-500' : ''
+                            }"
+                          >
+                            {link.label}
+                          </a>
+                        {/each}
+                      </div>
+                    {/if}
+                  </div>
                 {/if}
               </div>
             {/if}
@@ -331,15 +370,34 @@
         </div>
 
         <!-- User menu mòbil -->
-        <div class="pt-4 pb-3 border-t border-gray-200">
+        <div class="pt-3 pb-3 border-t-2 border-gray-300 bg-gray-50">
           {#if $user}
-            <div class="px-4">
-              <div class="text-lg font-medium text-gray-800">{$user.email}</div>
+            <div class="px-4 py-2">
+              <div class="text-sm font-medium text-gray-600">Sessió iniciada com:</div>
+              <div class="text-base font-semibold text-gray-900 truncate">{$user.email}</div>
             </div>
-            <div class="mt-3 px-2">
+            {#if $isAdmin}
+              <div class="px-4 py-2 flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-700">Vista {$viewMode === 'admin' ? 'Admin' : 'Jugador'}</span>
+                <button
+                  on:click={() => viewMode.toggleMode()}
+                  class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {
+                    $viewMode === 'admin' ? 'bg-blue-600' : 'bg-green-600'
+                  }"
+                >
+                  <span class="sr-only">Toggle view mode</span>
+                  <span
+                    class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {
+                      $viewMode === 'admin' ? 'translate-x-6' : 'translate-x-1'
+                    }"
+                  ></span>
+                </button>
+              </div>
+            {/if}
+            <div class="px-2 mt-2">
               <button
                 on:click={() => { signOut(); closeMobileMenuOnNavigate(); }}
-                class="mobile-nav-item block w-full text-left px-4 py-4 text-base sm:text-lg font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 min-h-[56px] flex items-center"
+                class="mobile-nav-item block w-full text-left px-4 py-3 text-base font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
               >
                 Sortir
               </button>
@@ -349,7 +407,7 @@
               <a
                 href="/general/login"
                 on:click={closeMobileMenuOnNavigate}
-                class="mobile-nav-item block px-4 py-4 text-base sm:text-lg font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 min-h-[56px] flex items-center"
+                class="mobile-nav-item block px-4 py-3 text-base font-medium text-white bg-blue-600 hover:bg-blue-700 rounded text-center transition-colors"
               >
                 Iniciar Sessió
               </a>
