@@ -371,11 +371,11 @@
             </div>
 
             <!-- Mobile Compact List View -->
-            <div class="md:hidden space-y-2">
+            <div class="md:hidden space-y-1.5">
               {#each categoryClassifications as classification (classification.soci_numero + classification.categoria_id)}
                 <div class="bg-white border-l-4 {classification.posicio <= 3 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'} rounded-r-lg shadow-sm overflow-hidden">
                   <!-- Compact Header -->
-                  <div class="flex items-center justify-between p-3 pb-2">
+                  <div class="flex items-center justify-between px-2 py-1.5">
                     <div class="flex items-center space-x-2 flex-1 min-w-0">
                       <span class="flex items-center justify-center w-8 h-8 rounded-full {getPositionColor(classification.posicio)} font-bold text-sm flex-shrink-0">
                         {classification.posicio <= 3 ? getPositionIcon(classification.posicio) : classification.posicio}
@@ -393,7 +393,7 @@
                   </div>
 
                   <!-- Compact Stats Row -->
-                  <div class="grid grid-cols-4 gap-1 px-3 pb-2 text-center">
+                  <div class="grid grid-cols-4 gap-1 px-2 pb-1 text-center">
                     <div>
                       <div class="text-sm font-bold text-gray-900">{classification.partides_jugades}</div>
                       <div class="text-[10px] text-gray-500 uppercase">Part</div>
@@ -413,7 +413,7 @@
                   </div>
 
                   <!-- Best Average in Footer -->
-                  <div class="bg-gradient-to-r from-purple-50 to-indigo-50 px-3 py-1 flex justify-between items-center border-t border-gray-200">
+                  <div class="bg-gradient-to-r from-purple-50 to-indigo-50 px-2 py-0.5 flex justify-between items-center border-t border-gray-200">
                     <span class="text-xs text-gray-600">Millor Mitjana</span>
                     <span class="text-base font-bold text-purple-700">{classification.millor_mitjana}</span>
                   </div>
