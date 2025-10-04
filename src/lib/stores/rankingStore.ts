@@ -50,12 +50,7 @@ export async function refreshRanking(force = false): Promise<void> {
           mitjana,
           estat,
           data_ultim_repte,
-          numero_soci,
-          socis (
-            numero_soci,
-            nom,
-            cognoms
-          )
+          numero_soci
         )
       `)
       .eq('event_id', activeEvent.id)
@@ -70,10 +65,32 @@ export async function refreshRanking(force = false): Promise<void> {
       return;
     }
 
+    // Obtenir tots els numero_soci únics
+    const numerosSoci = [...new Set(
+      finalRankingData
+        .map((item: any) => item.players?.numero_soci)
+        .filter((n: any) => n != null)
+    )];
+
+    // Carregar dades de socis en una query separada
+    let socisMap = new Map<number, any>();
+    if (numerosSoci.length > 0) {
+      const { data: socisData, error: socisError } = await supabase
+        .from('socis')
+        .select('numero_soci, nom, cognoms')
+        .in('numero_soci', numerosSoci);
+
+      if (!socisError && socisData) {
+        socisData.forEach((soci: any) => {
+          socisMap.set(soci.numero_soci, soci);
+        });
+      }
+    }
+
     // Transformar les dades al format correcte
     const transformedData: RankingRow[] = finalRankingData.map((item: any) => {
       const player = item.players;
-      const soci = player?.socis;
+      const soci = player?.numero_soci ? socisMap.get(player.numero_soci) : null;
 
       return {
         id: item.id,
