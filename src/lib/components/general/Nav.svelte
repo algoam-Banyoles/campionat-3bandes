@@ -160,32 +160,32 @@
 <svelte:window on:click={handleClickOutside} />
 
 <!-- Sidebar fixa per desktop/tablet/landscape (oculta NOMÉS en portrait mobile) -->
-<aside class="hidden portrait:md:block landscape:block fixed left-0 top-0 h-screen portrait:md:w-64 landscape:w-20 landscape:lg:w-64 bg-gradient-to-b from-gray-50 to-gray-100 border-r-2 border-gray-300 shadow-lg z-[9999] overflow-y-auto">
+<aside class="hidden portrait:md:block landscape:block fixed left-0 top-0 h-screen portrait:md:w-64 landscape:w-20 landscape:lg:w-64 bg-gradient-to-b from-gray-50 to-gray-100 border-r-2 border-gray-300 shadow-lg z-[9999]">
   <!-- Logo header -->
-  <div class="p-4 border-b-2 border-gray-300 bg-white">
-    <a href="/" class="flex items-center justify-center lg:justify-start gap-3">
-      <img src="/logo.png" alt="Foment Martinenc" class="h-12 w-12 object-contain" />
-      <span class="hidden lg:block text-lg font-bold text-gray-900">3 Bandes</span>
+  <div class="p-3 border-b-2 border-gray-300 bg-white flex-shrink-0">
+    <a href="/" class="flex items-center justify-center portrait:md:justify-start landscape:lg:justify-start gap-3">
+      <img src="/logo.png" alt="Foment Martinenc" class="h-10 w-10 object-contain" />
+      <span class="hidden portrait:md:block landscape:lg:block text-base font-bold text-gray-900">3 Bandes</span>
     </a>
   </div>
 
   <!-- Navigation sections -->
-  <div class="flex flex-col h-[calc(100vh-5rem)]">
-    <div class="flex-1 overflow-y-auto py-4">
+  <div class="flex flex-col h-[calc(100vh-4.5rem)]">
+    <div class="flex-1 overflow-y-auto py-2">
       {#each Object.entries(navegacio) as [key, section]}
         {#if !section.adminOnly || $isAdmin}
-          <div class="mb-2">
+          <div class="mb-1">
             <!-- Section button -->
             <button
               on:click={() => toggleMobileSection(key)}
-              class="w-full flex items-center justify-center lg:justify-start gap-3 px-4 py-3 hover:bg-white/60 transition-all duration-200 {
+              class="w-full flex items-center justify-center portrait:md:justify-start landscape:lg:justify-start gap-2 px-3 py-2 hover:bg-white/60 transition-all duration-200 {
                 selectedSection === key ? 'bg-white border-l-4 border-' + section.color + '-500 text-' + section.color + '-700' : 'text-gray-700'
               }"
               title={section.label}
             >
-              <span class="text-2xl flex-shrink-0">{section.icon}</span>
-              <span class="hidden portrait:md:block landscape:lg:block font-semibold">{section.label}</span>
-              <svg class="hidden portrait:md:block landscape:lg:block ml-auto h-4 w-4 transition-transform duration-200 {
+              <span class="text-xl flex-shrink-0">{section.icon}</span>
+              <span class="hidden portrait:md:block landscape:lg:block text-sm font-semibold">{section.label}</span>
+              <svg class="hidden portrait:md:block landscape:lg:block ml-auto h-3 w-3 transition-transform duration-200 {
                 mobileExpandedSection === key ? 'rotate-180' : ''
               }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -194,11 +194,11 @@
 
             <!-- Expanded section links -->
             {#if mobileExpandedSection === key}
-              <div class="bg-white/40 border-l-2 border-{section.color}-200 ml-2 lg:ml-4">
+              <div class="bg-white/40 border-l-2 border-{section.color}-200 ml-2 portrait:md:ml-3 landscape:lg:ml-3">
                 {#each section.links as link}
                   <a
                     href={link.href}
-                    class="flex items-center px-4 lg:px-6 py-2 text-sm font-medium hover:bg-white/80 transition-colors {
+                    class="flex items-center px-3 portrait:md:px-4 landscape:lg:px-4 py-1.5 text-xs portrait:md:text-sm landscape:lg:text-sm font-medium hover:bg-white/80 transition-colors {
                       link.disabled ? 'opacity-50 cursor-not-allowed' : ''
                     } {
                       isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-800 border-l-2 border-' + section.color + '-500' : 'text-gray-700'
@@ -206,24 +206,24 @@
                     class:pointer-events-none={link.disabled}
                   >
                     <span class="hidden portrait:md:block landscape:lg:block">{link.label}</span>
-                    <span class="portrait:md:hidden landscape:lg:hidden text-xs text-center w-full">{link.label.substring(0, 20)}{link.label.length > 20 ? '...' : ''}</span>
+                    <span class="portrait:md:hidden landscape:lg:hidden text-[10px] text-center w-full leading-tight">{link.label.substring(0, 15)}{link.label.length > 15 ? '..' : ''}</span>
                   </a>
                 {/each}
 
                 {#if $user && section.userLinks && section.userLinks.length > 0}
                   <div class="border-t border-gray-200 mt-1 pt-1">
-                    <div class="px-4 portrait:md:px-6 landscape:lg:px-6 py-1">
-                      <span class="hidden portrait:md:block landscape:lg:block text-xs font-semibold text-gray-500 uppercase">Meves Accions</span>
+                    <div class="px-3 portrait:md:px-4 landscape:lg:px-4 py-0.5">
+                      <span class="hidden portrait:md:block landscape:lg:block text-[10px] font-semibold text-gray-500 uppercase">Meves</span>
                     </div>
                     {#each section.userLinks as link}
                       <a
                         href={link.href}
-                        class="flex items-center px-4 lg:px-6 py-2 text-sm font-medium hover:bg-white/80 transition-colors {
+                        class="flex items-center px-3 portrait:md:px-4 landscape:lg:px-4 py-1.5 text-xs portrait:md:text-sm landscape:lg:text-sm font-medium hover:bg-white/80 transition-colors {
                           isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-800 border-l-2 border-' + section.color + '-500' : 'text-gray-700'
                         }"
                       >
                         <span class="hidden portrait:md:block landscape:lg:block">{link.label}</span>
-                        <span class="portrait:md:hidden landscape:lg:hidden text-xs text-center w-full">{link.label.substring(0, 20)}{link.label.length > 20 ? '...' : ''}</span>
+                        <span class="portrait:md:hidden landscape:lg:hidden text-[10px] text-center w-full leading-tight">{link.label.substring(0, 15)}{link.label.length > 15 ? '..' : ''}</span>
                       </a>
                     {/each}
                   </div>
@@ -236,27 +236,27 @@
     </div>
 
     <!-- User section at bottom -->
-    <div class="flex-shrink-0 border-t-2 border-gray-300 bg-white p-4">
+    <div class="flex-shrink-0 border-t-2 border-gray-300 bg-white p-2">
       {#if $user}
-        <div class="space-y-2">
+        <div class="space-y-1.5">
           <div class="hidden portrait:md:block landscape:lg:block">
-            <div class="text-xs text-gray-600">Sessió:</div>
-            <div class="text-sm font-semibold text-gray-900 truncate">{$user.email}</div>
+            <div class="text-[10px] text-gray-600">Sessió:</div>
+            <div class="text-xs font-semibold text-gray-900 truncate">{$user.email}</div>
           </div>
 
           {#if $isAdmin}
-            <div class="flex items-center justify-between">
-              <span class="hidden portrait:md:block landscape:lg:block text-xs text-gray-700">Vista {$viewMode === 'admin' ? 'Admin' : 'Jugador'}</span>
+            <div class="flex items-center justify-between gap-1">
+              <span class="hidden portrait:md:block landscape:lg:block text-[10px] text-gray-700">Vista {$viewMode === 'admin' ? 'Admin' : 'Jug.'}</span>
               <button
                 on:click={() => viewMode.toggleMode()}
-                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {
+                class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors {
                   $viewMode === 'admin' ? 'bg-blue-600' : 'bg-green-600'
                 }"
                 title="Canviar vista"
               >
                 <span class="sr-only">Toggle view mode</span>
-                <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {
-                  $viewMode === 'admin' ? 'translate-x-6' : 'translate-x-1'
+                <span class="inline-block h-3 w-3 transform rounded-full bg-white transition-transform {
+                  $viewMode === 'admin' ? 'translate-x-5' : 'translate-x-1'
                 }"></span>
               </button>
             </div>
@@ -264,18 +264,18 @@
 
           <button
             on:click={signOut}
-            class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
+            class="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
           >
-            <span class="portrait:md:hidden landscape:lg:hidden">🚪</span>
+            <span class="portrait:md:hidden landscape:lg:hidden text-sm">🚪</span>
             <span class="hidden portrait:md:block landscape:lg:block">Sortir</span>
           </button>
         </div>
       {:else}
         <a
           href="/general/login"
-          class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
+          class="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
         >
-          <span class="portrait:md:hidden landscape:lg:hidden">🔐</span>
+          <span class="portrait:md:hidden landscape:lg:hidden text-sm">🔐</span>
           <span class="hidden portrait:md:block landscape:lg:block">Iniciar Sessió</span>
         </a>
       {/if}
