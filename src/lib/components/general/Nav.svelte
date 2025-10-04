@@ -159,26 +159,151 @@
 
 <svelte:window on:click={handleClickOutside} />
 
-<nav class="sticky top-0 z-[9998] bg-white border-b border-gray-200 shadow-sm" aria-label="Navegació principal">
+<!-- Sidebar fixa per desktop/tablet (oculta en portrait mobile) -->
+<aside class="hidden landscape:block portrait:lg:block fixed left-0 top-0 h-screen w-20 lg:w-64 bg-gradient-to-b from-gray-50 to-gray-100 border-r-2 border-gray-300 shadow-lg z-[9999] overflow-y-auto">
+  <!-- Logo header -->
+  <div class="p-4 border-b-2 border-gray-300 bg-white">
+    <a href="/" class="flex items-center justify-center lg:justify-start gap-3">
+      <img src="/logo.png" alt="Foment Martinenc" class="h-12 w-12 object-contain" />
+      <span class="hidden lg:block text-lg font-bold text-gray-900">3 Bandes</span>
+    </a>
+  </div>
+
+  <!-- Navigation sections -->
+  <div class="flex flex-col h-[calc(100vh-5rem)]">
+    <div class="flex-1 overflow-y-auto py-4">
+      {#each Object.entries(navegacio) as [key, section]}
+        {#if !section.adminOnly || $isAdmin}
+          <div class="mb-2">
+            <!-- Section button -->
+            <button
+              on:click={() => toggleMobileSection(key)}
+              class="w-full flex items-center justify-center lg:justify-start gap-3 px-4 py-3 hover:bg-white/60 transition-all duration-200 {
+                selectedSection === key ? 'bg-white border-l-4 border-' + section.color + '-500 text-' + section.color + '-700' : 'text-gray-700'
+              }"
+              title={section.label}
+            >
+              <span class="text-2xl flex-shrink-0">{section.icon}</span>
+              <span class="hidden lg:block font-semibold">{section.label}</span>
+              <svg class="hidden lg:block ml-auto h-4 w-4 transition-transform duration-200 {
+                mobileExpandedSection === key ? 'rotate-180' : ''
+              }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+
+            <!-- Expanded section links -->
+            {#if mobileExpandedSection === key}
+              <div class="bg-white/40 border-l-2 border-{section.color}-200 ml-2 lg:ml-4">
+                {#each section.links as link}
+                  <a
+                    href={link.href}
+                    class="flex items-center px-4 lg:px-6 py-2 text-sm font-medium hover:bg-white/80 transition-colors {
+                      link.disabled ? 'opacity-50 cursor-not-allowed' : ''
+                    } {
+                      isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-800 border-l-2 border-' + section.color + '-500' : 'text-gray-700'
+                    }"
+                    class:pointer-events-none={link.disabled}
+                  >
+                    <span class="hidden lg:block">{link.label}</span>
+                    <span class="lg:hidden text-xs text-center w-full">{link.label.substring(0, 20)}{link.label.length > 20 ? '...' : ''}</span>
+                  </a>
+                {/each}
+
+                {#if $user && section.userLinks && section.userLinks.length > 0}
+                  <div class="border-t border-gray-200 mt-1 pt-1">
+                    <div class="px-4 lg:px-6 py-1">
+                      <span class="hidden lg:block text-xs font-semibold text-gray-500 uppercase">Meves Accions</span>
+                    </div>
+                    {#each section.userLinks as link}
+                      <a
+                        href={link.href}
+                        class="flex items-center px-4 lg:px-6 py-2 text-sm font-medium hover:bg-white/80 transition-colors {
+                          isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-800 border-l-2 border-' + section.color + '-500' : 'text-gray-700'
+                        }"
+                      >
+                        <span class="hidden lg:block">{link.label}</span>
+                        <span class="lg:hidden text-xs text-center w-full">{link.label.substring(0, 20)}{link.label.length > 20 ? '...' : ''}</span>
+                      </a>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            {/if}
+          </div>
+        {/if}
+      {/each}
+    </div>
+
+    <!-- User section at bottom -->
+    <div class="flex-shrink-0 border-t-2 border-gray-300 bg-white p-4">
+      {#if $user}
+        <div class="space-y-2">
+          <div class="hidden lg:block">
+            <div class="text-xs text-gray-600">Sessió:</div>
+            <div class="text-sm font-semibold text-gray-900 truncate">{$user.email}</div>
+          </div>
+
+          {#if $isAdmin}
+            <div class="flex items-center justify-between">
+              <span class="hidden lg:block text-xs text-gray-700">Vista {$viewMode === 'admin' ? 'Admin' : 'Jugador'}</span>
+              <button
+                on:click={() => viewMode.toggleMode()}
+                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {
+                  $viewMode === 'admin' ? 'bg-blue-600' : 'bg-green-600'
+                }"
+                title="Canviar vista"
+              >
+                <span class="sr-only">Toggle view mode</span>
+                <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {
+                  $viewMode === 'admin' ? 'translate-x-6' : 'translate-x-1'
+                }"></span>
+              </button>
+            </div>
+          {/if}
+
+          <button
+            on:click={signOut}
+            class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
+          >
+            <span class="lg:hidden">🚪</span>
+            <span class="hidden lg:block">Sortir</span>
+          </button>
+        </div>
+      {:else}
+        <a
+          href="/general/login"
+          class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
+        >
+          <span class="lg:hidden">🔐</span>
+          <span class="hidden lg:block">Iniciar Sessió</span>
+        </a>
+      {/if}
+    </div>
+  </div>
+</aside>
+
+<nav class="sticky top-0 z-[9998] bg-white border-b border-gray-200 shadow-sm landscape:ml-20 portrait:lg:ml-64" aria-label="Navegació principal">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <!-- Navegació principal -->
     <div class="flex h-20 landscape:h-14 justify-between">
-      <!-- Logo (simplified) -->
-      <div class="flex flex-shrink-0 items-center">
+      <!-- Logo (simplified) - Only show on portrait mobile when sidebar is hidden -->
+      <div class="flex flex-shrink-0 items-center landscape:hidden portrait:lg:hidden">
         <a href="/" class="flex items-center" title="Secció de Billar del Foment Martinenc">
-          <img src="/logo.png" alt="Foment Martinenc" class="h-12 w-12 landscape:h-8 landscape:w-8 object-contain" />
+          <img src="/logo.png" alt="Foment Martinenc" class="h-12 w-12 object-contain" />
         </a>
       </div>
 
-      <!-- Seccions principals centrades (Desktop) -->
-      <div class="hidden portrait:xl:flex landscape:2xl:flex xl:items-center xl:justify-center flex-1 h-20">
-        <div class="flex items-center space-x-4 xl:space-x-8">
+      <!-- Seccions principals centrades (Desktop) - Hidden when sidebar is visible -->
+      <!-- Only show on very large screens where there's space for both -->
+      <div class="hidden portrait:xl:hidden landscape:2xl:hidden 2xl:flex 2xl:items-center 2xl:justify-center flex-1 h-20">
+        <div class="flex items-center space-x-4 2xl:space-x-8">
           {#each Object.entries(navegacio) as [key, section]}
             {#if !section.adminOnly || $isAdmin}
               <div class="relative" data-dropdown>
                 <button
                   on:click={() => toggleDropdown(key)}
-                  class="inline-flex items-center px-3 xl:px-4 py-3 border-b-3 text-lg font-semibold min-h-[56px] rounded-t-lg transition-all duration-200 {
+                  class="inline-flex items-center px-3 2xl:px-4 py-3 border-b-3 text-lg font-semibold min-h-[56px] rounded-t-lg transition-all duration-200 {
                     selectedSection === key
                       ? 'border-' + section.color + '-500 text-' + section.color + '-700 bg-' + section.color + '-50'
                       : 'border-transparent text-gray-900 hover:text-gray-700 hover:border-gray-400 hover:bg-gray-50'
@@ -242,8 +367,8 @@
         </div>
       </div>
 
-      <!-- Menú d'usuari (Dreta) - Only show on desktop, hide on landscape mobile -->
-      <div class="hidden portrait:xl:flex landscape:2xl:flex xl:ml-6 xl:items-center xl:gap-4">
+      <!-- Menú d'usuari (Dreta) - Only show on very large screens -->
+      <div class="hidden portrait:xl:hidden landscape:2xl:hidden 2xl:flex 2xl:ml-6 2xl:items-center 2xl:gap-4">
         {#if $user}
           <!-- View Mode Switch (only for admins - simplified) -->
           {#if $isAdmin}
@@ -280,8 +405,13 @@
         {/if}
       </div>
 
-      <!-- Menú mòbil button - Show on mobile and landscape below 2xl -->
-      <div class="flex items-center portrait:xl:hidden landscape:2xl:hidden ml-2">
+      <!-- Page title or breadcrumb when sidebar is visible -->
+      <div class="hidden landscape:flex portrait:lg:flex landscape:2xl:hidden portrait:xl:hidden flex-1 items-center justify-center">
+        <h1 class="text-lg font-semibold text-gray-900">Secció de Billar - Foment Martinenc</h1>
+      </div>
+
+      <!-- Menú mòbil button - Only show on portrait mobile (when sidebar is hidden) -->
+      <div class="flex items-center landscape:hidden portrait:lg:hidden ml-2">
         <button
           on:click={() => mobileMenuOpen = !mobileMenuOpen}
           class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"

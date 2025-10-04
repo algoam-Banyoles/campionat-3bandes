@@ -189,9 +189,11 @@
 {:else}
   <Nav />
 
-  <main id="main-content" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-safe" tabindex="-1">
-    <slot />
-  </main>
+  <div class="landscape:ml-20 portrait:lg:ml-64">
+    <main id="main-content" class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-safe" tabindex="-1">
+      <slot />
+    </main>
+  </div>
 
   <Toasts />
 {/if}
