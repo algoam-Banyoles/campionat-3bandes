@@ -40,11 +40,9 @@ export async function refreshRanking(force = false): Promise<void> {
     const { data: finalRankingData, error: rankingError } = await supabase
       .from('ranking_positions')
       .select(`
-        id,
         event_id,
         posicio,
         player_id,
-        created_at,
         players!inner (
           id,
           mitjana,
@@ -88,16 +86,16 @@ export async function refreshRanking(force = false): Promise<void> {
     }
 
     // Transformar les dades al format correcte
-    const transformedData: RankingRow[] = finalRankingData.map((item: any) => {
+    const transformedData: RankingRow[] = finalRankingData.map((item: any, index: number) => {
       const player = item.players;
       const soci = player?.numero_soci ? socisMap.get(player.numero_soci) : null;
 
       return {
-        id: item.id,
+        id: `${item.event_id}-${item.player_id}`, // Generate ID from event_id and player_id
         event_id: item.event_id,
         posicio: item.posicio,
         player_id: item.player_id,
-        created_at: item.created_at,
+        created_at: new Date().toISOString(), // Use current date as created_at is not in DB
         nom: soci?.nom || null,
         cognoms: soci?.cognoms || null,
         mitjana: player?.mitjana || null,
