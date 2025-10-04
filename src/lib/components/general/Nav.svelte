@@ -159,8 +159,8 @@
 
 <svelte:window on:click={handleClickOutside} />
 
-<!-- Sidebar fixa per desktop/tablet (oculta en portrait mobile) -->
-<aside class="hidden landscape:block portrait:lg:block fixed left-0 top-0 h-screen w-20 lg:w-64 bg-gradient-to-b from-gray-50 to-gray-100 border-r-2 border-gray-300 shadow-lg z-[9999] overflow-y-auto">
+<!-- Sidebar fixa per desktop/tablet/landscape (oculta NOMÉS en portrait mobile) -->
+<aside class="hidden portrait:md:block landscape:block fixed left-0 top-0 h-screen portrait:md:w-64 landscape:w-20 landscape:lg:w-64 bg-gradient-to-b from-gray-50 to-gray-100 border-r-2 border-gray-300 shadow-lg z-[9999] overflow-y-auto">
   <!-- Logo header -->
   <div class="p-4 border-b-2 border-gray-300 bg-white">
     <a href="/" class="flex items-center justify-center lg:justify-start gap-3">
@@ -184,8 +184,8 @@
               title={section.label}
             >
               <span class="text-2xl flex-shrink-0">{section.icon}</span>
-              <span class="hidden lg:block font-semibold">{section.label}</span>
-              <svg class="hidden lg:block ml-auto h-4 w-4 transition-transform duration-200 {
+              <span class="hidden portrait:md:block landscape:lg:block font-semibold">{section.label}</span>
+              <svg class="hidden portrait:md:block landscape:lg:block ml-auto h-4 w-4 transition-transform duration-200 {
                 mobileExpandedSection === key ? 'rotate-180' : ''
               }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -205,15 +205,15 @@
                     }"
                     class:pointer-events-none={link.disabled}
                   >
-                    <span class="hidden lg:block">{link.label}</span>
-                    <span class="lg:hidden text-xs text-center w-full">{link.label.substring(0, 20)}{link.label.length > 20 ? '...' : ''}</span>
+                    <span class="hidden portrait:md:block landscape:lg:block">{link.label}</span>
+                    <span class="portrait:md:hidden landscape:lg:hidden text-xs text-center w-full">{link.label.substring(0, 20)}{link.label.length > 20 ? '...' : ''}</span>
                   </a>
                 {/each}
 
                 {#if $user && section.userLinks && section.userLinks.length > 0}
                   <div class="border-t border-gray-200 mt-1 pt-1">
-                    <div class="px-4 lg:px-6 py-1">
-                      <span class="hidden lg:block text-xs font-semibold text-gray-500 uppercase">Meves Accions</span>
+                    <div class="px-4 portrait:md:px-6 landscape:lg:px-6 py-1">
+                      <span class="hidden portrait:md:block landscape:lg:block text-xs font-semibold text-gray-500 uppercase">Meves Accions</span>
                     </div>
                     {#each section.userLinks as link}
                       <a
@@ -222,8 +222,8 @@
                           isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-800 border-l-2 border-' + section.color + '-500' : 'text-gray-700'
                         }"
                       >
-                        <span class="hidden lg:block">{link.label}</span>
-                        <span class="lg:hidden text-xs text-center w-full">{link.label.substring(0, 20)}{link.label.length > 20 ? '...' : ''}</span>
+                        <span class="hidden portrait:md:block landscape:lg:block">{link.label}</span>
+                        <span class="portrait:md:hidden landscape:lg:hidden text-xs text-center w-full">{link.label.substring(0, 20)}{link.label.length > 20 ? '...' : ''}</span>
                       </a>
                     {/each}
                   </div>
@@ -239,14 +239,14 @@
     <div class="flex-shrink-0 border-t-2 border-gray-300 bg-white p-4">
       {#if $user}
         <div class="space-y-2">
-          <div class="hidden lg:block">
+          <div class="hidden portrait:md:block landscape:lg:block">
             <div class="text-xs text-gray-600">Sessió:</div>
             <div class="text-sm font-semibold text-gray-900 truncate">{$user.email}</div>
           </div>
 
           {#if $isAdmin}
             <div class="flex items-center justify-between">
-              <span class="hidden lg:block text-xs text-gray-700">Vista {$viewMode === 'admin' ? 'Admin' : 'Jugador'}</span>
+              <span class="hidden portrait:md:block landscape:lg:block text-xs text-gray-700">Vista {$viewMode === 'admin' ? 'Admin' : 'Jugador'}</span>
               <button
                 on:click={() => viewMode.toggleMode()}
                 class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {
@@ -266,8 +266,8 @@
             on:click={signOut}
             class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
           >
-            <span class="lg:hidden">🚪</span>
-            <span class="hidden lg:block">Sortir</span>
+            <span class="portrait:md:hidden landscape:lg:hidden">🚪</span>
+            <span class="hidden portrait:md:block landscape:lg:block">Sortir</span>
           </button>
         </div>
       {:else}
@@ -275,15 +275,16 @@
           href="/general/login"
           class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
         >
-          <span class="lg:hidden">🔐</span>
-          <span class="hidden lg:block">Iniciar Sessió</span>
+          <span class="portrait:md:hidden landscape:lg:hidden">🔐</span>
+          <span class="hidden portrait:md:block landscape:lg:block">Iniciar Sessió</span>
         </a>
       {/if}
     </div>
   </div>
 </aside>
 
-<nav class="sticky top-0 z-[9998] bg-white border-b border-gray-200 shadow-sm landscape:ml-20 portrait:lg:ml-64" aria-label="Navegació principal">
+<!-- Navbar superior NOMÉS per portrait mobile (quan no hi ha sidebar) -->
+<nav class="portrait:md:hidden landscape:hidden sticky top-0 z-[9998] bg-white border-b border-gray-200 shadow-sm" aria-label="Navegació principal">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <!-- Navegació principal -->
     <div class="flex h-20 landscape:h-14 justify-between">
