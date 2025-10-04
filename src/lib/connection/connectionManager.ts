@@ -78,13 +78,21 @@ class ConnectionManager {
   private initializeConnectionMonitoring() {
     if (typeof window === 'undefined') return;
 
-    // Monitor browser online/offline events
+    // In iframe context, navigator.onLine can be unreliable, so we rely more on actual connectivity checks
+    const isInIframe = window.self !== window.top;
+
+    // Monitor browser online/offline events (but trust them less in iframes)
     window.addEventListener('online', () => {
       this.handleOnlineEvent();
     });
 
     window.addEventListener('offline', () => {
-      this.handleOfflineEvent();
+      // In iframes, ignore offline events as they can be false positives
+      if (!isInIframe) {
+        this.handleOfflineEvent();
+      } else {
+        console.log('[ConnectionManager] Ignoring offline event in iframe context');
+      }
     });
 
     // Initial connection check
@@ -93,6 +101,12 @@ class ConnectionManager {
 
   private startHealthChecks() {
     if (typeof window === 'undefined') return;
+
+    // Skip health checks if running in iframe to avoid false offline detection
+    if (window.self !== window.top) {
+      console.log('[ConnectionManager] Running in iframe, health checks disabled');
+      return;
+    }
 
     // Periodic health checks every 30 seconds when online
     this.healthCheckInterval = window.setInterval(() => {
