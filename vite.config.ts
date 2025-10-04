@@ -28,6 +28,8 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
+        // Esborrar tot el cache en cada actualització
+        mode: 'production',
         navigateFallback: '/offline.html',
         navigateFallbackDenylist: [/^\/api/, /^\/admin/, /^\/auth/],
         additionalManifestEntries: [

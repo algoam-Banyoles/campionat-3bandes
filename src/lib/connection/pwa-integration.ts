@@ -9,6 +9,7 @@ interface PWAManager {
 class PWAIntegration implements PWAManager {
   private vitePwaRegistration: ServiceWorkerRegistration | null = null;
   private customSWRegistration: ServiceWorkerRegistration | null = null;
+  private readonly APP_VERSION = '1.0.0'; // Incrementar aquesta versió per forçar neteja de cache
 
   async init(): Promise<void> {
     if (!('serviceWorker' in navigator)) {
@@ -17,6 +18,9 @@ class PWAIntegration implements PWAManager {
     }
 
     try {
+      // Esborrar tot el cache abans de registrar els service workers
+      await this.clearAllCaches();
+
       // Primer, registrar el service worker generat per Vite-PWA (per precaching i offline)
       await this.registerVitePWA();
 
@@ -28,6 +32,27 @@ class PWAIntegration implements PWAManager {
 
     } catch (error) {
       console.error('[PWA] Error initializing PWA:', error);
+    }
+  }
+
+  private async clearAllCaches(): Promise<void> {
+    try {
+      const cacheNames = await caches.keys();
+      console.log('[PWA] Esborrant caches:', cacheNames);
+
+      await Promise.all(
+        cacheNames.map(cacheName => {
+          console.log('[PWA] Esborrant cache:', cacheName);
+          return caches.delete(cacheName);
+        })
+      );
+
+      console.log('[PWA] Tots els caches han estat esborrats');
+
+      // Guardar la versió actual per futures comprovacions
+      localStorage.setItem('pwa-version', this.APP_VERSION);
+    } catch (error) {
+      console.error('[PWA] Error esborrant caches:', error);
     }
   }
 
