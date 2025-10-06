@@ -170,34 +170,48 @@
         let retryCount = 0;
         const maxRetries = 3;
 
-        // Check connection status
+        // Check connection status - NO usar navigator.onLine (poc fiable en Safari)
         function updateConnectionStatus() {
             const statusEl = document.getElementById('status');
             const statusTextEl = document.getElementById('connection-status');
-            
-            if (navigator.onLine) {
-                statusEl.className = 'status online';
-                statusTextEl.textContent = 'Connectat (verificant servidor...)';
-                
-                // Test actual server connection
-                testServerConnection();
-            } else {
-                statusEl.className = 'status offline';
-                statusTextEl.textContent = 'Sense connexió a internet';
-            }
+
+            statusEl.className = 'status online';
+            statusTextEl.textContent = 'Verificant connexió...';
+
+            // Test actual server connection amb timeout
+            testServerConnection();
         }
 
         function testServerConnection() {
-            fetch('/', { method: 'HEAD', cache: 'no-cache' })
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+
+            fetch('/', {
+                method: 'HEAD',
+                cache: 'no-cache',
+                signal: controller.signal
+            })
                 .then(() => {
-                    document.getElementById('connection-status').textContent = 'Servidor disponible';
+                    clearTimeout(timeoutId);
+                    const statusEl = document.getElementById('status');
+                    const statusTextEl = document.getElementById('connection-status');
+                    statusEl.className = 'status online';
+                    statusTextEl.textContent = 'Servidor disponible';
                     // Automatically redirect after successful connection
                     setTimeout(() => {
                         window.location.href = '/';
                     }, 2000);
                 })
-                .catch(() => {
-                    document.getElementById('connection-status').textContent = 'Servidor no disponible';
+                .catch((error) => {
+                    clearTimeout(timeoutId);
+                    const statusEl = document.getElementById('status');
+                    const statusTextEl = document.getElementById('connection-status');
+                    statusEl.className = 'status offline';
+                    if (error.name === 'AbortError') {
+                        statusTextEl.textContent = 'Timeout - connexió lenta o no disponible';
+                    } else {
+                        statusTextEl.textContent = 'Servidor no disponible';
+                    }
                 });
         }
 
@@ -291,9 +305,7 @@
             });
         }
 
-        // Event listeners
-        window.addEventListener('online', updateConnectionStatus);
-        window.addEventListener('offline', updateConnectionStatus);
+        // Event listeners - NO usar 'online'/'offline' (poc fiables)
 
         // Initialize
         updateConnectionStatus();

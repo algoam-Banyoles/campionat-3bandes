@@ -52,7 +52,10 @@ export default defineConfig({
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'google-fonts-stylesheets'
+              cacheName: 'google-fonts-stylesheets',
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
             }
           },
           {
@@ -63,6 +66,9 @@ export default defineConfig({
               expiration: {
                 maxEntries: 30,
                 maxAgeSeconds: 60 * 60 * 24 * 365 // 1 any
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
               }
             }
           },
@@ -70,7 +76,26 @@ export default defineConfig({
             urlPattern: /\.(js|css)$/,
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'static-resources'
+              cacheName: 'static-resources',
+              networkTimeoutSeconds: 8,
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-api',
+              networkTimeoutSeconds: 8,
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 5 // 5 minuts
+              },
+              cacheableResponse: {
+                statuses: [200]
+              }
             }
           }
         ]

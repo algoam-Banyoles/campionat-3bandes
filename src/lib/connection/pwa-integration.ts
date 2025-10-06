@@ -9,7 +9,7 @@ interface PWAManager {
 class PWAIntegration implements PWAManager {
   private vitePwaRegistration: ServiceWorkerRegistration | null = null;
   private customSWRegistration: ServiceWorkerRegistration | null = null;
-  private readonly APP_VERSION = '1.0.0'; // Incrementar aquesta versió per forçar neteja de cache
+  private readonly APP_VERSION = '2.0.0'; // Incrementar aquesta versió per forçar neteja de cache
 
   async init(): Promise<void> {
     if (!('serviceWorker' in navigator)) {
@@ -18,8 +18,8 @@ class PWAIntegration implements PWAManager {
     }
 
     try {
-      // Esborrar tot el cache abans de registrar els service workers
-      await this.clearAllCaches();
+      // Només esborrar caches obsolets si ha canviat la versió
+      await this.cleanupOutdatedCaches();
 
       // Primer, registrar el service worker generat per Vite-PWA (per precaching i offline)
       await this.registerVitePWA();
@@ -35,24 +35,65 @@ class PWAIntegration implements PWAManager {
     }
   }
 
-  private async clearAllCaches(): Promise<void> {
+  private async cleanupOutdatedCaches(): Promise<void> {
     try {
-      const cacheNames = await caches.keys();
-      console.log('[PWA] Esborrant caches:', cacheNames);
+      const storedVersion = localStorage.getItem('pwa-version');
 
-      await Promise.all(
-        cacheNames.map(cacheName => {
-          console.log('[PWA] Esborrant cache:', cacheName);
-          return caches.delete(cacheName);
-        })
-      );
+      // Només netejar si la versió ha canviat
+      if (storedVersion && storedVersion !== this.APP_VERSION) {
+        console.log('[PWA] Nova versió detectada (', storedVersion, '→', this.APP_VERSION, '), forçant reinstal·lació');
 
-      console.log('[PWA] Tots els caches han estat esborrats');
+        // FORÇAR REINSTAL·LACIÓ COMPLETA
+        // 1. Desregistrar TOTS els service workers
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        console.log('[PWA] Desregistrant', registrations.length, 'service workers...');
+        await Promise.all(
+          registrations.map(registration => {
+            console.log('[PWA] Desregistrant SW:', registration.scope);
+            return registration.unregister();
+          })
+        );
 
-      // Guardar la versió actual per futures comprovacions
-      localStorage.setItem('pwa-version', this.APP_VERSION);
+        // 2. Esborrar TOTS els caches
+        const cacheNames = await caches.keys();
+        console.log('[PWA] Esborrant tots els caches:', cacheNames);
+        await Promise.all(
+          cacheNames.map(cacheName => {
+            console.log('[PWA] Esborrant cache:', cacheName);
+            return caches.delete(cacheName);
+          })
+        );
+
+        // 3. Netejar localStorage relacionat amb PWA
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.includes('workbox') || key.includes('sw-') || key.includes('cache'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => {
+          console.log('[PWA] Esborrant localStorage:', key);
+          localStorage.removeItem(key);
+        });
+
+        console.log('[PWA] Reinstal·lació completa, recarregant pàgina...');
+
+        // Actualitzar versió
+        localStorage.setItem('pwa-version', this.APP_VERSION);
+
+        // 4. Forçar reload per registrar els nous service workers
+        window.location.reload();
+      } else if (!storedVersion) {
+        // Primera instal·lació
+        console.log('[PWA] Primera instal·lació, versió', this.APP_VERSION);
+        localStorage.setItem('pwa-version', this.APP_VERSION);
+      } else {
+        // Mateixa versió, no fer res
+        console.log('[PWA] Versió actual:', this.APP_VERSION);
+      }
     } catch (error) {
-      console.error('[PWA] Error esborrant caches:', error);
+      console.error('[PWA] Error netejant caches:', error);
     }
   }
 

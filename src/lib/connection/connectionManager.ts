@@ -108,13 +108,24 @@ class ConnectionManager {
       return;
     }
 
-    // Periodic health checks every 30 seconds when online
-    this.healthCheckInterval = window.setInterval(() => {
-      const state = get(this.connectionState);
-      if ((state as any).isOnline && !(state as any).isRetrying) {
+    // Detectar si estem en background/sleep mode (Safari)
+    let isVisible = !document.hidden;
+    document.addEventListener('visibilitychange', () => {
+      isVisible = !document.hidden;
+      if (isVisible) {
+        // Quan tornem a primer pla, fer check immediat
         this.checkConnection();
       }
-    }, 30000);
+    });
+
+    // Periodic health checks every 60 seconds quan visible (reduït freqüència)
+    this.healthCheckInterval = window.setInterval(() => {
+      const state = get(this.connectionState);
+      // Només fer check si estem visibles i no en retry
+      if (isVisible && (state as any).isConnected && !(state as any).isRetrying) {
+        this.checkConnection();
+      }
+    }, 60000); // Augmentat a 60s per reduir consum
   }
 
   private async handleOnlineEvent() {
@@ -144,21 +155,28 @@ class ConnectionManager {
 
   private async checkConnection(): Promise<boolean> {
     const pingStart = performance.now();
-    
+
     try {
       // Use a simple HTTP request to check Supabase availability
       // This avoids auth issues but still checks if Supabase is reachable
       const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
       const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
-      
+
+      // Crear AbortController per timeout (Safari necessita timeout curt)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout per Safari
+
       const response = await fetch(`${supabaseUrl}/rest/v1/`, {
         method: 'HEAD',
         headers: {
           'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`
-        }
+        },
+        signal: controller.signal,
+        cache: 'no-store' // No usar cache per check de connexió
       });
 
+      clearTimeout(timeoutId);
       const pingTime = performance.now() - pingStart;
       this.lastPingTime = pingTime;
 
@@ -212,17 +230,21 @@ class ConnectionManager {
   }
 
   private determineErrorType(error: any): 'network' | 'server' | 'auth' {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      return 'network';
-    }
+    // NO usar navigator.onLine - és poc fiable en Safari/iOS
 
     if (error?.code?.startsWith('PGRST') || error?.message?.includes('JWT')) {
       return 'auth';
     }
 
-    if (error?.message?.includes('fetch') || 
+    // Errors de timeout o abort són problemes de xarxa
+    if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
+      return 'network';
+    }
+
+    if (error?.message?.includes('fetch') ||
         error?.message?.includes('network') ||
-        error?.code === 'NETWORK_ERROR') {
+        error?.code === 'NETWORK_ERROR' ||
+        error?.message?.includes('Failed to fetch')) {
       return 'network';
     }
 
