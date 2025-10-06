@@ -77,7 +77,7 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: {
               cacheName: 'static-resources',
-              networkTimeoutSeconds: 8,
+              networkTimeoutSeconds: 10, // Augmentat per Safari iOS
               cacheableResponse: {
                 statuses: [0, 200]
               }
@@ -88,7 +88,7 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: {
               cacheName: 'supabase-api',
-              networkTimeoutSeconds: 8,
+              networkTimeoutSeconds: 12, // Augmentat per Safari iOS standalone
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 5 // 5 minuts

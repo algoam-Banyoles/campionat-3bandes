@@ -170,7 +170,8 @@
         let retryCount = 0;
         const maxRetries = 3;
 
-        // Check connection status - NO usar navigator.onLine (poc fiable en Safari)
+        // Check connection status - NO usar navigator.onLine (poc fiable en Safari iOS/Android)
+        // SEMPRE fer check real amb fetch, mai confiar en navigator.onLine
         function updateConnectionStatus() {
             const statusEl = document.getElementById('status');
             const statusTextEl = document.getElementById('connection-status');
@@ -184,7 +185,7 @@
 
         function testServerConnection() {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout per Safari iOS
 
             fetch('/', {
                 method: 'HEAD',
@@ -305,13 +306,14 @@
             });
         }
 
-        // Event listeners - NO usar 'online'/'offline' (poc fiables)
+        // Event listeners - NO usar 'online'/'offline' events (poc fiables en Safari/iOS)
+        // En lloc d'això, confiar només en checks periòdics amb fetch real
 
         // Initialize
         updateConnectionStatus();
         loadCachedDataInfo();
-        
-        // Auto-retry every 30 seconds
+
+        // Auto-retry every 30 seconds amb fetch real
         setInterval(updateConnectionStatus, 30000);
     </script>
 </body>

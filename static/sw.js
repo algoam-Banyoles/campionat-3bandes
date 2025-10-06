@@ -4,8 +4,8 @@
 // Importar les utilitats de Workbox si estan disponibles
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.5.4/workbox-sw.js');
 
-// Timeout per fetch requests (Safari necessita timeouts curts)
-const FETCH_TIMEOUT = 8000; // 8 segons
+// Timeout per fetch requests - AUGMENTAT per Safari iOS standalone
+const FETCH_TIMEOUT = 15000; // 15 segons per PWA standalone
 
 // Helper per afegir timeout a fetch
 const fetchWithTimeout = (request, timeout = FETCH_TIMEOUT) => {
@@ -48,10 +48,11 @@ if (workbox) {
     ({request}) => request.mode === 'navigate',
     new workbox.strategies.NetworkFirst({
       cacheName: 'pages',
-      networkTimeoutSeconds: 5, // Timeout de 5s per Safari
+      networkTimeoutSeconds: 10, // AUGMENTAT a 10s per Safari iOS standalone
       plugins: [
         {
-          handlerDidError: async () => {
+          handlerDidError: async ({error}) => {
+            console.log('[SW] Navigation failed, showing offline page:', error);
             // Si la xarxa falla, tornar offline.html
             return caches.match('/offline.html');
           }
@@ -63,6 +64,12 @@ if (workbox) {
               return response;
             }
             return null;
+          }
+        },
+        {
+          fetchDidSucceed: async ({response}) => {
+            console.log('[SW] Navigation fetch succeeded:', response.url);
+            return response;
           }
         }
       ]
@@ -95,12 +102,12 @@ if (workbox) {
     })
   );
 
-  // *** API REQUESTS: NetworkFirst amb timeout curt ***
+  // *** API REQUESTS: NetworkFirst amb timeout adaptat per Safari ***
   workbox.routing.registerRoute(
     ({url}) => url.pathname.startsWith('/api/') || url.hostname.includes('supabase'),
     new workbox.strategies.NetworkFirst({
       cacheName: 'api-cache',
-      networkTimeoutSeconds: 8, // 8s per API calls
+      networkTimeoutSeconds: 12, // AUGMENTAT a 12s per Safari iOS
       plugins: [
         {
           cacheWillUpdate: async ({response}) => {
@@ -112,8 +119,15 @@ if (workbox) {
           }
         },
         {
-          handlerDidError: async () => {
+          handlerDidError: async ({error, request}) => {
+            console.log('[SW] API request failed:', request.url, error);
             // No retornar res si l'API falla (deixar que l'app ho gestioni)
+            return null;
+          }
+        },
+        {
+          fetchDidFail: async ({originalRequest, error}) => {
+            console.log('[SW] API fetch completely failed:', originalRequest.url, error);
             return null;
           }
         }

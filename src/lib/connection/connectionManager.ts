@@ -29,7 +29,7 @@ export interface ConnectionEvent {
 
 class ConnectionManager {
   private connectionState = writable<ConnectionState>({
-    isOnline: typeof navigator !== 'undefined' ? navigator.onLine : false,
+    isOnline: true, // SEMPRE assumir online, validarem amb fetch real
     isConnected: false,
     lastConnected: null,
     retryCount: 0,
@@ -78,22 +78,26 @@ class ConnectionManager {
   private initializeConnectionMonitoring() {
     if (typeof window === 'undefined') return;
 
-    // In iframe context, navigator.onLine can be unreliable, so we rely more on actual connectivity checks
-    const isInIframe = window.self !== window.top;
+    // NO utilitzar navigator.onLine - és poc fiable en Safari/iOS PWA
+    // En lloc d'això, confiar únicament en checks amb fetch real
 
-    // Monitor browser online/offline events (but trust them less in iframes)
-    window.addEventListener('online', () => {
-      this.handleOnlineEvent();
-    });
+    // Detectar si som en PWA standalone (més propens a falsos offline)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || (window.navigator as any).standalone === true
+      || document.referrer.includes('android-app://');
 
-    window.addEventListener('offline', () => {
-      // In iframes, ignore offline events as they can be false positives
-      if (!isInIframe) {
-        this.handleOfflineEvent();
-      } else {
-        console.log('[ConnectionManager] Ignoring offline event in iframe context');
-      }
-    });
+    if (isStandalone) {
+      console.log('[ConnectionManager] Running in standalone PWA mode - using real fetch checks only');
+    }
+
+    // NOMÉS escoltar event 'online' (no 'offline') i només en mode navegador
+    // En standalone PWA, ignorar completament events del navegador
+    if (!isStandalone) {
+      window.addEventListener('online', () => {
+        console.log('[ConnectionManager] Browser reports online - verifying with real check');
+        this.checkConnection();
+      });
+    }
 
     // Initial connection check
     this.checkConnection();
@@ -110,47 +114,43 @@ class ConnectionManager {
 
     // Detectar si estem en background/sleep mode (Safari)
     let isVisible = !document.hidden;
+    let wakeupCheckDone = false;
+
     document.addEventListener('visibilitychange', () => {
+      const wasHidden = !isVisible;
       isVisible = !document.hidden;
-      if (isVisible) {
-        // Quan tornem a primer pla, fer check immediat
-        this.checkConnection();
+
+      if (isVisible && wasHidden) {
+        // Quan tornem a primer pla després de sleep, esperar 2s abans de check
+        // Safari necessita temps per restaurar connexions
+        console.log('[ConnectionManager] App woke up from background, checking connection...');
+        wakeupCheckDone = false;
+        setTimeout(() => {
+          this.checkConnection();
+          wakeupCheckDone = true;
+        }, 2000);
       }
     });
 
-    // Periodic health checks every 60 seconds quan visible (reduït freqüència)
+    // Periodic health checks NOMÉS si estem connectats i visibles
+    // Reduït a 120s per evitar overhead en Safari
     this.healthCheckInterval = window.setInterval(() => {
       const state = get(this.connectionState);
-      // Només fer check si estem visibles i no en retry
-      if (isVisible && (state as any).isConnected && !(state as any).isRetrying) {
+      // NO fer check si acabem de despertar (ja s'ha fet)
+      if (isVisible && (state as any).isConnected && !(state as any).isRetrying && wakeupCheckDone) {
         this.checkConnection();
       }
-    }, 60000); // Augmentat a 60s per reduir consum
+      wakeupCheckDone = true; // Reset flag
+    }, 120000); // 120s = 2 minuts
   }
 
   private async handleOnlineEvent() {
-    this.connectionState.update(state => ({
-      ...state,
-      isOnline: true
-    }));
+    // Només update si realment podem connectar (validació real)
+    const isReallyOnline = await this.checkConnection();
 
-    this.addEvent({ type: 'online', timestamp: new Date() });
-    
-    // Check actual connection to Supabase
-    await this.checkConnection();
-  }
-
-  private handleOfflineEvent() {
-    this.connectionState.update(state => ({
-      ...state,
-      isOnline: false,
-      isConnected: false,
-      quality: 'offline',
-      errorType: 'network'
-    }));
-
-    this.addEvent({ type: 'offline', timestamp: new Date() });
-    this.stopRetrying();
+    if (isReallyOnline) {
+      this.addEvent({ type: 'online', timestamp: new Date() });
+    }
   }
 
   private async checkConnection(): Promise<boolean> {
@@ -162,9 +162,10 @@ class ConnectionManager {
       const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
       const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
 
-      // Crear AbortController per timeout (Safari necessita timeout curt)
+      // Crear AbortController per timeout
+      // AUGMENTAT a 15s per Safari iOS en standalone mode (pot ser lent després de sleep)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout per Safari
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const response = await fetch(`${supabaseUrl}/rest/v1/`, {
         method: 'HEAD',
@@ -173,7 +174,9 @@ class ConnectionManager {
           'Authorization': `Bearer ${supabaseKey}`
         },
         signal: controller.signal,
-        cache: 'no-store' // No usar cache per check de connexió
+        cache: 'no-store', // No usar cache per check de connexió
+        // Afegir mode cors explícit per PWA
+        mode: 'cors'
       });
 
       clearTimeout(timeoutId);
