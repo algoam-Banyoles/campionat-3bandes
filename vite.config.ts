@@ -74,7 +74,7 @@ export default defineConfig({
           },
           {
             urlPattern: /\.(js|css)$/,
-            handler: 'StaleWhileRevalidate',
+            handler: 'NetworkFirst',
             options: {
               cacheName: 'static-resources',
               networkTimeoutSeconds: 8,
