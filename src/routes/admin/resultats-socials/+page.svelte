@@ -163,6 +163,7 @@
       caramboles_jugador2 = 0;
       entrades = 0;
       observacions = '';
+      matchesCollapsed = false; // Desplegar la llista per poder seleccionar la següent partida
 
       // Reload matches
       if (selectedCategory) {
