@@ -14,7 +14,7 @@
   export let currentUserEmail: string = '';
   export let showMyMatches: boolean = true;
 
-  let activeTab: 'players' | 'calendar' | 'results' | 'classifications' = 'players';
+  let activeTab: 'players' | 'calendar' | 'results' | 'classifications' = 'calendar';
   let loading = false;
   let error: string | null = null;
   let fullEventData: any = null;
@@ -97,21 +97,6 @@
   <div class="border-b border-gray-200">
     <nav class="-mb-px flex space-x-4 md:space-x-8">
       <button
-        on:click={() => handleTabChange('players')}
-        class="py-2 px-1 border-b-2 font-medium text-2xl md:text-base"
-        class:border-blue-500={activeTab === 'players'}
-        class:text-blue-600={activeTab === 'players'}
-        class:border-transparent={activeTab !== 'players'}
-        class:text-gray-500={activeTab !== 'players'}
-        class:hover:text-gray-700={activeTab !== 'players'}
-        class:hover:border-gray-300={activeTab !== 'players'}
-        title="Jugadors per Categories"
-      >
-        <span class="md:hidden">👥</span>
-        <span class="hidden md:inline">👥 Jugadors per Categories</span>
-      </button>
-
-      <button
         on:click={() => handleTabChange('calendar')}
         class="py-2 px-1 border-b-2 font-medium text-2xl md:text-base"
         class:border-blue-500={activeTab === 'calendar'}
@@ -152,8 +137,23 @@
         class:hover:border-gray-300={activeTab !== 'classifications'}
         title="Classificacions"
       >
-        <span class="md:hidden">🏆</span>
-        <span class="hidden md:inline">🏆 Classificacions</span>
+        <span class="md:hidden">📊</span>
+        <span class="hidden md:inline">📊 Classificació</span>
+      </button>
+
+      <button
+        on:click={() => handleTabChange('players')}
+        class="py-2 px-1 border-b-2 font-medium text-2xl md:text-base"
+        class:border-blue-500={activeTab === 'players'}
+        class:text-blue-600={activeTab === 'players'}
+        class:border-transparent={activeTab !== 'players'}
+        class:text-gray-500={activeTab !== 'players'}
+        class:hover:text-gray-700={activeTab !== 'players'}
+        class:hover:border-gray-300={activeTab !== 'players'}
+        title="Jugadors"
+      >
+        <span class="md:hidden">👥</span>
+        <span class="hidden md:inline">👥 Jugadors</span>
       </button>
     </nav>
   </div>
@@ -170,15 +170,8 @@
       <p class="text-red-600">{error}</p>
     </div>
   {:else if fullEventData}
-    <!-- Jugadors per Categories -->
-    {#if activeTab === 'players'}
-      <SocialLeaguePlayersGrid
-        eventId={event.id}
-        categories={fullEventData.categories || []}
-      />
-
     <!-- Calendari -->
-    {:else if activeTab === 'calendar'}
+    {#if activeTab === 'calendar'}
       <div class="bg-white shadow rounded-lg">
         <div class="px-4 py-5 sm:p-6">
           <SocialLeagueCalendarViewer
@@ -212,6 +205,13 @@
           <pre class="text-xs mt-2">{JSON.stringify(fullEventData, null, 2)}</pre>
         </div>
       {/if}
+
+    <!-- Jugadors per Categories -->
+    {:else if activeTab === 'players'}
+      <SocialLeaguePlayersGrid
+        eventId={event.id}
+        categories={fullEventData.categories || []}
+      />
     {/if}
   {/if}
 </div>

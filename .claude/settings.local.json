@@ -3,7 +3,8 @@
     "allow": [
       "Bash(git push:*)",
       "Bash(git rebase:*)",
-      "Bash(npx supabase db pull:*)"
+      "Bash(npx supabase db pull:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

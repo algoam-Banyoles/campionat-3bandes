@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { get } from 'svelte/store';
@@ -108,7 +108,7 @@
         selectedOpponent = oppId;
       } else {
         // >>>>>>>>>> CANVI IMPORTANT: injectem Authorization al fetch
-        const res = await authFetch('/reptes/nou/eligibles');
+        const res = await authFetch('/campionat-continu/reptes/nou/eligibles');
         const data = await res.json();
         if (!res.ok || !data.ok) {
           err = errMsg(data.error || 'Error en carregar dades.');
@@ -121,7 +121,11 @@
         reptables = data.reptables ?? [];
         noReptables = data.no_reptables ?? [];
         if (reptables.length === 0) {
-          info = 'Ara mateix no pots reptar cap jugador.';
+          if (myPos === 1) {
+            info = '🏆 No pots reptar a ningú perquè ets el primer del rànquing. Només pots ser reptat.';
+          } else {
+            info = 'Ara mateix no pots reptar cap jugador. Revisa els reptes actius o espera que passi el temps mínim entre reptes.';
+          }
         }
         const preSel = params.get('opponent');
         if (preSel && reptables.some((r) => r.player_id === preSel)) {
@@ -173,7 +177,15 @@
   }
 
   function validate(): string | null {
-    if (!eventId || !myPlayerId) return 'Error d’estat intern: falta event o jugador.';
+    // No validar mentre s'està carregant
+    if (loading) return null;
+    
+    if (!eventId || !myPlayerId) {
+      // Millor diagnòstic del problema
+      if (!eventId) return 'No s\'ha pogut carregar l\'esdeveniment actiu.';
+      if (!myPlayerId) return 'No s\'ha pogut identificar el teu jugador.';
+      return 'Error d\'estat intern: falta event o jugador.';
+    }
     if (!selectedOpponent) return 'Cal triar oponent.';
 
     const parsed = dateInputs.map((v) => parseLocalToIso(v || null));
@@ -344,3 +356,4 @@
     </div>
   </div>
 {/if}
+

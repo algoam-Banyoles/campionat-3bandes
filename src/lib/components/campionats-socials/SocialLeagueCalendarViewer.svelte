@@ -3,6 +3,7 @@
   import { supabase } from '$lib/supabaseClient';
   import { user } from '$lib/stores/auth';
   import { formatSupabaseError } from '$lib/ui/alerts';
+  import { exportCalendariToCSV } from '$lib/api/socialLeagues';
 
   const dispatch = createEventDispatcher();
 
@@ -662,6 +663,16 @@
   // Variables per l'intercanvi de partides
   let selectedMatches: Set<string> = new Set();
   let swapMode: boolean = false;
+
+  // Variables per al modal de resultats
+  let showResultModal = false;
+  let resultMatch: any = null;
+  let resultForm = {
+    caramboles_jugador1: 0,
+    caramboles_jugador2: 0,
+    entrades: 0,
+    observacions: ''
+  };
 
   const dayNames = {
     'dl': 'Dilluns',
@@ -1507,6 +1518,86 @@
     editingMatch = null;
   }
 
+  // Funcions per gestionar resultats
+  function openResultModal(match: any) {
+    if (!isAdmin) return;
+
+    resultMatch = match;
+    resultForm = {
+      caramboles_jugador1: match.caramboles_jugador1 || 0,
+      caramboles_jugador2: match.caramboles_jugador2 || 0,
+      entrades: match.entrades || 0,
+      observacions: match.observacions || ''
+    };
+    showResultModal = true;
+  }
+
+  function closeResultModal() {
+    showResultModal = false;
+    resultMatch = null;
+    resultForm = {
+      caramboles_jugador1: 0,
+      caramboles_jugador2: 0,
+      entrades: 0,
+      observacions: ''
+    };
+  }
+
+  async function saveResult() {
+    if (!resultMatch || !isAdmin) return;
+
+    try {
+      loading = true;
+
+      // Determinar guanyador i actualitzar estat
+      const caramboles_j1 = Number(resultForm.caramboles_jugador1);
+      const caramboles_j2 = Number(resultForm.caramboles_jugador2);
+      const entrades_num = Number(resultForm.entrades);
+
+      if (caramboles_j1 === 0 && caramboles_j2 === 0) {
+        alert('Has d\'introduir almenys una carambola per guardar el resultat');
+        loading = false;
+        return;
+      }
+
+      const guanyador_id = caramboles_j1 > caramboles_j2
+        ? resultMatch.jugador1_id
+        : resultMatch.jugador2_id;
+
+      // Actualitzar partida amb el resultat
+      const { error: updateError } = await supabase
+        .from('social_league_matches')
+        .update({
+          caramboles_jugador1: caramboles_j1,
+          caramboles_jugador2: caramboles_j2,
+          entrades: entrades_num,
+          observacions: resultForm.observacions,
+          guanyador_id: guanyador_id,
+          estat: 'jugada',
+          data_jugada: new Date().toISOString()
+        })
+        .eq('id', resultMatch.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      alert('✅ Resultat guardat correctament');
+      closeResultModal();
+
+      // Recarregar dades
+      await loadCalendarData();
+
+      // Emetre event perquè el pare actualitzi si cal
+      dispatch('matchUpdated');
+    } catch (err) {
+      console.error('Error guardant resultat:', err);
+      alert('Error guardant el resultat: ' + formatSupabaseError(err));
+    } finally {
+      loading = false;
+    }
+  }
+
   async function convertToUnprogrammed(match: any) {
     if (!isAdmin) return;
 
@@ -1750,6 +1841,32 @@
     } catch (e) {
       console.error('Error intercanviant partides:', e);
       error = formatSupabaseError(e);
+    }
+  }
+
+  // Funció per exportar calendari a CSV
+  async function downloadCalendariCSV() {
+    if (!eventId || !eventData) return;
+
+    try {
+      const csvContent = await exportCalendariToCSV(eventId);
+
+      // Crear i descarregar el fitxer
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `calendari_${eventData.nom.replace(/[^a-zA-Z0-9]/g, '_')}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      console.error('Error exporting calendar:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconegut';
+      alert(`Error exportant el calendari: ${errorMessage}`);
     }
   }
 </script>
@@ -2313,13 +2430,13 @@
         {/if}
       </div>
 
-      <!-- Controls de vista -->
-      <div class="flex items-center gap-3">
+      <!-- Controls de vista - Botons d'acció admin -->
+      <div class="flex flex-wrap items-center gap-3">
         <!-- Botó de publicar calendari (només per admins i si hi ha partits validats) -->
         {#if isAdmin && programmedMatches.some(match => match.estat === 'validat')}
           <button
             on:click={publishCalendar}
-            class="no-print px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center gap-2 font-semibold"
+            class="no-print px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center gap-2 font-medium"
             title="Publicar calendari al calendari general de la PWA"
             disabled={loading}
           >
@@ -2327,17 +2444,17 @@
               <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
               Publicant...
             {:else}
-              📢 Publicar Calendari
+              📢 Publicar
             {/if}
           </button>
         {/if}
 
         <!-- Controls d'intercanvi de partides (només per admins) -->
         {#if isAdmin}
-          <div class="btn-group-mobile lg:flex lg:items-center lg:gap-2">
+          <div class="flex items-center gap-2">
             <button
               on:click={toggleSwapMode}
-              class="no-print px-3 sm:px-4 py-2 text-xs sm:text-sm rounded font-semibold flex items-center justify-center gap-2"
+              class="no-print px-4 py-2 text-sm rounded font-medium flex items-center justify-center gap-2"
               class:bg-orange-600={swapMode}
               class:text-white={swapMode}
               class:hover:bg-orange-700={swapMode}
@@ -2346,59 +2463,42 @@
               class:hover:bg-orange-200={!swapMode}
               title="Activar/desactivar mode d'intercanvi de partides"
             >
-              🔄 <span class="hidden sm:inline">{swapMode ? 'Cancel·lar Intercanvi' : 'Intercanviar Partides'}</span>
-              <span class="sm:hidden">{swapMode ? 'Cancel·lar' : 'Intercanviar'}</span>
+              🔄 <span class="hidden sm:inline">{swapMode ? 'Cancel·lar' : 'Intercanviar'}</span>
             </button>
 
             {#if swapMode && selectedMatches.size === 2}
               <button
                 on:click={swapMatches}
-                class="no-print px-3 sm:px-4 py-2 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700 font-semibold flex items-center justify-center gap-1"
+                class="no-print px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 font-medium flex items-center justify-center gap-1"
                 title="Confirmar intercanvi de les partides seleccionades"
               >
-                ✅ <span class="hidden sm:inline">Confirmar Intercanvi</span>
-                <span class="sm:hidden">Confirmar</span>
+                ✅ <span class="hidden sm:inline">Confirmar</span>
               </button>
             {/if}
 
             {#if swapMode}
-              <span class="text-xs sm:text-sm text-gray-600 text-center lg:text-left">
-                Seleccionades: {selectedMatches.size}/2
+              <span class="text-sm text-gray-600 font-medium">
+                {selectedMatches.size}/2
               </span>
             {/if}
           </div>
         {/if}
 
-        <!-- Selecció de vista -->
-        <div class="flex bg-gray-100 rounded-lg p-1">
+        <!-- Botó d'exportar CSV (només per admins) -->
+        {#if isAdmin}
           <button
-            on:click={() => viewMode = 'category'}
-            class="px-2 md:px-3 py-1 rounded text-xs md:text-sm transition-colors"
-            class:bg-white={viewMode === 'category'}
-            class:shadow-sm={viewMode === 'category'}
-            class:text-gray-900={viewMode === 'category'}
-            class:text-gray-600={viewMode !== 'category'}
+            on:click={downloadCalendariCSV}
+            class="no-print px-4 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 items-center gap-2 font-medium flex"
+            title="Exportar calendari a CSV"
           >
-            <span class="md:hidden">📋 Categoria</span>
-            <span class="hidden md:inline">📋 Per Categoria</span>
+            📄 Exportar
           </button>
-          <button
-            on:click={() => viewMode = 'timeline'}
-            class="px-2 md:px-3 py-1 rounded text-xs md:text-sm transition-colors"
-            class:bg-white={viewMode === 'timeline'}
-            class:shadow-sm={viewMode === 'timeline'}
-            class:text-gray-900={viewMode === 'timeline'}
-            class:text-gray-600={viewMode !== 'timeline'}
-          >
-            <span class="md:hidden">📅 Cronològ.</span>
-            <span class="hidden md:inline">📅 Cronològica</span>
-          </button>
-        </div>
+        {/if}
 
         <!-- Botó d'impressió -->
         <button
           on:click={printCalendar}
-          class="no-print hidden md:flex px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 items-center gap-1"
+          class="no-print hidden md:flex px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 items-center gap-2 font-medium"
           title="Imprimir calendari cronològic"
         >
           🖨️ Imprimir
@@ -2406,7 +2506,7 @@
       </div>
     </div>
 
-    <!-- Filtres -->
+    <!-- Filtres - Primera fila -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
       <div>
         <label for="category-filter" class="block text-sm font-medium text-gray-700 mb-2">Categoria</label>
@@ -2454,24 +2554,6 @@
           {/if}
         </div>
 
-        <!-- Checkbox "Les meves dades" per jugadors logats -->
-        <div class="mt-2">
-          {#if myPlayerData}
-            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                bind:checked={showOnlyMyMatches}
-                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <span class="font-medium">🎯 Les meves partides</span>
-            </label>
-          {:else}
-            <div class="text-xs text-gray-400">
-              DEBUG: user={$user ? 'YES' : 'NO'}, myPlayerData={myPlayerData ? 'YES' : 'NO'}
-            </div>
-          {/if}
-        </div>
-
         <!-- Suggeriments de jugadors -->
         {#if playerSuggestions.length > 0}
           <div class="absolute top-full left-0 right-0 z-50 bg-white border border-gray-300 rounded-md shadow-lg max-h-64 overflow-y-auto mt-1">
@@ -2492,13 +2574,63 @@
         {/if}
       </div>
 
-      <div class="flex items-end">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2 invisible">Accions</label>
         <button
           on:click={() => { selectedCategory = ''; selectedDate = ''; clearPlayerSearch(); }}
-          class="px-4 py-2 bg-gray-600 text-white text-sm rounded hover:bg-gray-700"
+          class="w-full px-4 py-2 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 font-medium"
         >
           Netejar Filtres
         </button>
+      </div>
+    </div>
+
+    <!-- Filtres - Segona fila: Selector de vista i checkbox -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-2">
+      <div class="flex items-end">
+        <div class="flex bg-gray-100 rounded-lg p-1">
+          <button
+            on:click={() => viewMode = 'category'}
+            class="px-3 py-1.5 rounded text-sm transition-colors font-medium"
+            class:bg-white={viewMode === 'category'}
+            class:shadow-sm={viewMode === 'category'}
+            class:text-gray-900={viewMode === 'category'}
+            class:text-gray-600={viewMode !== 'category'}
+          >
+            📋 Per Categoria
+          </button>
+          <button
+            on:click={() => viewMode = 'timeline'}
+            class="px-3 py-1.5 rounded text-sm transition-colors font-medium"
+            class:bg-white={viewMode === 'timeline'}
+            class:shadow-sm={viewMode === 'timeline'}
+            class:text-gray-900={viewMode === 'timeline'}
+            class:text-gray-600={viewMode !== 'timeline'}
+          >
+            📅 Cronològica
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <!-- Columna buida per mantenir el grid -->
+      </div>
+
+      <div class="flex items-start">
+        {#if myPlayerData}
+          <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input
+              type="checkbox"
+              bind:checked={showOnlyMyMatches}
+              class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <span class="font-medium">🎯 Les meves partides</span>
+          </label>
+        {/if}
+      </div>
+
+      <div>
+        <!-- Columna buida per mantenir el grid -->
       </div>
     </div>
   </div>
@@ -2596,6 +2728,15 @@
                     {#if isAdmin}
                       <td class="px-6 py-4 whitespace-nowrap text-sm font-medium print-hide">
                         <div class="flex flex-col space-y-1">
+                          {#if match.estat !== 'jugada'}
+                            <button
+                              on:click={() => openResultModal(match)}
+                              class="text-green-600 hover:text-green-900 font-medium"
+                              title="Introduir resultat de la partida"
+                            >
+                              📝 Resultat
+                            </button>
+                          {/if}
                           <button
                             on:click={() => startEditing(match)}
                             class="text-blue-600 hover:text-blue-900"
@@ -2755,9 +2896,18 @@
                         <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base font-medium print-hide">
                           {#if slot.match}
                             <div class="flex flex-col space-y-1">
+                              {#if slot.match.estat !== 'jugada'}
+                                <button
+                                  on:click={() => openResultModal(slot.match)}
+                                  class="text-green-600 hover:text-green-900 text-sm md:text-base font-semibold"
+                                  title="Introduir resultat de la partida"
+                                >
+                                  📝 Resultat
+                                </button>
+                              {/if}
                               <button
                                 on:click={() => startEditing(slot.match)}
-                                class="text-blue-600 hover:text-blue-900 text-sm md:text-base font-semibold"
+                                class="text-blue-600 hover:text-blue-900 text-sm md:text-base font-medium"
                               >
                                 Editar
                               </button>
@@ -2948,6 +3098,159 @@
           <strong>Jugadors:</strong><br>
           {formatPlayerName(editingMatch.jugador1)} vs {formatPlayerName(editingMatch.jugador2)}
         </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Modal per introduir resultats -->
+{#if showResultModal && resultMatch}
+  <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-medium text-gray-900">
+            📝 Introduir Resultat de la Partida
+          </h3>
+          <button
+            on:click={closeResultModal}
+            class="text-gray-400 hover:text-gray-600"
+          >
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="px-6 py-4">
+        <!-- Info partida -->
+        <div class="bg-gray-50 rounded-lg p-4 mb-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div class="text-sm text-gray-600">Jugador 1</div>
+              <div class="text-lg font-semibold text-gray-900">
+                {formatPlayerName(resultMatch.jugador1)}
+              </div>
+            </div>
+            <div>
+              <div class="text-sm text-gray-600">Jugador 2</div>
+              <div class="text-lg font-semibold text-gray-900">
+                {formatPlayerName(resultMatch.jugador2)}
+              </div>
+            </div>
+            <div>
+              <div class="text-sm text-gray-600">Data</div>
+              <div class="font-medium">
+                {resultMatch.data_programada ? formatDate(new Date(resultMatch.data_programada)) : '-'}
+                {#if resultMatch.hora_inici}
+                  · {resultMatch.hora_inici}
+                {/if}
+              </div>
+            </div>
+            <div>
+              <div class="text-sm text-gray-600">Categoria</div>
+              <div class="font-medium">{resultMatch.categoria_nom || getCategoryName(resultMatch.categoria_id)}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Formulari resultats -->
+        <form on:submit|preventDefault={saveResult} class="space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label for="result-car1" class="block text-sm font-medium text-gray-700 mb-2">
+                Caramboles {formatPlayerName(resultMatch.jugador1)}
+              </label>
+              <input
+                id="result-car1"
+                type="number"
+                min="0"
+                bind:value={resultForm.caramboles_jugador1}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-semibold text-center"
+                required
+              />
+            </div>
+
+            <div>
+              <label for="result-car2" class="block text-sm font-medium text-gray-700 mb-2">
+                Caramboles {formatPlayerName(resultMatch.jugador2)}
+              </label>
+              <input
+                id="result-car2"
+                type="number"
+                min="0"
+                bind:value={resultForm.caramboles_jugador2}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-semibold text-center"
+                required
+              />
+            </div>
+
+            <div>
+              <label for="result-entrades" class="block text-sm font-medium text-gray-700 mb-2">
+                Entrades
+              </label>
+              <input
+                id="result-entrades"
+                type="number"
+                min="0"
+                bind:value={resultForm.entrades}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-semibold text-center"
+                required
+              />
+            </div>
+          </div>
+
+          <!-- Guanyador calculat -->
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div class="text-sm font-medium text-blue-900">
+              🏆 Guanyador:
+              {#if resultForm.caramboles_jugador1 > resultForm.caramboles_jugador2}
+                <span class="font-bold">{formatPlayerName(resultMatch.jugador1)}</span>
+              {:else if resultForm.caramboles_jugador2 > resultForm.caramboles_jugador1}
+                <span class="font-bold">{formatPlayerName(resultMatch.jugador2)}</span>
+              {:else}
+                <span class="text-gray-600">Empat (introdueix més caramboles)</span>
+              {/if}
+            </div>
+          </div>
+
+          <div>
+            <label for="result-obs" class="block text-sm font-medium text-gray-700 mb-2">
+              Observacions (opcional)
+            </label>
+            <textarea
+              id="result-obs"
+              bind:value={resultForm.observacions}
+              rows="3"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Incidències, comentaris..."
+            ></textarea>
+          </div>
+
+          <div class="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              on:click={closeResultModal}
+              class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium"
+              disabled={loading}
+            >
+              Cancel·lar
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium flex items-center gap-2"
+              disabled={loading}
+            >
+              {#if loading}
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Guardant...
+              {:else}
+                💾 Guardar Resultat
+              {/if}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

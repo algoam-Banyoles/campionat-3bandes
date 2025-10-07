@@ -32,40 +32,95 @@ export const GET: RequestHandler = async ({ request }) => {
 
     const { data: event, error: eErr } = await supabase
       .from('events')
-      .select('id')
+      .select('id, nom')
       .eq('actiu', true)
+      .eq('tipus_competicio', 'ranking_continu')
       .order('creat_el', { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (eErr) {
+    if (eErr && eErr.code !== 'PGRST116') {
       if (isRlsError(eErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
       return json({ ok: false, error: eErr.message }, { status: 400 });
     }
     if (!event) {
-      return json({ ok: false, error: 'No hi ha cap esdeveniment actiu' }, { status: 400 });
+      return json({ ok: false, error: 'No hi ha cap esdeveniment actiu de ranking continu' }, { status: 400 });
     }
     const eventId = event.id as string;
 
+    console.log('🎯 Esdeveniment actiu:', { id: eventId, nom: (event as any).nom });
+
+    // Usar la mateixa consulta que rankingStore per consistència
     const { data: rank, error: rErr } = await supabase
       .from('ranking_positions')
-      .select('posicio, player_id, socis!inner(nom)')
+      .select(`
+        posicio,
+        player_id,
+        players!inner (
+          numero_soci
+        )
+      `)
       .eq('event_id', eventId)
       .order('posicio', { ascending: true });
+    
+    console.log('📊 Consulta rànquing:', { eventId, error: rErr, resultsCount: rank?.length ?? 0 });
+    
     if (rErr) {
       if (isRlsError(rErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
       return json({ ok: false, error: rErr.message }, { status: 400 });
     }
 
-    const allRank = (rank ?? []).map((r: any) => ({
-      posicio: r.posicio,
-      player_id: r.player_id,
-      nom: r.socis?.nom ?? '—'
-    }));
+    // Obtenir noms dels socis en una query separada
+    const numerosSoci = [...new Set(
+      (rank ?? [])
+        .map((item: any) => item.players?.numero_soci)
+        .filter((n: any) => n != null)
+    )];
+
+    let socisMap = new Map<number, string>();
+    if (numerosSoci.length > 0) {
+      const { data: socisData, error: socisError } = await supabase
+        .from('socis')
+        .select('numero_soci, nom')
+        .in('numero_soci', numerosSoci);
+
+      if (!socisError && socisData) {
+        socisData.forEach((soci: any) => {
+          socisMap.set(soci.numero_soci, soci.nom);
+        });
+      }
+    }
+    const allRank = (rank ?? []).map((r: any) => {
+      const numeroSoci = r.players?.numero_soci;
+      const nom = numeroSoci ? socisMap.get(numeroSoci) : null;
+      return {
+        posicio: r.posicio,
+        player_id: r.player_id,
+        nom: nom ?? '—'
+      };
+    });
+
+    // Debug: mostrar informació
+    console.log('🔍 Debug rànquing:');
+    console.log('  - myPlayerId:', myPlayerId);
+    console.log('  - Total jugadors al rànquing:', allRank.length);
+    console.log('  - IDs al rànquing:', allRank.map(r => r.player_id));
 
     const mine = allRank.find((r) => r.player_id === myPlayerId) ?? null;
     if (!mine) {
-      return json({ ok: false, error: 'No formes part del rànquing actual.' }, { status: 400 });
+      console.error('❌ No trobat al rànquing!');
+      console.error('  - Buscant:', myPlayerId, '(tipus:', typeof myPlayerId, ')');
+      console.error('  - Primer ID del rànquing:', allRank[0]?.player_id, '(tipus:', typeof allRank[0]?.player_id, ')');
+      return json({ 
+        ok: false, 
+        error: `No formes part del rànquing actual. (ID: ${myPlayerId})`,
+        debug: {
+          myPlayerId,
+          rankingIds: allRank.map(r => r.player_id),
+          totalInRanking: allRank.length
+        }
+      }, { status: 400 });
     }
+    console.log('✅ Trobat al rànquing! Posició:', mine.posicio);
     const myPos = mine.posicio as number;
 
     const reptables: { posicio: number; player_id: string; nom: string }[] = [];

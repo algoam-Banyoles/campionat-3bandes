@@ -336,12 +336,9 @@
         <tr>
           <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Pos.</th>
           <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Jugador</th>
+          <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Evolució</th>
           {#if myPlayerId}
-            <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800 hidden sm:table-cell">Mitjana</th>
-            <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800 hidden sm:table-cell">Estat</th>
             <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Accions</th>
-          {:else}
-            <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Evolució</th>
           {/if}
         </tr>
       </thead>
@@ -389,9 +386,12 @@
                 {/if}
               </div>
             </td>
+            <!-- Columna d'evolució: SEMPRE visible -->
+            <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
+              <PlayerEvolutionBadges results={playerHistoryMap.get(r.player_id) || []} />
+            </td>
+            <!-- Columna d'accions: només si està logged in -->
             {#if myPlayerId}
-              <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-base sm:text-lg lg:text-xl xl:text-2xl font-bold text-slate-800 hidden sm:table-cell">{fmtMitjana(r.mitjana)}</td>
-              <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-base sm:text-lg lg:text-xl xl:text-2xl font-bold text-slate-800 capitalize hidden sm:table-cell">{fmtEstat(r.estat)}</td>
               <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
                 {#if r.player_id !== myPlayerId}
                   <button
@@ -411,10 +411,6 @@
                     <span class="sm:hidden">⚔️</span>
                   </button>
                 {/if}
-              </td>
-            {:else}
-              <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-                <PlayerEvolutionBadges results={playerHistoryMap.get(r.player_id) || []} />
               </td>
             {/if}
           </tr>

@@ -189,7 +189,7 @@
 {:else}
   <Nav />
 
-  <div class="portrait:md:ml-64 landscape:ml-20 landscape:lg:ml-64">
+  <div class="portrait:md:ml-56 landscape:ml-20 landscape:lg:ml-56">
     <main id="main-content" class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-safe" tabindex="-1">
       <slot />
     </main>

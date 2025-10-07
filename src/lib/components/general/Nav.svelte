@@ -20,6 +20,7 @@
     color: string;
     links: NavLink[];
     userLinks?: NavLink[];
+    adminLinks?: NavLink[];
     adminOnly?: boolean;
   };
 
@@ -46,6 +47,9 @@
       ],
       userLinks: [
         { href: '/campionats-socials/inscripcions', label: 'Inscriure\'s a Campionats' }
+      ],
+      adminLinks: [
+        { href: '/campionats-socials?view=active&admin=true', label: 'Preparació Campionats' }
       ]
     },
     ranking: {
@@ -160,12 +164,15 @@
 <svelte:window on:click={handleClickOutside} />
 
 <!-- Sidebar fixa per desktop/tablet/landscape (oculta NOMÉS en portrait mobile) -->
-<aside class="hidden portrait:md:block landscape:block fixed left-0 top-0 h-screen portrait:md:w-64 landscape:w-20 landscape:lg:w-64 bg-gradient-to-b from-gray-50 to-gray-100 border-r-2 border-gray-300 shadow-lg z-[9999]">
+<aside class="hidden portrait:md:block landscape:block fixed left-0 top-0 h-screen portrait:md:w-56 landscape:w-20 landscape:lg:w-56 bg-gradient-to-b from-gray-50 to-gray-100 border-r-2 border-gray-300 shadow-lg z-[9999]">
   <!-- Logo header -->
   <div class="p-3 border-b-2 border-gray-300 bg-white flex-shrink-0">
     <a href="/" class="flex items-center justify-center portrait:md:justify-start landscape:lg:justify-start gap-3">
       <img src="/logo.png" alt="Foment Martinenc" class="h-10 w-10 object-contain" />
-      <span class="hidden portrait:md:block landscape:lg:block text-base font-bold text-gray-900">3 Bandes</span>
+      <span class="hidden portrait:md:flex landscape:lg:flex flex-col justify-center text-sm font-bold text-gray-900 leading-tight">
+        <span>Foment</span>
+        <span>Martinenc</span>
+      </span>
     </a>
   </div>
 
@@ -216,6 +223,27 @@
                       <span class="hidden portrait:md:block landscape:lg:block text-[10px] font-semibold text-gray-500 uppercase">Meves</span>
                     </div>
                     {#each section.userLinks as link}
+                      <a
+                        href={link.href}
+                        class="flex items-center px-3 portrait:md:px-4 landscape:lg:px-4 py-1.5 text-xs portrait:md:text-sm landscape:lg:text-sm font-medium hover:bg-white/80 transition-colors {
+                          isActive(link.href) ? 'bg-' + section.color + '-50 text-' + section.color + '-800 border-l-2 border-' + section.color + '-500' : 'text-gray-700'
+                        }"
+                      >
+                        <span class="hidden portrait:md:block landscape:lg:block">{link.label}</span>
+                        <span class="portrait:md:hidden landscape:lg:hidden text-[10px] text-center w-full leading-tight">{link.label.substring(0, 15)}{link.label.length > 15 ? '..' : ''}</span>
+                      </a>
+                    {/each}
+                  </div>
+                {/if}
+
+                {#if $isAdmin && section.adminLinks && section.adminLinks.length > 0}
+                  <div class="border-t border-gray-200 mt-1 pt-1">
+                    {#if !$user || !section.userLinks || section.userLinks.length === 0}
+                      <div class="px-3 portrait:md:px-4 landscape:lg:px-4 py-0.5">
+                        <span class="hidden portrait:md:block landscape:lg:block text-[10px] font-semibold text-gray-500 uppercase">Meves</span>
+                      </div>
+                    {/if}
+                    {#each section.adminLinks as link}
                       <a
                         href={link.href}
                         class="flex items-center px-3 portrait:md:px-4 landscape:lg:px-4 py-1.5 text-xs portrait:md:text-sm landscape:lg:text-sm font-medium hover:bg-white/80 transition-colors {

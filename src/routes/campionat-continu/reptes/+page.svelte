@@ -421,20 +421,26 @@
 {/if}
 
 {#if $user}
-  <p class="mt-4">
+  <div class="mt-6 flex flex-wrap gap-3">
     <a
-      href="/reptes/nou"
-      class="inline-block rounded bg-slate-900 text-white px-4 py-2 hover:bg-slate-700"
+      href="/campionat-continu/reptes/nou"
+      class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
     >
-      ➕ Nou repte
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+      </svg>
+      <span>Nou repte</span>
     </a>
-  </p>
+    <a
+      href="/campionat-continu/reptes/me"
+      class="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium px-4 py-2 rounded-lg border border-slate-300 transition-colors"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+      </svg>
+      <span>Els meus reptes</span>
+    </a>
+  </div>
 {:else}
   <p class="text-slate-500 mt-4">Inicia sessió per poder crear reptes.</p>
-{/if}
-
-{#if $user}
-  <p class="mt-6">
-    <a class="underline" href="/campionat-continu/reptes/me">👉 Els meus reptes</a>
-  </p>
 {/if}

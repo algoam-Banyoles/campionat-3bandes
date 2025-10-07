@@ -35,13 +35,22 @@
     const viewParam = $page.url.searchParams.get('view');
     if (viewParam && ['preparation', 'active', 'history', 'players', 'inscriptions'].includes(viewParam)) {
       activeView = viewParam as typeof activeView;
+      // Guardar a sessionStorage per mantenir entre reloads
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('campionats-socials-activeView', viewParam);
+      }
     }
+  }
+
+  // També guardar quan canvia manualment activeView
+  $: if (typeof sessionStorage !== 'undefined' && activeView) {
+    sessionStorage.setItem('campionats-socials-activeView', activeView);
   }
 
 
 
   // Variables per la gestió d'inscripcions
-  let managementView: 'inscriptions' | 'categories' | 'generate-calendar' | 'view-calendar' | 'restrictions' | 'results' | 'standings' = 'inscriptions';
+  let managementView: 'inscriptions' | 'categories' | 'generate-calendar' | 'view-calendar' | 'restrictions' | 'results' | 'standings' = 'view-calendar';
   let socis: any[] = [];
   let inscriptions: any[] = [];
   let loadingSocis = false;
@@ -305,6 +314,29 @@
       console.error('Error exporting calendar:', error);
       const errorMessage = error.message || 'Error desconegut';
       alert(`Error exportant el calendari: ${errorMessage}`);
+    }
+  }
+
+  // Actualitzar estat del campionat
+  async function updateEventStatus(eventId: string, newStatus: string) {
+    try {
+      const { error } = await supabase
+        .from('events')
+        .update({ estat_competicio: newStatus })
+        .eq('id', eventId);
+
+      if (error) throw error;
+
+      // Recarregar events per actualitzar la vista
+      await loadEvents();
+
+      // Actualitzar selectedEvent si és el mateix
+      if (selectedEventId === eventId) {
+        selectedEvent = events.find(e => e.id === eventId);
+      }
+    } catch (error) {
+      console.error('Error updating event status:', error);
+      alert(`Error actualitzant l'estat del campionat: ${error.message}`);
     }
   }
 
@@ -678,38 +710,46 @@
       // Detectar si hi ha un paràmetre view a l'URL
       const hasViewParam = $page.url.searchParams.has('view');
 
+      // Intentar recuperar l'última vista de sessionStorage
+      const savedView = typeof sessionStorage !== 'undefined'
+        ? sessionStorage.getItem('campionats-socials-activeView')
+        : null;
+
       if (manualActiveEvent) {
         selectedEventId = manualActiveEvent.id;
-        // Només canviar activeView si no hi ha paràmetre URL
-        if (!hasViewParam) {
+        // Només canviar activeView si no hi ha paràmetre URL ni vista guardada
+        if (!hasViewParam && !savedView) {
           activeView = 'active';
+        } else if (savedView && !hasViewParam) {
+          activeView = savedView as typeof activeView;
         }
         console.log('🔍 Manual active event, isUserAdmin:', isUserAdmin);
-        // Per usuaris no logats, començar amb la vista de jugadors
-        if (!isUserAdmin) {
-          managementView = 'inscriptions';
-          console.log('🔍 Setting managementView to inscriptions for non-admin');
-        }
+        // managementView ja està per defecte a 'view-calendar' (calendari)
       } else if (activeEvent) {
         selectedEventId = activeEvent.id;
-        // Només canviar activeView si no hi ha paràmetre URL
-        if (!hasViewParam) {
+        // Només canviar activeView si no hi ha paràmetre URL ni vista guardada
+        if (!hasViewParam && !savedView) {
           activeView = 'active';
+        } else if (savedView && !hasViewParam) {
+          activeView = savedView as typeof activeView;
         }
-        // Per usuaris no logats, començar amb la vista de jugadors
-        if (!isUserAdmin) {
-          managementView = 'inscriptions';
-        }
+        // managementView ja està per defecte a 'view-calendar' (calendari)
       } else if (isUserAdmin && preparationEvent) {
         selectedEventId = preparationEvent.id;
-        // Només canviar activeView si no hi ha paràmetre URL
-        if (!hasViewParam) {
+        // Només canviar activeView si no hi ha paràmetre URL ni vista guardada
+        if (!hasViewParam && !savedView) {
           activeView = 'preparation';
+        } else if (savedView && !hasViewParam) {
+          activeView = savedView as typeof activeView;
         }
       } else {
-        // Si no hi ha campionats actius ni en preparació, només va a historial si no hi ha paràmetre URL
-        if (!hasViewParam) {
-          activeView = 'history';
+        // Si no hi ha campionats actius ni en preparació
+        // Preferir vista guardada > paràmetre URL > per defecte 'active' (no 'history')
+        if (!hasViewParam && savedView) {
+          activeView = savedView as typeof activeView;
+        } else if (!hasViewParam) {
+          // Per defecte, mantenir 'active' fins que l'usuari triï history explícitament
+          activeView = 'active';
         }
         if (events.length > 0) {
           selectedEventId = events[0].id;
@@ -876,8 +916,8 @@
             <div class="space-y-6">
               {#each preparationEvents as event}
                 <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                  <div class="flex items-center justify-between">
-                    <div>
+                  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div class="flex-1">
                       <h4 class="font-medium text-gray-900">{event.nom}</h4>
                       <p class="text-sm text-gray-500">
                         Temporada {event.temporada} •
@@ -893,6 +933,30 @@
                         <p class="text-sm text-gray-500 mt-1">
                           📅 Inici previst: {new Date(event.data_inici).toLocaleDateString('ca-ES')}
                         </p>
+                      {/if}
+
+                      {#if isUserAdmin}
+                        <div class="mt-3">
+                          <label for="status-{event.id}" class="block text-xs font-medium text-gray-700 mb-1">
+                            Estat del Campionat
+                          </label>
+                          <select
+                            id="status-{event.id}"
+                            value={event.estat_competicio || 'preparacio'}
+                            on:change={(e) => updateEventStatus(event.id, e.currentTarget.value)}
+                            class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          >
+                            <option value="preparacio">Preparació</option>
+                            <option value="planificacio">Planificació</option>
+                            <option value="inscripcions_obertes">Inscripcions Obertes</option>
+                            <option value="pendent">Pendent</option>
+                            <option value="pendent_validacio">Pendent Validació</option>
+                            <option value="configuracio">Configuració</option>
+                            <option value="programacio">Programació</option>
+                            <option value="en_curs">En Curs</option>
+                            <option value="finalitzat">Finalitzat</option>
+                          </select>
+                        </div>
                       {/if}
                     </div>
                     <div class="text-right">
@@ -1118,13 +1182,6 @@
                     </div>
                     <div class="flex flex-col sm:flex-row gap-4">
                       <button
-                        on:click={() => downloadCalendariCSV(selectedEventId, selectedEvent.nom)}
-                        class="inline-flex items-center justify-center px-4 py-3 border border-gray-300 text-sm sm:text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 min-h-[44px] touch-manipulation"
-                        title="Exportar calendari a CSV"
-                      >
-                        📄 Exportar CSV
-                      </button>
-                      <button
                         on:click={() => managementView = 'generate-calendar'}
                         class="inline-flex items-center justify-center px-4 py-3 border border-blue-300 text-sm sm:text-base font-medium rounded-lg text-blue-700 bg-white hover:bg-blue-50 min-h-[44px] touch-manipulation"
                       >
@@ -1196,14 +1253,7 @@
                       {selectedEvent.nom} - Gestió Admin
                     </h3>
                     <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-                      <button
-                        on:click={() => downloadCalendariCSV(selectedEventId, selectedEvent.nom)}
-                        class="inline-flex items-center justify-center px-4 py-3 border border-gray-300 text-sm sm:text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 min-h-[44px] touch-manipulation order-2 sm:order-1"
-                        title="Exportar calendari a CSV"
-                      >
-                        📄 Exportar CSV
-                      </button>
-                      <div class="flex-1 min-w-0 order-1 sm:order-2">
+                      <div class="flex-1 min-w-0">
                         <label for="admin-event-selector" class="block text-sm font-medium text-gray-700 mb-2">Campionat</label>
                         <select
                           id="admin-event-selector"
@@ -1237,18 +1287,6 @@
                       📅 Calendari
                     </button>
                     <button
-                      on:click={() => managementView = 'inscriptions'}
-                      class="py-2 px-1 border-b-2 font-medium text-sm"
-                      class:border-green-500={managementView === 'inscriptions'}
-                      class:text-green-600={managementView === 'inscriptions'}
-                      class:border-transparent={managementView !== 'inscriptions'}
-                      class:text-gray-500={managementView !== 'inscriptions'}
-                      class:hover:text-gray-700={managementView !== 'inscriptions'}
-                      class:hover:border-gray-300={managementView !== 'inscriptions'}
-                    >
-                      👥 Jugadors i Categories
-                    </button>
-                    <button
                       on:click={() => managementView = 'results'}
                       class="py-2 px-1 border-b-2 font-medium text-sm"
                       class:border-green-500={managementView === 'results'}
@@ -1258,7 +1296,7 @@
                       class:hover:text-gray-700={managementView !== 'results'}
                       class:hover:border-gray-300={managementView !== 'results'}
                     >
-                      🏆 Resultats
+                      ⚡ Resultats
                     </button>
                     <button
                       on:click={() => managementView = 'standings'}
@@ -1271,6 +1309,18 @@
                       class:hover:border-gray-300={managementView !== 'standings'}
                     >
                       📊 Classificació
+                    </button>
+                    <button
+                      on:click={() => managementView = 'inscriptions'}
+                      class="py-2 px-1 border-b-2 font-medium text-sm"
+                      class:border-green-500={managementView === 'inscriptions'}
+                      class:text-green-600={managementView === 'inscriptions'}
+                      class:border-transparent={managementView !== 'inscriptions'}
+                      class:text-gray-500={managementView !== 'inscriptions'}
+                      class:hover:text-gray-700={managementView !== 'inscriptions'}
+                      class:hover:border-gray-300={managementView !== 'inscriptions'}
+                    >
+                      👥 Jugadors
                     </button>
                   </nav>
                 </div>
@@ -1290,13 +1340,6 @@
                     }}
                   />
 
-                {:else if managementView === 'inscriptions'}
-                  <!-- Component unificat per mostrar jugadors inscrits -->
-                  <SocialLeaguePlayersGrid 
-                    eventId={selectedEventId} 
-                    categories={selectedEvent?.categories || []} 
-                  />
-
                 {:else if managementView === 'results'}
                   <!-- Resultats de partides -->
                   <div class="space-y-6">
@@ -1312,6 +1355,13 @@
                   <SocialLeagueClassifications
                     event={selectedEvent}
                     showDetails={true}
+                  />
+
+                {:else if managementView === 'inscriptions'}
+                  <!-- Component unificat per mostrar jugadors inscrits -->
+                  <SocialLeaguePlayersGrid
+                    eventId={selectedEventId}
+                    categories={selectedEvent?.categories || []}
                   />
                 {/if}
               </div>
@@ -1353,19 +1403,6 @@
                   <div class="border-b border-gray-200">
                     <nav class="-mb-px flex space-x-4 md:space-x-8 px-6">
                       <button
-                        on:click={() => managementView = 'inscriptions'}
-                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
-                        class:border-blue-500={managementView === 'inscriptions'}
-                        class:text-blue-600={managementView === 'inscriptions'}
-                        class:border-transparent={managementView !== 'inscriptions'}
-                        class:text-gray-500={managementView !== 'inscriptions'}
-                        class:hover:text-gray-700={managementView !== 'inscriptions'}
-                        title="Jugadors per Categories"
-                      >
-                        <span class="md:hidden">👥</span>
-                        <span class="hidden md:inline">👥 Jugadors per Categories</span>
-                      </button>
-                      <button
                         on:click={() => managementView = 'view-calendar'}
                         class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
                         class:border-blue-500={managementView === 'view-calendar'}
@@ -1401,22 +1438,28 @@
                         class:hover:text-gray-700={managementView !== 'standings'}
                         title="Classificacions"
                       >
-                        <span class="md:hidden">🏆</span>
-                        <span class="hidden md:inline">🏆 Classificacions</span>
+                        <span class="md:hidden">📊</span>
+                        <span class="hidden md:inline">📊 Classificació</span>
+                      </button>
+                      <button
+                        on:click={() => managementView = 'inscriptions'}
+                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
+                        class:border-blue-500={managementView === 'inscriptions'}
+                        class:text-blue-600={managementView === 'inscriptions'}
+                        class:border-transparent={managementView !== 'inscriptions'}
+                        class:text-gray-500={managementView !== 'inscriptions'}
+                        class:hover:text-gray-700={managementView !== 'inscriptions'}
+                        title="Jugadors"
+                      >
+                        <span class="md:hidden">👥</span>
+                        <span class="hidden md:inline">👥 Jugadors</span>
                       </button>
                     </nav>
                   </div>
 
                   <!-- Contingut de cada pestanya -->
                   <div class="p-6">
-                    {#if managementView === 'inscriptions'}
-                      <!-- Jugadors per categories amb SocialLeaguePlayersGrid -->
-                      <SocialLeaguePlayersGrid
-                        eventId={selectedEventId}
-                        categories={selectedEvent.categories || []}
-                      />
-
-                    {:else if managementView === 'view-calendar'}
+                    {#if managementView === 'view-calendar'}
                       <!-- Calendari -->
                       <SocialLeagueCalendarViewer
                         eventId={selectedEventId}
@@ -1439,6 +1482,13 @@
                       <SocialLeagueClassifications
                         event={selectedEvent}
                         showDetails={true}
+                      />
+
+                    {:else if managementView === 'inscriptions'}
+                      <!-- Jugadors per categories amb SocialLeaguePlayersGrid -->
+                      <SocialLeaguePlayersGrid
+                        eventId={selectedEventId}
+                        categories={selectedEvent.categories || []}
                       />
                     {/if}
                   </div>
