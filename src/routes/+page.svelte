@@ -1,14 +1,27 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { supabase } from '$lib/supabaseClient';
   import { refreshCalendarData, getEventsForDate, calendarLoading } from '$lib/stores/calendar';
 
   let todayEvents: any[] = [];
   let loading = true;
 
+  // Dynamic content variables
+  let mainContent = { title: '', content: '' };
+  let horarisContent = { title: '', content: '' };
+  let normesObligatories = { title: '', content: '' };
+  let prohibicions = { title: '', content: '' };
+  let normesInscripcio = { title: '', content: '' };
+  let normesAssignacio = { title: '', content: '' };
+  let normesTemps = { title: '', content: '' };
+  let normesRepetir = { title: '', content: '' };
+  let serveisSoci = { title: '', content: '' };
+
   onMount(async () => {
     loading = true;
     try {
       await refreshCalendarData();
+      await loadPageContent();
       const today = new Date();
       todayEvents = getEventsForDate(today);
       console.log('📅 Esdeveniments d\'avui carregats:', todayEvents.length);
@@ -19,17 +32,61 @@
     }
   });
 
+  async function loadPageContent() {
+    try {
+      const { data, error } = await supabase
+        .from('page_content')
+        .select('*')
+        .in('page_key', [
+          'home_main', 'horaris', 'normes_obligatories', 'prohibicions',
+          'normes_inscripcio', 'normes_assignacio', 'normes_temps',
+          'normes_repetir', 'serveis_soci'
+        ]);
+
+      if (error) throw error;
+
+      data?.forEach((item) => {
+        const content = { title: item.title || '', content: item.content || '' };
+        switch (item.page_key) {
+          case 'home_main': mainContent = content; break;
+          case 'horaris': horarisContent = content; break;
+          case 'normes_obligatories': normesObligatories = content; break;
+          case 'prohibicions': prohibicions = content; break;
+          case 'normes_inscripcio': normesInscripcio = content; break;
+          case 'normes_assignacio': normesAssignacio = content; break;
+          case 'normes_temps': normesTemps = content; break;
+          case 'normes_repetir': normesRepetir = content; break;
+          case 'serveis_soci': serveisSoci = content; break;
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error carregant contingut de pàgina:', error);
+    }
+  }
+
   function formatTime(date: Date): string {
     return date.toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' });
   }
 </script>
 
+
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 lg:space-y-8">
   <!-- Capçalera de benvinguda -->
-  <div class="text-center mb-6 lg:mb-8">
-    <h1 class="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 px-2 leading-tight">Secció de Billar del Foment Martinenc</h1>
-    <p class="text-sm sm:text-base lg:text-lg text-gray-600 px-2">Informació general i calendari d'activitats</p>
-  </div>
+  {#if mainContent.title || mainContent.content}
+    <div class="text-center mb-6 lg:mb-8">
+      {#if mainContent.title}
+        <h1 class="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 px-2 leading-tight">{mainContent.title}</h1>
+      {/if}
+      {#if mainContent.content}
+        <div class="text-sm sm:text-base lg:text-lg text-gray-600 px-2 prose prose-sm max-w-none">{@html mainContent.content}</div>
+      {/if}
+    </div>
+  {:else}
+    <div class="text-center mb-6 lg:mb-8">
+      <h1 class="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 px-2 leading-tight">Secció de Billar del Foment Martinenc</h1>
+      <p class="text-sm sm:text-base lg:text-lg text-gray-600 px-2">Informació general i calendari d'activitats</p>
+    </div>
+  {/if}
 
   <!-- Horaris i Normativa -->
   <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
@@ -44,41 +101,53 @@
       <!-- Horari d'obertura -->
       <div class="bg-blue-50 rounded-lg p-3 sm:p-4">
         <h3 class="text-sm sm:text-base lg:text-lg font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center">
-          🕒 Horari d'obertura de la Secció
+          🕒 {horarisContent.title || "Horari d'obertura de la Secció"}
         </h3>
-        <div class="space-y-2 text-xs sm:text-sm text-blue-800">
-          <p><strong>Dilluns, dimecres, dijous, dissabte i diumenge:</strong> 9:00 – 21:30</p>
-          <p><strong>Dimarts i divendres:</strong> 10:30 – 21:30</p>
-          <div class="mt-3 text-xs text-blue-700 bg-blue-100 p-2 rounded">
-            <p>L'horari d'obertura pot canviar en funció dels horaris d'obertura del Bar del Foment.</p>
-            <p class="mt-1">L'horari d'atenció al públic del FOMENT és de <strong>DILLUNS A DIVENDRES de 9:00 A 13:00 i de 16:00 A 20:00</strong>.</p>
-            <p class="mt-1">Les seccions poden tenir activitat fora d'aquest horari si el bar està obert, excepte <strong>AGOST i FESTIUS</strong>, quan el FOMENT resta oficialment tancat.</p>
-            <p class="mt-1">La secció romandrà tancada els dies de <strong>TANCAMENT OFICIAL</strong> del FOMENT.</p>
+        {#if horarisContent.content}
+          <div class="space-y-2 text-xs sm:text-sm text-blue-800 prose prose-sm max-w-none prose-p:my-1 prose-strong:text-blue-900">{@html horarisContent.content}</div>
+        {:else}
+          <div class="space-y-2 text-xs sm:text-sm text-blue-800">
+            <p><strong>Dilluns, dimecres, dijous, dissabte i diumenge:</strong> 9:00 – 21:30</p>
+            <p><strong>Dimarts i divendres:</strong> 10:30 – 21:30</p>
+            <div class="mt-3 text-xs text-blue-700 bg-blue-100 p-2 rounded">
+              <p>L'horari d'obertura pot canviar en funció dels horaris d'obertura del Bar del Foment.</p>
+              <p class="mt-1">L'horari d'atenció al públic del FOMENT és de <strong>DILLUNS A DIVENDRES de 9:00 A 13:00 i de 16:00 A 20:00</strong>.</p>
+              <p class="mt-1">Les seccions poden tenir activitat fora d'aquest horari si el bar està obert, excepte <strong>AGOST i FESTIUS</strong>, quan el FOMENT resta oficialment tancat.</p>
+              <p class="mt-1">La secció romandrà tancada els dies de <strong>TANCAMENT OFICIAL</strong> del FOMENT.</p>
+            </div>
           </div>
-        </div>
+        {/if}
       </div>
 
       <!-- Normes obligatòries -->
       <div class="bg-green-50 rounded-lg p-4">
         <h3 class="text-lg font-semibold text-green-900 mb-3">
-          🚨 OBLIGATORI
+          🚨 {normesObligatories.title || 'OBLIGATORI'}
         </h3>
-        <p class="text-sm text-green-800">
-          Netejar el billar i les boles abans de començar cada partida amb el material que la Secció posa a disposició de tots els socis.
-        </p>
+        {#if normesObligatories.content}
+          <div class="text-sm text-green-800 prose prose-sm max-w-none prose-p:my-1">{@html normesObligatories.content}</div>
+        {:else}
+          <p class="text-sm text-green-800">
+            Netejar el billar i les boles abans de començar cada partida amb el material que la Secció posa a disposició de tots els socis.
+          </p>
+        {/if}
       </div>
     </div>
 
     <!-- Prohibicions -->
     <div class="bg-red-50 rounded-lg p-4 mt-6">
       <h3 class="text-lg font-semibold text-red-900 mb-3">
-        🚫 PROHIBIT
+        🚫 {prohibicions.title || 'PROHIBIT'}
       </h3>
-      <ul class="list-disc list-inside space-y-1 text-sm text-red-800">
-        <li>Jugar a fantasia</li>
-        <li>Menjar mentre s'està jugant</li>
-        <li>Posar begudes sobre cap element del billar</li>
-      </ul>
+      {#if prohibicions.content}
+        <div class="text-sm text-red-800 prose prose-sm max-w-none prose-ul:my-1 prose-li:my-0.5">{@html prohibicions.content}</div>
+      {:else}
+        <ul class="list-disc list-inside space-y-1 text-sm text-red-800">
+          <li>Jugar a fantasia</li>
+          <li>Menjar mentre s'està jugant</li>
+          <li>Posar begudes sobre cap element del billar</li>
+        </ul>
+      {/if}
     </div>
 
     <!-- Normes de joc -->
@@ -86,34 +155,46 @@
       <!-- Inscripció -->
       <div class="bg-yellow-50 rounded-lg p-3 sm:p-4">
         <h3 class="text-base sm:text-lg font-semibold text-yellow-900 mb-2 sm:mb-3">
-          📝 Inscripció a les partides
+          📝 {normesInscripcio.title || 'Inscripció a les partides'}
         </h3>
-        <ul class="list-disc list-inside space-y-1 text-sm text-yellow-800">
-          <li>Apunta't a la pissarra única de <strong>PARTIDES SOCIALS</strong></li>
-          <li>Els companys no cal que s'apuntin; si ho fan, que sigui al costat del primer jugador</li>
-        </ul>
+        {#if normesInscripcio.content}
+          <div class="text-sm text-yellow-800 prose prose-sm max-w-none prose-ul:my-1 prose-li:my-0.5 prose-strong:text-yellow-900">{@html normesInscripcio.content}</div>
+        {:else}
+          <ul class="list-disc list-inside space-y-1 text-sm text-yellow-800">
+            <li>Apunta't a la pissarra única de <strong>PARTIDES SOCIALS</strong></li>
+            <li>Els companys no cal que s'apuntin; si ho fan, que sigui al costat del primer jugador</li>
+          </ul>
+        {/if}
       </div>
 
       <!-- Assignació de taula -->
       <div class="bg-purple-50 rounded-lg p-4">
         <h3 class="text-lg font-semibold text-purple-900 mb-3">
-          🗂 Assignació de taula
+          🗂 {normesAssignacio.title || 'Assignació de taula'}
         </h3>
-        <ul class="list-disc list-inside space-y-1 text-sm text-purple-800">
-          <li>Quan hi hagi una taula lliure, ratlla el teu nom i juga</li>
-          <li>Si vols una taula concreta ocupada, passa el torn fins que s'alliberi</li>
-        </ul>
+        {#if normesAssignacio.content}
+          <div class="text-sm text-purple-800 prose prose-sm max-w-none prose-ul:my-1 prose-li:my-0.5">{@html normesAssignacio.content}</div>
+        {:else}
+          <ul class="list-disc list-inside space-y-1 text-sm text-purple-800">
+            <li>Quan hi hagi una taula lliure, ratlla el teu nom i juga</li>
+            <li>Si vols una taula concreta ocupada, passa el torn fins que s'alliberi</li>
+          </ul>
+        {/if}
       </div>
 
       <!-- Temps de joc -->
       <div class="bg-orange-50 rounded-lg p-4">
         <h3 class="text-lg font-semibold text-orange-900 mb-3">
-          ⏳ Temps de joc
+          ⏳ {normesTemps.title || 'Temps de joc'}
         </h3>
-        <ul class="list-disc list-inside space-y-1 text-sm text-orange-800">
-          <li><strong>Màxim 1 hora</strong> per partida (sol o en grup)</li>
-          <li><strong>PROHIBIT</strong> posar monedes per allargar el temps, encara que hi hagi taules lliures</li>
-        </ul>
+        {#if normesTemps.content}
+          <div class="text-sm text-orange-800 prose prose-sm max-w-none prose-ul:my-1 prose-li:my-0.5 prose-strong:text-orange-900">{@html normesTemps.content}</div>
+        {:else}
+          <ul class="list-disc list-inside space-y-1 text-sm text-orange-800">
+            <li><strong>Màxim 1 hora</strong> per partida (sol o en grup)</li>
+            <li><strong>PROHIBIT</strong> posar monedes per allargar el temps, encara que hi hagi taules lliures</li>
+          </ul>
+        {/if}
       </div>
 
       <!-- Tornar a jugar -->
