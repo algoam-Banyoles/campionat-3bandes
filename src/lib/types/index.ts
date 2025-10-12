@@ -11,7 +11,7 @@ export type TipusCompeticio = 'ranking_continu' | 'lliga_social' | 'handicap' | 
 export type FormatJoc = 'lliga' | 'eliminatoria_simple' | 'eliminatoria_doble';
 export type EstatCompeticio = 'planificacio' | 'inscripcions' | 'pendent_validacio' | 'validat' | 'en_curs' | 'finalitzat';
 export type EstatJugador = 'actiu' | 'inactiu' | 'pre_inactiu' | 'baixa';
-export type EstatPartida = 'generat' | 'validat' | 'reprogramada' | 'jugada' | 'cancel·lada' | 'pendent_programar';
+export type EstatPartida = 'generat' | 'validat' | 'reprogramada' | 'jugada' | 'cancel·lada' | 'cancel·lada_per_retirada' | 'pendent_programar';
 
 // ========================================
 // SOCIS I JUGADORS
@@ -133,6 +133,11 @@ export interface Inscripcio {
   pagat: boolean;
   confirmat: boolean;
   created_at: string;
+
+  // Withdrawal fields
+  estat_jugador: 'actiu' | 'retirat' | null;
+  data_retirada: string | null;
+  motiu_retirada: string | null;
 
   // Camps calculats/joins
   soci: Soci;

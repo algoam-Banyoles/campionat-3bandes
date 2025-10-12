@@ -2,6 +2,9 @@
 -- This allows anonymous users to see players registered in social championships
 -- without requiring authentication
 
+-- Drop existing function first to allow changing return type
+DROP FUNCTION IF EXISTS get_inscripcions_with_socis(UUID);
+
 CREATE OR REPLACE FUNCTION get_inscripcions_with_socis(p_event_id UUID)
 RETURNS TABLE (
   id UUID,
@@ -16,6 +19,10 @@ RETURNS TABLE (
   pagat BOOLEAN,
   confirmat BOOLEAN,
   created_at TIMESTAMPTZ,
+  -- Withdrawal fields
+  estat_jugador TEXT,
+  data_retirada TIMESTAMPTZ,
+  motiu_retirada TEXT,
   -- Socis information
   nom TEXT,
   cognoms TEXT,
@@ -39,6 +46,9 @@ AS $$
     i.pagat,
     i.confirmat,
     i.created_at,
+    i.estat_jugador,
+    i.data_retirada,
+    i.motiu_retirada,
     s.nom,
     s.cognoms,
     s.email,

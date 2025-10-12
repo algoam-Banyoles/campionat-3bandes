@@ -81,6 +81,9 @@
         pagat: item.pagat,
         confirmat: item.confirmat,
         created_at: item.created_at,
+        estat_jugador: item.estat_jugador,
+        data_retirada: item.data_retirada,
+        motiu_retirada: item.motiu_retirada,
         socis: {
           numero_soci: item.soci_numero,
           nom: item.nom,
@@ -203,14 +206,18 @@
                 {@const nomCompletJugador = soci ? `${soci.nom} ${soci.cognoms}` : `Soci #${inscription.soci_numero}`}
                 {@const nomFormatat = formatarNomJugador(nomCompletJugador)}
                 {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
-                <div class="flex items-center py-1">
-                  <div class="flex items-center">
-                    <div class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">
+                {@const isWithdrawn = inscription.estat_jugador === 'retirat'}
+                <div class="flex items-center py-1" class:opacity-60={isWithdrawn}>
+                  <div class="flex items-center gap-1 flex-1">
+                    <div class="w-6 h-6 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" class:bg-blue-500={!isWithdrawn} class:bg-gray-400={isWithdrawn}>
                       {inicialNom}
                     </div>
-                    <span class="text-xs text-gray-900 truncate max-w-24">
+                    <span class="text-xs truncate max-w-20" class:text-gray-900={!isWithdrawn} class:text-gray-500={isWithdrawn} class:line-through={isWithdrawn}>
                       {nomFormatat}
                     </span>
+                    {#if isWithdrawn}
+                      <span class="text-[10px] text-red-600 font-bold flex-shrink-0">R</span>
+                    {/if}
                   </div>
                 </div>
               {/each}
@@ -238,14 +245,20 @@
               {@const nomCompletSenseCategoria = soci ? `${soci.nom} ${soci.cognoms}` : `Soci #${inscription.soci_numero}`}
               {@const nomFormatat = formatarNomJugador(nomCompletSenseCategoria)}
               {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
-              <div class="flex items-center py-1">
-                <div class="flex items-center">
-                  <div class="w-8 h-8 bg-yellow-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">
+              {@const isWithdrawn = inscription.estat_jugador === 'retirat'}
+              <div class="flex items-center py-1" class:opacity-60={isWithdrawn}>
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 text-white rounded-full flex items-center justify-center text-sm font-bold" class:bg-yellow-500={!isWithdrawn} class:bg-gray-400={isWithdrawn}>
                     {inicialNom}
                   </div>
-                  <span class="text-sm font-medium text-gray-900">
+                  <span class="text-sm font-medium" class:text-gray-900={!isWithdrawn} class:text-gray-500={isWithdrawn} class:line-through={isWithdrawn}>
                     {nomFormatat}
                   </span>
+                  {#if isWithdrawn}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                      Retirat
+                    </span>
+                  {/if}
                 </div>
               </div>
             {/each}

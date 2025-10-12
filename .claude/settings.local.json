@@ -7,7 +7,9 @@
       "Bash(node:*)",
       "Bash(psql:*)",
       "Bash(curl:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(find:*)",
+      "Bash(docker run:*)"
     ],
     "deny": [],
     "ask": []

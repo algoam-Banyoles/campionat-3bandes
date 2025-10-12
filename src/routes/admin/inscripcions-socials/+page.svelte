@@ -3,7 +3,6 @@
   import { goto } from '$app/navigation';
   import { user } from '$lib/stores/auth';
   import { supabase } from '$lib/supabaseClient';
-  import { supabase as serviceClient } from '$lib/supabaseServiceClient';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
   import DragDropInscriptions from '$lib/components/campionats-socials/DragDropInscriptions.svelte';
@@ -33,6 +32,12 @@
   // Player restrictions editor variables
   let restrictionsEditorOpen = false;
   let selectedInscriptionForRestrictions = null;
+
+  // Withdrawal dialog variables
+  let withdrawalDialogOpen = false;
+  let selectedInscriptionForWithdrawal = null;
+  let withdrawalReason = '';
+  let processingWithdrawal = false;
 
   // Sorting and filtering variables
   let sortField = '';
@@ -197,9 +202,9 @@
   async function loadSocis() {
     console.log('=== Loading socis from client-side ===');
 
-    // Load active socis using service role client
-    console.log('Loading socis with service role client...');
-    const { data: socisData, error: socisError } = await serviceClient
+    // Load active socis using regular client (RLS should allow read access)
+    console.log('Loading socis...');
+    const { data: socisData, error: socisError } = await supabase
       .from('socis')
       .select('numero_soci, nom, cognoms, email')
       .eq('de_baixa', false)
@@ -613,6 +618,70 @@
 
     console.log('Restriccions actualitzades per jugador:', id);
   }
+
+  function openWithdrawalDialog(inscription) {
+    selectedInscriptionForWithdrawal = inscription;
+    withdrawalReason = '';
+    withdrawalDialogOpen = true;
+  }
+
+  async function withdrawPlayer() {
+    if (!selectedInscriptionForWithdrawal || !withdrawalReason.trim()) {
+      error = 'Has d\'especificar un motiu de retirada';
+      return;
+    }
+
+    try {
+      processingWithdrawal = true;
+
+      // Update inscription to mark as withdrawn
+      const { error: updateError } = await supabase
+        .from('inscripcions')
+        .update({
+          estat_jugador: 'retirat',
+          data_retirada: new Date().toISOString(),
+          motiu_retirada: withdrawalReason.trim()
+        })
+        .eq('id', selectedInscriptionForWithdrawal.id);
+
+      if (updateError) throw updateError;
+
+      // Get player ID from soci_numero
+      const { data: player } = await supabase
+        .from('players')
+        .select('id')
+        .eq('numero_soci', selectedInscriptionForWithdrawal.soci_numero)
+        .single();
+
+      if (player) {
+        // Cancel all calendar matches for this player
+        const { error: cancelError } = await supabase
+          .from('calendari_partides')
+          .update({ estat: 'cancel·lada_per_retirada' })
+          .eq('event_id', selectedInscriptionForWithdrawal.event_id)
+          .or(`jugador1_id.eq.${player.id},jugador2_id.eq.${player.id}`)
+          .not('estat', 'eq', 'jugada');
+
+        if (cancelError) throw cancelError;
+      }
+
+      // Close dialog and reload
+      withdrawalDialogOpen = false;
+      selectedInscriptionForWithdrawal = null;
+      withdrawalReason = '';
+
+      await loadInscriptions();
+
+      successMessage = `Jugador retirat correctament. Les seves partides programades han estat cancel·lades.`;
+      setTimeout(() => successMessage = null, 5000);
+
+    } catch (e) {
+      error = formatSupabaseError(e);
+    } finally {
+      processingWithdrawal = false;
+    }
+  }
+
 
   function toggleBulkDeleteMode() {
     bulkDeleteMode = !bulkDeleteMode;
@@ -1364,12 +1433,22 @@
                     <td class="px-6 py-4 whitespace-nowrap">
                       <div class="flex items-center">
                         <div>
-                          <div class="text-sm font-medium text-gray-900">
+                          <div class="text-sm font-medium text-gray-900 flex items-center gap-2">
                             {inscription.socis.nom} {inscription.socis.cognoms}
+                            {#if inscription.estat_jugador === 'retirat'}
+                              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                Retirat
+                              </span>
+                            {/if}
                           </div>
                           <div class="text-sm text-gray-500">
                             Soci #{inscription.socis.numero_soci}
                           </div>
+                          {#if inscription.estat_jugador === 'retirat' && inscription.motiu_retirada}
+                            <div class="text-xs text-red-600 mt-1">
+                              Motiu: {inscription.motiu_retirada}
+                            </div>
+                          {/if}
                         </div>
                       </div>
                     </td>
@@ -1418,27 +1497,41 @@
                       {inscription.observacions || '-'}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div class="flex items-center space-x-2">
-                        <button
-                          on:click={() => openRestrictionsEditor(inscription)}
-                          class="text-blue-600 hover:text-blue-900"
-                          title="Editar restriccions"
-                          aria-label="Editar restriccions de {inscription.socis?.nom}"
-                        >
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                          </svg>
-                        </button>
-                        <button
-                          on:click={() => deleteInscription(inscription.id)}
-                          class="text-red-600 hover:text-red-900"
-                          title="Eliminar inscripció"
-                          aria-label="Eliminar inscripció de {inscription.socis?.nom}"
-                        >
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                          </svg>
-                        </button>
+                      <div class="flex items-center justify-end space-x-2">
+                        {#if inscription.estat_jugador !== 'retirat'}
+                          <button
+                            on:click={() => openRestrictionsEditor(inscription)}
+                            class="text-blue-600 hover:text-blue-900"
+                            title="Editar restriccions"
+                            aria-label="Editar restriccions de {inscription.socis?.nom}"
+                          >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                          </button>
+                          <button
+                            on:click={() => openWithdrawalDialog(inscription)}
+                            class="text-orange-600 hover:text-orange-900"
+                            title="Retirar del campionat"
+                            aria-label="Retirar {inscription.socis?.nom} del campionat"
+                          >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6"></path>
+                            </svg>
+                          </button>
+                          <button
+                            on:click={() => deleteInscription(inscription.id)}
+                            class="text-red-600 hover:text-red-900"
+                            title="Eliminar inscripció"
+                            aria-label="Eliminar inscripció de {inscription.socis?.nom}"
+                          >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                          </button>
+                        {:else}
+                          <span class="text-xs text-gray-500 italic">Retirat el {new Date(inscription.data_retirada).toLocaleDateString('ca-ES')}</span>
+                        {/if}
                       </div>
                     </td>
                   </tr>
@@ -1459,4 +1552,58 @@
     on:error={handleCategorySetupError}
     on:close={() => { restrictionsEditorOpen = false; selectedInscriptionForRestrictions = null; }}
   />
+
+  <!-- Withdrawal Dialog Modal -->
+  {#if withdrawalDialogOpen && selectedInscriptionForWithdrawal}
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">
+          Retirar jugador del campionat
+        </h3>
+
+        <div class="mb-4">
+          <p class="text-sm text-gray-700 mb-2">
+            <strong>Jugador:</strong> {selectedInscriptionForWithdrawal.socis?.nom} {selectedInscriptionForWithdrawal.socis?.cognoms}
+          </p>
+          <p class="text-sm text-gray-600">
+            Aquesta acció marcarà el jugador com a retirat i cancel·larà totes les seves partides programades que encara no s'hagin jugat.
+          </p>
+        </div>
+
+        <div class="mb-4">
+          <label for="withdrawal-reason" class="block text-sm font-medium text-gray-700 mb-2">
+            Motiu de la retirada *
+          </label>
+          <textarea
+            id="withdrawal-reason"
+            bind:value={withdrawalReason}
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
+            placeholder="Ex: Problemes de salut, Manca de temps, etc."
+          ></textarea>
+        </div>
+
+        <div class="flex justify-end space-x-3">
+          <button
+            on:click={() => {
+              withdrawalDialogOpen = false;
+              selectedInscriptionForWithdrawal = null;
+              withdrawalReason = '';
+            }}
+            disabled={processingWithdrawal}
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+          >
+            Cancel·lar
+          </button>
+          <button
+            on:click={withdrawPlayer}
+            disabled={processingWithdrawal || !withdrawalReason.trim()}
+            class="px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {processingWithdrawal ? 'Retirant...' : 'Confirmar retirada'}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>
