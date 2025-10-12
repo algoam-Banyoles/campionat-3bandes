@@ -40,6 +40,19 @@
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover" class="safe-area-top safe-area-bottom">
+		<!-- Service Worker Registration - NO cacheja APIs -->
+		<script>
+			if ('serviceWorker' in navigator) {
+				window.addEventListener('load', function() {
+					navigator.serviceWorker.register('/sw.js').then(function(registration) {
+						console.log('✅ SW registrat:', registration.scope);
+					}).catch(function(err) {
+						console.log('⚠️ Error registrant SW:', err);
+					});
+				});
+			}
+		</script>
+
 		<div style="display: contents">%sveltekit.body%</div>
 
 		<!-- Mobile Navigation will be inserted here -->

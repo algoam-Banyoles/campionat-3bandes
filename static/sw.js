@@ -1,209 +1,78 @@
-// Service Worker personalitzat per notificacions push
-// Compatible amb Vite-PWA i Workbox
+// Service Worker - NO intercepta APIs per preservar capçaleres
+const CACHE_VERSION = 'v-no-api-cache-2025-10-12';
 
-// Importar les utilitats de Workbox si estan disponibles
-importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.5.4/workbox-sw.js');
+console.log('🌐 SW actiu - versió:', CACHE_VERSION);
 
-// Timeout per fetch requests - AUGMENTAT per Safari iOS standalone
-const FETCH_TIMEOUT = 15000; // 15 segons per PWA standalone
+// Instal·lació: netejar caches antigues
+self.addEventListener('install', (event) => {
+  console.log('🔧 SW: Install');
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          console.log('🗑️ Eliminant cache antiga:', cacheName);
+          return caches.delete(cacheName);
+        })
+      );
+    })
+  );
+  self.skipWaiting();
+});
 
-// Helper per afegir timeout a fetch
-const fetchWithTimeout = (request, timeout = FETCH_TIMEOUT) => {
-  return new Promise((resolve, reject) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
+// Activació: prendre control
+self.addEventListener('activate', (event) => {
+  console.log('✅ SW: Activate');
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          console.log('🗑️ Netejant cache:', cacheName);
+          return caches.delete(cacheName);
+        })
+      );
+    }).then(() => {
+      console.log('✅ Caches netes - prenent control');
+      return self.clients.claim();
+    })
+  );
+});
 
-    fetch(request, { signal: controller.signal })
-      .then(response => {
-        clearTimeout(timeoutId);
-        resolve(response);
-      })
-      .catch(error => {
-        clearTimeout(timeoutId);
-        reject(error);
-      });
-  });
-};
+// Estratègia: NO interceptar res que pugui tenir capçaleres importants
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
 
-if (workbox) {
-  console.log('[SW] Workbox carregat correctament');
-
-  // Configurar Workbox
-  workbox.core.skipWaiting();
-  workbox.core.clientsClaim();
-
-  // Configurar precaching automàtic amb gestió d'errors
-  try {
-    workbox.precaching.precacheAndRoute(self.__WB_MANIFEST || []);
-
-    // Assegurar que offline.html està disponible
-    workbox.precaching.precacheAndRoute([{ url: '/offline.html', revision: null }]);
-  } catch (error) {
-    console.error('[SW] Error en precaching:', error);
+  // NO interceptar ABSOLUTAMENT RES relacionat amb APIs
+  if (
+    url.hostname.includes('supabase.co') ||
+    url.pathname.startsWith('/api/') ||
+    url.pathname.includes('/rest/v1/') ||
+    url.pathname.includes('/auth/v1/') ||
+    url.pathname.includes('/storage/v1/') ||
+    event.request.method !== 'GET'
+  ) {
+    // Deixar passar sense tocar ABSOLUTAMENT RES
+    return;
   }
 
-  // *** ESTRATÈGIA MILLORADA: NetworkFirst amb fallback a Cache ***
-  // Per navegació (HTML pages)
-  workbox.routing.registerRoute(
-    ({request}) => request.mode === 'navigate',
-    new workbox.strategies.NetworkFirst({
-      cacheName: 'pages',
-      networkTimeoutSeconds: 10, // AUGMENTAT a 10s per Safari iOS standalone
-      plugins: [
-        {
-          handlerDidError: async ({error}) => {
-            console.log('[SW] Navigation failed, showing offline page:', error);
-            // Si la xarxa falla, tornar offline.html
-            return caches.match('/offline.html');
-          }
-        },
-        {
-          cacheWillUpdate: async ({response}) => {
-            // Només cachear respostes ok
-            if (response && response.status === 200) {
-              return response;
-            }
-            return null;
-          }
-        },
-        {
-          fetchDidSucceed: async ({response}) => {
-            console.log('[SW] Navigation fetch succeeded:', response.url);
-            return response;
-          }
-        }
-      ]
-    })
-  );
-
-  // *** ESTRATÈGIA PER ASSETS ESTÀTICS: StaleWhileRevalidate amb fallback ***
-  workbox.routing.registerRoute(
-    /\.(js|css|png|jpg|jpeg|svg|gif|ico|webp|woff|woff2)$/,
-    new workbox.strategies.StaleWhileRevalidate({
-      cacheName: 'static-assets',
-      plugins: [
-        {
-          cacheWillUpdate: async ({response}) => {
-            // Només cachear respostes vàlides
-            if (response && (response.status === 200 || response.status === 0)) {
-              return response;
-            }
-            return null;
-          }
-        },
-        {
-          fetchDidFail: async ({originalRequest, error}) => {
-            console.log('[SW] Fetch failed for:', originalRequest.url, error);
-            // Intentar recuperar del cache
-            return caches.match(originalRequest);
-          }
-        }
-      ]
-    })
-  );
-
-  // *** API REQUESTS: NetworkFirst amb timeout adaptat per Safari ***
-  workbox.routing.registerRoute(
-    ({url}) => url.pathname.startsWith('/api/') || url.hostname.includes('supabase'),
-    new workbox.strategies.NetworkFirst({
-      cacheName: 'api-cache',
-      networkTimeoutSeconds: 12, // AUGMENTAT a 12s per Safari iOS
-      plugins: [
-        {
-          cacheWillUpdate: async ({response}) => {
-            // Només cachear GET requests amb respostes ok
-            if (response && response.status === 200 && response.headers.get('content-type')?.includes('application/json')) {
-              return response;
-            }
-            return null;
-          }
-        },
-        {
-          handlerDidError: async ({error, request}) => {
-            console.log('[SW] API request failed:', request.url, error);
-            // No retornar res si l'API falla (deixar que l'app ho gestioni)
-            return null;
-          }
-        },
-        {
-          fetchDidFail: async ({originalRequest, error}) => {
-            console.log('[SW] API fetch completely failed:', originalRequest.url, error);
-            return null;
-          }
-        }
-      ]
-    })
-  );
-
-} else {
-  console.log('[SW] Workbox no disponible, usant cache bàsic amb timeouts');
-
-  // Fallback cache bàsic si Workbox no està disponible
-  const CACHE_NAME = 'campionat-3bandes-v1';
-
-  self.addEventListener('install', (event) => {
-    console.log('[SW] Installing service worker');
-    event.waitUntil(
-      caches.open(CACHE_NAME).then((cache) => {
-        return cache.addAll(['/offline.html']).catch(error => {
-          console.error('[SW] Error caching offline.html:', error);
-        });
-      })
-    );
-  });
-
-  self.addEventListener('fetch', (event) => {
-    event.respondWith(
-      fetchWithTimeout(event.request, FETCH_TIMEOUT)
-        .then(response => {
-          // Clone response per cachear
-          const responseToCache = response.clone();
-
-          // Cachear només si és una resposta ok
-          if (response.status === 200) {
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-
-          return response;
-        })
-        .catch(error => {
-          console.log('[SW] Fetch failed, trying cache:', event.request.url, error);
-          // Intentar recuperar del cache
-          return caches.match(event.request)
-            .then(cachedResponse => {
-              if (cachedResponse) {
-                return cachedResponse;
-              }
-              // Si és navegació, retornar offline.html
-              if (event.request.mode === 'navigate') {
-                return caches.match('/offline.html');
-              }
-              // Sinó, retornar error
-              return new Response('Network error', { status: 503 });
-            });
-        })
-    );
-  });
-}
+  // Per tot el resta (HTML, CSS, JS, imatges), també deixar passar
+  // NO cacheem res per evitar problemes
+});
 
 // *** GESTORS DE NOTIFICACIONS PUSH ***
 
-// Gestió d'esdeveniments push (quan arriba una notificació)
+// Gestió d'esdeveniments push
 self.addEventListener('push', (event) => {
   console.log('[SW] Push event received:', event);
 
   let notificationData = {
-    title: 'Campionat 3 Bandes',
+    title: 'Foment Martinenc',
     body: 'Tens una nova notificació',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-192x192.png',
+    icon: '/icons/icon-192.svg',
+    badge: '/icons/icon-144.svg',
     tag: 'general',
     data: {}
   };
 
-  // Processar les dades del push si existeixen
   if (event.data) {
     try {
       const pushData = event.data.json();
@@ -223,7 +92,6 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  // Mostrar la notificació amb gestió d'errors
   const notificationPromise = self.registration.showNotification(notificationData.title, {
     body: notificationData.body,
     icon: notificationData.icon,
@@ -233,7 +101,7 @@ self.addEventListener('push', (event) => {
     actions: notificationData.actions,
     requireInteraction: notificationData.requireInteraction,
     silent: notificationData.silent,
-    vibrate: [200, 100, 200], // Vibració per mòbil
+    vibrate: [200, 100, 200],
     timestamp: Date.now()
   }).catch(error => {
     console.error('[SW] Error showing notification:', error);
@@ -245,19 +113,13 @@ self.addEventListener('push', (event) => {
 // Gestió de clics en notificacions
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] Notification click received:', event);
-
-  // Tancar la notificació
   event.notification.close();
 
-  // Extreure dades de la notificació
   const data = event.notification.data || {};
   const action = event.action;
-
-  // Determinar l'URL de destinació
   let targetUrl = '/';
 
   if (action) {
-    // Si s'ha fet clic en una acció específica
     switch (action) {
       case 'view_challenge':
         targetUrl = data.challengeUrl || '/campionat-continu/reptes';
@@ -272,7 +134,6 @@ self.addEventListener('notificationclick', (event) => {
         targetUrl = data.url || '/';
     }
   } else {
-    // Clic general en la notificació
     if (data.challengeId) {
       targetUrl = `/reptes/${data.challengeId}`;
     } else if (data.url) {
@@ -280,23 +141,19 @@ self.addEventListener('notificationclick', (event) => {
     }
   }
 
-  // Obrir o enfocar la finestra de l'aplicació
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Buscar si ja hi ha una finestra oberta
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
-          // Si trobem una finestra, naveguem i la enfoquem
           return Promise.resolve(client.navigate(targetUrl))
             .then(() => client.focus())
             .catch(error => {
-              console.error('[SW] Error navigating to URL:', error);
+              console.error('[SW] Error navigating:', error);
               return client.focus();
             });
         }
       }
 
-      // Si no hi ha finestra oberta, n'obrim una de nova
       if (clients.openWindow) {
         return clients.openWindow(targetUrl).catch(error => {
           console.error('[SW] Error opening window:', error);
@@ -311,7 +168,4 @@ self.addEventListener('notificationclick', (event) => {
 // Gestió de tancar notificacions
 self.addEventListener('notificationclose', (event) => {
   console.log('[SW] Notification closed:', event.notification.tag);
-
-  // Aquí es podria enviar tracking analytics si cal
-  // Per exemple, registrar que l'usuari ha tancat la notificació sense fer clic
 });
