@@ -330,8 +330,15 @@
                       </div>
                     </td>
                     <td class="px-3 py-4 text-sm">
-                      <div class="font-medium text-gray-900">
-                        {formatPlayerName(classification)}
+                      <div class="flex items-center gap-2">
+                        <span class="font-medium" class:text-gray-900={classification.estat_jugador !== 'retirat'} class:text-gray-500={classification.estat_jugador === 'retirat'} class:line-through={classification.estat_jugador === 'retirat'}>
+                          {formatPlayerName(classification)}
+                        </span>
+                        {#if classification.estat_jugador === 'retirat'}
+                          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800" title={classification.motiu_retirada || 'Retirat'}>
+                            Retirat
+                          </span>
+                        {/if}
                       </div>
                     </td>
                     <td class="px-3 py-4 text-sm text-center">
@@ -381,8 +388,11 @@
                         {classification.posicio <= 3 ? getPositionIcon(classification.posicio) : classification.posicio}
                       </span>
                       <div class="min-w-0 flex-1">
-                        <div class="font-semibold text-gray-900 text-base leading-tight truncate">
+                        <div class="font-semibold text-base leading-tight truncate flex items-center gap-1" class:text-gray-900={classification.estat_jugador !== 'retirat'} class:text-gray-500={classification.estat_jugador === 'retirat'} class:line-through={classification.estat_jugador === 'retirat'}>
                           {formatPlayerName(classification)}
+                          {#if classification.estat_jugador === 'retirat'}
+                            <span class="text-[10px] bg-red-100 text-red-800 px-1 rounded flex-shrink-0" title={classification.motiu_retirada || 'Retirat'}>R</span>
+                          {/if}
                         </div>
                       </div>
                     </div>

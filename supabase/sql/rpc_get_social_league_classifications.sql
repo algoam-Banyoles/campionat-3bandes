@@ -23,7 +23,11 @@ RETURNS TABLE (
   partides_empat INTEGER,
   partides_perdudes INTEGER,
   categoria_nom TEXT,
-  categoria_ordre SMALLINT
+  categoria_ordre SMALLINT,
+  -- Withdrawal fields
+  estat_jugador TEXT,
+  data_retirada TIMESTAMPTZ,
+  motiu_retirada TEXT
 )
 SECURITY DEFINER
 LANGUAGE plpgsql
@@ -76,7 +80,10 @@ BEGIN
       p.id as player_id,
       p.numero_soci as soci_numero,
       s.nom as soci_nom,
-      s.cognoms as soci_cognoms
+      s.cognoms as soci_cognoms,
+      i.estat_jugador,
+      i.data_retirada,
+      i.motiu_retirada
     FROM inscripcions i
     INNER JOIN players p ON i.soci_numero = p.numero_soci
     LEFT JOIN socis s ON p.numero_soci = s.numero_soci
@@ -91,6 +98,9 @@ BEGIN
       ap.soci_numero,
       ap.soci_nom,
       ap.soci_cognoms,
+      ap.estat_jugador,
+      ap.data_retirada,
+      ap.motiu_retirada,
       COUNT(pm.match_id)::INTEGER as partides_jugades,
       COUNT(CASE WHEN pm.result = 'win' THEN 1 END)::INTEGER as partides_guanyades,
       COUNT(CASE WHEN pm.result = 'draw' THEN 1 END)::INTEGER as partides_empat,
@@ -116,7 +126,7 @@ BEGIN
       ), 0) as millor_mitjana
     FROM all_players ap
     LEFT JOIN player_matches pm ON ap.player_id = pm.player_id AND ap.categoria_id = pm.categoria_id
-    GROUP BY ap.categoria_id, ap.player_id, ap.soci_numero, ap.soci_nom, ap.soci_cognoms
+    GROUP BY ap.categoria_id, ap.player_id, ap.soci_numero, ap.soci_nom, ap.soci_cognoms, ap.estat_jugador, ap.data_retirada, ap.motiu_retirada
   ),
   head_to_head AS (
     -- Get head-to-head results between players in same category
@@ -173,7 +183,10 @@ BEGIN
     rp.partides_empat,
     rp.partides_perdudes,
     cat.nom as categoria_nom,
-    cat.ordre_categoria as categoria_ordre
+    cat.ordre_categoria as categoria_ordre,
+    rp.estat_jugador,
+    rp.data_retirada,
+    rp.motiu_retirada
   FROM ranked_players rp
   LEFT JOIN categories cat ON rp.categoria_id = cat.id
   ORDER BY cat.ordre_categoria ASC, rp.posicio ASC;
