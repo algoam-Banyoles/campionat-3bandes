@@ -98,49 +98,31 @@ class PWAIntegration implements PWAManager {
   }
 
   private async registerVitePWA(): Promise<void> {
-    try {
-      // Vite-PWA registra automàticament el service worker
-      this.vitePwaRegistration = await navigator.serviceWorker.ready;
-      console.log('[PWA] Vite-PWA service worker ready');
-    } catch (error) {
-      console.error('[PWA] Failed to register Vite-PWA service worker:', error);
-    }
+    // Vite-PWA desactivat - usem sw.js personalitzat
+    console.log('[PWA] Vite-PWA disabled - using custom sw.js');
+    return Promise.resolve();
   }
 
   private async registerCustomSW(): Promise<void> {
     try {
-      // Registrar el nostre service worker personalitzat per notificacions
-      // només si no hi ha conflicte
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      const hasCustomSW = registrations.some(reg => 
-        reg.scope.includes('/') && reg.active?.scriptURL.includes('sw.js')
-      );
-
-      if (!hasCustomSW) {
-        this.customSWRegistration = await navigator.serviceWorker.register('/sw.js', {
-          scope: '/'
-        });
-        console.log('[PWA] Custom service worker registered for notifications');
-      } else {
-        this.customSWRegistration = registrations.find(reg => 
-          reg.active?.scriptURL.includes('sw.js')
-        ) || null;
-        console.log('[PWA] Custom service worker already registered');
-      }
+      // Esperar que el SW estigui registrat (app.html ho fa)
+      const registration = await navigator.serviceWorker.ready;
+      this.customSWRegistration = registration;
+      console.log('[PWA] Service worker ready:', registration.scope);
     } catch (error) {
-      console.error('[PWA] Failed to register custom service worker:', error);
+      console.error('[PWA] Failed to get service worker registration:', error);
     }
   }
 
   private setupUpdateListeners(): void {
-    // Escoltar actualitzacions del service worker principal
-    if (this.vitePwaRegistration) {
-      this.vitePwaRegistration.addEventListener('updatefound', () => {
-        const newWorker = this.vitePwaRegistration?.installing;
+    // Escoltar actualitzacions del SW personalitzat
+    if (this.customSWRegistration) {
+      this.customSWRegistration.addEventListener('updatefound', () => {
+        const newWorker = this.customSWRegistration?.installing;
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              this.notifyUpdateAvailable();
+              console.log('[PWA] Nova versió del SW disponible');
             }
           });
         }
@@ -148,10 +130,8 @@ class PWAIntegration implements PWAManager {
     }
 
     // Escoltar canvis de controlador
-    // NOTA: No recarreguem automàticament per evitar bucles de reinici
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       console.log('[PWA] Service worker controller changed');
-      // El service worker s\'actualitzarà en el proper reload natural
     });
   }
 
@@ -166,9 +146,9 @@ class PWAIntegration implements PWAManager {
   }
 
   async checkForUpdates(): Promise<void> {
-    if (this.vitePwaRegistration) {
+    if (this.customSWRegistration) {
       try {
-        await this.vitePwaRegistration.update();
+        await this.customSWRegistration.update();
       } catch (error) {
         console.error('[PWA] Failed to check for updates:', error);
       }
