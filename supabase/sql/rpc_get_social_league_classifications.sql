@@ -1,6 +1,10 @@
 -- RPC function to get real-time classifications for social leagues
 -- Calculates stats directly from calendari_partides (not from matches table)
 -- Victory = 2 points, Draw = 1 point, Loss = 0 points
+
+-- Drop existing function first (needed when changing return type)
+DROP FUNCTION IF EXISTS get_social_league_classifications(UUID);
+
 CREATE OR REPLACE FUNCTION get_social_league_classifications(p_event_id UUID)
 RETURNS TABLE (
   player_id UUID,
@@ -127,7 +131,7 @@ BEGIN
       END as winner
     FROM calendari_partides cp
     INNER JOIN inscripcions i1 ON cp.jugador1_id = (
-      SELECT p.id FROM players p WHERE p.numero_soci = i1.soci_numero
+      SELECT p.id FROM players p WHERE p.numero_soci = i1.soci_numero::INTEGER
     ) AND cp.event_id = i1.event_id
     WHERE cp.event_id = p_event_id
       AND cp.estat = 'validat'
