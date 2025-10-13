@@ -292,6 +292,15 @@
     }
   }
 
+  // Carregar events
+  async function loadEvents() {
+    try {
+      events = await getSocialLeagueEvents();
+    } catch (error) {
+      console.error('Error loading events:', error);
+    }
+  }
+
   // Exportar calendari a CSV
   async function downloadCalendariCSV(eventId: string, eventName: string) {
     try {

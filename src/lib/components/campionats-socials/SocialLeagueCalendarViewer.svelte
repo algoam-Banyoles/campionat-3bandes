@@ -2575,7 +2575,7 @@
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2 invisible">Accions</label>
+        <div class="block text-sm font-medium text-gray-700 mb-2 invisible" aria-hidden="true">Accions</div>
         <button
           on:click={() => { selectedCategory = ''; selectedDate = ''; clearPlayerSearch(); }}
           class="w-full px-4 py-2 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 font-medium"
@@ -3115,6 +3115,7 @@
           <button
             on:click={closeResultModal}
             class="text-gray-400 hover:text-gray-600"
+            aria-label="Tancar modal de resultat"
           >
             <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
