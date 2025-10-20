@@ -1,6 +1,7 @@
 <script lang="ts">
   import { supabase } from '$lib/supabaseClient';
   import { onMount } from 'svelte';
+  import PlayerResultsModal from './PlayerResultsModal.svelte';
 
   export let event: any = null;
   export let showDetails: boolean = false;
@@ -12,6 +13,10 @@
   let selectedCategory = 'all';
   let lastMatchDate: Date | null = null;
   let expandedCategories: Set<string> = new Set();
+
+  // Modal state
+  let isModalOpen = false;
+  let selectedPlayer: any = null;
 
   onMount(() => {
     if (event?.id) {
@@ -150,6 +155,16 @@
 
   function calculateGoalDifference(made: number, received: number) {
     return made - received;
+  }
+
+  function openPlayerModal(classification: any) {
+    selectedPlayer = {
+      name: formatPlayerName(classification),
+      numeroSoci: classification.soci_numero,
+      eventId: event?.id,
+      categoriaId: classification.categoria_id
+    };
+    isModalOpen = true;
   }
 
   // Group classifications by category
@@ -331,9 +346,16 @@
                     </td>
                     <td class="px-3 py-4 text-sm">
                       <div class="flex items-center gap-2">
-                        <span class="font-medium" class:text-gray-900={classification.estat_jugador !== 'retirat'} class:text-gray-500={classification.estat_jugador === 'retirat'} class:line-through={classification.estat_jugador === 'retirat'}>
+                        <button
+                          on:click={() => openPlayerModal(classification)}
+                          class="font-medium hover:text-blue-600 transition-colors cursor-pointer underline decoration-transparent hover:decoration-blue-600"
+                          class:text-gray-900={classification.estat_jugador !== 'retirat'}
+                          class:text-gray-500={classification.estat_jugador === 'retirat'}
+                          class:line-through={classification.estat_jugador === 'retirat'}
+                          title="Veure resultats de {formatPlayerName(classification)}"
+                        >
                           {formatPlayerName(classification)}
-                        </span>
+                        </button>
                         {#if classification.estat_jugador === 'retirat'}
                           <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800" title={classification.motiu_retirada || 'Retirat'}>
                             Retirat
@@ -388,12 +410,19 @@
                         {classification.posicio <= 3 ? getPositionIcon(classification.posicio) : classification.posicio}
                       </span>
                       <div class="min-w-0 flex-1">
-                        <div class="font-semibold text-base leading-tight truncate flex items-center gap-1" class:text-gray-900={classification.estat_jugador !== 'retirat'} class:text-gray-500={classification.estat_jugador === 'retirat'} class:line-through={classification.estat_jugador === 'retirat'}>
+                        <button
+                          on:click={() => openPlayerModal(classification)}
+                          class="font-semibold text-base leading-tight truncate flex items-center gap-1 hover:text-blue-600 transition-colors cursor-pointer w-full text-left"
+                          class:text-gray-900={classification.estat_jugador !== 'retirat'}
+                          class:text-gray-500={classification.estat_jugador === 'retirat'}
+                          class:line-through={classification.estat_jugador === 'retirat'}
+                          title="Veure resultats de {formatPlayerName(classification)}"
+                        >
                           {formatPlayerName(classification)}
                           {#if classification.estat_jugador === 'retirat'}
                             <span class="text-[10px] bg-red-100 text-red-800 px-1 rounded flex-shrink-0" title={classification.motiu_retirada || 'Retirat'}>R</span>
                           {/if}
-                        </div>
+                        </button>
                       </div>
                     </div>
                     <div class="text-right flex-shrink-0 ml-1.5">
@@ -520,3 +549,16 @@
     {/if}
   {/if}
 </div>
+
+<!-- Player Results Modal -->
+<PlayerResultsModal
+  bind:isOpen={isModalOpen}
+  playerName={selectedPlayer?.name || ''}
+  playerNumeroSoci={selectedPlayer?.numeroSoci}
+  eventId={selectedPlayer?.eventId}
+  categoriaId={selectedPlayer?.categoriaId}
+  on:close={() => {
+    isModalOpen = false;
+    selectedPlayer = null;
+  }}
+/>

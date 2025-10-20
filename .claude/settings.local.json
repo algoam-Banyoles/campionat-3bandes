@@ -9,7 +9,11 @@
       "Bash(curl:*)",
       "Bash(npm install:*)",
       "Bash(find:*)",
-      "Bash(docker run:*)"
+      "Bash(docker run:*)",
+      "Bash(npm run build)",
+      "Bash(timeout 120 bash -c 'tail -f /dev/null & PID=$!; while pgrep -f \"\"vite build\"\" > /dev/null; do sleep 2; done; kill $PID 2>/dev/null')",
+      "Bash(npx svelte-check --threshold error --workspace src/lib/components/campionats-socials)",
+      "Bash(taskkill /F /IM node.exe)"
     ],
     "deny": [],
     "ask": []
