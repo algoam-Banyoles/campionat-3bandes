@@ -278,6 +278,14 @@
     <p class="text-sm text-gray-600 mb-4">Gestió de dades compartides entre tots els tipus de competicions</p>
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <!-- Targeta: editor de contingut -->
+      <a href="/admin/content-editor" class="block rounded-2xl border p-4 hover:shadow-sm bg-indigo-50 border-indigo-200">
+        <h2 class="font-semibold text-indigo-800">✏️ Editor de Contingut</h2>
+        <p class="text-sm text-indigo-700 mt-1">
+          Edita el contingut de la pàgina principal: horaris, normativa i serveis al soci.
+        </p>
+      </a>
+
       <!-- Targeta: mitjanes històriques -->
       <a href="/admin/mitjanes-historiques" class="block rounded-2xl border p-4 hover:shadow-sm bg-purple-50 border-purple-200">
         <h2 class="font-semibold text-purple-800">📊 Mitjanes Històriques</h2>

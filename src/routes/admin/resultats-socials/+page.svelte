@@ -67,6 +67,8 @@
     // Reset dependent selections
     selectedMatch = null;
     calendarMatches = [];
+    error = '';
+    loading = true;
 
     try {
       // Load calendar matches for selected category that are not yet played
@@ -105,6 +107,8 @@
     } catch (e) {
       console.error('Error loading matches:', e);
       error = 'Error carregant les partides';
+    } finally {
+      loading = false;
     }
   }
 
@@ -122,6 +126,7 @@
 
     loading = true;
     error = '';
+    success = false;
 
     try {
       // For social league matches, store results directly in calendari_partides
@@ -155,19 +160,20 @@
 
       console.log('✅ Resultat guardat correctament:', updateData);
 
-      success = true;
-
-      // Reset form
+      // Reset form BEFORE reloading matches to avoid state conflicts
+      const categoryToReload = selectedCategory;
       selectedMatch = null;
       caramboles_jugador1 = 0;
       caramboles_jugador2 = 0;
       entrades = 0;
       observacions = '';
-      matchesCollapsed = false; // Desplegar la llista per poder seleccionar la següent partida
+      matchesCollapsed = false;
 
-      // Reload matches
-      if (selectedCategory) {
-        await selectCategory(selectedCategory);
+      success = true;
+
+      // Reload matches - do this AFTER resetting the form
+      if (categoryToReload) {
+        await selectCategory(categoryToReload);
       }
 
       setTimeout(() => {
@@ -177,7 +183,6 @@
     } catch (e) {
       console.error('Error submitting result:', e);
       error = 'Error guardant el resultat';
-    } finally {
       loading = false;
     }
   }

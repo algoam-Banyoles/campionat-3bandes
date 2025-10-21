@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
-  import { refreshCalendarData, getEventsForDate, calendarLoading } from '$lib/stores/calendar';
+  import { refreshCalendarData, getEventsForDate } from '$lib/stores/calendar';
 
   let todayEvents: any[] = [];
   let loading = true;
@@ -87,6 +87,73 @@
       <p class="text-sm sm:text-base lg:text-lg text-gray-600 px-2">Informació general i calendari d'activitats</p>
     </div>
   {/if}
+
+  <!-- Activitats d'avui -->
+  <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
+    <h2 class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
+      <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      </svg>
+      Activitats d'avui
+    </h2>
+
+    <div class="bg-gray-50 rounded-lg p-4 sm:p-6">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+        <h3 class="text-sm sm:text-base lg:text-lg font-semibold text-gray-700">Avui, {new Date().toLocaleDateString('ca-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
+        <a href="/general/calendari" class="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-medium whitespace-nowrap">→ Veure calendari complet</a>
+      </div>
+
+      <div class="space-y-3">
+        {#if loading}
+          <div class="bg-white rounded-lg p-4 sm:p-6 border border-gray-200">
+            <div class="flex items-center text-gray-600">
+              <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span class="text-xs sm:text-sm">Carregant activitats...</span>
+            </div>
+          </div>
+        {:else if todayEvents.length === 0}
+          <div class="bg-white rounded-lg p-4 sm:p-6 border border-gray-200 text-center">
+            <svg class="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            <h4 class="text-sm sm:text-base font-medium text-gray-900 mb-1">No hi ha activitats programades avui</h4>
+            <p class="text-xs sm:text-sm text-gray-500">Consulta el calendari complet per veure pròximes activitats</p>
+          </div>
+        {:else}
+          {#each todayEvents as event}
+            <div class="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div class="flex items-start gap-2">
+                  {#if event.type === 'challenge' && event.subtype?.startsWith('campionat-social')}
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                  {:else}
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                  {/if}
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm sm:text-base font-medium text-gray-900 truncate">{event.title}</p>
+                  </div>
+                </div>
+                <div class="text-xs sm:text-sm text-gray-500 font-medium whitespace-nowrap">
+                  {formatTime(event.start)}
+                </div>
+              </div>
+            </div>
+          {/each}
+        {/if}
+
+        <div class="text-center text-xs sm:text-sm text-gray-500 mt-4 px-2">
+          <p>📅 Consulta el calendari complet per veure tornejos, competicions i esdeveniments</p>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Horaris i Normativa -->
   <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
@@ -200,82 +267,40 @@
       <!-- Tornar a jugar -->
       <div class="bg-indigo-50 rounded-lg p-4">
         <h3 class="text-lg font-semibold text-indigo-900 mb-3">
-          � Tornar a jugar
+          🔄 {normesRepetir.title || 'Tornar a jugar'}
         </h3>
-        <p class="text-sm text-indigo-800">
-          Només pots repetir si no hi ha ningú apuntat i hi ha una taula lliure.
-        </p>
+        {#if normesRepetir.content}
+          <div class="text-sm text-indigo-800 prose prose-sm max-w-none prose-p:my-1">{@html normesRepetir.content}</div>
+        {:else}
+          <p class="text-sm text-indigo-800">
+            Només pots repetir si no hi ha ningú apuntat i hi ha una taula lliure.
+          </p>
+        {/if}
       </div>
     </div>
   </div>
 
-  <!-- Activitats d'avui -->
+  <!-- Serveis al Soci -->
   <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
     <h2 class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
-      <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
       </svg>
-      Activitats d'avui
+      {serveisSoci.title || 'Serveis al Soci'}
     </h2>
-    
-    <div class="bg-gray-50 rounded-lg p-4 sm:p-6">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-        <h3 class="text-sm sm:text-base lg:text-lg font-semibold text-gray-700">Avui, {new Date().toLocaleDateString('ca-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
-        <a href="/general/calendari" class="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-medium whitespace-nowrap">→ Veure calendari complet</a>
-      </div>
-      
-      <div class="space-y-3">
-        {#if loading}
-          <div class="bg-white rounded-lg p-4 sm:p-6 border border-gray-200">
-            <div class="flex items-center text-gray-600">
-              <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span class="text-xs sm:text-sm">Carregant activitats...</span>
-            </div>
-          </div>
-        {:else if todayEvents.length === 0}
-          <div class="bg-white rounded-lg p-4 sm:p-6 border border-gray-200 text-center">
-            <svg class="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-            </svg>
-            <h4 class="text-sm sm:text-base font-medium text-gray-900 mb-1">No hi ha activitats programades avui</h4>
-            <p class="text-xs sm:text-sm text-gray-500">Consulta el calendari complet per veure pròximes activitats</p>
-          </div>
-        {:else}
-          {#each todayEvents as event}
-            <div class="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
-              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div class="flex items-start gap-2">
-                  {#if event.type === 'challenge' && event.subtype?.startsWith('campionat-social')}
-                    <svg class="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                    </svg>
-                  {:else}
-                    <svg class="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                  {/if}
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm sm:text-base font-medium text-gray-900 truncate">{event.title}</p>
-                    {#if event.description}
-                      <p class="text-xs sm:text-sm text-gray-600 mt-1">{event.description}</p>
-                    {/if}
-                  </div>
-                </div>
-                <div class="text-xs sm:text-sm text-gray-500 font-medium whitespace-nowrap">
-                  {formatTime(event.start)}
-                </div>
-              </div>
-            </div>
-          {/each}
-        {/if}
-        
-        <div class="text-center text-xs sm:text-sm text-gray-500 mt-4 px-2">
-          <p>📅 Consulta el calendari complet per veure tornejos, competicions i esdeveniments</p>
+
+    <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-4 sm:p-6">
+      {#if serveisSoci.content}
+        <div class="prose prose-sm sm:prose max-w-none prose-headings:text-indigo-900 prose-p:text-gray-700 prose-ul:text-gray-700 prose-li:text-gray-700">{@html serveisSoci.content}</div>
+      {:else}
+        <div class="text-center py-6">
+          <svg class="w-12 h-12 mx-auto text-indigo-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+          </svg>
+          <p class="text-sm sm:text-base text-gray-600">Contingut en preparació</p>
+          <p class="text-xs sm:text-sm text-gray-500 mt-2">Aviat trobaràs aquí informació sobre els serveis disponibles per als socis</p>
         </div>
-      </div>
+      {/if}
     </div>
   </div>
 

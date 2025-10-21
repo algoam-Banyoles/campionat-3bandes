@@ -33,13 +33,14 @@
     goto('/admin');
   }
 
-  $: if (selectedPage) {
-    loadContent();
+  async function handlePageChange() {
+    await loadContent();
   }
 
   async function loadContent() {
     loading = true;
     error = null;
+    success = null;
     try {
       const { data, error: loadError } = await supabase
         .from('page_content')
@@ -132,6 +133,7 @@
         <select
           id="pageSelect"
           bind:value={selectedPage}
+          on:change={handlePageChange}
           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
           {#each pages as page}
