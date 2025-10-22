@@ -130,7 +130,7 @@
   <title>Graella de Resultats - Administració</title>
 </svelte:head>
 
-<div class="container mx-auto px-4 py-8 max-w-7xl">
+<div class="no-print container mx-auto px-4 py-8 max-w-7xl">
   <div class="mb-8">
     <h1 class="text-3xl font-bold text-gray-900 mb-2">Graella de Resultats Creuats</h1>
     <p class="text-gray-600">Visualitza la matriu de resultats entre jugadors d'una categoria</p>
@@ -343,12 +343,35 @@
   }
 
   @media print {
+    /* Hide everything except the printable content */
+    :global(body > *:not(.print-only)) {
+      display: none !important;
+    }
+
     :global(.no-print) {
       display: none !important;
     }
 
     :global(.print-only) {
       display: block !important;
+    }
+
+    /* Hide any parent containers */
+    :global(#app),
+    :global(main),
+    :global(header),
+    :global(nav),
+    :global(footer),
+    :global(.container) {
+      all: unset !important;
+      display: contents !important;
+    }
+
+    /* Ensure body has no background in print */
+    :global(body) {
+      background: white !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
   }
 
