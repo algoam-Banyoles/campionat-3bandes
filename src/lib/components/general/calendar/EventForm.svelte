@@ -25,6 +25,7 @@
 
   let loading = false;
   let error: string | null = null;
+  let initialized = false;
 
   // Tipus d'esdeveniments disponibles
   const tipusOpcions = [
@@ -34,13 +35,23 @@
     { value: 'manteniment', label: 'Manteniment' }
   ];
 
-  // Quan s'obre el modal, inicialitzar el formulari
-  $: if (isOpen) {
+  // Quan s'obre el modal, inicialitzar el formulari només una vegada
+  $: if (isOpen && !initialized) {
+    initialized = true;
+    initializeForm();
+  }
+
+  // Quan es tanca el modal, reset initialized
+  $: if (!isOpen && initialized) {
+    initialized = false;
+  }
+
+  function initializeForm() {
     if (editingEvent) {
       // Mode edició
       const startDate = new Date(editingEvent.data_inici);
       const endDate = editingEvent.data_fi ? new Date(editingEvent.data_fi) : null;
-      
+
       form = {
         titol: editingEvent.titol,
         descripcio: editingEvent.descripcio || '',
@@ -84,10 +95,10 @@
       // Construir dates
       const dataInici = new Date(`${form.data_inici}T${form.hora_inici || '00:00'}:00`);
       let dataFi = null;
-      
+
       if (form.data_fi && form.hora_fi) {
         dataFi = new Date(`${form.data_fi}T${form.hora_fi}:00`);
-        
+
         if (dataFi <= dataInici) {
           throw new Error('La data de fi ha de ser posterior a la d\'inici');
         }
@@ -108,25 +119,37 @@
           .from('esdeveniments_club')
           .update(eventData)
           .eq('id', editingEvent.id);
-        
+
         if (updateError) throw updateError;
       } else {
         // Crear nou esdeveniment
         const { error: insertError } = await supabase
           .from('esdeveniments_club')
           .insert([eventData]);
-        
+
         if (insertError) throw insertError;
       }
 
-      // Refresh calendar data
-      await refreshCalendarData();
-      
+      // Reset loading before closing to avoid blocking
+      loading = false;
+
+      // Close the form
       dispatch('success');
       dispatch('close');
+
+      // Refresh calendar data after a small delay to ensure form is closed
+      // This prevents reactive loops while ensuring data is refreshed
+      setTimeout(async () => {
+        try {
+          await refreshCalendarData();
+          console.log('✅ Calendar data refreshed successfully');
+        } catch (refreshError) {
+          console.error('❌ Error refreshing calendar:', refreshError);
+        }
+      }, 150);
+
     } catch (err: any) {
       error = err.message;
-    } finally {
       loading = false;
     }
   }

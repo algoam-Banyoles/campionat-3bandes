@@ -199,8 +199,53 @@ export const calendarEvents = derived(
     if ($partidesCalendari.length > 0) {
       console.log('🏆 Raw partides data (first 2):', $partidesCalendari.slice(0, 2));
     }
-    
-    return events.sort((a, b) => a.start.getTime() - b.start.getTime());
+
+    // Funció per obtenir la prioritat d'ordenació per tipus
+    const getEventTypePriority = (event: CalendarEvent): number => {
+      // Prioritat més baixa = apareix abans
+      if (event.type === 'event') {
+        // Esdeveniments del club van primer
+        switch (event.subtype) {
+          case 'general': return 1;     // Esdeveniments generals PRIMER
+          case 'torneig': return 2;
+          case 'social': return 3;
+          case 'manteniment': return 4;
+          default: return 5;
+        }
+      }
+      if (event.type === 'challenge') {
+        if (event.subtype?.startsWith('campionat-social')) {
+          return 6; // Partides de campionats socials
+        }
+        return 7; // Reptes del ranking continu
+      }
+      return 10; // Altres esdeveniments
+    };
+
+    // Funció per extreure el número de billar (B1 -> 1, B2 -> 2, etc.)
+    const getBillarNumber = (event: CalendarEvent): number => {
+      if (!event.tableInfo) return 999; // Si no té taula, va al final
+      const match = event.tableInfo.match(/B(\d+)/);
+      return match ? parseInt(match[1]) : 999;
+    };
+
+    // Ordenar per: 1) tipus, 2) hora, 3) número de billar
+    return events.sort((a, b) => {
+      // 1. Primer per tipus d'esdeveniment
+      const typeDiff = getEventTypePriority(a) - getEventTypePriority(b);
+      if (typeDiff !== 0) {
+        return typeDiff;
+      }
+
+      // 2. Després per hora
+      const timeDiff = a.start.getTime() - b.start.getTime();
+      if (timeDiff !== 0) {
+        return timeDiff;
+      }
+
+      // 3. Finalment per número de billar
+      return getBillarNumber(a) - getBillarNumber(b);
+    });
   }
 );
 
@@ -227,34 +272,43 @@ export function getEventsForDate(date: Date): CalendarEvent[] {
 }
 
 // Funcions per carregar dades
-export async function loadEsdeveniments(): Promise<void> {
+export async function loadEsdeveniments(setLoading: boolean = true): Promise<void> {
   try {
-    calendarLoading.set(true);
-    calendarError.set(null);
-    
+    if (setLoading) {
+      calendarLoading.set(true);
+      calendarError.set(null);
+    }
+
     const { data, error } = await supabase
       .from('esdeveniments_club')
       .select('*')
       .order('data_inici', { ascending: true });
-    
+
     if (error) {
       throw new Error(error.message);
     }
-    
+
     esdeveniments.set(data || []);
   } catch (error: any) {
-    calendarError.set(error.message);
+    if (setLoading) {
+      calendarError.set(error.message);
+    }
     esdeveniments.set([]);
+    throw error; // Re-throw for Promise.allSettled
   } finally {
-    calendarLoading.set(false);
+    if (setLoading) {
+      calendarLoading.set(false);
+    }
   }
 }
 
-export async function loadReptesProgramats(): Promise<void> {
+export async function loadReptesProgramats(setLoading: boolean = true): Promise<void> {
   try {
-    calendarLoading.set(true);
-    calendarError.set(null);
-    
+    if (setLoading) {
+      calendarLoading.set(true);
+      calendarError.set(null);
+    }
+
     const { data, error } = await supabase
       .from('challenges')
       .select(`
@@ -269,11 +323,11 @@ export async function loadReptesProgramats(): Promise<void> {
       `)
       .not('data_programada', 'is', null)
       .order('data_programada', { ascending: true });
-    
+
     if (error) {
       throw new Error(error.message);
     }
-    
+
     const reptes: RepteCalendari[] = (data || []).map(item => ({
       id: item.id,
       reptador_nom: (item.reptador as any)?.nom || 'Desconegut',
@@ -284,20 +338,27 @@ export async function loadReptesProgramats(): Promise<void> {
       pos_reptat: item.pos_reptat,
       observacions: item.observacions
     }));
-    
+
     reptesProgramats.set(reptes);
   } catch (error: any) {
-    calendarError.set(error.message);
+    if (setLoading) {
+      calendarError.set(error.message);
+    }
     reptesProgramats.set([]);
+    throw error; // Re-throw for Promise.allSettled
   } finally {
-    calendarLoading.set(false);
+    if (setLoading) {
+      calendarLoading.set(false);
+    }
   }
 }
 
-export async function loadPartidesCalendari(): Promise<void> {
+export async function loadPartidesCalendari(setLoading: boolean = true): Promise<void> {
   try {
-    calendarLoading.set(true);
-    calendarError.set(null);
+    if (setLoading) {
+      calendarLoading.set(true);
+      calendarError.set(null);
+    }
 
     // Check if user is authenticated
     const currentUser = get(user);
@@ -430,10 +491,15 @@ export async function loadPartidesCalendari(): Promise<void> {
     partidesCalendari.set(partides);
   } catch (error: any) {
     console.error('❌ Error in loadPartidesCalendari:', error);
-    calendarError.set(error.message);
+    if (setLoading) {
+      calendarError.set(error.message);
+    }
     partidesCalendari.set([]);
+    throw error; // Re-throw for Promise.allSettled
   } finally {
-    calendarLoading.set(false);
+    if (setLoading) {
+      calendarLoading.set(false);
+    }
   }
 }
 
@@ -463,11 +529,37 @@ export async function deleteEsdeveniment(id: string): Promise<void> {
 }
 
 export async function refreshCalendarData(): Promise<void> {
-  await Promise.all([
-    loadEsdeveniments(),
-    loadReptesProgramats(),
-    loadPartidesCalendari()
-  ]);
+  try {
+    calendarLoading.set(true);
+    calendarError.set(null);
+
+    console.log('🔄 Refreshing calendar data...');
+
+    // Load all data in parallel, passing false to prevent individual loading states
+    const results = await Promise.allSettled([
+      loadEsdeveniments(false),
+      loadReptesProgramats(false),
+      loadPartidesCalendari(false)
+    ]);
+
+    // Check for errors
+    const errors = results
+      .filter(r => r.status === 'rejected')
+      .map(r => (r as PromiseRejectedResult).reason);
+
+    if (errors.length > 0) {
+      console.error('❌ Errors refreshing calendar data:', errors);
+      // Set error but don't throw - partial data is better than nothing
+      calendarError.set(`Error carregant algunes dades: ${errors.map(e => e.message).join(', ')}`);
+    } else {
+      console.log('✅ All calendar data refreshed successfully');
+    }
+  } catch (error: any) {
+    console.error('❌ Unexpected error in refreshCalendarData:', error);
+    calendarError.set(error.message);
+  } finally {
+    calendarLoading.set(false);
+  }
 }
 
 // Funcions d'utilitat per dates

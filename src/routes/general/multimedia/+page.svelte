@@ -1,8 +1,24 @@
 <script lang="ts">
   import { slide } from 'svelte/transition';
+  import { onMount } from 'svelte';
+  import { supabase } from '$lib/supabaseClient';
+  import { user } from '$lib/stores/authStore';
 
-  // Dades dels enllaços multimedia
-  const multimediaData = [
+  // Estats
+  let multimediaData: any[] = [];
+  let loading = true;
+  let error: string | null = null;
+  let showAddForm = false;
+  let editingLink: any | null = null;
+
+  // Form fields
+  let formTipus = '';
+  let formClub = '';
+  let formBillar = '';
+  let formEnllac = '';
+
+  // Fallback data si no es pot carregar de la BD
+  const fallbackData = [
     { tipus: 'Web del Foment', club: 'Foment Martinenc', billar: '', enllaç: 'https://www.fomentmartinenc.org/' },
     { tipus: 'Billar en directe (Cat)', club: 'Billar Club Granollers', billar: '1', enllaç: 'https://youtube.com/@granollersbillar1?si=FDt5FSZHq9ojgr-y' },
     { tipus: 'Billar en directe (Cat)', club: 'Billar Club Granollers', billar: '2', enllaç: 'https://youtube.com/@granollersbillar2?si=bTm9h_9pGfDc4EQH' },
@@ -112,6 +128,150 @@
     { tipus: 'Tutorials billar', club: 'Tres Bandas (Esp)', billar: '', enllaç: 'https://www.youtube.com/@TresBandas_2024' },
     { tipus: 'Tutorials billar', club: 'Yeu Bida 3C (vietnamita)', billar: '', enllaç: 'https://www.youtube.com/@YeuBida3C' }
   ];
+
+  // Carregar enllaços multimedia des de la BD
+  async function loadMultimediaLinks() {
+    loading = true;
+    error = null;
+
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('multimedia_links')
+        .select('*')
+        .order('tipus', { ascending: true })
+        .order('club', { ascending: true })
+        .order('billar', { ascending: true });
+
+      if (fetchError) {
+        console.error('Error loading multimedia links:', fetchError);
+        // Utilitzar dades fallback si hi ha error
+        multimediaData = fallbackData;
+        error = 'Error carregant enllaços. Mostrant dades predeterminades.';
+      } else {
+        // Convertir 'enllac' de la BD a 'enllaç' per compatibilitat
+        multimediaData = data.map((item: any) => ({
+          ...item,
+          enllaç: item.enllac
+        }));
+        console.log(`✅ Loaded ${multimediaData.length} multimedia links`);
+      }
+    } catch (err) {
+      console.error('Exception loading multimedia links:', err);
+      multimediaData = fallbackData;
+      error = 'Error carregant enllaços. Mostrant dades predeterminades.';
+    } finally {
+      loading = false;
+    }
+  }
+
+  // Obrir formulari per afegir nou enllaç
+  function openAddForm() {
+    editingLink = null;
+    formTipus = '';
+    formClub = '';
+    formBillar = '';
+    formEnllac = '';
+    showAddForm = true;
+  }
+
+  // Obrir formulari per editar enllaç
+  function openEditForm(link: any) {
+    editingLink = link;
+    formTipus = link.tipus;
+    formClub = link.club;
+    formBillar = link.billar || '';
+    formEnllac = link.enllac || link.enllaç;
+    showAddForm = true;
+  }
+
+  // Tancar formulari
+  function closeForm() {
+    showAddForm = false;
+    editingLink = null;
+    formTipus = '';
+    formClub = '';
+    formBillar = '';
+    formEnllac = '';
+  }
+
+  // Guardar enllaç (crear o actualitzar)
+  async function saveLink() {
+    if (!formTipus || !formClub || !formEnllac) {
+      alert('Si us plau, omple tots els camps obligatoris');
+      return;
+    }
+
+    loading = true;
+
+    try {
+      if (editingLink) {
+        // Actualitzar enllaç existent
+        const { error: updateError } = await supabase
+          .from('multimedia_links')
+          .update({
+            tipus: formTipus,
+            club: formClub,
+            billar: formBillar,
+            enllac: formEnllac
+          })
+          .eq('id', editingLink.id);
+
+        if (updateError) throw updateError;
+        console.log('✅ Link updated successfully');
+      } else {
+        // Crear nou enllaç
+        const { error: insertError } = await supabase
+          .from('multimedia_links')
+          .insert({
+            tipus: formTipus,
+            club: formClub,
+            billar: formBillar,
+            enllac: formEnllac
+          });
+
+        if (insertError) throw insertError;
+        console.log('✅ Link created successfully');
+      }
+
+      closeForm();
+      await loadMultimediaLinks();
+    } catch (err: any) {
+      console.error('Error saving link:', err);
+      alert(`Error guardant enllaç: ${err.message}`);
+    } finally {
+      loading = false;
+    }
+  }
+
+  // Eliminar enllaç
+  async function deleteLink(link: any) {
+    if (!confirm(`Estàs segur que vols eliminar l'enllaç "${link.club} - ${link.billar || 'General'}"?`)) {
+      return;
+    }
+
+    loading = true;
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('multimedia_links')
+        .delete()
+        .eq('id', link.id);
+
+      if (deleteError) throw deleteError;
+
+      console.log('✅ Link deleted successfully');
+      await loadMultimediaLinks();
+    } catch (err: any) {
+      console.error('Error deleting link:', err);
+      alert(`Error eliminant enllaç: ${err.message}`);
+    } finally {
+      loading = false;
+    }
+  }
+
+  onMount(async () => {
+    await loadMultimediaLinks();
+  });
 
   // Estats de col·lapse
   let collapsedTypes: Record<string, boolean> = {};
@@ -230,6 +390,14 @@
         </p>
       </div>
       <div class="flex gap-2">
+        {#if $user}
+          <button
+            on:click={openAddForm}
+            class="px-4 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors font-medium"
+          >
+            ➕ Afegir enllaç
+          </button>
+        {/if}
         <button
           on:click={expandAll}
           class="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
@@ -244,6 +412,24 @@
         </button>
       </div>
     </div>
+
+    {#if error}
+      <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+        <p class="text-sm text-yellow-800">{error}</p>
+      </div>
+    {/if}
+
+    {#if loading}
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span class="text-sm text-blue-800">Carregant enllaços...</span>
+        </div>
+      </div>
+    {/if}
   </div>
 
   <div class="space-y-6">
@@ -355,6 +541,11 @@
                               <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                                 Enllaç
                               </th>
+                              {#if $user}
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                  Accions
+                                </th>
+                              {/if}
                             </tr>
                           </thead>
                           <tbody class="divide-y divide-gray-100">
@@ -366,7 +557,7 @@
                                   </td>
                                 {/if}
                                 <td class="px-3 py-2 text-sm">
-                                  <a 
+                                  <a
                                     href={item.enllaç}
                                     target="_blank"
                                     rel="noopener noreferrer"
@@ -392,6 +583,24 @@
                                     </svg>
                                   </a>
                                 </td>
+                                {#if $user}
+                                  <td class="px-3 py-2 text-sm">
+                                    <div class="flex gap-2">
+                                      <button
+                                        on:click={() => openEditForm(item)}
+                                        class="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                                      >
+                                        Editar
+                                      </button>
+                                      <button
+                                        on:click={() => deleteLink(item)}
+                                        class="text-red-600 hover:text-red-800 text-xs font-medium"
+                                      >
+                                        Eliminar
+                                      </button>
+                                    </div>
+                                  </td>
+                                {/if}
                               </tr>
                             {/each}
                           </tbody>
@@ -429,3 +638,112 @@
     </div>
   </div>
 </div>
+
+<!-- Modal per afegir/editar enllaç -->
+{#if showAddForm}
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-2xl font-bold text-gray-900">
+            {editingLink ? 'Editar enllaç' : 'Afegir nou enllaç'}
+          </h2>
+          <button
+            on:click={closeForm}
+            class="text-gray-400 hover:text-gray-600 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        <form on:submit|preventDefault={saveLink} class="space-y-4">
+          <!-- Tipus -->
+          <div>
+            <label for="tipus" class="block text-sm font-medium text-gray-700 mb-2">
+              Tipus *
+            </label>
+            <select
+              id="tipus"
+              bind:value={formTipus}
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Selecciona un tipus</option>
+              <option value="Web del Foment">Web del Foment</option>
+              <option value="Billar en directe (Cat)">Billar en directe (Cat)</option>
+              <option value="Billar en directe (Esp)">Billar en directe (Esp)</option>
+              <option value="Billar en directe (Int)">Billar en directe (Int)</option>
+              <option value="Documents">Documents</option>
+              <option value="Tutorials billar">Tutorials billar</option>
+            </select>
+          </div>
+
+          <!-- Club -->
+          <div>
+            <label for="club" class="block text-sm font-medium text-gray-700 mb-2">
+              Club / Nom *
+            </label>
+            <input
+              id="club"
+              type="text"
+              bind:value={formClub}
+              required
+              placeholder="Ex: Club Billar Barcelona"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <!-- Billar -->
+          <div>
+            <label for="billar" class="block text-sm font-medium text-gray-700 mb-2">
+              Número de billar (opcional)
+            </label>
+            <input
+              id="billar"
+              type="text"
+              bind:value={formBillar}
+              placeholder="Ex: 1, 2, 3..."
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <p class="text-xs text-gray-500 mt-1">Deixa en blanc si no és aplicable</p>
+          </div>
+
+          <!-- Enllaç -->
+          <div>
+            <label for="enllac" class="block text-sm font-medium text-gray-700 mb-2">
+              Enllaç *
+            </label>
+            <input
+              id="enllac"
+              type="url"
+              bind:value={formEnllac}
+              required
+              placeholder="https://example.com"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <p class="text-xs text-gray-500 mt-1">URL completa incloent https://</p>
+          </div>
+
+          <!-- Botons -->
+          <div class="flex gap-3 pt-4">
+            <button
+              type="submit"
+              disabled={loading}
+              class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Guardant...' : (editingLink ? 'Actualitzar' : 'Afegir')}
+            </button>
+            <button
+              type="button"
+              on:click={closeForm}
+              disabled={loading}
+              class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+            >
+              Cancel·lar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{/if}
