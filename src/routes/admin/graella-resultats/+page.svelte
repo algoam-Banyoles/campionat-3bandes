@@ -181,43 +181,43 @@
   }
 
   function getComputedPrintStyles(): string {
-    // Get all styles from the HeadToHeadPrintable component - optimized for A3 landscape
+    // Get all styles from the HeadToHeadPrintable component - maximized for A3 landscape
     return `
       .printable-container { width: 100%; }
       .print-page { width: 100%; padding: 0.5cm; }
       .page-break { page-break-after: always; break-after: page; }
 
-      .print-header { text-align: center; margin-bottom: 0.6cm; border-bottom: 3px solid #333; padding-bottom: 0.4cm; }
-      .print-header h1 { font-size: 22pt; margin: 0 0 0.3cm 0; font-weight: bold; color: #333; }
-      .print-header h2 { font-size: 18pt; margin: 0 0 0.3cm 0; font-weight: 600; color: #555; }
-      .print-info { font-size: 11pt; color: #666; margin: 0; }
+      .print-header { text-align: center; margin-bottom: 0.7cm; border-bottom: 3px solid #333; padding-bottom: 0.5cm; }
+      .print-header h1 { font-size: 26pt; margin: 0 0 0.4cm 0; font-weight: bold; color: #333; }
+      .print-header h2 { font-size: 20pt; margin: 0 0 0.3cm 0; font-weight: 600; color: #555; }
+      .print-info { font-size: 13pt; color: #666; margin: 0; }
 
-      .print-grid { width: 100%; border-collapse: collapse; font-size: 10pt; margin-bottom: 0.5cm; }
-      .print-grid th, .print-grid td { border: 1.5px solid #333; padding: 4px; text-align: center; }
+      .print-grid { width: 100%; border-collapse: collapse; font-size: 12pt; margin-bottom: 0.5cm; }
+      .print-grid th, .print-grid td { border: 2px solid #333; padding: 5px; text-align: center; }
 
-      .corner-cell { background: #fff; width: 3cm; }
-      .player-header { background: #333; color: white; font-weight: bold; height: 3.5cm; width: 1.8cm; padding: 3px; position: relative; }
-      .player-name-rotated { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); transform-origin: center; white-space: nowrap; font-size: 10pt; width: 3.5cm; overflow: hidden; text-overflow: ellipsis; }
+      .corner-cell { background: #fff; width: 3.5cm; }
+      .player-header { background: #333; color: white; font-weight: bold; height: 4.5cm; width: 2.2cm; padding: 4px; position: relative; }
+      .player-name-rotated { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); transform-origin: center; white-space: nowrap; font-size: 12pt; width: 4.5cm; overflow: hidden; text-overflow: ellipsis; }
 
-      .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 6px; font-size: 10pt; white-space: nowrap; width: 3cm; }
+      .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 8px; font-size: 12pt; white-space: nowrap; width: 3.5cm; }
 
-      .match-cell { width: 1.8cm; height: 1.4cm; padding: 2px; vertical-align: middle; }
+      .match-cell { width: 2.2cm; height: 1.8cm; padding: 3px; vertical-align: middle; }
       .self-cell { background: #f5f5f5; }
-      .self-match { color: #999; font-size: 14pt; font-weight: bold; }
+      .self-match { color: #999; font-size: 18pt; font-weight: bold; }
 
-      .match-data { display: flex; flex-direction: column; gap: 2px; font-size: 9pt; }
-      .data-row { display: flex; justify-content: space-between; align-items: center; padding: 1px 3px; }
-      .data-row.centered { justify-content: center; background: #f0f0f0; gap: 3px; }
+      .match-data { display: flex; flex-direction: column; gap: 3px; font-size: 11pt; }
+      .data-row { display: flex; justify-content: space-between; align-items: center; padding: 2px 4px; }
+      .data-row.centered { justify-content: center; background: #f0f0f0; gap: 4px; }
 
       .label { font-weight: bold; color: #444; }
       .value { font-weight: 600; color: #000; }
-      .value.points { font-weight: bold; font-size: 11pt; }
+      .value.points { font-weight: bold; font-size: 13pt; }
       .spacer { flex: 1; }
-      .no-match { color: #ccc; font-size: 10pt; }
+      .no-match { color: #ccc; font-size: 12pt; }
 
-      .print-legend { font-size: 10pt; text-align: center; padding: 0.3cm; border: 1.5px solid #333; background: #f9f9f9; margin-top: 0.3cm; }
+      .print-legend { font-size: 12pt; text-align: center; padding: 0.4cm; border: 2px solid #333; background: #f9f9f9; margin-top: 0.4cm; }
 
-      .loading-text, .error-text, .empty-text { text-align: center; padding: 1cm; font-size: 12pt; }
+      .loading-text, .error-text, .empty-text { text-align: center; padding: 1cm; font-size: 14pt; }
       .error-text { color: #c00; }
     `;
   }
