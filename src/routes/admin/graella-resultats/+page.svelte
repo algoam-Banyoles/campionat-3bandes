@@ -327,7 +327,7 @@
 
 <!-- Hidden printable component -->
 {#if selectedEvent && categories.length > 0}
-  <div style="display: none;" class="print-only">
+  <div class="print-only">
     <HeadToHeadPrintable
       bind:this={printableComponent}
       eventId={selectedEvent.id}
@@ -342,42 +342,46 @@
     background-color: #f9fafb;
   }
 
+  @media screen {
+    .print-only {
+      display: none !important;
+    }
+  }
+
   @media print {
-    /* Hide everything except the printable content */
-    :global(body > *:not(.print-only)) {
+    /* Hide all screen content */
+    .no-print {
       display: none !important;
+      visibility: hidden !important;
     }
 
-    :global(.no-print) {
-      display: none !important;
-    }
-
-    :global(.print-only) {
+    /* Show only print content */
+    .print-only {
       display: block !important;
+      visibility: visible !important;
     }
 
-    /* Hide any parent containers */
-    :global(#app),
-    :global(main),
-    :global(header),
-    :global(nav),
-    :global(footer),
-    :global(.container) {
-      all: unset !important;
-      display: contents !important;
-    }
-
-    /* Ensure body has no background in print */
+    /* Clean body for print */
     :global(body) {
       background: white !important;
       margin: 0 !important;
       padding: 0 !important;
     }
-  }
 
-  @media screen {
-    :global(.print-only) {
-      display: none !important;
+    :global(body *) {
+      visibility: hidden !important;
+    }
+
+    :global(.print-only),
+    :global(.print-only *) {
+      visibility: visible !important;
+    }
+
+    /* Position print content properly */
+    .print-only {
+      position: absolute;
+      left: 0;
+      top: 0;
     }
   }
 </style>
