@@ -187,35 +187,35 @@
       .print-page { width: 100%; padding: 0.4cm; }
       .page-break { page-break-after: always; break-after: page; }
 
-      .print-header { text-align: center; margin-bottom: 0.4cm; border-bottom: 2px solid #333; padding-bottom: 0.3cm; }
-      .print-header h1 { font-size: 20pt; margin: 0 0 0.2cm 0; font-weight: bold; color: #333; }
-      .print-header h2 { font-size: 16pt; margin: 0 0 0.2cm 0; font-weight: 600; color: #555; }
-      .print-info { font-size: 10pt; color: #666; margin: 0; }
+      .print-header { text-align: center; margin-bottom: 0.4cm; border-bottom: 2px solid #000; padding-bottom: 0.3cm; }
+      .print-header h1 { font-size: 20pt; margin: 0 0 0.2cm 0; font-weight: bold; color: #000; }
+      .print-header h2 { font-size: 16pt; margin: 0 0 0.2cm 0; font-weight: 600; color: #000; }
+      .print-info { font-size: 10pt; color: #000; margin: 0; }
 
-      .print-grid { width: 100%; border-collapse: collapse; font-size: 11pt; margin-bottom: 0.3cm; }
-      .print-grid th, .print-grid td { border: 1.5px solid #333; padding: 3px; text-align: center; }
+      .print-grid { width: 100%; border-collapse: collapse; font-size: 11pt; margin-bottom: 0.3cm; color: #000; }
+      .print-grid th, .print-grid td { border: 1.5px solid #000; padding: 3px; text-align: center; }
 
       .corner-cell { background: #fff; width: 3cm; }
-      .player-header { background: #333; color: white; font-weight: bold; height: 3.5cm; width: 1.9cm; padding: 3px; position: relative; }
+      .player-header { background: #000; color: white; font-weight: bold; height: 3.5cm; width: 1.9cm; padding: 3px; position: relative; }
       .player-name-rotated { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); transform-origin: center; white-space: nowrap; font-size: 11pt; width: 3.5cm; overflow: hidden; text-overflow: ellipsis; }
 
-      .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 6px; font-size: 11pt; white-space: nowrap; width: 3cm; }
+      .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 6px; font-size: 11pt; white-space: nowrap; width: 3cm; color: #000; }
 
       .match-cell { width: 1.9cm; height: 1.5cm; padding: 2px; vertical-align: middle; }
       .self-cell { background: #f5f5f5; }
       .self-match { color: #999; font-size: 16pt; font-weight: bold; }
 
-      .match-data { display: flex; flex-direction: column; gap: 2px; font-size: 10pt; }
+      .match-data { display: flex; flex-direction: column; gap: 2px; font-size: 10pt; color: #000; }
       .data-row { display: flex; justify-content: space-between; align-items: center; padding: 1px 3px; }
       .data-row.centered { justify-content: center; background: #f0f0f0; gap: 3px; }
 
-      .label { font-weight: bold; color: #444; }
+      .label { font-weight: bold; color: #000; }
       .value { font-weight: 600; color: #000; }
-      .value.points { font-weight: bold; font-size: 12pt; }
+      .value.points { font-weight: bold; font-size: 12pt; color: #000; }
       .spacer { flex: 1; }
       .no-match { color: #ccc; font-size: 11pt; }
 
-      .print-legend { font-size: 10pt; text-align: center; padding: 0.3cm; border: 1.5px solid #333; background: #f9f9f9; margin-top: 0.2cm; }
+      .print-legend { font-size: 10pt; text-align: center; padding: 0.3cm; border: 1.5px solid #000; background: #f9f9f9; margin-top: 0.2cm; color: #000; }
 
       .loading-text, .error-text, .empty-text { text-align: center; padding: 1cm; font-size: 12pt; }
       .error-text { color: #c00; }
