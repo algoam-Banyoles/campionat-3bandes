@@ -48,6 +48,12 @@
     return matches.get(key);
   }
 
+  function getPlayerShortName(player: any): string {
+    const inicial = player.nom ? player.nom.charAt(0).toUpperCase() + '.' : '';
+    const primerCognom = player.cognoms ? player.cognoms.split(' ')[0] : '';
+    return `${inicial} ${primerCognom}`.trim();
+  }
+
   function getPlayerFullName(player: any): string {
     return `${player.nom} ${player.cognoms || ''}`.trim();
   }
@@ -80,7 +86,7 @@
               {#each players as opponent}
                 <th class="player-header opponent-name" title={getPlayerFullName(opponent)}>
                   <div class="opponent-name-vertical">
-                    {getPlayerFullName(opponent)}
+                    {getPlayerShortName(opponent)}
                   </div>
                 </th>
               {/each}
@@ -89,8 +95,8 @@
           <tbody>
             {#each players as player}
               <tr>
-                <th class="player-name">
-                  {getPlayerFullName(player)}
+                <th class="player-name" title={getPlayerFullName(player)}>
+                  {getPlayerShortName(player)}
                 </th>
                 {#each players as opponent}
                   <td class="match-cell" class:self={player.id === opponent.id}>
