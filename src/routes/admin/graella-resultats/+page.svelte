@@ -196,7 +196,7 @@
       .print-grid th, .print-grid td { border: 1.5px solid #000; padding: 3px; text-align: center; }
 
       .corner-cell { background: #fff; width: 3cm; }
-      .player-header { background: #000; color: white; font-weight: bold; height: 3.5cm; width: 1.9cm; padding: 3px; position: relative; }
+      .player-header { background: #e8e8e8; color: #000; font-weight: bold; height: 3.5cm; width: 1.9cm; padding: 3px; position: relative; }
       .player-name-rotated { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); transform-origin: center; white-space: nowrap; font-size: 11pt; width: 3.5cm; overflow: hidden; text-overflow: ellipsis; }
 
       .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 6px; font-size: 11pt; white-space: nowrap; width: 3cm; color: #000; }
