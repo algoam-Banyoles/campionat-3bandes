@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import HeadToHeadGrid from '$lib/components/campionats-socials/HeadToHeadGrid.svelte';
   import HeadToHeadPrintable from '$lib/components/campionats-socials/HeadToHeadPrintable.svelte';
@@ -15,23 +15,9 @@
   let selectedCategoriesToPrint: Set<string> = new Set();
   let printableComponent: HeadToHeadPrintable;
   let loadingPrint = false;
-  let printContainer: HTMLDivElement;
 
   onMount(async () => {
     await loadActiveEvent();
-
-    // Create print container and append to body
-    printContainer = document.createElement('div');
-    printContainer.className = 'print-only-container';
-    printContainer.style.display = 'none';
-    document.body.appendChild(printContainer);
-  });
-
-  onDestroy(() => {
-    // Clean up print container
-    if (printContainer && printContainer.parentNode) {
-      printContainer.parentNode.removeChild(printContainer);
-    }
   });
 
   async function loadActiveEvent() {
@@ -122,24 +108,118 @@
 
     loadingPrint = false;
 
-    // Wait for rendering, then move content to print container and print
+    // Wait for rendering
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Get the printable content
+    const printContent = document.querySelector('.print-only');
+    if (!printContent) {
+      alert('Error: no s\'ha pogut trobar el contingut per imprimir');
+      return;
+    }
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=1200,height=800');
+    if (!printWindow) {
+      alert('Error: no s\'ha pogut obrir la finestra d\'impressió. Comprova que els pop-ups estiguin permesos.');
+      return;
+    }
+
+    // Write the HTML to the new window
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Graella de Resultats - Impressió</title>
+          <style>
+            @page {
+              size: A3 landscape;
+              margin: 1cm;
+            }
+
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+            }
+
+            body {
+              font-family: Arial, sans-serif;
+              background: white;
+              margin: 0;
+              padding: 0;
+            }
+
+            ${getComputedPrintStyles()}
+          </style>
+        </head>
+        <body>
+          ${printContent.innerHTML}
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+
+    // Wait for content to load
+    printWindow.onload = () => {
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    };
+
+    // Fallback if onload doesn't fire
     setTimeout(() => {
-      const printContent = document.querySelector('.print-only');
-      if (printContent && printContainer) {
-        // Move content to body-level container
-        printContainer.appendChild(printContent.cloneNode(true));
-        printContainer.style.display = 'block';
-
-        // Print
-        window.print();
-
-        // Clean up after print
-        setTimeout(() => {
-          printContainer.innerHTML = '';
-          printContainer.style.display = 'none';
-        }, 100);
+      if (!printWindow.closed) {
+        printWindow.print();
+        printWindow.close();
       }
-    }, 500);
+    }, 1000);
+  }
+
+  function getComputedPrintStyles(): string {
+    // Get all styles from the HeadToHeadPrintable component
+    return `
+      .printable-container { width: 100%; }
+      .print-page { width: 100%; padding: 0.5cm; }
+      .page-break { page-break-after: always; break-after: page; }
+
+      .print-header { text-align: center; margin-bottom: 0.5cm; border-bottom: 2px solid #333; padding-bottom: 0.3cm; }
+      .print-header h1 { font-size: 18pt; margin: 0 0 0.2cm 0; font-weight: bold; color: #333; }
+      .print-header h2 { font-size: 14pt; margin: 0 0 0.2cm 0; font-weight: 600; color: #555; }
+      .print-info { font-size: 9pt; color: #666; margin: 0; }
+
+      .print-grid { width: 100%; border-collapse: collapse; font-size: 7pt; margin-bottom: 0.3cm; }
+      .print-grid th, .print-grid td { border: 1px solid #333; padding: 2px; text-align: center; }
+
+      .corner-cell { background: #fff; width: 2cm; }
+      .player-header { background: #333; color: white; font-weight: bold; height: 2.5cm; width: 1.2cm; padding: 2px; position: relative; }
+      .player-name-rotated { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); transform-origin: center; white-space: nowrap; font-size: 7pt; width: 2.5cm; overflow: hidden; text-overflow: ellipsis; }
+
+      .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 4px; font-size: 7pt; white-space: nowrap; width: 2cm; }
+
+      .match-cell { width: 1.2cm; height: 0.8cm; padding: 1px; vertical-align: middle; }
+      .self-cell { background: #f5f5f5; }
+      .self-match { color: #999; font-size: 10pt; font-weight: bold; }
+
+      .match-data { display: flex; flex-direction: column; gap: 1px; font-size: 6pt; }
+      .data-row { display: flex; justify-content: space-between; align-items: center; padding: 0 2px; }
+      .data-row.centered { justify-content: center; background: #f0f0f0; gap: 2px; }
+
+      .label { font-weight: bold; color: #444; }
+      .value { font-weight: 600; color: #000; }
+      .value.points { font-weight: bold; font-size: 7pt; }
+      .spacer { flex: 1; }
+      .no-match { color: #ccc; font-size: 8pt; }
+
+      .print-legend { font-size: 8pt; text-align: center; padding: 0.2cm; border: 1px solid #333; background: #f9f9f9; }
+
+      .loading-text, .error-text, .empty-text { text-align: center; padding: 1cm; font-size: 10pt; }
+      .error-text { color: #c00; }
+    `;
   }
 
   function closePrintModal() {
@@ -373,31 +453,5 @@
   /* Hide print content on screen */
   .print-only {
     display: none;
-  }
-
-  @media print {
-    /* Hide all screen elements */
-    .no-print,
-    :global(.no-print),
-    :global(.admin-content) {
-      display: none !important;
-    }
-
-    /* Show only print container */
-    :global(.print-only-container) {
-      display: block !important;
-    }
-
-    /* Clean body styles for printing */
-    :global(body) {
-      background: white !important;
-      margin: 0 !important;
-      padding: 0 !important;
-    }
-
-    /* Hide everything in body except print container */
-    :global(body > *:not(.print-only-container)) {
-      display: none !important;
-    }
   }
 </style>
