@@ -580,6 +580,14 @@
           Pujar i gestionar resultats de partides dels campionats socials en curs amb validació automàtica de classificacions.
         </p>
       </a>
+
+      <!-- Targeta: graella de resultats creuats -->
+      <a href="/admin/graella-resultats" class="block rounded-2xl border p-4 hover:shadow-sm bg-violet-50 border-violet-200">
+        <h2 class="font-semibold text-violet-800">🎯 Graella de Resultats Creuats</h2>
+        <p class="text-sm text-violet-700 mt-1">
+          Visualitza la matriu de resultats entre tots els jugadors d'una categoria amb estadístiques detallades de cada enfrontament.
+        </p>
+      </a>
     </div>
   </div>
 {/if}

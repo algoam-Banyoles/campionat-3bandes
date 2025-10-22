@@ -434,6 +434,36 @@ export interface AppConfig {
 }
 
 // ========================================
+// GRAELLA DE RESULTATS CREUATS
+// ========================================
+
+export interface HeadToHeadMatchData {
+  caramboles: number;
+  entrades: number;
+  punts: number;
+  mitjana: number;
+}
+
+export interface HeadToHeadCell {
+  playerId: UUID;
+  opponentId: UUID;
+  matchData: HeadToHeadMatchData | null;
+  hasMatch: boolean;
+}
+
+export interface HeadToHeadPlayer {
+  id: UUID;
+  nom: string;
+  cognoms: string | null;
+  numero_soci: number;
+}
+
+export interface HeadToHeadGrid {
+  players: HeadToHeadPlayer[];
+  cells: Map<string, HeadToHeadCell>; // key: `${playerId}_${opponentId}`
+}
+
+// ========================================
 // TIPUS D'EXPORTACIÓ
 // ========================================
 

@@ -556,6 +556,98 @@ export async function searchActivePlayers(playerName: string): Promise<{
 }
 
 /**
+ * Obtenir graella de resultats creuats (head-to-head) per a una categoria
+ */
+export async function getHeadToHeadResults(eventId: string, categoriaId: string): Promise<{
+  players: Array<{
+    id: string;
+    nom: string;
+    cognoms: string | null;
+    numero_soci: number;
+  }>;
+  matches: Map<string, {
+    caramboles: number;
+    entrades: number;
+    punts: number;
+    mitjana: number;
+  }>;
+}> {
+  try {
+    const { data, error } = await supabase.rpc('get_head_to_head_results', {
+      p_event_id: eventId,
+      p_categoria_id: categoriaId
+    });
+
+    if (error) {
+      console.error('Error fetching head-to-head results:', error);
+      throw error;
+    }
+
+    if (!data || data.length === 0) {
+      return { players: [], matches: new Map() };
+    }
+
+    // Extract unique players
+    const playersMap = new Map<string, any>();
+    const matches = new Map<string, any>();
+
+    data.forEach((row: any) => {
+      // Add player 1 if not exists
+      if (!playersMap.has(row.jugador1_id)) {
+        playersMap.set(row.jugador1_id, {
+          id: row.jugador1_id,
+          nom: row.jugador1_nom,
+          cognoms: row.jugador1_cognoms,
+          numero_soci: row.jugador1_numero_soci
+        });
+      }
+
+      // Add player 2 if not exists
+      if (!playersMap.has(row.jugador2_id)) {
+        playersMap.set(row.jugador2_id, {
+          id: row.jugador2_id,
+          nom: row.jugador2_nom,
+          cognoms: row.jugador2_cognoms,
+          numero_soci: row.jugador2_numero_soci
+        });
+      }
+
+      // Add match data for player1 vs player2
+      const matchKey = `${row.jugador1_id}_${row.jugador2_id}`;
+      matches.set(matchKey, {
+        caramboles: row.caramboles_jugador1,
+        entrades: row.entrades,
+        punts: row.punts_jugador1,
+        mitjana: parseFloat(row.mitjana_jugador1)
+      });
+
+      // Add reverse match data for player2 vs player1
+      const reverseMatchKey = `${row.jugador2_id}_${row.jugador1_id}`;
+      const punts_jugador2 = row.caramboles_jugador2 > row.caramboles_jugador1 ? 2 :
+                             row.caramboles_jugador2 === row.caramboles_jugador1 ? 1 : 0;
+      const mitjana_jugador2 = row.entrades > 0 ? row.caramboles_jugador2 / row.entrades : 0;
+
+      matches.set(reverseMatchKey, {
+        caramboles: row.caramboles_jugador2,
+        entrades: row.entrades,
+        punts: punts_jugador2,
+        mitjana: parseFloat(mitjana_jugador2.toFixed(3))
+      });
+    });
+
+    // Convert players map to sorted array
+    const players = Array.from(playersMap.values()).sort((a, b) => {
+      return a.nom.localeCompare(b.nom, 'ca');
+    });
+
+    return { players, matches };
+  } catch (error) {
+    console.error('Error in getHeadToHeadResults:', error);
+    throw error;
+  }
+}
+
+/**
  * Obtenir l'històric de mitjanes d'un jugador per modalitat
  */
 export async function getPlayerAverageHistory(playerNumeroSoci: number, modalitat?: string) {
