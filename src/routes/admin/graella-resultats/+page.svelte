@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import HeadToHeadGrid from '$lib/components/campionats-socials/HeadToHeadGrid.svelte';
   import HeadToHeadPrintable from '$lib/components/campionats-socials/HeadToHeadPrintable.svelte';
@@ -15,9 +15,23 @@
   let selectedCategoriesToPrint: Set<string> = new Set();
   let printableComponent: HeadToHeadPrintable;
   let loadingPrint = false;
+  let printContainer: HTMLDivElement;
 
   onMount(async () => {
     await loadActiveEvent();
+
+    // Create print container and append to body
+    printContainer = document.createElement('div');
+    printContainer.className = 'print-only-container';
+    printContainer.style.display = 'none';
+    document.body.appendChild(printContainer);
+  });
+
+  onDestroy(() => {
+    // Clean up print container
+    if (printContainer && printContainer.parentNode) {
+      printContainer.parentNode.removeChild(printContainer);
+    }
   });
 
   async function loadActiveEvent() {
@@ -108,9 +122,23 @@
 
     loadingPrint = false;
 
-    // Wait a bit for rendering
+    // Wait for rendering, then move content to print container and print
     setTimeout(() => {
-      window.print();
+      const printContent = document.querySelector('.print-only');
+      if (printContent && printContainer) {
+        // Move content to body-level container
+        printContainer.appendChild(printContent.cloneNode(true));
+        printContainer.style.display = 'block';
+
+        // Print
+        window.print();
+
+        // Clean up after print
+        setTimeout(() => {
+          printContainer.innerHTML = '';
+          printContainer.style.display = 'none';
+        }, 100);
+      }
     }, 500);
   }
 
@@ -342,46 +370,34 @@
     background-color: #f9fafb;
   }
 
-  @media screen {
-    .print-only {
-      display: none !important;
-    }
+  /* Hide print content on screen */
+  .print-only {
+    display: none;
   }
 
   @media print {
-    /* Hide all screen content */
-    .no-print {
+    /* Hide all screen elements */
+    .no-print,
+    :global(.no-print),
+    :global(.admin-content) {
       display: none !important;
-      visibility: hidden !important;
     }
 
-    /* Show only print content */
-    .print-only {
+    /* Show only print container */
+    :global(.print-only-container) {
       display: block !important;
-      visibility: visible !important;
     }
 
-    /* Clean body for print */
+    /* Clean body styles for printing */
     :global(body) {
       background: white !important;
       margin: 0 !important;
       padding: 0 !important;
     }
 
-    :global(body *) {
-      visibility: hidden !important;
-    }
-
-    :global(.print-only),
-    :global(.print-only *) {
-      visibility: visible !important;
-    }
-
-    /* Position print content properly */
-    .print-only {
-      position: absolute;
-      left: 0;
-      top: 0;
+    /* Hide everything in body except print container */
+    :global(body > *:not(.print-only-container)) {
+      display: none !important;
     }
   }
 </style>
