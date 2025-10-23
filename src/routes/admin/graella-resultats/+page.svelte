@@ -149,6 +149,12 @@
               margin: 1cm;
             }
 
+            @media print {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+
             * {
               box-sizing: border-box;
               margin: 0;
@@ -202,23 +208,23 @@
       .print-grid { width: 100%; border-collapse: collapse; font-size: 11pt; margin-bottom: 0.3cm; color: #000; }
       .print-grid th, .print-grid td { border: 1.5px solid #000; padding: 3px; text-align: center; }
 
-      .corner-cell { background: #fff; width: 3cm; padding: 4px; vertical-align: middle; }
+      .corner-cell { background: #fff; width: 2.5cm; padding: 4px; vertical-align: middle; }
       .corner-logo { max-width: 100%; max-height: 2cm; height: auto; display: block; margin: 0 auto; }
-      .player-header { background: #e8e8e8; color: #000; font-weight: bold; height: 3.2cm; width: 1.9cm; padding: 3px; position: relative; }
+      .player-header { background: #e8e8e8; color: #000; font-weight: bold; height: 3.2cm; width: 1.9cm; padding: 3px; position: relative; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .player-name-rotated { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); transform-origin: center; white-space: nowrap; font-size: 13pt; width: 3.5cm; overflow: hidden; text-overflow: ellipsis; }
 
-      .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 6px; font-size: 13pt; white-space: nowrap; width: 3cm; color: #000; }
+      .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 6px; font-size: 13pt; white-space: nowrap; width: 2.5cm; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
       .match-cell { width: 1.9cm; height: 1.9cm; padding: 2px; vertical-align: middle; }
-      .self-cell { background: #d0d0d0; }
+      .self-cell { background: #d0d0d0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .self-match { color: #666; font-size: 16pt; font-weight: bold; }
 
       .match-data { display: flex; flex-direction: column; gap: 2px; font-size: 10pt; color: #000; }
       .data-row { display: flex; justify-content: space-between; align-items: center; padding: 1px 3px; }
-      .data-row.centered { justify-content: center; background: #f0f0f0; gap: 3px; }
-      .data-row.centered.win { background: #90ee90; }
-      .data-row.centered.draw { background: #87ceeb; }
-      .data-row.centered.loss { background: #ffcccb; }
+      .data-row.centered { justify-content: center; background: #f0f0f0; gap: 3px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .data-row.centered.win { background: #90ee90; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .data-row.centered.draw { background: #87ceeb; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .data-row.centered.loss { background: #ffcccb; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
       .value { font-weight: 600; color: #000; }
       .value.points { font-weight: bold; font-size: 12pt; color: #000; }

@@ -217,7 +217,7 @@
 
   .corner-cell {
     background: #fff;
-    width: 3cm;
+    width: 2.5cm;
     padding: 4px;
     vertical-align: middle;
   }
@@ -238,6 +238,8 @@
     width: 1.2cm;
     padding: 2px;
     position: relative;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .player-name-rotated {
@@ -260,7 +262,9 @@
     padding-left: 4px;
     font-size: 9pt;
     white-space: nowrap;
-    width: 2cm;
+    width: 2.5cm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .match-cell {
@@ -272,6 +276,8 @@
 
   .self-cell {
     background: #d0d0d0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .self-match {
@@ -298,18 +304,26 @@
     justify-content: center;
     background: #f0f0f0;
     gap: 2px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .data-row.centered.win {
     background: #90ee90;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .data-row.centered.draw {
     background: #87ceeb;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .data-row.centered.loss {
     background: #ffcccb;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .value {
