@@ -54,9 +54,23 @@
   }
 
   function getPlayerShortName(player: any): string {
-    const inicial = player.nom ? player.nom.charAt(0).toUpperCase() + '.' : '';
+    // Get all initials from compound names (e.g., "Jose Maria" -> "J.M.")
+    const inicials = player.nom
+      ? player.nom.split(' ')
+          .filter((part: string) => part.length > 0)
+          .map((part: string) => part.charAt(0).toUpperCase() + '.')
+          .join('')
+      : '';
     const primerCognom = player.cognoms ? player.cognoms.split(' ')[0] : '';
-    return `${inicial} ${primerCognom}`.trim();
+    return `${inicials} ${primerCognom}`.trim();
+  }
+
+  function sortPlayersByLastName(players: Array<any>): Array<any> {
+    return [...players].sort((a, b) => {
+      const lastNameA = a.cognoms ? a.cognoms.split(' ')[0].toLowerCase() : '';
+      const lastNameB = b.cognoms ? b.cognoms.split(' ')[0].toLowerCase() : '';
+      return lastNameA.localeCompare(lastNameB, 'ca');
+    });
   }
 </script>
 
@@ -85,13 +99,14 @@
       {:else if catData.players.length === 0}
         <p class="empty-text">No hi ha resultats disponibles</p>
       {:else}
+        {@const sortedPlayers = sortPlayersByLastName(catData.players)}
         <table class="print-grid">
           <thead>
             <tr>
               <th class="corner-cell">
                 <img src="/logo.png" alt="Logo Billar" class="corner-logo" />
               </th>
-              {#each catData.players as opponent}
+              {#each sortedPlayers as opponent}
                 <th class="player-header">
                   <div class="player-name-rotated">
                     {getPlayerShortName(opponent)}
@@ -101,12 +116,12 @@
             </tr>
           </thead>
           <tbody>
-            {#each catData.players as player}
+            {#each sortedPlayers as player}
               <tr>
                 <th class="player-row-header">
                   {getPlayerShortName(player)}
                 </th>
-                {#each catData.players as opponent}
+                {#each sortedPlayers as opponent}
                   <td class="match-cell" class:self-cell={player.id === opponent.id}>
                     {#if player.id === opponent.id}
                       <div class="self-match">—</div>
