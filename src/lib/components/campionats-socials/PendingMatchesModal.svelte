@@ -13,9 +13,33 @@
   let selectedMatch: any = null;
   let error = '';
 
+  // Filtres
+  let selectedCategoryFilter: string = 'all';
+  let searchText: string = '';
+
   $: if (eventId) {
     loadPendingMatches();
   }
+
+  // Filtrar partides segons els criteris seleccionats
+  $: filteredMatches = pendingMatches.filter(match => {
+    // Filtre per categoria
+    if (selectedCategoryFilter !== 'all' && match.categoria_id !== selectedCategoryFilter) {
+      return false;
+    }
+
+    // Filtre per text de cerca (nom jugadors)
+    if (searchText.trim()) {
+      const searchLower = searchText.toLowerCase();
+      const player1Name = getPlayerName(match.jugador1).toLowerCase();
+      const player2Name = getPlayerName(match.jugador2).toLowerCase();
+      if (!player1Name.includes(searchLower) && !player2Name.includes(searchLower)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 
   async function loadPendingMatches() {
     try {
@@ -104,12 +128,16 @@
     selectedMatch = match;
   }
 
+  let programming = false;
+
   async function confirmSelection() {
-    if (!selectedMatch) return;
+    if (!selectedMatch || programming) return;
 
     try {
-      loading = true;
+      programming = true;
       error = '';
+
+      console.log('Programming match:', selectedMatch.id, 'in slot:', slot);
 
       // Programar la partida en el slot seleccionat
       const updates = {
@@ -119,19 +147,25 @@
         estat: 'validada'
       };
 
+      console.log('Updating with:', updates);
+
       const { error: updateError } = await supabase
         .from('calendari_partides')
         .update(updates)
         .eq('id', selectedMatch.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw updateError;
+      }
 
+      console.log('Match programmed successfully');
       dispatch('matchProgrammed', { matchId: selectedMatch.id });
       dispatch('close');
     } catch (e: any) {
       console.error('Error programming match:', e);
       error = e.message || 'Error programant la partida';
-      loading = false;
+      programming = false;
     }
   }
 
@@ -168,6 +202,7 @@
       {#if loading}
         <div class="flex items-center justify-center py-12">
           <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p class="ml-3 text-gray-600">Carregant partides...</p>
         </div>
       {:else if error}
         <div class="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -181,8 +216,48 @@
           <p class="text-gray-600 text-lg">No hi ha partides pendents de programar</p>
         </div>
       {:else}
-        <div class="space-y-2">
-          {#each pendingMatches as match}
+        <!-- Filtres -->
+        <div class="mb-4 space-y-3 bg-gray-50 p-4 rounded-lg">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <!-- Filtre per categoria -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+              <select
+                bind:value={selectedCategoryFilter}
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">Totes les categories</option>
+                {#each categories as category}
+                  <option value={category.id}>{category.nom}</option>
+                {/each}
+              </select>
+            </div>
+
+            <!-- Cerca per nom -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Cerca jugador</label>
+              <input
+                type="text"
+                bind:value={searchText}
+                placeholder="Nom del jugador..."
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div class="text-sm text-gray-600">
+            Mostrant {filteredMatches.length} de {pendingMatches.length} partides
+          </div>
+        </div>
+
+        <!-- Llista de partides -->
+        {#if filteredMatches.length === 0}
+          <div class="text-center py-8">
+            <p class="text-gray-500">No hi ha partides que coincideixin amb els filtres</p>
+          </div>
+        {:else}
+          <div class="space-y-2">
+            {#each filteredMatches as match}
             <button
               on:click={() => selectMatch(match)}
               class="w-full text-left p-4 border-2 rounded-lg transition-all {
@@ -211,29 +286,36 @@
             </button>
           {/each}
         </div>
+        {/if}
       {/if}
     </div>
 
     <!-- Footer -->
     <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
       <div class="text-sm text-gray-600">
-        {#if pendingMatches.length > 0}
-          {pendingMatches.length} {pendingMatches.length === 1 ? 'partida pendent' : 'partides pendents'}
+        {#if !loading && pendingMatches.length > 0}
+          {filteredMatches.length} de {pendingMatches.length} {pendingMatches.length === 1 ? 'partida' : 'partides'}
         {/if}
       </div>
       <div class="flex gap-3">
         <button
           on:click={close}
-          class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+          disabled={programming}
+          class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
         >
           Cancel·lar
         </button>
         <button
           on:click={confirmSelection}
-          disabled={!selectedMatch || loading}
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          disabled={!selectedMatch || programming}
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
         >
-          {loading ? 'Programant...' : 'Programar Partida'}
+          {#if programming}
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+            Programant...
+          {:else}
+            Programar Partida
+          {/if}
         </button>
       </div>
     </div>
