@@ -14,7 +14,8 @@
   let uploadSummary: {
     toAdd: any[];
     toDeactivate: any[];
-    existing: any[];
+    toUpdate: any[];
+    unchanged: any[];
   } | null = null;
   let showUploadConfirmation = false;
 
@@ -355,10 +356,36 @@
       // Socis per donar de baixa (estan a la BD actius però no al CSV)
       const toDeactivate = socis.filter(s => !s.de_baixa && !csvNumeros.has(parseInt(s.numero_soci)));
 
-      // Socis que ja existeixen
-      const existing = csvSocis.filter(s => dbNumeros.has(parseInt(s.numero_soci)));
+      // Socis que ja existeixen - comprovar si hi ha canvis
+      const toUpdate: any[] = [];
+      const unchanged: any[] = [];
 
-      uploadSummary = { toAdd, toDeactivate, existing };
+      for (const csvSoci of csvSocis) {
+        const dbSoci = socis.find(s => parseInt(s.numero_soci) === parseInt(csvSoci.numero_soci));
+        if (dbSoci) {
+          // Comparar camps per veure si hi ha canvis
+          const hasChanges =
+            (csvSoci.nom || '').trim() !== (dbSoci.nom || '').trim() ||
+            (csvSoci.cognoms || '').trim() !== (dbSoci.cognoms || '').trim() ||
+            (csvSoci.email || '') !== (dbSoci.email || '') ||
+            (csvSoci.telefon || '') !== (dbSoci.telefon || '') ||
+            (csvSoci.data_naixement || '') !== (dbSoci.data_naixement || '');
+
+          if (hasChanges) {
+            toUpdate.push({
+              ...csvSoci,
+              oldData: dbSoci
+            });
+          } else {
+            unchanged.push(csvSoci);
+          }
+        }
+      }
+
+      console.log(`Socis a actualitzar: ${toUpdate.length}`);
+      console.log(`Socis sense canvis: ${unchanged.length}`);
+
+      uploadSummary = { toAdd, toDeactivate, toUpdate, unchanged };
       showUploadConfirmation = true;
 
     } catch (e: any) {
@@ -402,7 +429,33 @@
         console.log('✅ Socis donats d\'alta correctament');
       }
 
-      // 2. Donar de baixa socis que no estan al CSV
+      // 2. Actualitzar dades de socis existents
+      if (uploadSummary.toUpdate.length > 0) {
+        console.log(`Actualitzant dades de ${uploadSummary.toUpdate.length} socis...`);
+
+        let updatedCount = 0;
+        for (const soci of uploadSummary.toUpdate) {
+          const { error: updateError } = await supabase
+            .from('socis')
+            .update({
+              nom: soci.nom,
+              cognoms: soci.cognoms,
+              email: soci.email,
+              telefon: soci.telefon,
+              data_naixement: soci.data_naixement
+            })
+            .eq('numero_soci', parseInt(soci.numero_soci));
+
+          if (updateError) {
+            console.error(`Error actualitzant soci ${soci.numero_soci}:`, updateError);
+          } else {
+            updatedCount++;
+          }
+        }
+        console.log(`✅ ${updatedCount} socis actualitzats correctament`);
+      }
+
+      // 3. Donar de baixa socis que no estan al CSV
       if (uploadSummary.toDeactivate.length > 0) {
         const numerosToDeactivate = uploadSummary.toDeactivate.map(s => parseInt(s.numero_soci));
 
@@ -431,7 +484,7 @@
         console.log(`✅ ${updateData.length} socis donats de baixa correctament`);
       }
 
-      success = `CSV processat correctament: ${uploadSummary.toAdd.length} socis donats d'alta, ${uploadSummary.toDeactivate.length} socis donats de baixa`;
+      success = `CSV processat correctament: ${uploadSummary.toAdd.length} socis donats d'alta, ${uploadSummary.toUpdate.length} actualitzats, ${uploadSummary.toDeactivate.length} donats de baixa`;
 
       showUploadConfirmation = false;
       uploadSummary = null;
@@ -710,12 +763,16 @@
           <h3 class="font-semibold text-gray-900 mb-2">Resum dels canvis:</h3>
           <ul class="space-y-2 text-sm">
             <li class="flex items-center space-x-2">
-              <span class="text-green-600 font-medium">✅ Socis ja registrats:</span>
-              <span class="font-semibold">{uploadSummary.existing.length}</span>
+              <span class="text-green-600 font-medium">✅ Socis sense canvis:</span>
+              <span class="font-semibold">{uploadSummary.unchanged.length}</span>
             </li>
             <li class="flex items-center space-x-2">
               <span class="text-blue-600 font-medium">➕ Nous socis a donar d'alta:</span>
               <span class="font-semibold">{uploadSummary.toAdd.length}</span>
+            </li>
+            <li class="flex items-center space-x-2">
+              <span class="text-orange-600 font-medium">🔄 Socis a actualitzar:</span>
+              <span class="font-semibold">{uploadSummary.toUpdate.length}</span>
             </li>
             <li class="flex items-center space-x-2">
               <span class="text-red-600 font-medium">➖ Socis a donar de baixa:</span>
@@ -723,6 +780,21 @@
             </li>
           </ul>
         </div>
+
+        {#if uploadSummary.toUpdate.length > 0}
+          <div class="bg-orange-50 rounded-lg p-4 border border-orange-200">
+            <h4 class="font-semibold text-orange-900 mb-2">Socis a actualitzar ({uploadSummary.toUpdate.length}):</h4>
+            <div class="max-h-40 overflow-y-auto">
+              <ul class="text-sm space-y-1">
+                {#each uploadSummary.toUpdate as soci}
+                  <li class="text-orange-800">
+                    #{soci.numero_soci} - {soci.nom} {soci.cognoms}
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          </div>
+        {/if}
 
         {#if uploadSummary.toAdd.length > 0}
           <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
