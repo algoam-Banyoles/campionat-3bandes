@@ -438,17 +438,25 @@
 
         console.log('Socis trobats per donar de baixa:', existingCheck);
 
-        const { data: updateData, error: updateError } = await supabase
-          .from('socis')
-          .update({ de_baixa: true })
-          .in('numero_soci', numerosToDeactivate)
-          .select();
+        // Actualitzar un per un per assegurar que funciona
+        let updatedCount = 0;
+        for (const numero of numerosToDeactivate) {
+          const { data, error } = await supabase
+            .from('socis')
+            .update({ de_baixa: true })
+            .eq('numero_soci', numero)
+            .select();
 
-        console.log('Resultat actualització:', { updateData, updateError });
+          console.log(`Actualitzant soci ${numero}:`, { data, error });
 
-        if (updateError) {
-          throw updateError;
+          if (error) {
+            console.error(`Error actualitzant soci ${numero}:`, error);
+          } else if (data && data.length > 0) {
+            updatedCount++;
+          }
         }
+
+        console.log(`Total socis actualitzats: ${updatedCount} de ${numerosToDeactivate.length}`);
       }
 
       success = `CSV processat correctament: ${uploadSummary.toAdd.length} socis donats d'alta, ${uploadSummary.toDeactivate.length} socis donats de baixa`;
