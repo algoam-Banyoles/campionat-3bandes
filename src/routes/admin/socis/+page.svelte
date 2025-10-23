@@ -25,7 +25,7 @@
 
   // Filtres i cerca
   let searchTerm = '';
-  let filterStatus = 'all'; // 'all', 'active', 'inactive'
+  let showInactive = false; // Per mostrar socis de baixa
 
   onMount(async () => {
     await loadSocis();
@@ -215,16 +215,15 @@
 
   // Filtrar socis segons cerca i filtres
   $: filteredSocis = socis.filter(soci => {
-    const matchesSearch = searchTerm === '' || 
+    const matchesSearch = searchTerm === '' ||
       soci.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
       soci.cognoms.toLowerCase().includes(searchTerm.toLowerCase()) ||
       soci.numero_soci.toString().includes(searchTerm);
-    
-    const matchesFilter = filterStatus === 'all' ||
-      (filterStatus === 'active' && !soci.de_baixa) ||
-      (filterStatus === 'inactive' && soci.de_baixa);
-    
-    return matchesSearch && matchesFilter;
+
+    // Mostrar només actius per defecte, o també inactius si el checkbox està activat
+    const matchesStatus = !soci.de_baixa || showInactive;
+
+    return matchesSearch && matchesStatus;
   });
 
   function formatPlayerName(nom: string, cognoms: string): string {
@@ -358,7 +357,7 @@
 
   <!-- Filters and Search -->
   <div class="mb-6 bg-white border border-gray-200 rounded-lg p-4">
-    <div class="flex flex-col sm:flex-row gap-4">
+    <div class="flex flex-col sm:flex-row gap-4 items-end">
       <div class="flex-1">
         <label for="search" class="block text-sm font-medium text-gray-700 mb-2">Cercar socis</label>
         <input
@@ -369,17 +368,16 @@
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
-      <div>
-        <label for="filter" class="block text-sm font-medium text-gray-700 mb-2">Filtrar per estat</label>
-        <select
-          id="filter"
-          bind:value={filterStatus}
-          class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">Tots els socis</option>
-          <option value="active">Només actius</option>
-          <option value="inactive">Només de baixa</option>
-        </select>
+      <div class="flex items-center space-x-2 pb-2">
+        <input
+          id="show-inactive"
+          type="checkbox"
+          bind:checked={showInactive}
+          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+        />
+        <label for="show-inactive" class="text-sm font-medium text-gray-700 cursor-pointer">
+          Mostrar socis de baixa
+        </label>
       </div>
     </div>
   </div>
@@ -626,7 +624,7 @@
       <div class="bg-gray-50 px-6 py-4 border-b">
         <h2 class="text-lg font-medium text-gray-900">
           Llistat de Socis
-          {#if searchTerm || filterStatus !== 'all'}
+          {#if searchTerm || showInactive}
             <span class="text-sm font-normal text-gray-600">
               ({filteredSocis.length} de {socis.length} socis)
             </span>
@@ -752,7 +750,7 @@
       <p class="mt-1 text-sm text-gray-500">No hi ha socis que coincideixin amb els filtres aplicats.</p>
       <div class="mt-6">
         <button
-          on:click={() => { searchTerm = ''; filterStatus = 'all'; }}
+          on:click={() => { searchTerm = ''; showInactive = false; }}
           class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
         >
           Esborrar filtres
