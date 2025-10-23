@@ -1662,6 +1662,72 @@
     selectedSlot = null;
   }
 
+  async function convertOldMatchesToPending() {
+    if (!isAdmin) return;
+
+    try {
+      // Obtenir la data d'avui a les 00:00:00
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString();
+
+      console.log('Looking for matches programmed before:', todayStr);
+
+      // Buscar partides programades en el passat sense resultats
+      const { data: oldMatches, error: fetchError } = await supabase
+        .from('calendari_partides')
+        .select('id, jugador1_id, jugador2_id, data_programada, hora_inici, taula_assignada')
+        .eq('event_id', eventId)
+        .in('estat', ['generat', 'validat', 'publicat'])
+        .lt('data_programada', todayStr)
+        .is('caramboles_jugador1', null)
+        .is('caramboles_jugador2', null);
+
+      if (fetchError) throw fetchError;
+
+      if (!oldMatches || oldMatches.length === 0) {
+        alert('No hi ha partides antigues sense resultats per convertir');
+        return;
+      }
+
+      const confirmation = confirm(
+        `S'han trobat ${oldMatches.length} partides programades en dates passades sense resultats.\n\n` +
+        `Vols convertir-les a "Pendent de programar"?\n\n` +
+        `Això les desprogramarà i podràs tornar-les a assignar a nous slots.`
+      );
+
+      if (!confirmation) return;
+
+      console.log('Converting', oldMatches.length, 'old matches to pending...');
+
+      // Convertir les partides a pendent_programar
+      const { error: updateError } = await supabase
+        .from('calendari_partides')
+        .update({
+          estat: 'pendent_programar',
+          data_programada: null,
+          hora_inici: null,
+          taula_assignada: null
+        })
+        .in('id', oldMatches.map(m => m.id));
+
+      if (updateError) throw updateError;
+
+      console.log('✅ Matches converted successfully');
+
+      // Recarregar el calendari
+      await loadCalendarData();
+      dispatch('matchUpdated');
+
+      alert(`✅ S'han convertit ${oldMatches.length} partides a "Pendent de programar"`);
+
+    } catch (e: any) {
+      console.error('Error converting old matches:', e);
+      error = e.message || 'Error convertint partides antigues';
+      alert('Error: ' + error);
+    }
+  }
+
   async function saveMatch() {
     if (!editingMatch || !isAdmin) return;
 
@@ -2451,6 +2517,18 @@
             {:else}
               📢 Publicar
             {/if}
+          </button>
+        {/if}
+
+        <!-- Botó per convertir partides antigues (només per admins) -->
+        {#if isAdmin}
+          <button
+            on:click={convertOldMatchesToPending}
+            class="no-print px-4 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 flex items-center gap-2 font-medium"
+            title="Convertir partides antigues sense resultats a pendent de programar"
+            disabled={loading}
+          >
+            🔄 Reciclar Antigues
           </button>
         {/if}
 
