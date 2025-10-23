@@ -1312,6 +1312,23 @@
                       ⚡ Resultats
                     </button>
                     <button
+                      on:click={() => {
+                        managementView = 'head-to-head';
+                        if (!selectedHeadToHeadCategory && selectedEvent?.categories?.length > 0) {
+                          selectedHeadToHeadCategory = selectedEvent.categories[0];
+                        }
+                      }}
+                      class="py-2 px-1 border-b-2 font-medium text-sm"
+                      class:border-green-500={managementView === 'head-to-head'}
+                      class:text-green-600={managementView === 'head-to-head'}
+                      class:border-transparent={managementView !== 'head-to-head'}
+                      class:text-gray-500={managementView !== 'head-to-head'}
+                      class:hover:text-gray-700={managementView !== 'head-to-head'}
+                      class:hover:border-gray-300={managementView !== 'head-to-head'}
+                    >
+                      🔲 Graelles
+                    </button>
+                    <button
                       on:click={() => managementView = 'standings'}
                       class="py-2 px-1 border-b-2 font-medium text-sm"
                       class:border-green-500={managementView === 'standings'}
@@ -1334,23 +1351,6 @@
                       class:hover:border-gray-300={managementView !== 'inscriptions'}
                     >
                       👥 Jugadors
-                    </button>
-                    <button
-                      on:click={() => {
-                        managementView = 'head-to-head';
-                        if (!selectedHeadToHeadCategory && selectedEvent?.categories?.length > 0) {
-                          selectedHeadToHeadCategory = selectedEvent.categories[0];
-                        }
-                      }}
-                      class="py-2 px-1 border-b-2 font-medium text-sm"
-                      class:border-green-500={managementView === 'head-to-head'}
-                      class:text-green-600={managementView === 'head-to-head'}
-                      class:border-transparent={managementView !== 'head-to-head'}
-                      class:text-gray-500={managementView !== 'head-to-head'}
-                      class:hover:text-gray-700={managementView !== 'head-to-head'}
-                      class:hover:border-gray-300={managementView !== 'head-to-head'}
-                    >
-                      🔲 Graelles
                     </button>
                   </nav>
                 </div>
@@ -1397,19 +1397,24 @@
                 {:else if managementView === 'head-to-head'}
                   <!-- Graella de resultats creuats -->
                   <div class="space-y-6">
-                    <!-- Selector de categoria -->
-                    <div class="flex items-center justify-between">
+                    <!-- Selector de categoria amb botons -->
+                    <div class="space-y-4">
                       <h3 class="text-lg font-semibold text-gray-900">Graella de Resultats Creuats</h3>
-                      <div class="flex items-center gap-4">
-                        <label class="text-sm font-medium text-gray-700">Categoria:</label>
-                        <select
-                          bind:value={selectedHeadToHeadCategory}
-                          class="block w-auto rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
-                        >
-                          {#each selectedEvent.categories || [] as category}
-                            <option value={category}>{category.nom}</option>
-                          {/each}
-                        </select>
+                      <div class="flex flex-wrap gap-2">
+                        {#each selectedEvent.categories || [] as category}
+                          <button
+                            on:click={() => selectedHeadToHeadCategory = category}
+                            class="px-4 py-2 rounded-lg font-medium transition-colors"
+                            class:bg-green-600={selectedHeadToHeadCategory?.id === category.id}
+                            class:text-white={selectedHeadToHeadCategory?.id === category.id}
+                            class:bg-gray-200={selectedHeadToHeadCategory?.id !== category.id}
+                            class:text-gray-700={selectedHeadToHeadCategory?.id !== category.id}
+                            class:hover:bg-green-500={selectedHeadToHeadCategory?.id === category.id}
+                            class:hover:bg-gray-300={selectedHeadToHeadCategory?.id !== category.id}
+                          >
+                            {category.nom}
+                          </button>
+                        {/each}
                       </div>
                     </div>
 
@@ -1492,6 +1497,24 @@
                         <span class="hidden md:inline">⚡ Resultats</span>
                       </button>
                       <button
+                        on:click={() => {
+                          managementView = 'head-to-head';
+                          if (!selectedHeadToHeadCategory && selectedEvent?.categories?.length > 0) {
+                            selectedHeadToHeadCategory = selectedEvent.categories[0];
+                          }
+                        }}
+                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
+                        class:border-blue-500={managementView === 'head-to-head'}
+                        class:text-blue-600={managementView === 'head-to-head'}
+                        class:border-transparent={managementView !== 'head-to-head'}
+                        class:text-gray-500={managementView !== 'head-to-head'}
+                        class:hover:text-gray-700={managementView !== 'head-to-head'}
+                        title="Graelles"
+                      >
+                        <span class="md:hidden">🔲</span>
+                        <span class="hidden md:inline">🔲 Graelles</span>
+                      </button>
+                      <button
                         on:click={() => managementView = 'standings'}
                         class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
                         class:border-blue-500={managementView === 'standings'}
@@ -1516,24 +1539,6 @@
                       >
                         <span class="md:hidden">👥</span>
                         <span class="hidden md:inline">👥 Jugadors</span>
-                      </button>
-                      <button
-                        on:click={() => {
-                          managementView = 'head-to-head';
-                          if (!selectedHeadToHeadCategory && selectedEvent?.categories?.length > 0) {
-                            selectedHeadToHeadCategory = selectedEvent.categories[0];
-                          }
-                        }}
-                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
-                        class:border-blue-500={managementView === 'head-to-head'}
-                        class:text-blue-600={managementView === 'head-to-head'}
-                        class:border-transparent={managementView !== 'head-to-head'}
-                        class:text-gray-500={managementView !== 'head-to-head'}
-                        class:hover:text-gray-700={managementView !== 'head-to-head'}
-                        title="Graelles"
-                      >
-                        <span class="md:hidden">🔲</span>
-                        <span class="hidden md:inline">🔲 Graelles</span>
                       </button>
                     </nav>
                   </div>
@@ -1575,19 +1580,24 @@
                     {:else if managementView === 'head-to-head'}
                       <!-- Graella de resultats creuats -->
                       <div class="space-y-6">
-                        <!-- Selector de categoria -->
-                        <div class="flex items-center justify-between">
+                        <!-- Selector de categoria amb botons -->
+                        <div class="space-y-4">
                           <h3 class="text-lg font-semibold text-gray-900">Graella de Resultats Creuats</h3>
-                          <div class="flex items-center gap-4">
-                            <label class="text-sm font-medium text-gray-700">Categoria:</label>
-                            <select
-                              bind:value={selectedHeadToHeadCategory}
-                              class="block w-auto rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            >
-                              {#each selectedEvent.categories || [] as category}
-                                <option value={category}>{category.nom}</option>
-                              {/each}
-                            </select>
+                          <div class="flex flex-wrap gap-2">
+                            {#each selectedEvent.categories || [] as category}
+                              <button
+                                on:click={() => selectedHeadToHeadCategory = category}
+                                class="px-4 py-2 rounded-lg font-medium transition-colors"
+                                class:bg-blue-600={selectedHeadToHeadCategory?.id === category.id}
+                                class:text-white={selectedHeadToHeadCategory?.id === category.id}
+                                class:bg-gray-200={selectedHeadToHeadCategory?.id !== category.id}
+                                class:text-gray-700={selectedHeadToHeadCategory?.id !== category.id}
+                                class:hover:bg-blue-500={selectedHeadToHeadCategory?.id === category.id}
+                                class:hover:bg-gray-300={selectedHeadToHeadCategory?.id !== category.id}
+                              >
+                                {category.nom}
+                              </button>
+                            {/each}
                           </div>
                         </div>
 
