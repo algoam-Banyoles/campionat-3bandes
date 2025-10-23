@@ -278,9 +278,9 @@
   }
 
   .opponent-name {
-    min-width: 100px;
-    max-width: 100px;
-    height: 150px;
+    min-width: 85px;
+    max-width: 85px;
+    height: 135px;
     position: relative;
     padding: 0;
   }
@@ -292,17 +292,17 @@
     transform: translate(-50%, -50%) rotate(-45deg);
     transform-origin: center;
     white-space: nowrap;
-    font-size: 0.75rem;
-    width: 140px;
+    font-size: 0.7rem;
+    width: 120px;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .match-cell {
-    min-width: 100px;
-    max-width: 100px;
-    height: 80px;
-    padding: 0.25rem;
+    min-width: 85px;
+    max-width: 85px;
+    height: 70px;
+    padding: 0.2rem;
     vertical-align: middle;
   }
 
@@ -431,9 +431,20 @@
     }
 
     .match-cell {
-      min-width: 80px;
-      max-width: 80px;
-      height: 70px;
+      min-width: 70px;
+      max-width: 70px;
+      height: 65px;
+    }
+
+    .opponent-name {
+      min-width: 70px;
+      max-width: 70px;
+      height: 120px;
+    }
+
+    .opponent-name-vertical {
+      font-size: 0.65rem;
+      width: 100px;
     }
 
     .cell {
