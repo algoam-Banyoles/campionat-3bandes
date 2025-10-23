@@ -27,7 +27,6 @@
     cognoms: '',
     email: '',
     telefon: '',
-    adresa: '',
     data_naixement: '',
     de_baixa: false
   };
@@ -95,7 +94,6 @@
           cognoms: newSoci.cognoms.trim(),
           email: newSoci.email?.trim() || null,
           telefon: newSoci.telefon?.trim() || null,
-          adresa: newSoci.adresa?.trim() || null,
           data_naixement: newSoci.data_naixement || null,
           de_baixa: false
         }]);
@@ -129,7 +127,6 @@
           cognoms: editingSoci.cognoms.trim(),
           email: editingSoci.email?.trim() || null,
           telefon: editingSoci.telefon?.trim() || null,
-          adresa: editingSoci.adresa?.trim() || null,
           data_naixement: editingSoci.data_naixement || null,
           de_baixa: editingSoci.de_baixa
         })
@@ -181,7 +178,6 @@
       cognoms: '',
       email: '',
       telefon: '',
-      adresa: '',
       data_naixement: '',
       de_baixa: false
     };
@@ -737,15 +733,6 @@
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <div class="md:col-span-2">
-              <label for="adresa" class="block text-sm font-medium text-gray-700 mb-2">Adreça</label>
-              <textarea
-                id="adresa"
-                bind:value={newSoci.adresa}
-                rows="2"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              ></textarea>
-            </div>
           </div>
 
           <div class="mt-6 flex justify-end space-x-3">
@@ -1014,15 +1001,6 @@
                 bind:value={editingSoci.data_naixement}
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-            </div>
-            <div class="md:col-span-2">
-              <label for="edit-adresa" class="block text-sm font-medium text-gray-700 mb-2">Adreça</label>
-              <textarea
-                id="edit-adresa"
-                bind:value={editingSoci.adresa}
-                rows="2"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              ></textarea>
             </div>
             <div class="md:col-span-2">
               <label class="flex items-center space-x-2">
