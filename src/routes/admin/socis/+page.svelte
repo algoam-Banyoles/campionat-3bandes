@@ -10,6 +10,13 @@
   let downloading = false;
   let showNewSociForm = false;
   let editingSoci: any = null;
+  let uploading = false;
+  let uploadSummary: {
+    toAdd: any[];
+    toDeactivate: any[];
+    existing: any[];
+  } | null = null;
+  let showUploadConfirmation = false;
 
   // Formulari per nou soci
   let newSoci = {
@@ -279,6 +286,134 @@
       downloading = false;
     }
   }
+
+  async function handleCSVUpload(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) return;
+
+    try {
+      uploading = true;
+      error = null;
+      success = null;
+
+      // Llegir arxiu CSV
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+
+      if (lines.length < 2) {
+        error = 'L\'arxiu CSV està buit o no té el format correcte';
+        return;
+      }
+
+      // Parse CSV (esperem: numero_soci, nom, cognoms, email?, telefon?)
+      const csvSocis: any[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // Split per comes, tenint en compte que alguns camps poden estar entre cometes
+        const values = line.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g)?.map(v => v.replace(/^"|"$/g, '').trim()) || [];
+
+        if (values.length < 3) continue; // Mínim necessitem número, nom i cognoms
+
+        csvSocis.push({
+          numero_soci: parseInt(values[0]) || 0,
+          nom: values[1] || '',
+          cognoms: values[2] || '',
+          email: values[3] || null,
+          telefon: values[4] || null
+        });
+      }
+
+      if (csvSocis.length === 0) {
+        error = 'No s\'han trobat socis vàlids a l\'arxiu CSV';
+        return;
+      }
+
+      // Comparar amb la base de dades
+      const csvNumeros = new Set(csvSocis.map(s => s.numero_soci));
+      const dbNumeros = new Set(socis.map(s => s.numero_soci));
+
+      // Socis per donar d'alta (estan al CSV però no a la BD)
+      const toAdd = csvSocis.filter(s => !dbNumeros.has(s.numero_soci));
+
+      // Socis per donar de baixa (estan a la BD actius però no al CSV)
+      const toDeactivate = socis.filter(s => !s.de_baixa && !csvNumeros.has(s.numero_soci));
+
+      // Socis que ja existeixen
+      const existing = csvSocis.filter(s => dbNumeros.has(s.numero_soci));
+
+      uploadSummary = { toAdd, toDeactivate, existing };
+      showUploadConfirmation = true;
+
+    } catch (e: any) {
+      error = `Error processant l'arxiu CSV: ${e.message}`;
+    } finally {
+      uploading = false;
+      // Reset input
+      input.value = '';
+    }
+  }
+
+  async function confirmCSVUpload() {
+    if (!uploadSummary) return;
+
+    try {
+      uploading = true;
+      error = null;
+      success = null;
+
+      // 1. Donar d'alta nous socis
+      if (uploadSummary.toAdd.length > 0) {
+        const { error: insertError } = await supabase
+          .from('socis')
+          .insert(uploadSummary.toAdd.map(s => ({
+            numero_soci: s.numero_soci,
+            nom: s.nom,
+            cognoms: s.cognoms,
+            email: s.email,
+            telefon: s.telefon,
+            de_baixa: false
+          })));
+
+        if (insertError) {
+          throw insertError;
+        }
+      }
+
+      // 2. Donar de baixa socis que no estan al CSV
+      if (uploadSummary.toDeactivate.length > 0) {
+        const numerosToDeactivate = uploadSummary.toDeactivate.map(s => s.numero_soci);
+
+        const { error: updateError } = await supabase
+          .from('socis')
+          .update({ de_baixa: true })
+          .in('numero_soci', numerosToDeactivate);
+
+        if (updateError) {
+          throw updateError;
+        }
+      }
+
+      success = `CSV processat correctament: ${uploadSummary.toAdd.length} socis donats d'alta, ${uploadSummary.toDeactivate.length} socis donats de baixa`;
+
+      showUploadConfirmation = false;
+      uploadSummary = null;
+      await loadSocis();
+
+    } catch (e: any) {
+      error = formatSupabaseError(e);
+    } finally {
+      uploading = false;
+    }
+  }
+
+  function cancelCSVUpload() {
+    showUploadConfirmation = false;
+    uploadSummary = null;
+  }
 </script>
 
 <svelte:head>
@@ -346,12 +481,48 @@
           📥 Descarregar CSV
         {/if}
       </button>
+
+      <label class="bg-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 cursor-pointer flex items-center gap-2">
+        {#if uploading}
+          <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+          <span>Processant...</span>
+        {:else}
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
+          Pujar CSV
+        {/if}
+        <input
+          type="file"
+          accept=".csv"
+          on:change={handleCSVUpload}
+          disabled={uploading}
+          class="hidden"
+        />
+      </label>
     </div>
 
     <div class="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
       <span class="font-medium">Total: {socis.length}</span>
       <span class="ml-2 text-green-600">Actius: {socis.filter(s => !s.de_baixa).length}</span>
       <span class="ml-2 text-red-600">De baixa: {socis.filter(s => s.de_baixa).length}</span>
+    </div>
+  </div>
+
+  <!-- CSV Upload Info -->
+  <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+    <div class="flex items-start space-x-3">
+      <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <div class="flex-1">
+        <h3 class="text-sm font-semibold text-blue-900 mb-1">Format del CSV per pujar socis</h3>
+        <p class="text-sm text-blue-800">
+          El CSV ha de tenir les columnes: <code class="bg-blue-100 px-1 rounded">numero_soci, nom, cognoms, email, telefon</code>
+          <br>
+          <strong>Important:</strong> Els socis que estiguin al CSV seran marcats com actius. Els socis que NO estiguin al CSV però sí a la base de dades seran automàticament donats de baixa.
+        </p>
+      </div>
     </div>
   </div>
 
@@ -469,6 +640,89 @@
           </button>
         </div>
       </form>
+    </div>
+  {/if}
+
+  <!-- CSV Upload Confirmation Dialog -->
+  {#if showUploadConfirmation && uploadSummary}
+    <div class="mb-6 bg-purple-50 border-2 border-purple-300 rounded-lg p-6">
+      <h2 class="text-xl font-semibold text-purple-900 mb-4">Confirmació de Pujada CSV</h2>
+
+      <div class="space-y-4 mb-6">
+        <div class="bg-white rounded-lg p-4 border border-gray-200">
+          <h3 class="font-semibold text-gray-900 mb-2">Resum dels canvis:</h3>
+          <ul class="space-y-2 text-sm">
+            <li class="flex items-center space-x-2">
+              <span class="text-green-600 font-medium">✅ Socis ja registrats:</span>
+              <span class="font-semibold">{uploadSummary.existing.length}</span>
+            </li>
+            <li class="flex items-center space-x-2">
+              <span class="text-blue-600 font-medium">➕ Nous socis a donar d'alta:</span>
+              <span class="font-semibold">{uploadSummary.toAdd.length}</span>
+            </li>
+            <li class="flex items-center space-x-2">
+              <span class="text-red-600 font-medium">➖ Socis a donar de baixa:</span>
+              <span class="font-semibold">{uploadSummary.toDeactivate.length}</span>
+            </li>
+          </ul>
+        </div>
+
+        {#if uploadSummary.toAdd.length > 0}
+          <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <h4 class="font-semibold text-blue-900 mb-2">Nous socis ({uploadSummary.toAdd.length}):</h4>
+            <div class="max-h-40 overflow-y-auto">
+              <ul class="text-sm space-y-1">
+                {#each uploadSummary.toAdd as soci}
+                  <li class="text-blue-800">
+                    #{soci.numero_soci} - {soci.nom} {soci.cognoms}
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          </div>
+        {/if}
+
+        {#if uploadSummary.toDeactivate.length > 0}
+          <div class="bg-red-50 rounded-lg p-4 border border-red-200">
+            <h4 class="font-semibold text-red-900 mb-2">Socis a donar de baixa ({uploadSummary.toDeactivate.length}):</h4>
+            <div class="max-h-40 overflow-y-auto">
+              <ul class="text-sm space-y-1">
+                {#each uploadSummary.toDeactivate as soci}
+                  <li class="text-red-800">
+                    #{soci.numero_soci} - {soci.nom} {soci.cognoms}
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          </div>
+        {/if}
+      </div>
+
+      <div class="flex justify-end space-x-3">
+        <button
+          type="button"
+          on:click={cancelCSVUpload}
+          disabled={uploading}
+          class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        >
+          Cancel·lar
+        </button>
+        <button
+          type="button"
+          on:click={confirmCSVUpload}
+          disabled={uploading}
+          class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+        >
+          {#if uploading}
+            <div class="flex items-center space-x-2">
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span>Processant...</span>
+            </div>
+          {:else}
+            Confirmar Canvis
+          {/if}
+        </button>
+      </div>
     </div>
   {/if}
 
