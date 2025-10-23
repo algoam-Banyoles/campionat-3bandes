@@ -106,14 +106,13 @@
       await printableComponent.loadCategory(categoryId);
     }
 
-    loadingPrint = false;
-
     // Wait for rendering
     await new Promise(resolve => setTimeout(resolve, 500));
 
     // Get the printable content
     const printContent = document.querySelector('.print-only');
     if (!printContent) {
+      loadingPrint = false;
       alert('Error: no s\'ha pogut trobar el contingut per imprimir');
       return;
     }
@@ -125,6 +124,10 @@
       const img = logo as HTMLImageElement;
       img.src = window.location.origin + '/logo.png';
     });
+
+    // Close modal and reset loading state
+    showPrintModal = false;
+    loadingPrint = false;
 
     // Create a new window for printing
     const printWindow = window.open('', '_blank', 'width=1200,height=800');
@@ -170,37 +173,18 @@
 
     printWindow.document.close();
 
-    // Wait for images to load before printing
-    const images = printWindow.document.getElementsByTagName('img');
-    const imagePromises: Promise<void>[] = [];
-
-    for (let i = 0; i < images.length; i++) {
-      const img = images[i];
-      if (!img.complete) {
-        imagePromises.push(
-          new Promise((resolve) => {
-            img.onload = () => resolve();
-            img.onerror = () => resolve(); // Continue even if image fails
-          })
-        );
+    // Simple timeout approach - wait a bit for content to render, then print
+    setTimeout(() => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+        // Don't auto-close, let user close the window
+      } catch (e) {
+        console.error('Error printing:', e);
+        alert('Error en la impressió. Si us plau, torna-ho a intentar.');
+        printWindow.close();
       }
-    }
-
-    // Wait for all images to load, then print
-    Promise.all(imagePromises).then(() => {
-      setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-      }, 500);
-    }).catch(() => {
-      // Fallback: print anyway
-      setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-      }, 500);
-    });
+    }, 1000);
   }
 
   function getComputedPrintStyles(): string {
