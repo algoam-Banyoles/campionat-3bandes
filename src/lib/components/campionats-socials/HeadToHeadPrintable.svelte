@@ -83,12 +83,14 @@
     <div class="print-page">
       <!-- Header -->
       <div class="print-header">
-        <h1>{eventName}</h1>
-        <h2>{catData.category.nom}</h2>
-        <p class="print-info">
-          Distància: {catData.category.distancia_caramboles} caramboles
-          | Data: {new Date().toLocaleDateString('ca-ES')}
-        </p>
+        <div class="header-center">
+          <h1>CAMPIONAT DE {eventName.toUpperCase()}</h1>
+          <p class="header-subtitle">Secció de Billar · Foment Martinenc</p>
+        </div>
+        <div class="header-right">
+          <p class="category-info"><strong>Categoria:</strong> {catData.category.nom}</p>
+          <p class="category-info"><strong>Distància:</strong> {catData.category.distancia_caramboles}</p>
+        </div>
       </div>
 
       <!-- Grid -->
@@ -174,30 +176,42 @@
 
   /* Header */
   .print-header {
-    text-align: center;
-    margin-bottom: 0.5cm;
-    border-bottom: 2px solid #333;
+    position: relative;
+    margin-bottom: 0.4cm;
     padding-bottom: 0.3cm;
+    border-bottom: 2px solid #000;
+    min-height: 2cm;
   }
 
-  .print-header h1 {
+  .header-center {
+    text-align: center;
+    margin-bottom: 0.3cm;
+  }
+
+  .header-center h1 {
     font-size: 18pt;
     margin: 0 0 0.2cm 0;
     font-weight: bold;
-    color: #333;
+    color: #000;
   }
 
-  .print-header h2 {
-    font-size: 14pt;
-    margin: 0 0 0.2cm 0;
-    font-weight: 600;
-    color: #555;
-  }
-
-  .print-info {
-    font-size: 9pt;
-    color: #666;
+  .header-subtitle {
+    font-size: 11pt;
     margin: 0;
+    color: #000;
+  }
+
+  .header-right {
+    position: absolute;
+    right: 0;
+    top: 0;
+    text-align: right;
+  }
+
+  .category-info {
+    font-size: 11pt;
+    margin: 0 0 0.1cm 0;
+    color: #000;
   }
 
   /* Grid */

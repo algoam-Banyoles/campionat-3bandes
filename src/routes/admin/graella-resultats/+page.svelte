@@ -200,10 +200,12 @@
       .print-page { width: 100%; padding: 0.4cm 0.4cm 0.2cm 0.4cm; }
       .page-break { page-break-after: always; break-after: page; }
 
-      .print-header { text-align: center; margin-bottom: 0.3cm; border-bottom: 2px solid #000; padding-bottom: 0.2cm; }
-      .print-header h1 { font-size: 20pt; margin: 0 0 0.2cm 0; font-weight: bold; color: #000; }
-      .print-header h2 { font-size: 16pt; margin: 0 0 0.2cm 0; font-weight: 600; color: #000; }
-      .print-info { font-size: 10pt; color: #000; margin: 0; }
+      .print-header { position: relative; margin-bottom: 0.4cm; padding-bottom: 0.3cm; border-bottom: 2px solid #000; min-height: 2cm; }
+      .header-center { text-align: center; margin-bottom: 0.3cm; }
+      .header-center h1 { font-size: 18pt; margin: 0 0 0.2cm 0; font-weight: bold; color: #000; }
+      .header-subtitle { font-size: 11pt; margin: 0; color: #000; }
+      .header-right { position: absolute; right: 0; top: 0; text-align: right; }
+      .category-info { font-size: 11pt; margin: 0 0 0.1cm 0; color: #000; }
 
       .print-grid { width: 100%; border-collapse: collapse; font-size: 11pt; margin-bottom: 0.3cm; color: #000; }
       .print-grid th, .print-grid td { border: 1.5px solid #000; padding: 3px; text-align: center; }
