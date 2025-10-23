@@ -108,6 +108,22 @@
         categoria: categoriesMap.get(match.categoria_id) || null
       }));
 
+      // Ordenar per ordre de categoria (si existeix) o pel nom de categoria
+      pendingMatches.sort((a, b) => {
+        const categoriaA = a.categoria;
+        const categoriaB = b.categoria;
+
+        // Si ambdues categories tenen camp 'ordre', ordenar per ordre
+        if (categoriaA?.ordre !== undefined && categoriaB?.ordre !== undefined) {
+          return categoriaA.ordre - categoriaB.ordre;
+        }
+
+        // Si no, ordenar per nom de categoria
+        const nomA = categoriaA?.nom || '';
+        const nomB = categoriaB?.nom || '';
+        return nomA.localeCompare(nomB);
+      });
+
     } catch (e: any) {
       console.error('Error loading pending matches:', e);
       error = e.message || 'Error carregant partides pendents';

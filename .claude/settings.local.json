@@ -1,22 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git push:*)",
-      "Bash(git rebase:*)",
-      "Bash(npx supabase db pull:*)",
-      "Bash(node:*)",
-      "Bash(psql:*)",
-      "Bash(curl:*)",
-      "Bash(npm install:*)",
-      "Bash(find:*)",
-      "Bash(docker run:*)",
-      "Bash(npm run build)",
-      "Bash(timeout 120 bash -c 'tail -f /dev/null & PID=$!; while pgrep -f \"\"vite build\"\" > /dev/null; do sleep 2; done; kill $PID 2>/dev/null')",
-      "Bash(npx svelte-check --threshold error --workspace src/lib/components/campionats-socials)",
-      "Bash(taskkill /F /IM node.exe)",
-      "Bash(npx supabase:*)",
-      "Bash(npx tsx:*)",
-      "Bash(timeout 10 bash:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git restore:*)",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "ask": []

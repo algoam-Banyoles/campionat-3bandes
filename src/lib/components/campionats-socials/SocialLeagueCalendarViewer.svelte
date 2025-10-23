@@ -5,6 +5,7 @@
   import { formatSupabaseError } from '$lib/ui/alerts';
   import { exportCalendariToCSV } from '$lib/api/socialLeagues';
   import PendingMatchesModal from './PendingMatchesModal.svelte';
+  import OldMatchesModal from './OldMatchesModal.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -146,6 +147,22 @@
       return ''; // No hi ha partides pendents
     }
 
+    // Ordenar per categoria
+    pendingMatches.sort((a, b) => {
+      const catA = categories.find(c => c.id === a.categoria_id);
+      const catB = categories.find(c => c.id === b.categoria_id);
+
+      // Si ambdues categories tenen camp 'ordre', ordenar per ordre
+      if (catA?.ordre !== undefined && catB?.ordre !== undefined) {
+        return catA.ordre - catB.ordre;
+      }
+
+      // Si no, ordenar per nom de categoria
+      const nomA = catA?.nom || a.categoria_nom || '';
+      const nomB = catB?.nom || b.categoria_nom || '';
+      return nomA.localeCompare(nomB);
+    });
+
     console.log(`Partides pendents de programar: ${pendingMatches.length}`);
 
     const pageBreak = '<div class="print-page-break"></div><div style="page-break-before: always; break-before: page; display: block; height: 1px; width: 100%; clear: both;"></div>';
@@ -165,14 +182,15 @@
               ${isAdmin ? '<th class="category-column">Categoria</th>' : ''}
               <th class="player-column">Jugador 1</th>
               <th class="player-column">Jugador 2</th>
-              <th class="date-column">Data límit</th>
               <th class="observations-column">Observacions</th>
             </tr>
           </thead>
           <tbody>
             ${pendingMatches.map(match => {
-              // Si tenim categoria_nom, mostrar-la; si no, usar getCategoryName
-              const categoriaText = match.categoria_nom ? match.categoria_nom : getCategoryName(match.categoria_id);
+              // Trobar la categoria per obtenir l'ordre
+              const categoria = categories.find(c => c.id === match.categoria_id);
+              // Simplificar el text de categoria a només el número ordinal
+              const categoriaText = categoria?.nom ? categoria.nom.replace(/categoria/i, '').trim() : (match.categoria_nom ? match.categoria_nom.replace(/categoria/i, '').trim() : '');
               // Si tenim jugador1.nom, mostrar-lo; si no, usar formatPlayerName
               const jugador1Text = match.jugador1 && match.jugador1.nom ? `${match.jugador1.nom} ${match.jugador1.cognoms}` : formatPlayerName(match.jugador1);
               const jugador2Text = match.jugador2 && match.jugador2.nom ? `${match.jugador2.nom} ${match.jugador2.cognoms}` : formatPlayerName(match.jugador2);
@@ -181,8 +199,7 @@
                   ${isAdmin ? `<td class="category-cell">${categoriaText}</td>` : ''}
                   <td class="player-cell">${jugador1Text}</td>
                   <td class="player-cell">${jugador2Text}</td>
-                  <td class="date-cell">${match.data_limit ? new Date(match.data_limit).toLocaleDateString('ca-ES') : 'Per definir'}</td>
-                  <td class="observations-cell">${match.observacions || '-'}</td>
+                  <td class="observations-cell">${match.observacions || ''}</td>
                 </tr>
               `;
             }).join('')}
@@ -512,7 +529,6 @@
       }
       .category-cell {
         text-align: center;
-        font-weight: bold;
         background-color: #f8f8f8;
         font-size: 20px;
       }
@@ -678,6 +694,9 @@
   // Variables per al modal de partides pendents
   let showPendingMatchesModal = false;
   let selectedSlot: any = null;
+
+  // Variable per al modal de partides antigues
+  let showOldMatchesModal = false;
 
   const dayNames = {
     'dl': 'Dilluns',
@@ -1277,6 +1296,23 @@
   $: programmedMatches = filteredMatches.filter(match => match.data_programada && !['pendent_programar'].includes(match.estat));
   $: {
     unprogrammedMatches = filteredMatches.filter(match => !match.data_programada || match.estat === 'pendent_programar');
+
+    // Ordenar per categoria
+    unprogrammedMatches.sort((a, b) => {
+      const catA = categories.find(c => c.id === a.categoria_id);
+      const catB = categories.find(c => c.id === b.categoria_id);
+
+      // Si ambdues categories tenen camp 'ordre', ordenar per ordre
+      if (catA?.ordre !== undefined && catB?.ordre !== undefined) {
+        return catA.ordre - catB.ordre;
+      }
+
+      // Si no, ordenar per nom de categoria
+      const nomA = catA?.nom || a.categoria_nom || '';
+      const nomB = catB?.nom || b.categoria_nom || '';
+      return nomA.localeCompare(nomB);
+    });
+
     console.log('🔍 Reactive unprogrammedMatches:', unprogrammedMatches.length, 'from filteredMatches:', filteredMatches.length);
     if (unprogrammedMatches.length > 0) {
       console.log('🔍 Sample unprogrammed match:', unprogrammedMatches[0]);
@@ -1662,70 +1698,20 @@
     selectedSlot = null;
   }
 
-  async function convertOldMatchesToPending() {
+  function convertOldMatchesToPending() {
     if (!isAdmin) return;
+    showOldMatchesModal = true;
+  }
 
-    try {
-      // Obtenir la data d'avui a les 00:00:00
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString();
+  function handleMatchesConverted(event: CustomEvent) {
+    showOldMatchesModal = false;
+    loadCalendarData();
+    dispatch('matchUpdated');
+    alert(`✅ S'han convertit ${event.detail.count} partides a "Pendent de programar"`);
+  }
 
-      console.log('Looking for matches programmed before:', todayStr);
-
-      // Buscar partides programades en el passat sense resultats
-      const { data: oldMatches, error: fetchError } = await supabase
-        .from('calendari_partides')
-        .select('id, jugador1_id, jugador2_id, data_programada, hora_inici, taula_assignada')
-        .eq('event_id', eventId)
-        .in('estat', ['generat', 'validat', 'publicat'])
-        .lt('data_programada', todayStr)
-        .is('caramboles_jugador1', null)
-        .is('caramboles_jugador2', null);
-
-      if (fetchError) throw fetchError;
-
-      if (!oldMatches || oldMatches.length === 0) {
-        alert('No hi ha partides antigues sense resultats per convertir');
-        return;
-      }
-
-      const confirmation = confirm(
-        `S'han trobat ${oldMatches.length} partides programades en dates passades sense resultats.\n\n` +
-        `Vols convertir-les a "Pendent de programar"?\n\n` +
-        `Això les desprogramarà i podràs tornar-les a assignar a nous slots.`
-      );
-
-      if (!confirmation) return;
-
-      console.log('Converting', oldMatches.length, 'old matches to pending...');
-
-      // Convertir les partides a pendent_programar
-      const { error: updateError } = await supabase
-        .from('calendari_partides')
-        .update({
-          estat: 'pendent_programar',
-          data_programada: null,
-          hora_inici: null,
-          taula_assignada: null
-        })
-        .in('id', oldMatches.map(m => m.id));
-
-      if (updateError) throw updateError;
-
-      console.log('✅ Matches converted successfully');
-
-      // Recarregar el calendari
-      await loadCalendarData();
-      dispatch('matchUpdated');
-
-      alert(`✅ S'han convertit ${oldMatches.length} partides a "Pendent de programar"`);
-
-    } catch (e: any) {
-      console.error('Error converting old matches:', e);
-      error = e.message || 'Error convertint partides antigues';
-      alert('Error: ' + error);
-    }
+  function closeOldMatchesModal() {
+    showOldMatchesModal = false;
   }
 
   async function saveMatch() {
@@ -3046,7 +3032,8 @@
           <thead class="bg-orange-50">
             <tr>
               <th class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase">Categoria</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase">Enfrontament</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase">Jugador 1</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase">Jugador 2</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase">Estat</th>
               {#if isAdmin}
                 <th class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase">Accions</th>
@@ -3060,15 +3047,14 @@
                   {match.categoria_nom || getCategoryName(match.categoria_id)}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  <div class="flex flex-col">
-                    <span class="font-medium">
-                      {formatPlayerName(match.jugador1)}
-                    </span>
-                    <span class="text-xs text-gray-500">vs</span>
-                    <span class="font-medium">
-                      {formatPlayerName(match.jugador2)}
-                    </span>
-                  </div>
+                  <span class="font-medium">
+                    {formatPlayerName(match.jugador1)}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <span class="font-medium">
+                    {formatPlayerName(match.jugador2)}
+                  </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
@@ -3348,5 +3334,15 @@
     slot={selectedSlot}
     on:matchProgrammed={handleMatchProgrammed}
     on:close={closePendingMatchesModal}
+  />
+{/if}
+
+<!-- Modal de Partides Antigues -->
+{#if showOldMatchesModal}
+  <OldMatchesModal
+    {eventId}
+    {categories}
+    on:matchesConverted={handleMatchesConverted}
+    on:close={closeOldMatchesModal}
   />
 {/if}
