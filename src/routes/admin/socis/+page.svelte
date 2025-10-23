@@ -310,6 +310,8 @@
       // Parse CSV (columnes: C=numero, F=nom, G=cognoms, J=email, L=telefon, Q=data_naixement)
       // Índexs de columna (0-indexed): C=2, F=5, G=6, J=9, L=11, Q=16
       const csvSocis: any[] = [];
+      const parseErrors: string[] = [];
+
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
@@ -317,7 +319,10 @@
         // Split per comes, tenint en compte que alguns camps poden estar entre cometes
         const values = line.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g)?.map(v => v.replace(/^"|"$/g, '').trim()) || [];
 
-        if (values.length < 17) continue; // Necessitem almenys fins la columna Q
+        if (values.length < 17) {
+          parseErrors.push(`Línia ${i + 1}: només té ${values.length} columnes (necessita almenys 17)`);
+          continue;
+        }
 
         const numeroSoci = parseInt(values[2]) || 0; // Columna C
         const nom = values[5] || ''; // Columna F
@@ -326,7 +331,10 @@
         const telefon = values[11] || null; // Columna L
         const dataNaixement = values[16] || null; // Columna Q
 
-        if (!numeroSoci || !nom || !cognoms) continue; // Mínim necessitem número, nom i cognoms
+        if (!numeroSoci || !nom || !cognoms) {
+          parseErrors.push(`Línia ${i + 1}: falta número (${values[2]}), nom (${values[5]}) o cognoms (${values[6]})`);
+          continue;
+        }
 
         csvSocis.push({
           numero_soci: numeroSoci,
@@ -339,7 +347,7 @@
       }
 
       if (csvSocis.length === 0) {
-        error = 'No s\'han trobat socis vàlids a l\'arxiu CSV';
+        error = `No s'han trobat socis vàlids a l'arxiu CSV. Detalls:\n${parseErrors.slice(0, 5).join('\n')}${parseErrors.length > 5 ? `\n... i ${parseErrors.length - 5} errors més` : ''}`;
         return;
       }
 
@@ -441,7 +449,7 @@
   <!-- Messages -->
   {#if error}
     <div class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-      <p class="text-red-700">{error}</p>
+      <p class="text-red-700 whitespace-pre-line">{error}</p>
     </div>
   {/if}
 
