@@ -256,11 +256,11 @@
   }
 
   .self-cell {
-    background: #f5f5f5;
+    background: #d0d0d0;
   }
 
   .self-match {
-    color: #999;
+    color: #666;
     font-size: 10pt;
     font-weight: bold;
   }

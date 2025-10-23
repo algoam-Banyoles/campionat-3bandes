@@ -210,8 +210,8 @@
       .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 6px; font-size: 13pt; white-space: nowrap; width: 3cm; color: #000; }
 
       .match-cell { width: 1.9cm; height: 1.9cm; padding: 2px; vertical-align: middle; }
-      .self-cell { background: #f5f5f5; }
-      .self-match { color: #999; font-size: 16pt; font-weight: bold; }
+      .self-cell { background: #d0d0d0; }
+      .self-match { color: #666; font-size: 16pt; font-weight: bold; }
 
       .match-data { display: flex; flex-direction: column; gap: 2px; font-size: 10pt; color: #000; }
       .data-row { display: flex; justify-content: space-between; align-items: center; padding: 1px 3px; }
