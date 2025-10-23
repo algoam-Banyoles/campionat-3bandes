@@ -300,12 +300,22 @@
 
       // Llegir arxiu CSV
       const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim());
+
+      // Normalitzar salts de línia i dividir per línia
+      // Usar regex per dividir per salts de línia però respectant els camps entre cometes
+      const normalizedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      const lines = normalizedText.split('\n').filter(line => line.trim());
 
       if (lines.length < 2) {
         error = 'L\'arxiu CSV està buit o no té el format correcte';
         return;
       }
+
+      // Debug: mostrar les primeres línies
+      console.log('Total línies:', lines.length);
+      console.log('Primera línia (capçalera):', lines[0]);
+      console.log('Segona línia (primera dada):', lines[1]);
+      console.log('Columnes a la primera línia:', lines[1]?.split(';').length);
 
       // Parse CSV (columnes: C=numero(2), F=nom(5), G=cognoms(6), J=mail(9), L=telefon(10), Q=datanaixement(16))
       // El CSV usa punt i coma (;) com a separador
@@ -315,6 +325,12 @@
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
+
+        // Comprovar si la línia té el format correcte (ha de tenir múltiples punt i comes)
+        if (!line.includes(';')) {
+          parseErrors.push(`Línia ${i + 1}: no conté el separador ; (punt i coma)`);
+          continue;
+        }
 
         // Split per punt i coma i eliminar cometes dobles
         const values = line.split(';').map(v => v.replace(/^"|"$/g, '').trim());
