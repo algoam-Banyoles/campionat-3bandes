@@ -368,17 +368,21 @@
       }
 
       // Comparar amb la base de dades
-      const csvNumeros = new Set(csvSocis.map(s => s.numero_soci));
-      const dbNumeros = new Set(socis.map(s => s.numero_soci));
+      // Normalitzar tots els números a integers per evitar problemes de comparació
+      const csvNumeros = new Set(csvSocis.map(s => parseInt(s.numero_soci)));
+      const dbNumeros = new Set(socis.map(s => parseInt(s.numero_soci)));
+
+      console.log('Números al CSV:', Array.from(csvNumeros).sort((a, b) => a - b));
+      console.log('Números a la BD:', Array.from(dbNumeros).sort((a, b) => a - b));
 
       // Socis per donar d'alta (estan al CSV però no a la BD)
-      const toAdd = csvSocis.filter(s => !dbNumeros.has(s.numero_soci));
+      const toAdd = csvSocis.filter(s => !dbNumeros.has(parseInt(s.numero_soci)));
 
       // Socis per donar de baixa (estan a la BD actius però no al CSV)
-      const toDeactivate = socis.filter(s => !s.de_baixa && !csvNumeros.has(s.numero_soci));
+      const toDeactivate = socis.filter(s => !s.de_baixa && !csvNumeros.has(parseInt(s.numero_soci)));
 
       // Socis que ja existeixen
-      const existing = csvSocis.filter(s => dbNumeros.has(s.numero_soci));
+      const existing = csvSocis.filter(s => dbNumeros.has(parseInt(s.numero_soci)));
 
       uploadSummary = { toAdd, toDeactivate, existing };
       showUploadConfirmation = true;
@@ -423,10 +427,15 @@
       if (uploadSummary.toDeactivate.length > 0) {
         const numerosToDeactivate = uploadSummary.toDeactivate.map(s => s.numero_soci);
 
-        const { error: updateError } = await supabase
+        console.log('Donant de baixa socis:', numerosToDeactivate);
+
+        const { data: updateData, error: updateError } = await supabase
           .from('socis')
           .update({ de_baixa: true })
-          .in('numero_soci', numerosToDeactivate);
+          .in('numero_soci', numerosToDeactivate)
+          .select();
+
+        console.log('Resultat actualització:', { updateData, updateError });
 
         if (updateError) {
           throw updateError;
