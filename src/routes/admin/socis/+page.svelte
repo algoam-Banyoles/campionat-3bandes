@@ -307,8 +307,8 @@
         return;
       }
 
-      // Parse CSV (columnes: C=numero, F=nom, G=cognoms, J=email, L=telefon, Q=data_naixement)
-      // Índexs de columna (0-indexed): C=2, F=5, G=6, J=9, L=11, Q=16
+      // Parse CSV (columnes: C=numero(2), F=nom(5), G=cognoms(6), J=mail(9), L=telefon(10), Q=datanaixement(16))
+      // El CSV usa punt i coma (;) com a separador
       const csvSocis: any[] = [];
       const parseErrors: string[] = [];
 
@@ -316,20 +316,20 @@
         const line = lines[i].trim();
         if (!line) continue;
 
-        // Split per comes, tenint en compte que alguns camps poden estar entre cometes
-        const values = line.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g)?.map(v => v.replace(/^"|"$/g, '').trim()) || [];
+        // Split per punt i coma i eliminar cometes dobles
+        const values = line.split(';').map(v => v.replace(/^"|"$/g, '').trim());
 
         if (values.length < 17) {
           parseErrors.push(`Línia ${i + 1}: només té ${values.length} columnes (necessita almenys 17)`);
           continue;
         }
 
-        const numeroSoci = parseInt(values[2]) || 0; // Columna C
-        const nom = values[5] || ''; // Columna F
-        const cognoms = values[6] || ''; // Columna G
-        const email = values[9] || null; // Columna J
-        const telefon = values[11] || null; // Columna L
-        const dataNaixement = values[16] || null; // Columna Q
+        const numeroSoci = parseInt(values[2]) || 0; // Columna 2 (numero)
+        const nom = values[5] || ''; // Columna 5 (nom)
+        const cognoms = values[6] || ''; // Columna 6 (cognoms)
+        const email = values[9] || null; // Columna 9 (mail)
+        const telefon = values[10] || values[11] || null; // Columna 10 (telèfon) o 11 (mòbil)
+        const dataNaixement = values[16] || null; // Columna 16 (datanaixement)
 
         if (!numeroSoci || !nom || !cognoms) {
           parseErrors.push(`Línia ${i + 1}: falta número (${values[2]}), nom (${values[5]}) o cognoms (${values[6]})`);
@@ -538,7 +538,7 @@
       <div class="flex-1">
         <h3 class="text-sm font-semibold text-blue-900 mb-1">Format del CSV per pujar socis</h3>
         <p class="text-sm text-blue-800">
-          El sistema llegeix les columnes: <code class="bg-blue-100 px-1 rounded">C (numero), F (nom), G (cognoms), J (email), L (telefon), Q (data naixement)</code>
+          El sistema llegeix les columnes amb separador <code class="bg-blue-100 px-1 rounded">;</code> (punt i coma): <code class="bg-blue-100 px-1 rounded">numero, nom, cognoms, mail, telèfon/mòbil, datanaixement</code>
           <br>
           <strong>Important:</strong> Els socis que estiguin al CSV seran marcats com actius. Els socis que NO estiguin al CSV però sí a la base de dades seran automàticament donats de baixa.
         </p>
