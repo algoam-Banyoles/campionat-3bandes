@@ -119,7 +119,7 @@
                             <span class="spacer"></span>
                             <span class="value">{matchData.entrades}</span>
                           </div>
-                          <div class="data-row centered">
+                          <div class="data-row centered" class:win={matchData.punts === 2} class:draw={matchData.punts === 1} class:loss={matchData.punts === 0}>
                             <span class="value points">{matchData.punts}</span>
                           </div>
                           <div class="data-row">
@@ -283,6 +283,18 @@
     justify-content: center;
     background: #f0f0f0;
     gap: 2px;
+  }
+
+  .data-row.centered.win {
+    background: #90ee90;
+  }
+
+  .data-row.centered.draw {
+    background: #87ceeb;
+  }
+
+  .data-row.centered.loss {
+    background: #ffcccb;
   }
 
   .value {

@@ -232,6 +232,9 @@
       .match-data { display: flex; flex-direction: column; gap: 2px; font-size: 10pt; color: #000; }
       .data-row { display: flex; justify-content: space-between; align-items: center; padding: 1px 3px; }
       .data-row.centered { justify-content: center; background: #f0f0f0; gap: 3px; }
+      .data-row.centered.win { background: #90ee90; }
+      .data-row.centered.draw { background: #87ceeb; }
+      .data-row.centered.loss { background: #ffcccb; }
 
       .value { font-weight: 600; color: #000; }
       .value.points { font-weight: bold; font-size: 12pt; color: #000; }
