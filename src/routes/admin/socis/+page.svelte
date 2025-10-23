@@ -439,35 +439,33 @@
       if (socisToUpdate.length > 0) {
         console.log(`Actualitzant dades de ${socisToUpdate.length} socis...`);
 
-        let updatedCount = 0;
-        for (const soci of socisToUpdate) {
-          console.log(`Actualitzant soci ${soci.numero_soci}:`, {
-            email: soci.email,
-            telefon: soci.telefon,
-            data_naixement: soci.data_naixement
-          });
+        // Preparar els registres per upsert (mantenim nom i cognoms de la BBDD)
+        const socisToUpsert = socisToUpdate.map(soci => ({
+          numero_soci: parseInt(soci.numero_soci),
+          nom: soci.oldData.nom,  // Mantenim el nom original de la BBDD
+          cognoms: soci.oldData.cognoms,  // Mantenim els cognoms originals de la BBDD
+          email: soci.email,
+          telefon: soci.telefon,
+          data_naixement: soci.data_naixement,
+          de_baixa: soci.oldData.de_baixa || false,
+          data_baixa: soci.oldData.data_baixa || null
+        }));
 
-          const { data: updateData, error: updateError } = await supabase
-            .from('socis')
-            .update({
-              email: soci.email,
-              telefon: soci.telefon,
-              data_naixement: soci.data_naixement
-            })
-            .eq('numero_soci', parseInt(soci.numero_soci))
-            .select();
+        // Fer upsert en batch (molt més ràpid que 104 updates individuals)
+        const { data: updateData, error: updateError } = await supabase
+          .from('socis')
+          .upsert(socisToUpsert, {
+            onConflict: 'numero_soci',
+            ignoreDuplicates: false
+          })
+          .select();
 
-          console.log(`Resultat soci ${soci.numero_soci}:`, { updateData, updateError, rowsAffected: updateData?.length });
-
-          if (updateError) {
-            console.error(`❌ Error actualitzant soci ${soci.numero_soci}:`, updateError);
-          } else if (updateData && updateData.length > 0) {
-            updatedCount++;
-            console.log(`✅ Soci ${soci.numero_soci} actualitzat correctament`);
-          } else {
-            console.warn(`⚠️ Soci ${soci.numero_soci} - UPDATE no ha afectat cap fila`);
-          }
+        if (updateError) {
+          console.error('❌ Error actualitzant socis:', updateError);
+          throw updateError;
         }
+
+        const updatedCount = updateData?.length || 0;
         console.log(`✅ Total: ${updatedCount} socis actualitzats correctament`);
       }
 
