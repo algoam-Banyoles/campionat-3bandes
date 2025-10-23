@@ -195,7 +195,8 @@
       .print-grid { width: 100%; border-collapse: collapse; font-size: 11pt; margin-bottom: 0.3cm; color: #000; }
       .print-grid th, .print-grid td { border: 1.5px solid #000; padding: 3px; text-align: center; }
 
-      .corner-cell { background: #fff; width: 3cm; }
+      .corner-cell { background: #fff; width: 3cm; padding: 4px; vertical-align: middle; }
+      .corner-logo { max-width: 100%; max-height: 3cm; height: auto; display: block; margin: 0 auto; }
       .player-header { background: #e8e8e8; color: #000; font-weight: bold; height: 3.5cm; width: 1.9cm; padding: 3px; position: relative; }
       .player-name-rotated { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); transform-origin: center; white-space: nowrap; font-size: 11pt; width: 3.5cm; overflow: hidden; text-overflow: ellipsis; }
 

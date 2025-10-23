@@ -88,7 +88,9 @@
         <table class="print-grid">
           <thead>
             <tr>
-              <th class="corner-cell"></th>
+              <th class="corner-cell">
+                <img src="/logo.png" alt="Logo Billar" class="corner-logo" />
+              </th>
               {#each catData.players as opponent}
                 <th class="player-header">
                   <div class="player-name-rotated">
@@ -200,7 +202,17 @@
 
   .corner-cell {
     background: #fff;
-    width: 2cm;
+    width: 3cm;
+    padding: 4px;
+    vertical-align: middle;
+  }
+
+  .corner-logo {
+    max-width: 100%;
+    max-height: 3cm;
+    height: auto;
+    display: block;
+    margin: 0 auto;
   }
 
   .player-header {
