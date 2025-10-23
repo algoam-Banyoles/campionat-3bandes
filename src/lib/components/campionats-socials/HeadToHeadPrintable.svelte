@@ -209,7 +209,7 @@
 
   .corner-logo {
     max-width: 100%;
-    max-height: 3cm;
+    max-height: 2cm;
     height: auto;
     display: block;
     margin: 0 auto;
@@ -232,7 +232,7 @@
     transform: translate(-50%, -50%) rotate(-45deg);
     transform-origin: center;
     white-space: nowrap;
-    font-size: 7pt;
+    font-size: 9pt;
     width: 2.5cm;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -243,7 +243,7 @@
     font-weight: bold;
     text-align: left;
     padding-left: 4px;
-    font-size: 7pt;
+    font-size: 9pt;
     white-space: nowrap;
     width: 2cm;
   }

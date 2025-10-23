@@ -219,11 +219,11 @@
       .print-grid th, .print-grid td { border: 1.5px solid #000; padding: 3px; text-align: center; }
 
       .corner-cell { background: #fff; width: 3cm; padding: 4px; vertical-align: middle; }
-      .corner-logo { max-width: 100%; max-height: 3cm; height: auto; display: block; margin: 0 auto; }
+      .corner-logo { max-width: 100%; max-height: 2cm; height: auto; display: block; margin: 0 auto; }
       .player-header { background: #e8e8e8; color: #000; font-weight: bold; height: 3.5cm; width: 1.9cm; padding: 3px; position: relative; }
-      .player-name-rotated { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); transform-origin: center; white-space: nowrap; font-size: 11pt; width: 3.5cm; overflow: hidden; text-overflow: ellipsis; }
+      .player-name-rotated { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); transform-origin: center; white-space: nowrap; font-size: 13pt; width: 3.5cm; overflow: hidden; text-overflow: ellipsis; }
 
-      .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 6px; font-size: 11pt; white-space: nowrap; width: 3cm; color: #000; }
+      .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 6px; font-size: 13pt; white-space: nowrap; width: 3cm; color: #000; }
 
       .match-cell { width: 1.9cm; height: 1.5cm; padding: 2px; vertical-align: middle; }
       .self-cell { background: #f5f5f5; }
