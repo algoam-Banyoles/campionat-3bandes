@@ -425,9 +425,18 @@
 
       // 2. Donar de baixa socis que no estan al CSV
       if (uploadSummary.toDeactivate.length > 0) {
-        const numerosToDeactivate = uploadSummary.toDeactivate.map(s => s.numero_soci);
+        const numerosToDeactivate = uploadSummary.toDeactivate.map(s => parseInt(s.numero_soci));
 
         console.log('Donant de baixa socis:', numerosToDeactivate);
+        console.log('Tipus del primer element:', typeof numerosToDeactivate[0]);
+
+        // Verificar primer si existeixen aquests socis
+        const { data: existingCheck } = await supabase
+          .from('socis')
+          .select('numero_soci, nom, cognoms, de_baixa')
+          .in('numero_soci', numerosToDeactivate);
+
+        console.log('Socis trobats per donar de baixa:', existingCheck);
 
         const { data: updateData, error: updateError } = await supabase
           .from('socis')
