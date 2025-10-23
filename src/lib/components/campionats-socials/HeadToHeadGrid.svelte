@@ -265,12 +265,16 @@
     background: #ecf0f1;
     font-weight: bold;
     text-align: left;
-    padding-left: 1rem;
+    padding-left: 0.75rem;
+    padding-right: 0.5rem;
     position: sticky;
     left: 0;
     z-index: 5;
-    min-width: 150px;
+    min-width: 110px;
+    max-width: 110px;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .opponent-name {
@@ -419,8 +423,11 @@
     }
 
     .player-name {
-      min-width: 120px;
+      min-width: 100px;
+      max-width: 100px;
       font-size: 0.75rem;
+      padding-left: 0.5rem;
+      padding-right: 0.25rem;
     }
 
     .match-cell {
