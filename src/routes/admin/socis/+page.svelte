@@ -404,8 +404,11 @@
       error = null;
       success = null;
 
+      console.log('=== Iniciant processament CSV ===');
+
       // 1. Donar d'alta nous socis
       if (uploadSummary.toAdd.length > 0) {
+        console.log(`Donant d'alta ${uploadSummary.toAdd.length} socis...`);
         const { error: insertError } = await supabase
           .from('socis')
           .insert(uploadSummary.toAdd.map(s => ({
@@ -419,8 +422,10 @@
           })));
 
         if (insertError) {
+          console.error('Error inserint socis:', insertError);
           throw insertError;
         }
+        console.log('✅ Socis donats d\'alta correctament');
       }
 
       // 2. Donar de baixa socis que no estan al CSV
@@ -428,56 +433,41 @@
         const numerosToDeactivate = uploadSummary.toDeactivate.map(s => parseInt(s.numero_soci));
 
         console.log('Donant de baixa socis:', numerosToDeactivate);
-        console.log('Tipus del primer element:', typeof numerosToDeactivate[0]);
 
-        // Verificar primer si existeixen aquests socis
-        const { data: existingCheck } = await supabase
+        // Actualitzar tots de cop amb la política RLS ja configurada
+        const { data: updateData, error: updateError } = await supabase
           .from('socis')
-          .select('numero_soci, nom, cognoms, de_baixa')
-          .in('numero_soci', numerosToDeactivate);
+          .update({ de_baixa: true })
+          .in('numero_soci', numerosToDeactivate)
+          .select();
 
-        console.log('Socis trobats per donar de baixa:', existingCheck);
+        console.log('Resultat actualització en bloc:', { updateData, updateError, count: updateData?.length });
 
-        // Actualitzar un per un per assegurar que funciona
-        let updatedCount = 0;
-        for (const numero of numerosToDeactivate) {
-          // Primer, verificar que podem llegir aquest soci específic
-          const { data: checkData, error: checkError } = await supabase
-            .from('socis')
-            .select('*')
-            .eq('numero_soci', numero)
-            .single();
-
-          console.log(`Verificant soci ${numero} abans d'actualitzar:`, { checkData, checkError });
-
-          // Intentar actualitzar
-          const { data, error, count } = await supabase
-            .from('socis')
-            .update({ de_baixa: true })
-            .eq('numero_soci', numero)
-            .select();
-
-          console.log(`Actualitzant soci ${numero}:`, { data, error, count, rowsAffected: data?.length });
-
-          if (error) {
-            console.error(`Error actualitzant soci ${numero}:`, error);
-          } else if (data && data.length > 0) {
-            updatedCount++;
-          } else {
-            console.warn(`Soci ${numero}: UPDATE no ha retornat cap fila (possiblement RLS o el registre no existeix)`);
-          }
+        if (updateError) {
+          console.error('Error actualitzant socis:', updateError);
+          throw updateError;
         }
 
-        console.log(`Total socis actualitzats: ${updatedCount} de ${numerosToDeactivate.length}`);
+        if (!updateData || updateData.length === 0) {
+          console.warn('⚠️ No s\'ha actualitzat cap soci. Comprovant polítiques RLS...');
+          error = 'No s\'han pogut donar de baixa els socis. Comprova que tens permisos d\'administrador.';
+          return;
+        }
+
+        console.log(`✅ ${updateData.length} socis donats de baixa correctament`);
       }
 
       success = `CSV processat correctament: ${uploadSummary.toAdd.length} socis donats d'alta, ${uploadSummary.toDeactivate.length} socis donats de baixa`;
 
       showUploadConfirmation = false;
       uploadSummary = null;
+
+      console.log('Recarregant llista de socis...');
       await loadSocis();
+      console.log('=== Processament CSV finalitzat ===');
 
     } catch (e: any) {
+      console.error('Error processant CSV:', e);
       error = formatSupabaseError(e);
     } finally {
       uploading = false;
