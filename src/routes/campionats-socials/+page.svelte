@@ -11,6 +11,7 @@
   import CategoryManagement from '$lib/components/campionats-socials/CategoryManagement.svelte';
   import CalendarGenerator from '$lib/components/admin/CalendarGenerator.svelte';
   import PlayerRestrictionsTable from '$lib/components/campionats-socials/PlayerRestrictionsTable.svelte';
+  import HeadToHeadGrid from '$lib/components/campionats-socials/HeadToHeadGrid.svelte';
   import { adminStore, user } from '$lib/stores/auth';
   import { isAdmin as isAdminNew, adminUser } from '$lib/stores/adminAuth';
   import { effectiveIsAdmin } from '$lib/stores/viewMode';
@@ -50,12 +51,15 @@
 
 
   // Variables per la gestió d'inscripcions
-  let managementView: 'inscriptions' | 'categories' | 'generate-calendar' | 'view-calendar' | 'restrictions' | 'results' | 'standings' = 'view-calendar';
+  let managementView: 'inscriptions' | 'categories' | 'generate-calendar' | 'view-calendar' | 'restrictions' | 'results' | 'standings' | 'head-to-head' = 'view-calendar';
   let socis: any[] = [];
   let inscriptions: any[] = [];
   let loadingSocis = false;
   let loadingInscriptions = false;
   let calendarStatus = 'not-generated'; // 'not-generated', 'generated', 'validated', 'published'
+
+  // Variable per la categoria seleccionada a la graella head-to-head
+  let selectedHeadToHeadCategory: any = null;
 
   // Computed per verificar si és admin (comprovant tots dos sistemes i view mode)
   $: isUserAdmin = $adminStore || $effectiveIsAdmin;
@@ -1331,6 +1335,23 @@
                     >
                       👥 Jugadors
                     </button>
+                    <button
+                      on:click={() => {
+                        managementView = 'head-to-head';
+                        if (!selectedHeadToHeadCategory && selectedEvent?.categories?.length > 0) {
+                          selectedHeadToHeadCategory = selectedEvent.categories[0];
+                        }
+                      }}
+                      class="py-2 px-1 border-b-2 font-medium text-sm"
+                      class:border-green-500={managementView === 'head-to-head'}
+                      class:text-green-600={managementView === 'head-to-head'}
+                      class:border-transparent={managementView !== 'head-to-head'}
+                      class:text-gray-500={managementView !== 'head-to-head'}
+                      class:hover:text-gray-700={managementView !== 'head-to-head'}
+                      class:hover:border-gray-300={managementView !== 'head-to-head'}
+                    >
+                      🔲 Graelles
+                    </button>
                   </nav>
                 </div>
 
@@ -1372,6 +1393,39 @@
                     eventId={selectedEventId}
                     categories={selectedEvent?.categories || []}
                   />
+
+                {:else if managementView === 'head-to-head'}
+                  <!-- Graella de resultats creuats -->
+                  <div class="space-y-6">
+                    <!-- Selector de categoria -->
+                    <div class="flex items-center justify-between">
+                      <h3 class="text-lg font-semibold text-gray-900">Graella de Resultats Creuats</h3>
+                      <div class="flex items-center gap-4">
+                        <label class="text-sm font-medium text-gray-700">Categoria:</label>
+                        <select
+                          bind:value={selectedHeadToHeadCategory}
+                          class="block w-auto rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+                        >
+                          {#each selectedEvent.categories || [] as category}
+                            <option value={category}>{category.nom}</option>
+                          {/each}
+                        </select>
+                      </div>
+                    </div>
+
+                    <!-- Component de graella -->
+                    {#if selectedHeadToHeadCategory}
+                      <HeadToHeadGrid
+                        eventId={selectedEventId}
+                        categoriaId={selectedHeadToHeadCategory.id}
+                        categoriaNom={selectedHeadToHeadCategory.nom}
+                      />
+                    {:else}
+                      <div class="text-center py-12 text-gray-500">
+                        Selecciona una categoria per veure la graella de resultats
+                      </div>
+                    {/if}
+                  </div>
                 {/if}
               </div>
             </div>
@@ -1463,6 +1517,24 @@
                         <span class="md:hidden">👥</span>
                         <span class="hidden md:inline">👥 Jugadors</span>
                       </button>
+                      <button
+                        on:click={() => {
+                          managementView = 'head-to-head';
+                          if (!selectedHeadToHeadCategory && selectedEvent?.categories?.length > 0) {
+                            selectedHeadToHeadCategory = selectedEvent.categories[0];
+                          }
+                        }}
+                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
+                        class:border-blue-500={managementView === 'head-to-head'}
+                        class:text-blue-600={managementView === 'head-to-head'}
+                        class:border-transparent={managementView !== 'head-to-head'}
+                        class:text-gray-500={managementView !== 'head-to-head'}
+                        class:hover:text-gray-700={managementView !== 'head-to-head'}
+                        title="Graelles"
+                      >
+                        <span class="md:hidden">🔲</span>
+                        <span class="hidden md:inline">🔲 Graelles</span>
+                      </button>
                     </nav>
                   </div>
 
@@ -1499,6 +1571,39 @@
                         eventId={selectedEventId}
                         categories={selectedEvent.categories || []}
                       />
+
+                    {:else if managementView === 'head-to-head'}
+                      <!-- Graella de resultats creuats -->
+                      <div class="space-y-6">
+                        <!-- Selector de categoria -->
+                        <div class="flex items-center justify-between">
+                          <h3 class="text-lg font-semibold text-gray-900">Graella de Resultats Creuats</h3>
+                          <div class="flex items-center gap-4">
+                            <label class="text-sm font-medium text-gray-700">Categoria:</label>
+                            <select
+                              bind:value={selectedHeadToHeadCategory}
+                              class="block w-auto rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                            >
+                              {#each selectedEvent.categories || [] as category}
+                                <option value={category}>{category.nom}</option>
+                              {/each}
+                            </select>
+                          </div>
+                        </div>
+
+                        <!-- Component de graella -->
+                        {#if selectedHeadToHeadCategory}
+                          <HeadToHeadGrid
+                            eventId={selectedEventId}
+                            categoriaId={selectedHeadToHeadCategory.id}
+                            categoriaNom={selectedHeadToHeadCategory.nom}
+                          />
+                        {:else}
+                          <div class="text-center py-12 text-gray-500">
+                            Selecciona una categoria per veure la graella de resultats
+                          </div>
+                        {/if}
+                      </div>
                     {/if}
                   </div>
                 </div>
