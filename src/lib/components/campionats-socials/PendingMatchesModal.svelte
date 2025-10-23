@@ -46,12 +46,13 @@
       loading = true;
       error = '';
 
-      // Carregar partides pendents (estat generat sense data programada)
+      // Carregar partides pendents de programar
+      // Busquem partides amb estat 'generat' o 'pendent_programar' que no tinguin data
       const { data: matchesData, error: fetchError } = await supabase
         .from('calendari_partides')
         .select('*')
         .eq('event_id', eventId)
-        .eq('estat', 'generat')
+        .or('estat.eq.generat,estat.eq.pendent_programar')
         .is('data_programada', null)
         .order('categoria_id');
 
