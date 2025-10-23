@@ -120,7 +120,9 @@
 
       if (!editingSoci) return;
 
-      const { error: updateError } = await supabase
+      console.log('Actualitzant soci:', editingSoci.numero_soci);
+
+      const { data: updateData, error: updateError } = await supabase
         .from('socis')
         .update({
           nom: editingSoci.nom.trim(),
@@ -130,10 +132,18 @@
           data_naixement: editingSoci.data_naixement || null,
           de_baixa: editingSoci.de_baixa
         })
-        .eq('numero_soci', editingSoci.numero_soci);
+        .eq('numero_soci', editingSoci.numero_soci)
+        .select();
+
+      console.log('Resultat update:', { updateData, updateError, rowsAffected: updateData?.length });
 
       if (updateError) {
+        console.error('Error updateSoci:', updateError);
         throw updateError;
+      }
+
+      if (!updateData || updateData.length === 0) {
+        throw new Error('No s\'ha pogut actualitzar el soci. Comprova els permisos RLS.');
       }
 
       success = 'Soci actualitzat correctament';
@@ -141,6 +151,7 @@
       await loadSocis();
 
     } catch (e: any) {
+      console.error('Exception updateSoci:', e);
       error = formatSupabaseError(e);
     }
   }
