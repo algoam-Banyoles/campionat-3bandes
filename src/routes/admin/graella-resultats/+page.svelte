@@ -197,27 +197,27 @@
     // Get all styles from the HeadToHeadPrintable component - optimized to fit one category per A3 page
     return `
       .printable-container { width: 100%; }
-      .print-page { width: 100%; padding: 0.4cm 0.4cm 0.2cm 0.4cm; }
+      .print-page { width: 100%; padding: 0.4cm 0.4cm 0.1cm 0.4cm; }
       .page-break { page-break-after: always; break-after: page; }
 
-      .print-header { position: relative; margin-bottom: 0.4cm; padding-bottom: 0.3cm; border-bottom: 2px solid #000; min-height: 2cm; }
+      .print-header { position: relative; margin-bottom: 0.3cm; padding-bottom: 0.2cm; border-bottom: 2px solid #000; min-height: 1.8cm; }
       .header-center { text-align: center; margin-bottom: 0.3cm; }
       .header-center h1 { font-size: 18pt; margin: 0 0 0.2cm 0; font-weight: bold; color: #000; }
       .header-subtitle { font-size: 11pt; margin: 0; color: #000; }
       .header-right { position: absolute; right: 0; top: 0; text-align: right; }
       .category-info { font-size: 11pt; margin: 0 0 0.1cm 0; color: #000; }
 
-      .print-grid { width: 100%; border-collapse: collapse; font-size: 11pt; margin-bottom: 0.3cm; color: #000; }
+      .print-grid { width: 100%; border-collapse: collapse; font-size: 11pt; margin-bottom: 0.1cm; color: #000; }
       .print-grid th, .print-grid td { border: 1.5px solid #000; padding: 3px; text-align: center; }
 
       .corner-cell { background: #fff; width: 2.5cm; padding: 4px; vertical-align: middle; }
-      .corner-logo { max-width: 100%; max-height: 2cm; height: auto; display: block; margin: 0 auto; }
-      .player-header { background: #e8e8e8; color: #000; font-weight: bold; height: 3.2cm; width: 1.9cm; padding: 3px; position: relative; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .corner-logo { max-width: 100%; max-height: 1.8cm; height: auto; display: block; margin: 0 auto; }
+      .player-header { background: #e8e8e8; color: #000; font-weight: bold; height: 3cm; width: 1.9cm; padding: 3px; position: relative; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .player-name-rotated { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); transform-origin: center; white-space: nowrap; font-size: 13pt; width: 3.5cm; overflow: hidden; text-overflow: ellipsis; }
 
       .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 6px; font-size: 13pt; white-space: nowrap; width: 2.5cm; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-      .match-cell { width: 1.9cm; height: 1.9cm; padding: 2px; vertical-align: middle; }
+      .match-cell { width: 1.9cm; height: 2.1cm; padding: 2px; vertical-align: middle; }
       .self-cell { background: #d0d0d0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .self-match { color: #666; font-size: 16pt; font-weight: bold; }
 

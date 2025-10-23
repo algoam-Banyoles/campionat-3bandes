@@ -84,7 +84,7 @@
       <!-- Header -->
       <div class="print-header">
         <div class="header-center">
-          <h1>CAMPIONAT DE {eventName.toUpperCase()}</h1>
+          <h1>CAMPIONAT SOCIAL DE {eventName.toUpperCase()}</h1>
           <p class="header-subtitle">Secció de Billar · Foment Martinenc</p>
         </div>
         <div class="header-right">
