@@ -441,22 +441,34 @@
 
         let updatedCount = 0;
         for (const soci of socisToUpdate) {
-          const { error: updateError } = await supabase
+          console.log(`Actualitzant soci ${soci.numero_soci}:`, {
+            email: soci.email,
+            telefon: soci.telefon,
+            data_naixement: soci.data_naixement
+          });
+
+          const { data: updateData, error: updateError } = await supabase
             .from('socis')
             .update({
               email: soci.email,
               telefon: soci.telefon,
               data_naixement: soci.data_naixement
             })
-            .eq('numero_soci', parseInt(soci.numero_soci));
+            .eq('numero_soci', parseInt(soci.numero_soci))
+            .select();
+
+          console.log(`Resultat soci ${soci.numero_soci}:`, { updateData, updateError, rowsAffected: updateData?.length });
 
           if (updateError) {
-            console.error(`Error actualitzant soci ${soci.numero_soci}:`, updateError);
-          } else {
+            console.error(`❌ Error actualitzant soci ${soci.numero_soci}:`, updateError);
+          } else if (updateData && updateData.length > 0) {
             updatedCount++;
+            console.log(`✅ Soci ${soci.numero_soci} actualitzat correctament`);
+          } else {
+            console.warn(`⚠️ Soci ${soci.numero_soci} - UPDATE no ha afectat cap fila`);
           }
         }
-        console.log(`✅ ${updatedCount} socis actualitzats correctament`);
+        console.log(`✅ Total: ${updatedCount} socis actualitzats correctament`);
       }
 
       // 3. Donar de baixa socis que no estan al CSV
