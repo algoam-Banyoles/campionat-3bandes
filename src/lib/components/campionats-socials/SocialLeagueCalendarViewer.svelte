@@ -4,6 +4,7 @@
   import { user } from '$lib/stores/auth';
   import { formatSupabaseError } from '$lib/ui/alerts';
   import { exportCalendariToCSV } from '$lib/api/socialLeagues';
+  import PendingMatchesModal from './PendingMatchesModal.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -673,6 +674,10 @@
     entrades: 0,
     observacions: ''
   };
+
+  // Variables per al modal de partides pendents
+  let showPendingMatchesModal = false;
+  let selectedSlot: any = null;
 
   const dayNames = {
     'dl': 'Dilluns',
@@ -1641,20 +1646,20 @@
   async function programEmptySlot(slot: any) {
     if (!isAdmin) return;
 
-    // Obrir modal per seleccionar partida pendent
-    // Per ara, una implementació simple amb prompt
-    const confirmation = confirm(
-      `Vols programar una partida en aquest slot?\n\n` +
-      `Data: ${formatDate(new Date(slot.dateStr))}\n` +
-      `Hora: ${slot.hora}\n` +
-      `Billar: ${slot.taula}\n\n` +
-      `Se t'obrirà la vista de partides pendents per seleccionar-ne una.`
-    );
+    selectedSlot = slot;
+    showPendingMatchesModal = true;
+  }
 
-    if (confirmation) {
-      // Funcionalitat pendent d'implementar
-      return;
-    }
+  function handleMatchProgrammed() {
+    showPendingMatchesModal = false;
+    selectedSlot = null;
+    loadCalendarData();
+    dispatch('matchUpdated');
+  }
+
+  function closePendingMatchesModal() {
+    showPendingMatchesModal = false;
+    selectedSlot = null;
   }
 
   async function saveMatch() {
@@ -3255,4 +3260,15 @@
       </div>
     </div>
   </div>
+{/if}
+
+<!-- Modal de Partides Pendents -->
+{#if showPendingMatchesModal && selectedSlot}
+  <PendingMatchesModal
+    {eventId}
+    {categories}
+    slot={selectedSlot}
+    on:matchProgrammed={handleMatchProgrammed}
+    on:close={closePendingMatchesModal}
+  />
 {/if}
