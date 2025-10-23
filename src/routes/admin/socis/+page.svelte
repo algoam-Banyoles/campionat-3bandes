@@ -322,7 +322,7 @@
         const nom = values[5] || ''; // Columna 5 (nom)
         const cognoms = values[6] || ''; // Columna 6 (cognoms)
         const email = values[9] || null; // Columna 9 (mail)
-        const telefon = values[10] || values[11] || null; // Columna 10 (telèfon) o 11 (mòbil)
+        const telefon = values[11] || values[10] || null; // Columna 11 (mòbil) prioritzat, o 10 (telèfon fix)
         const dataNaixement = values[16] || null; // Columna 16 (datanaixement)
 
         if (!numeroSoci || !nom || !cognoms) {
