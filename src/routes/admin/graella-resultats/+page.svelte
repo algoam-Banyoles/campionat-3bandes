@@ -207,10 +207,10 @@
     // Get all styles from the HeadToHeadPrintable component - optimized to fit one category per A3 page
     return `
       .printable-container { width: 100%; }
-      .print-page { width: 100%; padding: 0.4cm; }
+      .print-page { width: 100%; padding: 0.4cm 0.4cm 0.2cm 0.4cm; }
       .page-break { page-break-after: always; break-after: page; }
 
-      .print-header { text-align: center; margin-bottom: 0.4cm; border-bottom: 2px solid #000; padding-bottom: 0.3cm; }
+      .print-header { text-align: center; margin-bottom: 0.3cm; border-bottom: 2px solid #000; padding-bottom: 0.2cm; }
       .print-header h1 { font-size: 20pt; margin: 0 0 0.2cm 0; font-weight: bold; color: #000; }
       .print-header h2 { font-size: 16pt; margin: 0 0 0.2cm 0; font-weight: 600; color: #000; }
       .print-info { font-size: 10pt; color: #000; margin: 0; }
@@ -219,13 +219,13 @@
       .print-grid th, .print-grid td { border: 1.5px solid #000; padding: 3px; text-align: center; }
 
       .corner-cell { background: #fff; width: 3cm; padding: 4px; vertical-align: middle; }
-      .corner-logo { max-width: 100%; max-height: 2cm; height: auto; display: block; margin: 0 auto; }
-      .player-header { background: #e8e8e8; color: #000; font-weight: bold; height: 3.5cm; width: 1.9cm; padding: 3px; position: relative; }
-      .player-name-rotated { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); transform-origin: center; white-space: nowrap; font-size: 13pt; width: 3.5cm; overflow: hidden; text-overflow: ellipsis; }
+      .corner-logo { max-width: 100%; max-height: 2.2cm; height: auto; display: block; margin: 0 auto; }
+      .player-header { background: #e8e8e8; color: #000; font-weight: bold; height: 4cm; width: 1.9cm; padding: 3px; position: relative; }
+      .player-name-rotated { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); transform-origin: center; white-space: nowrap; font-size: 13pt; width: 4cm; overflow: hidden; text-overflow: ellipsis; }
 
       .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 6px; font-size: 13pt; white-space: nowrap; width: 3cm; color: #000; }
 
-      .match-cell { width: 1.9cm; height: 1.5cm; padding: 2px; vertical-align: middle; }
+      .match-cell { width: 1.9cm; height: 1.7cm; padding: 2px; vertical-align: middle; }
       .self-cell { background: #f5f5f5; }
       .self-match { color: #999; font-size: 16pt; font-weight: bold; }
 
