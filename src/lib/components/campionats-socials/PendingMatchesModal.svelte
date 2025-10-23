@@ -46,12 +46,12 @@
       loading = true;
       error = '';
 
-      // Carregar partides pendents
+      // Carregar partides pendents (estat generat sense data programada)
       const { data: matchesData, error: fetchError } = await supabase
         .from('calendari_partides')
         .select('*')
         .eq('event_id', eventId)
-        .or('estat.eq.pendent,estat.eq.no_programada,estat.eq.pendent_programar')
+        .eq('estat', 'generat')
         .is('data_programada', null)
         .order('categoria_id');
 
@@ -144,20 +144,24 @@
         data_programada: slot.dateStr + 'T' + slot.hora + ':00',
         hora_inici: slot.hora,
         taula_assignada: slot.taula,
-        estat: 'validada'
+        estat: 'validat'
       };
 
       console.log('Updating with:', updates);
 
-      const { error: updateError } = await supabase
+      const { data: updateData, error: updateError } = await supabase
         .from('calendari_partides')
         .update(updates)
-        .eq('id', selectedMatch.id);
+        .eq('id', selectedMatch.id)
+        .select();
 
       if (updateError) {
         console.error('Update error:', updateError);
-        throw updateError;
+        console.error('Update error details:', JSON.stringify(updateError, null, 2));
+        throw new Error(updateError.message || 'Error desconegut en actualitzar la partida');
       }
+
+      console.log('Update result:', updateData);
 
       console.log('Match programmed successfully');
       dispatch('matchProgrammed', { matchId: selectedMatch.id });
