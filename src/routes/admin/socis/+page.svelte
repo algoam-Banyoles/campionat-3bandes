@@ -366,10 +366,8 @@
       for (const csvSoci of csvSocis) {
         const dbSoci = socis.find(s => parseInt(s.numero_soci) === parseInt(csvSoci.numero_soci));
         if (dbSoci) {
-          // Comparar camps per veure si hi ha canvis
+          // Comparar camps per veure si hi ha canvis (excloent nom i cognoms)
           const hasChanges =
-            (csvSoci.nom || '').trim() !== (dbSoci.nom || '').trim() ||
-            (csvSoci.cognoms || '').trim() !== (dbSoci.cognoms || '').trim() ||
             (csvSoci.email || '') !== (dbSoci.email || '') ||
             (csvSoci.telefon || '') !== (dbSoci.telefon || '') ||
             (csvSoci.data_naixement || '') !== (dbSoci.data_naixement || '');
@@ -446,8 +444,6 @@
           const { error: updateError } = await supabase
             .from('socis')
             .update({
-              nom: soci.nom,
-              cognoms: soci.cognoms,
               email: soci.email,
               telefon: soci.telefon,
               data_naixement: soci.data_naixement
@@ -832,27 +828,9 @@
                       />
                       <div class="flex-1">
                         <div class="font-semibold text-orange-900 mb-2">
-                          #{soci.numero_soci} - {soci.nom} {soci.cognoms}
+                          #{soci.numero_soci} - {soci.oldData.nom} {soci.oldData.cognoms}
                         </div>
                     <div class="text-xs space-y-1 text-gray-700">
-                      {#if (soci.nom || '').trim() !== (soci.oldData.nom || '').trim()}
-                        <div class="flex items-start gap-2">
-                          <span class="font-medium text-orange-700 min-w-[80px]">Nom:</span>
-                          <div class="flex-1">
-                            <div class="line-through text-gray-500">{soci.oldData.nom || '(buit)'}</div>
-                            <div class="text-green-700">→ {soci.nom || '(buit)'}</div>
-                          </div>
-                        </div>
-                      {/if}
-                      {#if (soci.cognoms || '').trim() !== (soci.oldData.cognoms || '').trim()}
-                        <div class="flex items-start gap-2">
-                          <span class="font-medium text-orange-700 min-w-[80px]">Cognoms:</span>
-                          <div class="flex-1">
-                            <div class="line-through text-gray-500">{soci.oldData.cognoms || '(buit)'}</div>
-                            <div class="text-green-700">→ {soci.cognoms || '(buit)'}</div>
-                          </div>
-                        </div>
-                      {/if}
                       {#if (soci.email || '') !== (soci.oldData.email || '')}
                         <div class="flex items-start gap-2">
                           <span class="font-medium text-orange-700 min-w-[80px]">Email:</span>
