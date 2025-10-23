@@ -18,6 +18,7 @@
     unchanged: any[];
   } | null = null;
   let showUploadConfirmation = false;
+  let selectedUpdates: Set<number> = new Set(); // Números de soci seleccionats per actualitzar
 
   // Formulari per nou soci
   let newSoci = {
@@ -273,8 +274,10 @@
       error = null;
       success = null;
 
-      // Llegir arxiu CSV
-      const text = await file.text();
+      // Llegir arxiu CSV amb encoding correcte (ISO-8859-1 o Windows-1252 per accents catalans)
+      const arrayBuffer = await file.arrayBuffer();
+      const decoder = new TextDecoder('ISO-8859-1'); // També podries provar 'windows-1252'
+      const text = decoder.decode(arrayBuffer);
 
       // Normalitzar salts de línia i dividir per línia
       // Usar regex per dividir per salts de línia però respectant els camps entre cometes
@@ -385,6 +388,9 @@
       console.log(`Socis a actualitzar: ${toUpdate.length}`);
       console.log(`Socis sense canvis: ${unchanged.length}`);
 
+      // Per defecte, seleccionar tots els canvis per actualitzar
+      selectedUpdates = new Set(toUpdate.map(s => parseInt(s.numero_soci)));
+
       uploadSummary = { toAdd, toDeactivate, toUpdate, unchanged };
       showUploadConfirmation = true;
 
@@ -429,12 +435,14 @@
         console.log('✅ Socis donats d\'alta correctament');
       }
 
-      // 2. Actualitzar dades de socis existents
-      if (uploadSummary.toUpdate.length > 0) {
-        console.log(`Actualitzant dades de ${uploadSummary.toUpdate.length} socis...`);
+      // 2. Actualitzar dades de socis existents (només els seleccionats)
+      const socisToUpdate = uploadSummary.toUpdate.filter(s => selectedUpdates.has(parseInt(s.numero_soci)));
+
+      if (socisToUpdate.length > 0) {
+        console.log(`Actualitzant dades de ${socisToUpdate.length} socis...`);
 
         let updatedCount = 0;
-        for (const soci of uploadSummary.toUpdate) {
+        for (const soci of socisToUpdate) {
           const { error: updateError } = await supabase
             .from('socis')
             .update({
@@ -484,7 +492,8 @@
         console.log(`✅ ${updateData.length} socis donats de baixa correctament`);
       }
 
-      success = `CSV processat correctament: ${uploadSummary.toAdd.length} socis donats d'alta, ${uploadSummary.toUpdate.length} actualitzats, ${uploadSummary.toDeactivate.length} donats de baixa`;
+      const actualitzats = uploadSummary.toUpdate.filter(s => selectedUpdates.has(parseInt(s.numero_soci))).length;
+      success = `CSV processat correctament: ${uploadSummary.toAdd.length} socis donats d'alta, ${actualitzats} actualitzats, ${uploadSummary.toDeactivate.length} donats de baixa`;
 
       showUploadConfirmation = false;
       uploadSummary = null;
@@ -772,7 +781,7 @@
             </li>
             <li class="flex items-center space-x-2">
               <span class="text-orange-600 font-medium">🔄 Socis a actualitzar:</span>
-              <span class="font-semibold">{uploadSummary.toUpdate.length}</span>
+              <span class="font-semibold">{selectedUpdates.size} de {uploadSummary.toUpdate.length}</span>
             </li>
             <li class="flex items-center space-x-2">
               <span class="text-red-600 font-medium">➖ Socis a donar de baixa:</span>
@@ -783,14 +792,48 @@
 
         {#if uploadSummary.toUpdate.length > 0}
           <div class="bg-orange-50 rounded-lg p-4 border border-orange-200">
-            <h4 class="font-semibold text-orange-900 mb-2">Socis a actualitzar ({uploadSummary.toUpdate.length}):</h4>
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="font-semibold text-orange-900">Socis a actualitzar ({uploadSummary.toUpdate.length}):</h4>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  on:click={() => selectedUpdates = new Set(uploadSummary.toUpdate.map(s => parseInt(s.numero_soci)))}
+                  class="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700"
+                >
+                  Seleccionar tots
+                </button>
+                <button
+                  type="button"
+                  on:click={() => selectedUpdates = new Set()}
+                  class="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+                >
+                  Deseleccionar tots
+                </button>
+              </div>
+            </div>
             <div class="max-h-80 overflow-y-auto">
               <div class="space-y-3">
                 {#each uploadSummary.toUpdate as soci}
-                  <div class="bg-white rounded p-3 border border-orange-200">
-                    <div class="font-semibold text-orange-900 mb-2">
-                      #{soci.numero_soci} - {soci.nom} {soci.cognoms}
-                    </div>
+                  <div class="bg-white rounded p-3 border border-orange-200 {selectedUpdates.has(parseInt(soci.numero_soci)) ? 'ring-2 ring-orange-400' : ''}">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedUpdates.has(parseInt(soci.numero_soci))}
+                        on:change={(e) => {
+                          const numero = parseInt(soci.numero_soci);
+                          if (e.currentTarget.checked) {
+                            selectedUpdates.add(numero);
+                          } else {
+                            selectedUpdates.delete(numero);
+                          }
+                          selectedUpdates = selectedUpdates; // Trigger reactivity
+                        }}
+                        class="mt-1 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                      />
+                      <div class="flex-1">
+                        <div class="font-semibold text-orange-900 mb-2">
+                          #{soci.numero_soci} - {soci.nom} {soci.cognoms}
+                        </div>
                     <div class="text-xs space-y-1 text-gray-700">
                       {#if (soci.nom || '').trim() !== (soci.oldData.nom || '').trim()}
                         <div class="flex items-start gap-2">
@@ -838,6 +881,8 @@
                         </div>
                       {/if}
                     </div>
+                      </div>
+                    </label>
                   </div>
                 {/each}
               </div>
