@@ -25,6 +25,11 @@
     loadHeadToHeadData();
   });
 
+  // Recarregar dades quan canviï la categoria
+  $: if (categoriaId) {
+    loadHeadToHeadData();
+  }
+
   async function loadHeadToHeadData() {
     if (!eventId || !categoriaId) return;
 
