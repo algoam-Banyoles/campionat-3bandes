@@ -118,6 +118,14 @@
       return;
     }
 
+    // Convert logo images to use absolute URL
+    const contentClone = printContent.cloneNode(true) as HTMLElement;
+    const logos = contentClone.querySelectorAll('.corner-logo');
+    logos.forEach((logo) => {
+      const img = logo as HTMLImageElement;
+      img.src = window.location.origin + '/logo.png';
+    });
+
     // Create a new window for printing
     const printWindow = window.open('', '_blank', 'width=1200,height=800');
     if (!printWindow) {
@@ -155,29 +163,44 @@
           </style>
         </head>
         <body>
-          ${printContent.innerHTML}
+          ${contentClone.innerHTML}
         </body>
       </html>
     `);
 
     printWindow.document.close();
 
-    // Wait for content to load
-    printWindow.onload = () => {
-      printWindow.focus();
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-      }, 250);
-    };
+    // Wait for images to load before printing
+    const images = printWindow.document.getElementsByTagName('img');
+    const imagePromises: Promise<void>[] = [];
 
-    // Fallback if onload doesn't fire
-    setTimeout(() => {
-      if (!printWindow.closed) {
+    for (let i = 0; i < images.length; i++) {
+      const img = images[i];
+      if (!img.complete) {
+        imagePromises.push(
+          new Promise((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => resolve(); // Continue even if image fails
+          })
+        );
+      }
+    }
+
+    // Wait for all images to load, then print
+    Promise.all(imagePromises).then(() => {
+      setTimeout(() => {
+        printWindow.focus();
         printWindow.print();
         printWindow.close();
-      }
-    }, 1000);
+      }, 500);
+    }).catch(() => {
+      // Fallback: print anyway
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+      }, 500);
+    });
   }
 
   function getComputedPrintStyles(): string {
