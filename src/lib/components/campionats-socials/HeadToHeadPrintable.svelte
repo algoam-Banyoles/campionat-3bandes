@@ -113,18 +113,14 @@
                       {#if matchData}
                         <div class="match-data">
                           <div class="data-row">
-                            <span class="label">C:</span>
                             <span class="value">{matchData.caramboles}</span>
                             <span class="spacer"></span>
-                            <span class="label">E:</span>
                             <span class="value">{matchData.entrades}</span>
                           </div>
                           <div class="data-row centered">
-                            <span class="label">P:</span>
                             <span class="value points">{matchData.punts}</span>
                           </div>
                           <div class="data-row">
-                            <span class="label">M:</span>
                             <span class="value">{matchData.mitjana.toFixed(3)}</span>
                           </div>
                         </div>
@@ -138,12 +134,6 @@
             {/each}
           </tbody>
         </table>
-
-        <!-- Legend -->
-        <div class="print-legend">
-          <strong>Llegenda:</strong>
-          C=Caramboles | E=Entrades | P=Punts (2=victòria, 1=empat, 0=derrota) | M=Mitjana
-        </div>
       {/if}
     </div>
   {/each}
@@ -283,11 +273,6 @@
     gap: 2px;
   }
 
-  .label {
-    font-weight: bold;
-    color: #444;
-  }
-
   .value {
     font-weight: 600;
     color: #000;
@@ -305,15 +290,6 @@
   .no-match {
     color: #ccc;
     font-size: 8pt;
-  }
-
-  /* Legend */
-  .print-legend {
-    font-size: 8pt;
-    text-align: center;
-    padding: 0.2cm;
-    border: 1px solid #333;
-    background: #f9f9f9;
   }
 
   /* Status messages */

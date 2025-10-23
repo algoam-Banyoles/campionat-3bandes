@@ -209,13 +209,10 @@
       .data-row { display: flex; justify-content: space-between; align-items: center; padding: 1px 3px; }
       .data-row.centered { justify-content: center; background: #f0f0f0; gap: 3px; }
 
-      .label { font-weight: bold; color: #000; }
       .value { font-weight: 600; color: #000; }
       .value.points { font-weight: bold; font-size: 12pt; color: #000; }
       .spacer { flex: 1; }
       .no-match { color: #ccc; font-size: 11pt; }
-
-      .print-legend { font-size: 10pt; text-align: center; padding: 0.3cm; border: 1.5px solid #000; background: #f9f9f9; margin-top: 0.2cm; color: #000; }
 
       .loading-text, .error-text, .empty-text { text-align: center; padding: 1cm; font-size: 12pt; }
       .error-text { color: #c00; }
