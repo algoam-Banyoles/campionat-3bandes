@@ -2,7 +2,7 @@
   import { slide } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
-  import { user } from '$lib/stores/authStore';
+  import { user } from '$lib/stores/auth';
 
   // Estats
   let multimediaData: any[] = [];
