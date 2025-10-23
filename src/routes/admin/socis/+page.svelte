@@ -591,93 +591,112 @@
     </div>
   </div>
 
-  <!-- New Soci Form -->
+  <!-- New Soci Modal -->
   {#if showNewSociForm}
-    <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
-      <h2 class="text-xl font-semibold text-blue-900 mb-4">Nou Soci</h2>
-      <form on:submit|preventDefault={createSoci} class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label for="numero_soci" class="block text-sm font-medium text-gray-700 mb-2">Número Soci *</label>
-          <input
-            id="numero_soci"
-            type="number"
-            bind:value={newSoci.numero_soci}
-            required
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" on:click={() => { showNewSociForm = false; resetNewSociForm(); }}>
+      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" on:click|stopPropagation>
+        <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xl font-semibold text-gray-900">Nou Soci</h2>
+            <button
+              type="button"
+              on:click={() => { showNewSociForm = false; resetNewSociForm(); }}
+              class="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
         </div>
-        <div>
-          <label for="nom" class="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
-          <input
-            id="nom"
-            type="text"
-            bind:value={newSoci.nom}
-            required
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <label for="cognoms" class="block text-sm font-medium text-gray-700 mb-2">Cognoms *</label>
-          <input
-            id="cognoms"
-            type="text"
-            bind:value={newSoci.cognoms}
-            required
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-          <input
-            id="email"
-            type="email"
-            bind:value={newSoci.email}
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <label for="telefon" class="block text-sm font-medium text-gray-700 mb-2">Telèfon</label>
-          <input
-            id="telefon"
-            type="tel"
-            bind:value={newSoci.telefon}
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <label for="data_naixement" class="block text-sm font-medium text-gray-700 mb-2">Data de Naixement</label>
-          <input
-            id="data_naixement"
-            type="date"
-            bind:value={newSoci.data_naixement}
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div class="md:col-span-2">
-          <label for="adresa" class="block text-sm font-medium text-gray-700 mb-2">Adreça</label>
-          <textarea
-            id="adresa"
-            bind:value={newSoci.adresa}
-            rows="2"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          ></textarea>
-        </div>
-        <div class="md:col-span-2 flex justify-end space-x-3">
-          <button
-            type="button"
-            on:click={() => { showNewSociForm = false; resetNewSociForm(); }}
-            class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-          >
-            Cancel·lar
-          </button>
-          <button
-            type="submit"
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Crear Soci
-          </button>
-        </div>
-      </form>
+
+        <form on:submit|preventDefault={createSoci} class="p-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label for="numero_soci" class="block text-sm font-medium text-gray-700 mb-2">Número Soci *</label>
+              <input
+                id="numero_soci"
+                type="number"
+                bind:value={newSoci.numero_soci}
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label for="nom" class="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
+              <input
+                id="nom"
+                type="text"
+                bind:value={newSoci.nom}
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label for="cognoms" class="block text-sm font-medium text-gray-700 mb-2">Cognoms *</label>
+              <input
+                id="cognoms"
+                type="text"
+                bind:value={newSoci.cognoms}
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <input
+                id="email"
+                type="email"
+                bind:value={newSoci.email}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label for="telefon" class="block text-sm font-medium text-gray-700 mb-2">Telèfon</label>
+              <input
+                id="telefon"
+                type="tel"
+                bind:value={newSoci.telefon}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label for="data_naixement" class="block text-sm font-medium text-gray-700 mb-2">Data de Naixement</label>
+              <input
+                id="data_naixement"
+                type="date"
+                bind:value={newSoci.data_naixement}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div class="md:col-span-2">
+              <label for="adresa" class="block text-sm font-medium text-gray-700 mb-2">Adreça</label>
+              <textarea
+                id="adresa"
+                bind:value={newSoci.adresa}
+                rows="2"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="mt-6 flex justify-end space-x-3">
+            <button
+              type="button"
+              on:click={() => { showNewSociForm = false; resetNewSociForm(); }}
+              class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            >
+              Cancel·lar
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Crear Soci
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   {/if}
 
@@ -764,103 +783,122 @@
     </div>
   {/if}
 
-  <!-- Edit Soci Form -->
+  <!-- Edit Soci Modal -->
   {#if editingSoci}
-    <div class="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-      <h2 class="text-xl font-semibold text-yellow-900 mb-4">Editar Soci: {editingSoci.nom} {editingSoci.cognoms}</h2>
-      <form on:submit|preventDefault={updateSoci} class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label for="edit-numero-soci" class="block text-sm font-medium text-gray-700 mb-2">Número Soci</label>
-          <input
-            id="edit-numero-soci"
-            type="number"
-            value={editingSoci.numero_soci}
-            disabled
-            class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-          />
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" on:click={cancelEditing}>
+      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" on:click|stopPropagation>
+        <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xl font-semibold text-gray-900">Editar Soci: {editingSoci.nom} {editingSoci.cognoms}</h2>
+            <button
+              type="button"
+              on:click={cancelEditing}
+              class="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
         </div>
-        <div>
-          <label for="edit-nom" class="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
-          <input
-            id="edit-nom"
-            type="text"
-            bind:value={editingSoci.nom}
-            required
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <label for="edit-cognoms" class="block text-sm font-medium text-gray-700 mb-2">Cognoms *</label>
-          <input
-            id="edit-cognoms"
-            type="text"
-            bind:value={editingSoci.cognoms}
-            required
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <label for="edit-email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-          <input
-            id="edit-email"
-            type="email"
-            bind:value={editingSoci.email}
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <label for="edit-telefon" class="block text-sm font-medium text-gray-700 mb-2">Telèfon</label>
-          <input
-            id="edit-telefon"
-            type="tel"
-            bind:value={editingSoci.telefon}
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div>
-          <label for="edit-data-naixement" class="block text-sm font-medium text-gray-700 mb-2">Data de Naixement</label>
-          <input
-            id="edit-data-naixement"
-            type="date"
-            bind:value={editingSoci.data_naixement}
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <div class="md:col-span-2">
-          <label for="edit-adresa" class="block text-sm font-medium text-gray-700 mb-2">Adreça</label>
-          <textarea
-            id="edit-adresa"
-            bind:value={editingSoci.adresa}
-            rows="2"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          ></textarea>
-        </div>
-        <div class="md:col-span-2">
-          <label class="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              bind:checked={editingSoci.de_baixa}
-              class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span class="text-sm font-medium text-gray-700">Marcar com a baixa</span>
-          </label>
-        </div>
-        <div class="md:col-span-2 flex justify-end space-x-3">
-          <button
-            type="button"
-            on:click={cancelEditing}
-            class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-          >
-            Cancel·lar
-          </button>
-          <button
-            type="submit"
-            class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
-          >
-            Actualitzar Soci
-          </button>
-        </div>
-      </form>
+
+        <form on:submit|preventDefault={updateSoci} class="p-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label for="edit-numero-soci" class="block text-sm font-medium text-gray-700 mb-2">Número Soci</label>
+              <input
+                id="edit-numero-soci"
+                type="number"
+                value={editingSoci.numero_soci}
+                disabled
+                class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+              />
+            </div>
+            <div>
+              <label for="edit-nom" class="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
+              <input
+                id="edit-nom"
+                type="text"
+                bind:value={editingSoci.nom}
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label for="edit-cognoms" class="block text-sm font-medium text-gray-700 mb-2">Cognoms *</label>
+              <input
+                id="edit-cognoms"
+                type="text"
+                bind:value={editingSoci.cognoms}
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label for="edit-email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <input
+                id="edit-email"
+                type="email"
+                bind:value={editingSoci.email}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label for="edit-telefon" class="block text-sm font-medium text-gray-700 mb-2">Telèfon</label>
+              <input
+                id="edit-telefon"
+                type="tel"
+                bind:value={editingSoci.telefon}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label for="edit-data-naixement" class="block text-sm font-medium text-gray-700 mb-2">Data de Naixement</label>
+              <input
+                id="edit-data-naixement"
+                type="date"
+                bind:value={editingSoci.data_naixement}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div class="md:col-span-2">
+              <label for="edit-adresa" class="block text-sm font-medium text-gray-700 mb-2">Adreça</label>
+              <textarea
+                id="edit-adresa"
+                bind:value={editingSoci.adresa}
+                rows="2"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              ></textarea>
+            </div>
+            <div class="md:col-span-2">
+              <label class="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  bind:checked={editingSoci.de_baixa}
+                  class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span class="text-sm font-medium text-gray-700">Marcar com a baixa</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="mt-6 flex justify-end space-x-3">
+            <button
+              type="button"
+              on:click={cancelEditing}
+              class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            >
+              Cancel·lar
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Actualitzar Soci
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   {/if}
     <div class="flex items-center space-x-4">
