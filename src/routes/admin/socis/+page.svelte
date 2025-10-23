@@ -784,14 +784,63 @@
         {#if uploadSummary.toUpdate.length > 0}
           <div class="bg-orange-50 rounded-lg p-4 border border-orange-200">
             <h4 class="font-semibold text-orange-900 mb-2">Socis a actualitzar ({uploadSummary.toUpdate.length}):</h4>
-            <div class="max-h-40 overflow-y-auto">
-              <ul class="text-sm space-y-1">
+            <div class="max-h-80 overflow-y-auto">
+              <div class="space-y-3">
                 {#each uploadSummary.toUpdate as soci}
-                  <li class="text-orange-800">
-                    #{soci.numero_soci} - {soci.nom} {soci.cognoms}
-                  </li>
+                  <div class="bg-white rounded p-3 border border-orange-200">
+                    <div class="font-semibold text-orange-900 mb-2">
+                      #{soci.numero_soci} - {soci.nom} {soci.cognoms}
+                    </div>
+                    <div class="text-xs space-y-1 text-gray-700">
+                      {#if (soci.nom || '').trim() !== (soci.oldData.nom || '').trim()}
+                        <div class="flex items-start gap-2">
+                          <span class="font-medium text-orange-700 min-w-[80px]">Nom:</span>
+                          <div class="flex-1">
+                            <div class="line-through text-gray-500">{soci.oldData.nom || '(buit)'}</div>
+                            <div class="text-green-700">→ {soci.nom || '(buit)'}</div>
+                          </div>
+                        </div>
+                      {/if}
+                      {#if (soci.cognoms || '').trim() !== (soci.oldData.cognoms || '').trim()}
+                        <div class="flex items-start gap-2">
+                          <span class="font-medium text-orange-700 min-w-[80px]">Cognoms:</span>
+                          <div class="flex-1">
+                            <div class="line-through text-gray-500">{soci.oldData.cognoms || '(buit)'}</div>
+                            <div class="text-green-700">→ {soci.cognoms || '(buit)'}</div>
+                          </div>
+                        </div>
+                      {/if}
+                      {#if (soci.email || '') !== (soci.oldData.email || '')}
+                        <div class="flex items-start gap-2">
+                          <span class="font-medium text-orange-700 min-w-[80px]">Email:</span>
+                          <div class="flex-1">
+                            <div class="line-through text-gray-500">{soci.oldData.email || '(buit)'}</div>
+                            <div class="text-green-700">→ {soci.email || '(buit)'}</div>
+                          </div>
+                        </div>
+                      {/if}
+                      {#if (soci.telefon || '') !== (soci.oldData.telefon || '')}
+                        <div class="flex items-start gap-2">
+                          <span class="font-medium text-orange-700 min-w-[80px]">Telèfon:</span>
+                          <div class="flex-1">
+                            <div class="line-through text-gray-500">{soci.oldData.telefon || '(buit)'}</div>
+                            <div class="text-green-700">→ {soci.telefon || '(buit)'}</div>
+                          </div>
+                        </div>
+                      {/if}
+                      {#if (soci.data_naixement || '') !== (soci.oldData.data_naixement || '')}
+                        <div class="flex items-start gap-2">
+                          <span class="font-medium text-orange-700 min-w-[80px]">Data Naixement:</span>
+                          <div class="flex-1">
+                            <div class="line-through text-gray-500">{soci.oldData.data_naixement || '(buit)'}</div>
+                            <div class="text-green-700">→ {soci.data_naixement || '(buit)'}</div>
+                          </div>
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
                 {/each}
-              </ul>
+              </div>
             </div>
           </div>
         {/if}
