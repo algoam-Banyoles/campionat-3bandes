@@ -441,18 +441,30 @@
         // Actualitzar un per un per assegurar que funciona
         let updatedCount = 0;
         for (const numero of numerosToDeactivate) {
-          const { data, error } = await supabase
+          // Primer, verificar que podem llegir aquest soci específic
+          const { data: checkData, error: checkError } = await supabase
+            .from('socis')
+            .select('*')
+            .eq('numero_soci', numero)
+            .single();
+
+          console.log(`Verificant soci ${numero} abans d'actualitzar:`, { checkData, checkError });
+
+          // Intentar actualitzar
+          const { data, error, count } = await supabase
             .from('socis')
             .update({ de_baixa: true })
             .eq('numero_soci', numero)
             .select();
 
-          console.log(`Actualitzant soci ${numero}:`, { data, error });
+          console.log(`Actualitzant soci ${numero}:`, { data, error, count, rowsAffected: data?.length });
 
           if (error) {
             console.error(`Error actualitzant soci ${numero}:`, error);
           } else if (data && data.length > 0) {
             updatedCount++;
+          } else {
+            console.warn(`Soci ${numero}: UPDATE no ha retornat cap fila (possiblement RLS o el registre no existeix)`);
           }
         }
 
