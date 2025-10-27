@@ -307,8 +307,8 @@
       const { data, error: updateErr } = await supabase
         .from('calendari_partides')
         .update({
-          caramboles_reptador: editForm.caramboles_reptador,
-          caramboles_reptat: editForm.caramboles_reptat,
+          caramboles_jugador1: editForm.caramboles_reptador,
+          caramboles_jugador2: editForm.caramboles_reptat,
           entrades: editForm.entrades
         })
         .eq('id', editingMatch.id)
