@@ -316,14 +316,19 @@
 
       if (updateErr) {
         console.error('Error updating match:', updateErr);
-        throw updateErr;
+        console.error('Error details:', JSON.stringify(updateErr, null, 2));
+        updateError = `Error: ${updateErr.message || updateErr.code || JSON.stringify(updateErr)}`;
+        return;
       }
 
       if (!data || data.length === 0) {
-        throw new Error('No s\'ha pogut actualitzar la partida. Comprova els permisos.');
+        console.warn('Update returned no data');
+        updateError = 'No s\'ha pogut actualitzar la partida. Comprova els permisos RLS.';
+        return;
       }
 
       updateSuccess = 'Resultat actualitzat correctament';
+      console.log('✅ Match updated successfully:', data);
 
       // Reload matches to show updated data
       await loadMatches();
@@ -335,6 +340,7 @@
 
     } catch (e: any) {
       console.error('Exception updating match:', e);
+      console.error('Exception details:', JSON.stringify(e, null, 2));
       updateError = e.message || 'Error actualitzant el resultat';
     }
   }
