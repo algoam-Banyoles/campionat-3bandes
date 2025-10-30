@@ -1,5 +1,8 @@
--- RPC function to get match results for public access (no authentication required)
--- Updated to read results directly from calendari_partides (for social leagues)
+-- Actualitzar get_match_results_public per incloure camps d'incompareixença
+-- Això permet mostrar el badge "No presentat" a la interfície
+
+DROP FUNCTION IF EXISTS get_match_results_public(UUID);
+
 CREATE OR REPLACE FUNCTION get_match_results_public(p_event_id UUID)
 RETURNS TABLE (
   id UUID,
@@ -29,6 +32,7 @@ RETURNS TABLE (
 )
 SECURITY DEFINER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
   RETURN QUERY
@@ -62,12 +66,12 @@ BEGIN
     cp.match_id,
     COALESCE(cp.incompareixenca_jugador1, false) as incompareixenca_jugador1,
     COALESCE(cp.incompareixenca_jugador2, false) as incompareixenca_jugador2
-  FROM calendari_partides cp
-  LEFT JOIN players p1 ON cp.jugador1_id = p1.id
-  LEFT JOIN socis s1 ON p1.numero_soci = s1.numero_soci
-  LEFT JOIN players p2 ON cp.jugador2_id = p2.id
-  LEFT JOIN socis s2 ON p2.numero_soci = s2.numero_soci
-  LEFT JOIN categories cat ON cp.categoria_id = cat.id
+  FROM public.calendari_partides cp
+  LEFT JOIN public.players p1 ON cp.jugador1_id = p1.id
+  LEFT JOIN public.socis s1 ON p1.numero_soci = s1.numero_soci
+  LEFT JOIN public.players p2 ON cp.jugador2_id = p2.id
+  LEFT JOIN public.socis s2 ON p2.numero_soci = s2.numero_soci
+  LEFT JOIN public.categories cat ON cp.categoria_id = cat.id
   WHERE cp.event_id = p_event_id
     AND cp.estat = 'validat'
     AND cp.caramboles_jugador1 IS NOT NULL
@@ -79,3 +83,6 @@ $$;
 -- Grant execute permission to anonymous users
 GRANT EXECUTE ON FUNCTION get_match_results_public(UUID) TO anon;
 GRANT EXECUTE ON FUNCTION get_match_results_public(UUID) TO authenticated;
+
+-- Add comment for documentation
+COMMENT ON FUNCTION get_match_results_public(UUID) IS 'Returns public match results for social leagues from calendari_partides. Includes incompareixenca fields for badge display.';

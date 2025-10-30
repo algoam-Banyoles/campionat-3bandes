@@ -26,7 +26,9 @@ RETURNS TABLE (
   caramboles_reptat SMALLINT,
   entrades SMALLINT,
   resultat TEXT,
-  match_id UUID
+  match_id UUID,
+  incompareixenca_jugador1 BOOLEAN,
+  incompareixenca_jugador2 BOOLEAN
 )
 SECURITY DEFINER
 LANGUAGE plpgsql
@@ -61,7 +63,9 @@ BEGIN
       WHEN cp.caramboles_jugador2 > cp.caramboles_jugador1 THEN 'guanya_reptat'
       ELSE 'empat'
     END as resultat,
-    cp.match_id
+    cp.match_id,
+    COALESCE(cp.incompareixenca_jugador1, false) as incompareixenca_jugador1,
+    COALESCE(cp.incompareixenca_jugador2, false) as incompareixenca_jugador2
   FROM public.calendari_partides cp
   LEFT JOIN public.players p1 ON cp.jugador1_id = p1.id
   LEFT JOIN public.socis s1 ON p1.numero_soci = s1.numero_soci

@@ -424,11 +424,21 @@
                     <div class="flex items-center {winner === 1 ? 'font-semibold text-green-600' : 'text-gray-900'}">
                       <span class="mr-2">{winner === 1 ? '🏆' : ''}</span>
                       {formatPlayerName(match.jugador1_nom, match.jugador1_cognoms, match.jugador1_numero_soci)}
+                      {#if match.incompareixenca_jugador1}
+                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                          No presentat
+                        </span>
+                      {/if}
                     </div>
                     <div class="text-gray-400 text-xs">vs</div>
                     <div class="flex items-center {winner === 2 ? 'font-semibold text-green-600' : 'text-gray-900'}">
                       <span class="mr-2">{winner === 2 ? '🏆' : ''}</span>
                       {formatPlayerName(match.jugador2_nom, match.jugador2_cognoms, match.jugador2_numero_soci)}
+                      {#if match.incompareixenca_jugador2}
+                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                          No presentat
+                        </span>
+                      {/if}
                     </div>
                   </div>
                 </td>

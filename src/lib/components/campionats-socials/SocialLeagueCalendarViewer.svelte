@@ -691,6 +691,10 @@
     observacions: ''
   };
 
+  // Variables per al modal d'incompareixences
+  let showIncompareixencaModal = false;
+  let incompareixencaMatch: any = null;
+
   // Variables per al modal de partides pendents
   let showPendingMatchesModal = false;
   let selectedSlot: any = null;
@@ -1623,17 +1627,89 @@
         throw updateError;
       }
 
-      alert('✅ Resultat guardat correctament');
+      // Tancar modal abans de recarregar
       closeResultModal();
 
-      // Recarregar dades
+      // Recarregar dades amb gestió d'estat adequada
+      loading = true;
       await loadCalendarData();
 
       // Emetre event perquè el pare actualitzi si cal
       dispatch('matchUpdated');
+
+      alert('✅ Resultat guardat correctament');
     } catch (err) {
       console.error('Error guardant resultat:', err);
       alert('Error guardant el resultat: ' + formatSupabaseError(err));
+    } finally {
+      loading = false;
+    }
+  }
+
+  // Funcions per gestionar incompareixences
+  function openIncompareixencaModal(match: any) {
+    if (!isAdmin) return;
+    incompareixencaMatch = match;
+    showIncompareixencaModal = true;
+  }
+
+  function closeIncompareixencaModal() {
+    showIncompareixencaModal = false;
+    incompareixencaMatch = null;
+  }
+
+  async function marcarIncompareixenca(jugadorQueFalta: 1 | 2) {
+    if (!incompareixencaMatch || !isAdmin) return;
+
+    const jugadorNom = jugadorQueFalta === 1
+      ? formatPlayerName(incompareixencaMatch.jugador1)
+      : formatPlayerName(incompareixencaMatch.jugador2);
+
+    const confirmation = confirm(
+      `Estàs segur que vols marcar incompareixença de ${jugadorNom}?\n\n` +
+      `Això assignarà:\n` +
+      `- Jugador present: 2 punts, 0 entrades\n` +
+      `- Jugador absent: 0 punts, 50 entrades\n\n` +
+      `Si el jugador té 2 incompareixences, serà eliminat del campionat.`
+    );
+
+    if (!confirmation) return;
+
+    try {
+      loading = true;
+
+      const { data, error: rpcError } = await supabase
+        .rpc('registrar_incompareixenca', {
+          p_partida_id: incompareixencaMatch.id,
+          p_jugador_que_falta: jugadorQueFalta
+        });
+
+      if (rpcError) throw rpcError;
+
+      closeIncompareixencaModal();
+
+      // Recarregar dades
+      await loadCalendarData();
+      dispatch('matchUpdated');
+
+      // Mostrar missatge segons el resultat
+      if (data.jugador_eliminat) {
+        alert(
+          `⚠️ INCOMPAREIXENÇA REGISTRADA\n\n` +
+          `El jugador ${jugadorNom} té ${data.incompareixences} incompareixences.\n` +
+          `HA ESTAT ELIMINAT DEL CAMPIONAT.\n\n` +
+          `Totes les seves partides pendents han estat anul·lades.`
+        );
+      } else {
+        alert(
+          `✅ INCOMPAREIXENÇA REGISTRADA\n\n` +
+          `El jugador ${jugadorNom} té ${data.incompareixences} incompareixença(es).\n` +
+          `Partida registrada amb els punts corresponents.`
+        );
+      }
+    } catch (err) {
+      console.error('Error registrant incompareixença:', err);
+      alert('Error registrant la incompareixença: ' + formatSupabaseError(err));
     } finally {
       loading = false;
     }
@@ -1652,6 +1728,8 @@
     if (!confirmation) return;
 
     try {
+      loading = true;
+
       const { error: updateError } = await supabase
         .from('calendari_partides')
         .update({
@@ -1659,7 +1737,7 @@
           hora_inici: null,
           taula_assignada: null,
           estat: 'pendent_programar',
-          observacions_junta: match.observacions_junta ? 
+          observacions_junta: match.observacions_junta ?
             `${match.observacions_junta}\n[${new Date().toLocaleDateString('ca-ES')}] Convertida a no programada per indisponibilitat de jugador.` :
             `[${new Date().toLocaleDateString('ca-ES')}] Convertida a no programada per indisponibilitat de jugador.`
         })
@@ -1667,6 +1745,7 @@
 
       if (updateError) throw updateError;
 
+      // Recarregar dades
       await loadCalendarData();
       dispatch('matchUpdated');
 
@@ -1676,6 +1755,8 @@
       console.error('Error converting match to unprogrammed:', e);
       error = formatSupabaseError(e);
       alert('Error al convertir la partida: ' + error);
+    } finally {
+      loading = false;
     }
   }
 
@@ -1718,6 +1799,8 @@
     if (!editingMatch || !isAdmin) return;
 
     try {
+      loading = true;
+
       const updates: any = {
         estat: editForm.estat,
         taula_assignada: editForm.taula_assignada,
@@ -1736,12 +1819,18 @@
 
       if (updateError) throw updateError;
 
-      await loadCalendarData();
+      // Tancar edició abans de recarregar
       cancelEditing();
+
+      // Recarregar dades
+      await loadCalendarData();
       dispatch('matchUpdated');
 
     } catch (e) {
       error = formatSupabaseError(e);
+      alert('Error guardant els canvis: ' + error);
+    } finally {
+      loading = false;
     }
   }
 
@@ -2457,27 +2546,12 @@
         <h3 class="text-lg font-medium text-gray-900">Calendari de Partits</h3>
         {#if matches.length > 0}
           <div class="mt-1 text-sm text-gray-600">
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 mr-2">
-              ✅ {programmedMatches.length} programats
-            </span>
-            
-            <!-- Mostrar resum per estats -->
-            {#if programmedMatches.some(match => match.estat === 'validat')}
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mr-2">
-                📋 {programmedMatches.filter(match => match.estat === 'validat').length} validats
-              </span>
-            {/if}
             {#if programmedMatches.some(match => match.estat === 'publicat')}
               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 mr-2">
                 📢 {programmedMatches.filter(match => match.estat === 'publicat').length} publicats
               </span>
             {/if}
-            
-            {#if unprogrammedMatches.length > 0}
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 mr-2">
-                ⏳ {unprogrammedMatches.length} pendents
-              </span>
-            {/if}
+
             {#if playerSearch.length >= 2}
               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
                 🔍 Filtrant per: {playerSearch} | Partits trobats: {filteredMatches.length}/{matches.length} | Slots amb partits: {playerMatchSlots}
@@ -2768,7 +2842,7 @@
                         />
                       </td>
                     {/if}
-                    <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                    <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-900">
                       <div class="flex flex-col">
                         <span>{match.data_programada ? formatDate(new Date(match.data_programada)) : 'No programada'}</span>
                         <span class="text-xs text-gray-500 sm:hidden">
@@ -2777,13 +2851,13 @@
                         </span>
                       </div>
                     </td>
-                    <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                    <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-900">
                       {match.hora_inici || '-'}
                     </td>
-                    <td class="hidden sm:table-cell px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                    <td class="hidden sm:table-cell px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-900">
                       {match.taula_assignada ? `B${match.taula_assignada}` : 'No assignada'}
                     </td>
-                    <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                    <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-900">
                       <div class="flex flex-col">
                         <span class="font-medium">
                           {formatPlayerName(match.jugador1)}
@@ -2797,13 +2871,20 @@
                     {#if isAdmin}
                       <td class="px-6 py-4 whitespace-nowrap text-sm font-medium print-hide">
                         <div class="flex flex-col space-y-1">
-                          {#if match.estat !== 'jugada'}
+                          {#if match.estat !== 'jugada' && match.estat !== 'validat'}
                             <button
                               on:click={() => openResultModal(match)}
                               class="text-green-600 hover:text-green-900 font-medium"
                               title="Introduir resultat de la partida"
                             >
                               📝 Resultat
+                            </button>
+                            <button
+                              on:click={() => openIncompareixencaModal(match)}
+                              class="text-red-600 hover:text-red-900 font-medium text-xs"
+                              title="Marcar incompareixença"
+                            >
+                              ⚠️ Incompareixença
                             </button>
                           {/if}
                           <button
@@ -2965,13 +3046,20 @@
                         <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base font-medium print-hide">
                           {#if slot.match}
                             <div class="flex flex-col space-y-1">
-                              {#if slot.match.estat !== 'jugada'}
+                              {#if slot.match.estat !== 'jugada' && slot.match.estat !== 'validat'}
                                 <button
                                   on:click={() => openResultModal(slot.match)}
                                   class="text-green-600 hover:text-green-900 text-sm md:text-base font-semibold"
                                   title="Introduir resultat de la partida"
                                 >
                                   📝 Resultat
+                                </button>
+                                <button
+                                  on:click={() => openIncompareixencaModal(slot.match)}
+                                  class="text-red-600 hover:text-red-900 text-xs md:text-sm font-semibold"
+                                  title="Marcar incompareixença"
+                                >
+                                  ⚠️ Incompareixença
                                 </button>
                               {/if}
                               <button
@@ -3321,6 +3409,85 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Modal d'Incompareixença -->
+{#if showIncompareixencaModal && incompareixencaMatch}
+  <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+    <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-auto">
+      <div class="bg-red-50 border-b border-red-200 px-6 py-4">
+        <h3 class="text-xl font-bold text-red-900 flex items-center">
+          <span class="mr-2">⚠️</span> Registrar Incompareixença
+        </h3>
+      </div>
+
+      <div class="p-6">
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <p class="text-sm text-yellow-800 font-medium mb-2">
+            ℹ️ Informació sobre incompareixences:
+          </p>
+          <ul class="text-sm text-yellow-800 list-disc list-inside space-y-1">
+            <li>El jugador que <strong>no s'ha presentat</strong> rebrà: 0 punts, 50 entrades</li>
+            <li>El jugador que <strong>s'ha presentat</strong> rebrà: 2 punts, 0 entrades</li>
+            <li>Si un jugador té <strong>2 incompareixences</strong>, serà eliminat automàticament del campionat</li>
+            <li>Totes les partides pendents del jugador eliminat quedaran <strong>anul·lades</strong></li>
+          </ul>
+        </div>
+
+        <div class="mb-6">
+          <h4 class="font-medium text-gray-900 mb-4 text-center">Quin jugador NO s'ha presentat?</h4>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Jugador 1 -->
+            <button
+              on:click={() => marcarIncompareixenca(1)}
+              class="p-6 border-2 border-red-300 rounded-lg hover:bg-red-50 hover:border-red-500 transition-colors"
+              disabled={loading}
+            >
+              <div class="text-center">
+                <div class="text-3xl mb-2">👤</div>
+                <div class="font-bold text-lg text-gray-900 mb-1">Jugador 1</div>
+                <div class="text-base text-gray-700">
+                  {formatPlayerName(incompareixencaMatch.jugador1)}
+                </div>
+                <div class="mt-3 text-sm text-red-600 font-medium">
+                  ⚠️ Marcar incompareixença
+                </div>
+              </div>
+            </button>
+
+            <!-- Jugador 2 -->
+            <button
+              on:click={() => marcarIncompareixenca(2)}
+              class="p-6 border-2 border-red-300 rounded-lg hover:bg-red-50 hover:border-red-500 transition-colors"
+              disabled={loading}
+            >
+              <div class="text-center">
+                <div class="text-3xl mb-2">👤</div>
+                <div class="font-bold text-lg text-gray-900 mb-1">Jugador 2</div>
+                <div class="text-base text-gray-700">
+                  {formatPlayerName(incompareixencaMatch.jugador2)}
+                </div>
+                <div class="mt-3 text-sm text-red-600 font-medium">
+                  ⚠️ Marcar incompareixença
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-gray-50 border-t border-gray-200 -mx-6 -mb-6 px-6 py-4 flex justify-end">
+          <button
+            on:click={closeIncompareixencaModal}
+            class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 font-medium"
+            disabled={loading}
+          >
+            ❌ Cancel·lar
+          </button>
+        </div>
       </div>
     </div>
   </div>

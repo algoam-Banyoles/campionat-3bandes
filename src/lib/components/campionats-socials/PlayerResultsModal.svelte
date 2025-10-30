@@ -29,6 +29,12 @@
     jugador1_numero_soci: number;
     jugador2_numero_soci: number;
     estat: string;
+    incompareixenca_jugador1?: boolean;
+    incompareixenca_jugador2?: boolean;
+    punts_jugador1?: number;
+    punts_jugador2?: number;
+    entrades_jugador1?: number;
+    entrades_jugador2?: number;
   }
 
   $: if (isOpen && playerNumeroSoci && eventId) {
@@ -86,7 +92,13 @@
           entrades,
           jugador1_id,
           jugador2_id,
-          estat
+          estat,
+          incompareixenca_jugador1,
+          incompareixenca_jugador2,
+          punts_jugador1,
+          punts_jugador2,
+          entrades_jugador1,
+          entrades_jugador2
         `)
         .eq('event_id', eventId)
         .eq('estat', 'validat')
@@ -263,6 +275,12 @@
       : match.jugador1_nom;
   }
 
+  function getOpponentIncompareixenca(match: any, playerSoci: number): boolean {
+    return match.jugador1_numero_soci === playerSoci
+      ? (match.incompareixenca_jugador2 || false)
+      : (match.incompareixenca_jugador1 || false);
+  }
+
   function getPlayerCaramboles(match: any, playerSoci: number): number {
     return match.jugador1_numero_soci === playerSoci
       ? match.caramboles_jugador1
@@ -273,6 +291,21 @@
     return match.jugador1_numero_soci === playerSoci
       ? match.caramboles_jugador2
       : match.caramboles_jugador1;
+  }
+
+  function getPlayerEntrades(match: any, playerSoci: number): number {
+    const playerIsJugador1 = match.jugador1_numero_soci === playerSoci;
+
+    // Utilitzar entrades_jugador1/jugador2 si està disponible
+    if (playerIsJugador1 && match.entrades_jugador1 !== null && match.entrades_jugador1 !== undefined) {
+      return match.entrades_jugador1;
+    }
+    if (!playerIsJugador1 && match.entrades_jugador2 !== null && match.entrades_jugador2 !== undefined) {
+      return match.entrades_jugador2;
+    }
+
+    // Fallback al camp entrades genèric
+    return match.entrades || 0;
   }
 
   function formatDate(dateString: string): string {
@@ -290,6 +323,18 @@
     }
 
     const playerIsJugador1 = match.jugador1_numero_soci === playerSoci;
+
+    // Utilitzar punts si estan disponibles (més precís per incompareixences)
+    if (match.punts_jugador1 !== null && match.punts_jugador1 !== undefined &&
+        match.punts_jugador2 !== null && match.punts_jugador2 !== undefined) {
+      const playerPunts = playerIsJugador1 ? match.punts_jugador1 : match.punts_jugador2;
+
+      if (playerPunts === 2) return 'win';
+      if (playerPunts === 1) return 'draw';
+      if (playerPunts === 0) return 'loss';
+    }
+
+    // Fallback a comparar caramboles si no hi ha punts
     const playerCaramboles = playerIsJugador1 ? match.caramboles_jugador1 : match.caramboles_jugador2;
     const opponentCaramboles = playerIsJugador1 ? match.caramboles_jugador2 : match.caramboles_jugador1;
 
@@ -305,6 +350,7 @@
     const result = getMatchResult(match, playerNumeroSoci);
     const playerCaramboles = getPlayerCaramboles(match, playerNumeroSoci);
     const opponentCaramboles = getOpponentCaramboles(match, playerNumeroSoci);
+    const playerEntrades = getPlayerEntrades(match, playerNumeroSoci);
 
     return {
       totalMatches: acc.totalMatches + 1,
@@ -313,7 +359,7 @@
       draws: acc.draws + (result === 'draw' ? 1 : 0),
       totalCaramboles: acc.totalCaramboles + playerCaramboles,
       totalOpponentCaramboles: acc.totalOpponentCaramboles + opponentCaramboles,
-      totalEntrades: acc.totalEntrades + (match.entrades || 0)
+      totalEntrades: acc.totalEntrades + playerEntrades
     };
   }, { totalMatches: 0, wins: 0, losses: 0, draws: 0, totalCaramboles: 0, totalOpponentCaramboles: 0, totalEntrades: 0 });
 
@@ -418,11 +464,18 @@
                 {@const opponentName = playerNumeroSoci ? getOpponentName(match, playerNumeroSoci) : ''}
                 {@const playerCaramboles = playerNumeroSoci ? getPlayerCaramboles(match, playerNumeroSoci) : 0}
                 {@const opponentCaramboles = playerNumeroSoci ? getOpponentCaramboles(match, playerNumeroSoci) : 0}
+                {@const opponentIncompareixenca = playerNumeroSoci ? getOpponentIncompareixenca(match, playerNumeroSoci) : false}
+                {@const playerEntrades = playerNumeroSoci ? getPlayerEntrades(match, playerNumeroSoci) : 0}
 
                 <div class="match-card-compact {result === 'win' ? 'match-win' : result === 'loss' ? 'match-loss' : 'match-draw'}">
                   <div class="match-left">
                     <div class="match-date-compact">{formatDate(match.data_programada)}</div>
-                    <div class="match-opponent-compact">vs {opponentName}</div>
+                    <div class="match-opponent-compact">
+                      vs {opponentName}
+                      {#if opponentIncompareixenca}
+                        <span class="incompareixenca-badge">No presentat</span>
+                      {/if}
+                    </div>
                   </div>
 
                   <div class="match-center">
@@ -431,7 +484,7 @@
                       <span class="score-sep">-</span>
                       <span class="score-compact {result === 'loss' ? 'score-winner' : ''}">{opponentCaramboles}</span>
                     </div>
-                    <div class="match-entrades-compact">{match.entrades} ent.</div>
+                    <div class="match-entrades-compact">{playerEntrades} ent.</div>
                   </div>
 
                   <div class="match-right">
@@ -664,6 +717,18 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .incompareixenca-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    margin-left: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 4px;
+    background-color: #fee2e2;
+    color: #991b1b;
   }
 
   .match-center {

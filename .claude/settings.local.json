@@ -4,7 +4,12 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git restore:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(npx supabase:*)",
+      "Bash(cat:*)",
+      "Bash(psql:*)",
+      "Bash(set:*)",
+      "Bash(powershell -Command \"(Get-Content ''src\\lib\\components\\campionats-socials\\SocialLeagueCalendarViewer.svelte'' | Measure-Object -Line).Lines\")"
     ],
     "deny": [],
     "ask": []

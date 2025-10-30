@@ -1286,7 +1286,7 @@
 
                 <!-- Navegació interna del campionat -->
                 <div class="border-b border-gray-200 mb-6">
-                  <nav class="-mb-px flex space-x-10 sm:space-x-12">
+                  <nav class="-mb-px flex space-x-6 sm:space-x-8">
                     <button
                       on:click={() => managementView = 'view-calendar'}
                       class="py-2 px-1 border-b-2 font-medium text-sm"
@@ -1469,10 +1469,10 @@
                 <!-- Navegació per pestanyes públiques -->
                 <div class="bg-white shadow rounded-lg">
                   <div class="border-b border-gray-200">
-                    <nav class="-mb-px flex space-x-4 md:space-x-8 px-6">
+                    <nav class="-mb-px flex space-x-4 md:space-x-6 px-6">
                       <button
                         on:click={() => managementView = 'view-calendar'}
-                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
+                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-sm"
                         class:border-blue-500={managementView === 'view-calendar'}
                         class:text-blue-600={managementView === 'view-calendar'}
                         class:border-transparent={managementView !== 'view-calendar'}
@@ -1485,7 +1485,7 @@
                       </button>
                       <button
                         on:click={() => managementView = 'results'}
-                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
+                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-sm"
                         class:border-blue-500={managementView === 'results'}
                         class:text-blue-600={managementView === 'results'}
                         class:border-transparent={managementView !== 'results'}
@@ -1503,7 +1503,7 @@
                             selectedHeadToHeadCategory = selectedEvent.categories[0];
                           }
                         }}
-                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
+                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-sm"
                         class:border-blue-500={managementView === 'head-to-head'}
                         class:text-blue-600={managementView === 'head-to-head'}
                         class:border-transparent={managementView !== 'head-to-head'}
@@ -1516,7 +1516,7 @@
                       </button>
                       <button
                         on:click={() => managementView = 'standings'}
-                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
+                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-sm"
                         class:border-blue-500={managementView === 'standings'}
                         class:text-blue-600={managementView === 'standings'}
                         class:border-transparent={managementView !== 'standings'}
@@ -1529,7 +1529,7 @@
                       </button>
                       <button
                         on:click={() => managementView = 'inscriptions'}
-                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-base"
+                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-sm"
                         class:border-blue-500={managementView === 'inscriptions'}
                         class:text-blue-600={managementView === 'inscriptions'}
                         class:border-transparent={managementView !== 'inscriptions'}

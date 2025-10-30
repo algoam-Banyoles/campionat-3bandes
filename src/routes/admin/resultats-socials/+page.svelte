@@ -20,6 +20,10 @@
   let error = '';
   let matchesCollapsed = false;
 
+  // Variables per al modal d'incompareixences
+  let showIncompareixencaModal = false;
+  let incompareixencaMatch: any = null;
+
   onMount(async () => {
     await loadActiveEvent();
   });
@@ -138,12 +142,31 @@
         entrades: entrades
       });
 
+      // Calcular punts segons el resultat
+      let punts_j1 = 0;
+      let punts_j2 = 0;
+
+      if (caramboles_jugador1 > caramboles_jugador2) {
+        punts_j1 = 2;  // Jugador 1 guanya
+        punts_j2 = 0;
+      } else if (caramboles_jugador2 > caramboles_jugador1) {
+        punts_j1 = 0;
+        punts_j2 = 2;  // Jugador 2 guanya
+      } else {
+        punts_j1 = 1;  // Empat
+        punts_j2 = 1;
+      }
+
       const { data: updateData, error: updateError } = await supabase
         .from('calendari_partides')
         .update({
           caramboles_jugador1: caramboles_jugador1,
           caramboles_jugador2: caramboles_jugador2,
-          entrades: entrades,
+          entrades: entrades,  // Mantingut per compatibilitat
+          entrades_jugador1: entrades,  // Ambdós jugadors tenen les mateixes entrades en partides normals
+          entrades_jugador2: entrades,
+          punts_jugador1: punts_j1,  // Punts calculats segons resultat
+          punts_jugador2: punts_j2,
           data_joc: new Date().toISOString(),
           estat: 'validat',
           validat_per: (await supabase.auth.getUser()).data.user?.id,
@@ -205,6 +228,83 @@
 
   function toggleMatchesCollapsed() {
     matchesCollapsed = !matchesCollapsed;
+  }
+
+  function openIncompareixencaModal(match: any) {
+    incompareixencaMatch = match;
+    showIncompareixencaModal = true;
+  }
+
+  function closeIncompareixencaModal() {
+    showIncompareixencaModal = false;
+    incompareixencaMatch = null;
+  }
+
+  async function marcarIncompareixenca(jugadorQueFalta: 1 | 2) {
+    if (!incompareixencaMatch) return;
+
+    const jugadorNom = jugadorQueFalta === 1
+      ? `${incompareixencaMatch.soci1?.nom} ${incompareixencaMatch.soci1?.cognoms}`
+      : `${incompareixencaMatch.soci2?.nom} ${incompareixencaMatch.soci2?.cognoms}`;
+
+    const confirmation = confirm(
+      `Estàs segur que vols marcar incompareixença de ${jugadorNom}?\n\n` +
+      `Això assignarà:\n` +
+      `- Jugador present: 2 punts, 0 entrades\n` +
+      `- Jugador absent: 0 punts, 50 entrades\n\n` +
+      `Si el jugador té 2 incompareixences, serà eliminat del campionat.`
+    );
+
+    if (!confirmation) return;
+
+    try {
+      loading = true;
+      error = '';
+      success = false;
+
+      const { data, error: rpcError } = await supabase
+        .rpc('registrar_incompareixenca', {
+          p_partida_id: incompareixencaMatch.id,
+          p_jugador_que_falta: jugadorQueFalta
+        });
+
+      if (rpcError) throw rpcError;
+
+      closeIncompareixencaModal();
+
+      // Reload matches
+      const categoryToReload = selectedCategory;
+      if (categoryToReload) {
+        await selectCategory(categoryToReload);
+      }
+
+      // Show different messages based on result
+      if (data.jugador_eliminat) {
+        alert(
+          `⚠️ INCOMPAREIXENÇA REGISTRADA\n\n` +
+          `El jugador ${jugadorNom} té ${data.incompareixences} incompareixences.\n` +
+          `HA ESTAT ELIMINAT DEL CAMPIONAT.\n\n` +
+          `Totes les seves partides pendents han estat anul·lades.`
+        );
+      } else {
+        alert(
+          `✅ INCOMPAREIXENÇA REGISTRADA\n\n` +
+          `El jugador ${jugadorNom} té ${data.incompareixences} incompareixença(es).\n` +
+          `Partida registrada amb els punts corresponents.`
+        );
+      }
+
+      success = true;
+      setTimeout(() => {
+        success = false;
+      }, 3000);
+
+    } catch (err) {
+      console.error('Error registrant incompareixença:', err);
+      error = 'Error registrant la incompareixença: ' + (err as any)?.message;
+    } finally {
+      loading = false;
+    }
   }
 </script>
 
@@ -307,14 +407,14 @@
               tabindex="0"
             >
             <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-4">
-                <input 
-                  type="radio" 
-                  name="match" 
+              <div class="flex items-center space-x-4 flex-1">
+                <input
+                  type="radio"
+                  name="match"
                   checked={selectedMatch?.id === match.id}
                   class="h-4 w-4 text-blue-600"
                 />
-                <div>
+                <div class="flex-1">
                   <div class="font-medium text-gray-900">
                     {match.soci1?.nom} {match.soci1?.cognoms} vs {match.soci2?.nom} {match.soci2?.cognoms}
                   </div>
@@ -325,11 +425,20 @@
                   {/if}
                 </div>
               </div>
-              {#if match.taula_assignada}
-                <span class="px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded">
-                  Taula {match.taula_assignada}
-                </span>
-              {/if}
+              <div class="flex items-center gap-2">
+                {#if match.taula_assignada}
+                  <span class="px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded">
+                    Taula {match.taula_assignada}
+                  </span>
+                {/if}
+                <button
+                  on:click|stopPropagation={() => openIncompareixencaModal(match)}
+                  class="px-3 py-1 text-red-600 hover:text-red-900 hover:bg-red-50 text-sm font-medium border border-red-300 rounded transition-colors"
+                  title="Marcar incompareixença"
+                >
+                  ⚠️ Incompareixença
+                </button>
+              </div>
             </div>
           </div>
         {/each}
@@ -522,3 +631,82 @@
     </div>
   {/if}
 </div>
+
+<!-- Modal d'Incompareixença -->
+{#if showIncompareixencaModal && incompareixencaMatch}
+  <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+    <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-auto">
+      <div class="bg-red-50 border-b border-red-200 px-6 py-4">
+        <h3 class="text-xl font-bold text-red-900 flex items-center">
+          <span class="mr-2">⚠️</span> Registrar Incompareixença
+        </h3>
+      </div>
+
+      <div class="p-6">
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <p class="text-sm text-yellow-800 font-medium mb-2">
+            ℹ️ Informació sobre incompareixences:
+          </p>
+          <ul class="text-sm text-yellow-800 list-disc list-inside space-y-1">
+            <li>El jugador que <strong>no s'ha presentat</strong> rebrà: 0 punts, 50 entrades</li>
+            <li>El jugador que <strong>s'ha presentat</strong> rebrà: 2 punts, 0 entrades</li>
+            <li>Si un jugador té <strong>2 incompareixences</strong>, serà eliminat automàticament del campionat</li>
+            <li>Totes les partides pendents del jugador eliminat quedaran <strong>anul·lades</strong></li>
+          </ul>
+        </div>
+
+        <div class="mb-6">
+          <h4 class="font-medium text-gray-900 mb-4 text-center">Quin jugador NO s'ha presentat?</h4>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Jugador 1 -->
+            <button
+              on:click={() => marcarIncompareixenca(1)}
+              class="p-6 border-2 border-red-300 rounded-lg hover:bg-red-50 hover:border-red-500 transition-colors"
+              disabled={loading}
+            >
+              <div class="text-center">
+                <div class="text-3xl mb-2">👤</div>
+                <div class="font-bold text-lg text-gray-900 mb-1">Jugador 1</div>
+                <div class="text-base text-gray-700">
+                  {incompareixencaMatch.soci1?.nom} {incompareixencaMatch.soci1?.cognoms}
+                </div>
+                <div class="mt-3 text-sm text-red-600 font-medium">
+                  ⚠️ Marcar incompareixença
+                </div>
+              </div>
+            </button>
+
+            <!-- Jugador 2 -->
+            <button
+              on:click={() => marcarIncompareixenca(2)}
+              class="p-6 border-2 border-red-300 rounded-lg hover:bg-red-50 hover:border-red-500 transition-colors"
+              disabled={loading}
+            >
+              <div class="text-center">
+                <div class="text-3xl mb-2">👤</div>
+                <div class="font-bold text-lg text-gray-900 mb-1">Jugador 2</div>
+                <div class="text-base text-gray-700">
+                  {incompareixencaMatch.soci2?.nom} {incompareixencaMatch.soci2?.cognoms}
+                </div>
+                <div class="mt-3 text-sm text-red-600 font-medium">
+                  ⚠️ Marcar incompareixença
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-gray-50 border-t border-gray-200 -mx-6 -mb-6 px-6 py-4 flex justify-end">
+          <button
+            on:click={closeIncompareixencaModal}
+            class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 font-medium"
+            disabled={loading}
+          >
+            ❌ Cancel·lar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
