@@ -611,12 +611,19 @@
 
 <!-- Edit Modal (Admin only) -->
 {#if editingMatch && $effectiveIsAdmin}
-  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" on:click={cancelEdit}>
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full" on:click|stopPropagation>
+  <div
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    role="button"
+    tabindex="0"
+    aria-label="Tanca modal Editar Resultat"
+    on:click={cancelEdit}
+    on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') { cancelEdit(); } }}
+  >
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full" role="dialog" aria-modal="true" on:click|stopPropagation>
       <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg">
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-semibold text-gray-900">Editar Resultat</h2>
-          <button type="button" on:click={cancelEdit} class="text-gray-400 hover:text-gray-600">
+          <button type="button" aria-label="Tancar Editar Resultat" on:click={cancelEdit} class="text-gray-400 hover:text-gray-600">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>

@@ -242,9 +242,10 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <!-- Filtre per categoria -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-              <select
-                bind:value={selectedCategoryFilter}
+              <label for="pending-filter-category" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                <select
+                  id="pending-filter-category"
+                  bind:value={selectedCategoryFilter}
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="all">Totes les categories</option>
@@ -256,8 +257,9 @@
 
             <!-- Cerca per nom -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Cerca jugador</label>
+              <label for="pending-search-player" class="block text-sm font-medium text-gray-700 mb-1">Cerca jugador</label>
               <input
+                id="pending-search-player"
                 type="text"
                 bind:value={searchText}
                 placeholder="Nom del jugador..."

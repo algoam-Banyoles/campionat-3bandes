@@ -365,6 +365,8 @@
         <div class="flex items-center justify-between mb-6">
           <h3 class="text-2xl font-bold text-gray-900">Selecciona Categories a Imprimir</h3>
           <button
+            type="button"
+            aria-label="Tancar modal d'impressió"
             on:click={closePrintModal}
             class="text-gray-400 hover:text-gray-600 transition-colors"
           >
