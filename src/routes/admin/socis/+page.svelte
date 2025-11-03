@@ -675,7 +675,7 @@
         aria-label="Tanca el modal Nou Soci"
         on:click={() => { showNewSociForm = false; resetNewSociForm(); }}
       ></button>
-      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="document" on:click|stopPropagation>
+  <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="document" on:pointerdown|stopPropagation>
         <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
           <div class="flex items-center justify-between">
             <h2 class="text-xl font-semibold text-gray-900">Nou Soci</h2>
@@ -951,7 +951,7 @@
         aria-label="Tanca modal Editar Soci"
         on:click={cancelEditing}
       ></button>
-      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="document" on:click|stopPropagation>
+  <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="document" on:pointerdown|stopPropagation>
         <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
           <div class="flex items-center justify-between">
             <h2 class="text-xl font-semibold text-gray-900">Editar Soci: {editingSoci.nom} {editingSoci.cognoms}</h2>
