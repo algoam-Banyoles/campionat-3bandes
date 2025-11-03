@@ -668,15 +668,14 @@
 
   <!-- New Soci Modal -->
   {#if showNewSociForm}
-    <div
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      role="button"
-      tabindex="0"
-      aria-label="Tanca el modal Nou Soci"
-      on:click={() => { showNewSociForm = false; resetNewSociForm(); }}
-      on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') { showNewSociForm = false; resetNewSociForm(); } }}
-    >
-  <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="document" on:click|stopPropagation>
+    <div class="fixed inset-0 flex items-center justify-center z-50 p-4">
+      <button
+        type="button"
+        class="absolute inset-0 bg-black bg-opacity-50"
+        aria-label="Tanca el modal Nou Soci"
+        on:click={() => { showNewSociForm = false; resetNewSociForm(); }}
+      />
+      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="document" on:click|stopPropagation>
         <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
           <div class="flex items-center justify-between">
             <h2 class="text-xl font-semibold text-gray-900">Nou Soci</h2>
@@ -945,15 +944,14 @@
 
   <!-- Edit Soci Modal -->
   {#if editingSoci}
-    <div
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      role="button"
-      tabindex="0"
-      aria-label="Tanca modal Editar Soci"
-      on:click={cancelEditing}
-      on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') { cancelEditing(); } }}
-    >
-  <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="document" on:click|stopPropagation>
+    <div class="fixed inset-0 flex items-center justify-center z-50 p-4">
+      <button
+        type="button"
+        class="absolute inset-0 bg-black bg-opacity-50"
+        aria-label="Tanca modal Editar Soci"
+        on:click={cancelEditing}
+      />
+      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="document" on:click|stopPropagation>
         <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
           <div class="flex items-center justify-between">
             <h2 class="text-xl font-semibold text-gray-900">Editar Soci: {editingSoci.nom} {editingSoci.cognoms}</h2>

@@ -611,15 +611,14 @@
 
 <!-- Edit Modal (Admin only) -->
 {#if editingMatch && $effectiveIsAdmin}
-  <div
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-    role="button"
-    tabindex="0"
-    aria-label="Tanca modal Editar Resultat"
-    on:click={cancelEdit}
-    on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') { cancelEdit(); } }}
-  >
-  <div class="bg-white rounded-lg shadow-xl max-w-md w-full" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation>
+    <div class="fixed inset-0 flex items-center justify-center z-50 p-4">
+      <button
+        type="button"
+        class="absolute inset-0 bg-black bg-opacity-50"
+        aria-label="Tanca modal d'edició de resultats"
+        on:click={cancelEdit}
+      />
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation>
       <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg">
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-semibold text-gray-900">Editar Resultat</h2>
