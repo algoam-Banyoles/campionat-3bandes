@@ -674,7 +674,7 @@
         class="absolute inset-0 bg-black bg-opacity-50"
         aria-label="Tanca el modal Nou Soci"
         on:click={() => { showNewSociForm = false; resetNewSociForm(); }}
-      />
+      ></button>
       <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="document" on:click|stopPropagation>
         <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
           <div class="flex items-center justify-between">
@@ -950,7 +950,7 @@
         class="absolute inset-0 bg-black bg-opacity-50"
         aria-label="Tanca modal Editar Soci"
         on:click={cancelEditing}
-      />
+      ></button>
       <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="document" on:click|stopPropagation>
         <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
           <div class="flex items-center justify-between">
