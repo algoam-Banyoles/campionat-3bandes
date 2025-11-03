@@ -111,12 +111,11 @@
     role="alert"
     aria-live="polite"
   >
-    <div 
+    <button
+      type="button"
       class="w-full text-center {getIndicatorClass()} cursor-pointer hover:opacity-90"
       on:click={handleClick}
-      on:keydown={(e) => e.key === 'Enter' && handleClick()}
-      role="button"
-      tabindex="0"
+      aria-label="Detalls de l'indicador de connexió"
     >
       <div class="flex items-center justify-center space-x-2">
         <span>{getIndicatorText()}</span>
@@ -130,13 +129,13 @@
             {queueInfo.total}
           </span>
         {/if}
-      </div>
+  </div>
       
       <!-- Progress bar for syncing -->
       {#if syncing}
         <div class="absolute bottom-0 left-0 h-1 bg-white bg-opacity-30 animate-pulse w-full"></div>
       {/if}
-    </div>
+  </button>
   </div>
 {/if}
 
