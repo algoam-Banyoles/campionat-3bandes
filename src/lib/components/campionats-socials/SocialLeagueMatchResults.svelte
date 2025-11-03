@@ -23,7 +23,8 @@
   let editForm = {
     caramboles_reptador: 0,
     caramboles_reptat: 0,
-    entrades: 0
+    entrades_reptador: 0,
+    entrades_reptat: 0
   };
   let updateError: string | null = null;
   let updateSuccess: string | null = null;
@@ -285,7 +286,8 @@
     editForm = {
       caramboles_reptador: match.caramboles_reptador ?? 0,
       caramboles_reptat: match.caramboles_reptat ?? 0,
-      entrades: match.entrades ?? 0
+      entrades_reptador: match.entrades_reptador ?? match.entrades ?? 0,
+      entrades_reptat: match.entrades_reptat ?? match.entrades ?? 0
     };
     updateError = null;
     updateSuccess = null;
@@ -309,7 +311,8 @@
         .update({
           caramboles_jugador1: editForm.caramboles_reptador,
           caramboles_jugador2: editForm.caramboles_reptat,
-          entrades: editForm.entrades
+          entrades_jugador1: editForm.entrades_reptador,
+          entrades_jugador2: editForm.entrades_reptat
         })
         .eq('id', editingMatch.id)
         .select();
@@ -695,14 +698,28 @@
           </div>
 
           <div>
-            <label for="entrades" class="block text-sm font-medium text-gray-700 mb-2">
-              Entrades
+            <label for="entrades_reptador" class="block text-sm font-medium text-gray-700 mb-2">
+              Entrades {formatPlayerName(editingMatch.jugador1_nom, editingMatch.jugador1_cognoms, editingMatch.jugador1_numero_soci)}
             </label>
             <input
-              id="entrades"
+              id="entrades_reptador"
               type="number"
               min="1"
-              bind:value={editForm.entrades}
+              bind:value={editForm.entrades_reptador}
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label for="entrades_reptat" class="block text-sm font-medium text-gray-700 mb-2">
+              Entrades {formatPlayerName(editingMatch.jugador2_nom, editingMatch.jugador2_cognoms, editingMatch.jugador2_numero_soci)}
+            </label>
+            <input
+              id="entrades_reptat"
+              type="number"
+              min="1"
+              bind:value={editForm.entrades_reptat}
               required
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -714,13 +731,13 @@
             <div class="grid grid-cols-2 gap-2 text-sm">
               <div>
                 <div class="text-blue-700 font-mono">
-                  {calcularMitjana(editForm.caramboles_reptador, editForm.entrades)}
+                  {calcularMitjana(editForm.caramboles_reptador, editForm.entrades_reptador)}
                 </div>
                 <div class="text-xs text-blue-600">Jugador 1</div>
               </div>
               <div>
                 <div class="text-blue-700 font-mono">
-                  {calcularMitjana(editForm.caramboles_reptat, editForm.entrades)}
+                  {calcularMitjana(editForm.caramboles_reptat, editForm.entrades_reptat)}
                 </div>
                 <div class="text-xs text-blue-600">Jugador 2</div>
               </div>

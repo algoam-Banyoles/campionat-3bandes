@@ -573,6 +573,7 @@ export async function getHeadToHeadResults(eventId: string, categoriaId: string)
   }>;
 }> {
   try {
+    console.log('Fetching head-to-head results for:', { eventId, categoriaId });
     const { data, error } = await supabase.rpc('get_head_to_head_results', {
       p_event_id: eventId,
       p_categoria_id: categoriaId
@@ -584,8 +585,11 @@ export async function getHeadToHeadResults(eventId: string, categoriaId: string)
     }
 
     if (!data || data.length === 0) {
+      console.log('No head-to-head data found');
       return { players: [], matches: new Map() };
     }
+
+    console.log(`Received ${data.length} match records from database`);
 
     // Extract unique players
     const playersMap = new Map<string, any>();
@@ -616,30 +620,50 @@ export async function getHeadToHeadResults(eventId: string, categoriaId: string)
       const matchKey = `${row.jugador1_id}_${row.jugador2_id}`;
       matches.set(matchKey, {
         caramboles: row.caramboles_jugador1,
-        entrades: row.entrades,
+        entrades: row.entrades_jugador1,
         punts: row.punts_jugador1,
         mitjana: parseFloat(row.mitjana_jugador1)
       });
 
       // Add reverse match data for player2 vs player1
       const reverseMatchKey = `${row.jugador2_id}_${row.jugador1_id}`;
-      const punts_jugador2 = row.caramboles_jugador2 > row.caramboles_jugador1 ? 2 :
-                             row.caramboles_jugador2 === row.caramboles_jugador1 ? 1 : 0;
-      const mitjana_jugador2 = row.entrades > 0 ? row.caramboles_jugador2 / row.entrades : 0;
+
+      // Calculate punts_jugador2 from database if available, otherwise calculate
+      const punts_jugador2 = row.punts_jugador2 ?? (
+        row.caramboles_jugador2 > row.caramboles_jugador1 ? 2 :
+        row.caramboles_jugador2 === row.caramboles_jugador1 ? 1 : 0
+      );
+
+      const mitjana_jugador2 = row.entrades_jugador2 > 0 ? row.caramboles_jugador2 / row.entrades_jugador2 : 0;
 
       matches.set(reverseMatchKey, {
         caramboles: row.caramboles_jugador2,
-        entrades: row.entrades,
+        entrades: row.entrades_jugador2,
         punts: punts_jugador2,
         mitjana: parseFloat(mitjana_jugador2.toFixed(3))
       });
     });
 
     // Convert players map to sorted array
-    const players = Array.from(playersMap.values()).sort((a, b) => {
-      return a.nom.localeCompare(b.nom, 'ca');
-    });
+    const allPlayers = Array.from(playersMap.values());
+    console.log(`Extracted ${allPlayers.length} unique players`);
 
+    // Log if any players have missing data
+    const playersWithMissingData = allPlayers.filter(p => !p.nom || !p.cognoms);
+    if (playersWithMissingData.length > 0) {
+      console.warn(`Warning: ${playersWithMissingData.length} players have missing nom or cognoms:`, playersWithMissingData);
+    }
+
+    const players = allPlayers
+      .filter(player => player.nom && player.cognoms) // Filter out players with missing data
+      .sort((a, b) => {
+        const cognomA = a.cognoms || '';
+        const cognomB = b.cognoms || '';
+        const result = cognomA.localeCompare(cognomB, 'ca');
+        return result !== 0 ? result : (a.nom || '').localeCompare(b.nom || '', 'ca');
+      });
+
+    console.log(`Returning ${players.length} valid players and ${matches.size} match records`);
     return { players, matches };
   } catch (error) {
     console.error('Error in getHeadToHeadResults:', error);
