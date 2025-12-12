@@ -11,6 +11,8 @@
   import CalendarGenerator from '$lib/components/admin/CalendarGenerator.svelte';
   import CalendarEditor from '$lib/components/admin/CalendarEditor.svelte';
   import PlayerSelfRestrictionsEditor from '$lib/components/general/PlayerSelfRestrictionsEditor.svelte';
+  import PrintableCategoryList from '$lib/components/campionats-socials/PrintableCategoryList.svelte';
+  import PrintableAveragesList from '$lib/components/campionats-socials/PrintableAveragesList.svelte';
   import { formatSupabaseError } from '$lib/ui/alerts';
 
   let loading = true;
@@ -181,12 +183,13 @@
   });
 
   async function loadEvents() {
-    // Load only social events (not continuous ranking)
+    // Load only social events with inscriptions open (not continuous ranking)
     const { data, error: eventsError } = await supabase
       .from('events')
       .select('*')
       .in('tipus_competicio', ['lliga_social', 'eliminatories'])
       .eq('actiu', true)
+      .eq('estat_competicio', 'inscripcions')
       .order('creat_el', { ascending: false });
 
     if (eventsError) throw eventsError;
@@ -223,25 +226,19 @@
     }
 
     // Now load historical averages using correct column name
-    // Filter by modality and last two seasons
     console.log('Loading historical averages...');
-
-    // First, let's see what modalities exist in the database
-    const { data: allModalitiesData } = await supabase
-      .from('mitjanes_historiques')
-      .select('modalitat')
-      .limit(100);
-
-    if (allModalitiesData) {
-      const uniqueModalitiesInDB = [...new Set(allModalitiesData.map(m => m.modalitat))];
-      console.log('All modalities in database:', uniqueModalitiesInDB);
-    }
 
     // Get current event modality
     let eventModality = null;
     if (selectedEventId) {
       const selectedEvent = events.find(e => e.id === selectedEventId);
       eventModality = selectedEvent?.modalitat;
+      console.log('🔍 Selected event for socis load:', {
+        selectedEventId,
+        foundEvent: selectedEvent ? `${selectedEvent.nom} (${selectedEvent.modalitat})` : 'NOT FOUND',
+        modalitat: eventModality,
+        totalEvents: events.length
+      });
     }
 
     // Calculate last two seasons
@@ -251,10 +248,16 @@
 
     console.log(`Filtering by modality: ${eventModality}, years: ${lastTwoYears}`);
 
-    let query = supabase
+    // Load recent averages (last 2 years)
+    let queryRecent = supabase
       .from('mitjanes_historiques')
       .select('soci_id, mitjana, year, modalitat')
       .in('year', lastTwoYears);
+
+    // Load ALL historical averages (for players without recent data)
+    let queryAll = supabase
+      .from('mitjanes_historiques')
+      .select('soci_id, mitjana, year, modalitat');
 
     // Only filter by modality if event is selected and has modality
     if (eventModality) {
@@ -267,42 +270,62 @@
 
       const historialModality = modalityMapping[eventModality] || eventModality.toUpperCase();
       console.log(`Mapping ${eventModality} -> ${historialModality}`);
-      query = query.eq('modalitat', historialModality);
+      queryRecent = queryRecent.eq('modalitat', historialModality);
+      queryAll = queryAll.eq('modalitat', historialModality);
     }
 
-    const { data: mitjanes, error: mitjErr } = await query;
+    const [{ data: recentMitjanes, error: recentErr }, { data: allMitjanes, error: allErr }] = await Promise.all([
+      queryRecent,
+      queryAll
+    ]);
 
-    if (mitjErr) {
-      console.error('Error loading mitjanes_historiques:', mitjErr);
+    if (recentErr) {
+      console.error('Error loading recent mitjanes_historiques:', recentErr);
     } else {
-      console.log(`Loaded ${mitjanes?.length || 0} historical averages`);
-      if (mitjanes && mitjanes.length > 0) {
-        console.log('Sample mitjana:', mitjanes[0]);
+      console.log(`Loaded ${recentMitjanes?.length || 0} recent historical averages`);
+    }
 
-        // Show unique modalities to debug
-        const uniqueModalities = [...new Set(mitjanes.map(m => m.modalitat))];
-        console.log('Unique modalities found:', uniqueModalities);
-      }
+    if (allErr) {
+      console.error('Error loading all mitjanes_historiques:', allErr);
+    } else {
+      console.log(`Loaded ${allMitjanes?.length || 0} total historical averages`);
     }
 
     // Combine socis data with their best historical averages
     socis = socisData.map(soci => {
       let bestMitjana = null;
+      let bestMitjanaYear = null;
+      let oldestMitjana = null;
+      let oldestMitjanaYear = null;
 
-      if (mitjanes) {
-        const playerMitjanes = mitjanes.filter(m => m.soci_id === soci.numero_soci);
+      if (recentMitjanes) {
+        const playerRecentMitjanes = recentMitjanes.filter(m => m.soci_id === soci.numero_soci);
 
-        if (playerMitjanes.length > 0) {
+        if (playerRecentMitjanes.length > 0) {
           // Get the best (highest) average from the last two years
-          bestMitjana = Math.max(...playerMitjanes.map(m => parseFloat(m.mitjana)));
+          const bestRecent = playerRecentMitjanes.reduce((best, current) => {
+            const currentAvg = parseFloat(current.mitjana);
+            const bestAvg = parseFloat(best.mitjana);
+            return currentAvg > bestAvg ? current : best;
+          });
+          bestMitjana = parseFloat(bestRecent.mitjana);
+          bestMitjanaYear = bestRecent.year;
+        }
+      }
 
-          // Log for first few socis to debug
-          if (soci.numero_soci <= 3) {
-            console.log(`Soci ${soci.numero_soci} (${soci.nom}):`, {
-              playerMitjanes: playerMitjanes.map(m => ({ year: m.year, mitjana: m.mitjana })),
-              bestMitjana: bestMitjana
-            });
-          }
+      // If no recent average, check older years
+      if (bestMitjana === null && allMitjanes) {
+        const playerAllMitjanes = allMitjanes
+          .filter(m => m.soci_id === soci.numero_soci)
+          .filter(m => !lastTwoYears.includes(m.year)); // Exclude recent years (already checked)
+
+        if (playerAllMitjanes.length > 0) {
+          // Get the most recent old average
+          const mostRecentOld = playerAllMitjanes.reduce((mostRecent, current) => {
+            return current.year > mostRecent.year ? current : mostRecent;
+          });
+          oldestMitjana = parseFloat(mostRecentOld.mitjana);
+          oldestMitjanaYear = mostRecentOld.year;
         }
       }
 
@@ -311,7 +334,10 @@
         nom: soci.nom,
         cognoms: soci.cognoms || '',
         email: soci.email,
-        historicalAverage: bestMitjana
+        historicalAverage: bestMitjana,
+        historicalAverageYear: bestMitjanaYear,
+        oldestAverage: oldestMitjana,
+        oldestAverageYear: oldestMitjanaYear
       };
     });
 
@@ -327,7 +353,7 @@
     console.log('🚀 Loading event data for:', selectedEventId);
 
     try {
-      await Promise.all([loadInscriptions(), loadCategories()]);
+      await Promise.all([loadInscriptions(), loadCategories(), loadSocis()]);
       console.log('✅ Event data loaded successfully');
     } catch (e) {
       console.error('❌ Error loading event data:', e);
@@ -1133,6 +1159,8 @@
           {inscriptions}
           {categories}
           {socis}
+          {events}
+          {selectedEventId}
           processing={processingAssignments}
           on:applyAssignments={handleApplyAssignments}
         />
@@ -1192,6 +1220,21 @@
             <div class="text-sm text-gray-600">Assignades</div>
           </div>
         </div>
+
+        <!-- Llistat imprimible -->
+        {#if inscriptions.length > 0 && categories.length > 0 && summary.assigned > 0}
+          <div class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <PrintableCategoryList
+              {inscriptions}
+              {categories}
+              {socis}
+              eventName={selectedEvent?.nom || ''}
+              eventSeason={selectedEvent?.temporada || ''}
+              modality={selectedEvent?.modalitat || ''}
+            />
+            <PrintableAveragesList />
+          </div>
+        {/if}
       {/if}
 
       <!-- Inscriptions Table -->

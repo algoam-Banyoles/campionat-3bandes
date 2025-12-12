@@ -28,6 +28,16 @@
   let showRestrictions = false;
   let showDeleteConfirmation = false; // Modal per doble confirmació
   let calendariPublicat = false; // Estat del calendari publicat
+  
+  // Gestió de períodes de bloqueig
+  let showBlockedPeriods = false;
+  let blockedPeriods: Array<{ start: string; end: string; description: string }> = [];
+  let newBlockedStart = '';
+  let newBlockedEnd = '';
+  let newBlockedDescription = '';
+  
+  // Gestió de vista d'estadístiques de taules
+  let showTableStats = false;
 
   // Mapes per optimitzar cerques
   let playerRestrictions = new Map();
@@ -197,6 +207,11 @@
     generatingCalendar = true;
 
     try {
+      console.log('=== GENERANT CALENDARI ===');
+      console.log('📅 Data inici:', dataInici);
+      console.log('📅 Data fi:', dataFi);
+      console.log('🚫 Períodes de bloqueig:', blockedPeriods);
+      console.log('🚫 Dies festius configurats:', calendarConfig.dies_festius);
       console.log('Generant calendari amb dates fixades...');
 
       // 0. Processar restriccions especials dels jugadors
@@ -291,8 +306,23 @@
     const scheduled = [];
     const unscheduled = [];
 
+    // Log de restriccions especials carregades
+    console.log(`\n🔐 Restriccions especials de jugadors carregades: ${playerRestrictions.size}`);
+    let playersWithRestrictions = 0;
+    playerRestrictions.forEach((restrictions, playerId) => {
+      if (restrictions.restriccions_especials) {
+        playersWithRestrictions++;
+        const periods = parseSpecialRestrictions(restrictions.restriccions_especials);
+        console.log(`   📅 ${restrictions.soci.nom}: ${periods.length} períodes restringits`);
+        periods.forEach(p => {
+          console.log(`      - ${p.start.toISOString().split('T')[0]} a ${p.end.toISOString().split('T')[0]}`);
+        });
+      }
+    });
+    console.log(`   Total jugadors amb restriccions: ${playersWithRestrictions}\n`);
+
     // Tracking per jugador
-    const playerStats = new Map(); // jugador -> { matchesScheduled: number, lastMatchDate: Date|null }
+    const playerStats = new Map(); // jugador -> { matchesScheduled: number, lastMatchDate: Date|null, tableUsage: Map<number, number> }
     const playerAvailability = new Map(); // jugador -> [dates ocupades]
 
     // Inicialitzar stats dels jugadors
@@ -300,7 +330,8 @@
       players.forEach(player => {
         playerStats.set(player.player_id, {
           matchesScheduled: 0,
-          lastMatchDate: null
+          lastMatchDate: null,
+          tableUsage: new Map() // taula -> nombre de partits
         });
         playerAvailability.set(player.player_id, []);
       });
@@ -313,10 +344,21 @@
     let remainingMatchups = [...matchups];
     let attempts = 0;
     const maxAttempts = 10;
+    
+    const startTime = Date.now();
+    const maxExecutionTime = 30000; // 30 segons màxim
 
     while (remainingMatchups.length > 0 && attempts < maxAttempts) {
+      // Comprovar timeout
+      if (Date.now() - startTime > maxExecutionTime) {
+        console.warn(`⏱️ TIMEOUT: Generació interrompuda després de 30 segons`);
+        console.warn(`   Partits programats: ${scheduled.length}`);
+        console.warn(`   Partits pendents: ${remainingMatchups.length}`);
+        break;
+      }
+      
       attempts++;
-      console.log(`📅 Ronda ${attempts}: ${remainingMatchups.length} partits per programar`);
+      console.log(`📅 Ronda ${attempts}/${maxAttempts}: ${remainingMatchups.length} partits per programar`);
 
       // Ordenar enfrontaments per prioritat equilibrada
       remainingMatchups = sortMatchupsByBalance(remainingMatchups, playerStats);
@@ -343,9 +385,14 @@
           const matchDate = new Date(bestSlot.date);
 
           [matchup.jugador1.player_id, matchup.jugador2.player_id].forEach(playerId => {
-            playerStats.get(playerId).matchesScheduled++;
-            playerStats.get(playerId).lastMatchDate = matchDate;
+            const stats = playerStats.get(playerId);
+            stats.matchesScheduled++;
+            stats.lastMatchDate = matchDate;
             playerAvailability.get(playerId).push(matchDate);
+            
+            // Actualitzar ús de taula
+            const currentTableUsage = stats.tableUsage.get(bestSlot.table) || 0;
+            stats.tableUsage.set(bestSlot.table, currentTableUsage + 1);
           });
 
           // Marcar slot com utilitzat
@@ -359,15 +406,24 @@
 
       // Si no s'ha programat cap partit en aquesta ronda, sortir
       if (scheduledThisRound.length === 0) {
-        console.log('⚠️ No s\'han pogut programar més partits en aquesta ronda');
+        console.warn('⚠️ No s\'han pogut programar més partits en aquesta ronda');
+        console.warn(`   Slots totals disponibles: ${availableDates.length}`);
+        console.warn(`   Slots usats: ${availableDates.filter(s => s.isUsed).length}`);
+        console.warn(`   Slots lliures: ${availableDates.filter(s => !s.isUsed).length}`);
         break;
       }
 
       console.log(`✅ Ronda ${attempts}: ${scheduledThisRound.length} partits programats`);
 
-      // Mostrar estadístiques d'equilibri
-      logPlayerBalance(playerStats);
+      // Mostrar estadístiques d'equilibri cada 2 rondes
+      if (attempts % 2 === 0) {
+        logPlayerBalance(playerStats);
+      }
     }
+    
+    // Log final detallat
+    const executionTime = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(`⏱️ Temps d'execució: ${executionTime}s`);
 
     // Afegir partits no programats com a pendents
     remainingMatchups.forEach(matchup => {
@@ -385,7 +441,302 @@
     console.log(`⏳ Partits pendents: ${unscheduled.length}`);
     logPlayerBalance(playerStats);
 
+    // ✨ PAS DE REBALANCEIG: Optimitzar la distribució de taules
+    if (scheduled.length > 0) {
+      console.log(`\n🔄 Iniciant rebalanceig de taules...`);
+      const rebalancedScheduled = rebalanceTableDistribution(scheduled);
+      return [...rebalancedScheduled, ...unscheduled];
+    }
+
     return [...scheduled, ...unscheduled];
+  }
+
+  // Funció per rebalancejar la distribució de taules després de la generació
+  function rebalanceTableDistribution(matches: any[], maxPercentage: number = 0.60) {
+    console.log(`🎱 Analitzant distribució de taules per ${matches.length} partits...`);
+    
+    // Calcular estadístiques actuals de taules per jugador
+    const playerTableStats = new Map();
+    
+    matches.forEach(match => {
+      // Jugador 1
+      if (!playerTableStats.has(match.jugador1.player_id)) {
+        playerTableStats.set(match.jugador1.player_id, {
+          total: 0,
+          tables: new Map(),
+          matches: []
+        });
+      }
+      const stats1 = playerTableStats.get(match.jugador1.player_id);
+      stats1.total++;
+      stats1.tables.set(match.taula_assignada, (stats1.tables.get(match.taula_assignada) || 0) + 1);
+      stats1.matches.push({ match, playerRole: 1 });
+      
+      // Jugador 2
+      if (!playerTableStats.has(match.jugador2.player_id)) {
+        playerTableStats.set(match.jugador2.player_id, {
+          total: 0,
+          tables: new Map(),
+          matches: []
+        });
+      }
+      const stats2 = playerTableStats.get(match.jugador2.player_id);
+      stats2.total++;
+      stats2.tables.set(match.taula_assignada, (stats2.tables.get(match.taula_assignada) || 0) + 1);
+      stats2.matches.push({ match, playerRole: 2 });
+    });
+    
+    // Identificar jugadors que violen les restriccions
+    const playersExceedingLimit = [];
+    const playersNeedingMinimum = [];
+    
+    playerTableStats.forEach((stats, playerId) => {
+      // Restricció 1: Percentatge màxim del 60%
+      stats.tables.forEach((count, table) => {
+        const percentage = count / stats.total;
+        if (percentage > maxPercentage && stats.total >= 3) {
+          playersExceedingLimit.push({ playerId, table, count, percentage, total: stats.total, type: 'max' });
+        }
+      });
+      
+      // Restricció 2: Mínim de partits per taula segons total
+      const totalMatches = stats.total;
+      let minPerTable = 0;
+      
+      if (totalMatches >= 12) {
+        minPerTable = 3;
+      } else if (totalMatches >= 8) {
+        minPerTable = 2;
+      }
+      
+      if (minPerTable > 0) {
+        // Obtenir totes les taules disponibles (1, 2, 3)
+        const availableTables = [1, 2, 3];
+        availableTables.forEach(table => {
+          const count = stats.tables.get(table) || 0;
+          if (count < minPerTable) {
+            playersNeedingMinimum.push({ 
+              playerId, 
+              table, 
+              count, 
+              needed: minPerTable, 
+              total: totalMatches,
+              type: 'min'
+            });
+          }
+        });
+      }
+    });
+    
+    const totalIssues = playersExceedingLimit.length + playersNeedingMinimum.length;
+    
+    if (totalIssues === 0) {
+      console.log(`✅ Cap jugador viola les restriccions de taules. No cal rebalanceig.`);
+      return matches;
+    }
+    
+    console.log(`⚠️ ${totalIssues} problemes detectats:`);
+    console.log(`   - ${playersExceedingLimit.length} casos superen el ${(maxPercentage * 100).toFixed(0)}%`);
+    console.log(`   - ${playersNeedingMinimum.length} casos necessiten mínim de partits`);
+    
+    let swapsPerformed = 0;
+    const maxSwaps = 200; // Límit de seguretat augmentat
+    
+    // Prioritzar solucionar mínims abans que màxims
+    const allIssues = [...playersNeedingMinimum, ...playersExceedingLimit];
+    
+    // Intentar intercanviar partides per cada problema detectat
+    for (const issue of allIssues) {
+      if (swapsPerformed >= maxSwaps) break;
+      
+      const playerStats = playerTableStats.get(issue.playerId);
+      
+      if (issue.type === 'min') {
+        // Jugador necessita MÉS partits a aquesta taula
+        console.log(`  Jugador té ${issue.count} partits a taula ${issue.table}, necessita mínim ${issue.needed} (total: ${issue.total})`);
+        
+        // Buscar partits d'aquest jugador a altres taules per moure'ls aquí
+        const otherTableMatches = playerStats.matches
+          .filter(m => m.match.taula_assignada !== issue.table)
+          .map(m => m.match);
+        
+        for (const sourceMatch of otherTableMatches) {
+          if (swapsPerformed >= maxSwaps) break;
+          
+          const matchDate = sourceMatch.data_programada.toISOString().split('T')[0];
+          const matchTime = sourceMatch.hora_inici;
+          
+          // Buscar un partit del mateix dia/hora a la taula desitjada
+          for (const targetMatch of matches) {
+            if (targetMatch === sourceMatch) continue;
+            if (targetMatch.taula_assignada !== issue.table) continue;
+            
+            const targetDate = targetMatch.data_programada.toISOString().split('T')[0];
+            if (targetDate !== matchDate || targetMatch.hora_inici !== matchTime) continue;
+            
+            // Verificar que l'intercanvi millori el mínim sense crear problemes
+            const wouldImproveMinimum = wouldSwapImproveMinimum(
+              sourceMatch, targetMatch, issue.playerId, playerTableStats
+            );
+            
+            if (wouldImproveMinimum) {
+              // Intercanviar taules
+              const tempTable = sourceMatch.taula_assignada;
+              sourceMatch.taula_assignada = targetMatch.taula_assignada;
+              targetMatch.taula_assignada = tempTable;
+              
+              // Actualitzar estadístiques
+              updateStatsAfterSwap(sourceMatch, targetMatch, tempTable, playerTableStats);
+              
+              swapsPerformed++;
+              console.log(`    ✓ Intercanvi ${swapsPerformed} (mínim): Taules ${tempTable} ↔ ${targetMatch.taula_assignada} (${matchDate} ${matchTime})`);
+              
+              // Recomprovar si ja tenim el mínim
+              const currentCount = playerTableStats.get(issue.playerId).tables.get(issue.table) || 0;
+              if (currentCount >= issue.needed) {
+                console.log(`    ✅ Jugador ja té el mínim a taula ${issue.table}`);
+                break;
+              }
+            }
+          }
+        }
+        
+      } else {
+        // Jugador té MASSA partits a aquesta taula (restricció màxim 60%)
+        const problematicMatches = playerStats.matches
+          .filter(m => m.match.taula_assignada === issue.table)
+          .map(m => m.match);
+        
+        console.log(`  Jugador té ${issue.count} partits a taula ${issue.table} (${(issue.percentage * 100).toFixed(1)}%)`);
+        
+        // Buscar candidats per intercanviar (mateix dia i hora, taula diferent)
+        for (const problematicMatch of problematicMatches) {
+          if (swapsPerformed >= maxSwaps) break;
+          
+          const matchDate = problematicMatch.data_programada.toISOString().split('T')[0];
+          const matchTime = problematicMatch.hora_inici;
+          
+          // Buscar un partit del mateix dia/hora/taula diferent
+          for (const candidateMatch of matches) {
+            if (candidateMatch === problematicMatch) continue;
+            if (candidateMatch.taula_assignada === issue.table) continue;
+            
+            const candidateDate = candidateMatch.data_programada.toISOString().split('T')[0];
+            if (candidateDate !== matchDate || candidateMatch.hora_inici !== matchTime) continue;
+            
+            // Verificar que l'intercanvi millori la situació
+            const wouldImprove = wouldSwapImprove(
+              problematicMatch, candidateMatch, issue.playerId, playerTableStats, maxPercentage
+            );
+            
+            if (wouldImprove) {
+              // Intercanviar taules
+              const tempTable = problematicMatch.taula_assignada;
+              problematicMatch.taula_assignada = candidateMatch.taula_assignada;
+              candidateMatch.taula_assignada = tempTable;
+              
+              // Actualitzar estadístiques
+              updateStatsAfterSwap(problematicMatch, candidateMatch, tempTable, playerTableStats);
+              
+              swapsPerformed++;
+              console.log(`    ✓ Intercanvi ${swapsPerformed} (màxim): Taules ${tempTable} ↔ ${candidateMatch.taula_assignada} (${matchDate} ${matchTime})`);
+              break;
+            }
+          }
+          
+          // Recomprovar si el jugador encara supera el límit
+          const currentCount = playerTableStats.get(issue.playerId).tables.get(issue.table) || 0;
+          const currentPercentage = currentCount / playerStats.total;
+          if (currentPercentage <= maxPercentage) {
+            console.log(`    ✅ Jugador ja no supera el límit a taula ${issue.table}`);
+            break;
+          }
+        }
+      }
+    }
+    
+    console.log(`🔄 Rebalanceig completat: ${swapsPerformed} intercanvis realitzats\n`);
+    
+    return matches;
+  }
+  
+  // Verificar si un intercanvi milloraria per aconseguir el mínim
+  function wouldSwapImproveMinimum(sourceMatch: any, targetMatch: any, playerId: string, stats: Map<any, any>) {
+    const playerStats = stats.get(playerId);
+    if (!playerStats) return false;
+    
+    const sourceTable = sourceMatch.taula_assignada;
+    const targetTable = targetMatch.taula_assignada;
+    
+    const sourceCount = playerStats.tables.get(sourceTable) || 0;
+    const targetCount = playerStats.tables.get(targetTable) || 0;
+    
+    // L'intercanvi és bo si:
+    // 1. Augmenta el comptador a la taula objectiu (on necessitem més partits)
+    // 2. No deixa la taula origen per sota d'un mínim segur
+    const totalMatches = playerStats.total;
+    let minPerTable = 0;
+    
+    if (totalMatches >= 12) minPerTable = 3;
+    else if (totalMatches >= 8) minPerTable = 2;
+    
+    const sourceAfterSwap = sourceCount - 1;
+    const targetAfterSwap = targetCount + 1;
+    
+    // Només fer l'intercanvi si no deixem l'origen per sota del mínim
+    return sourceAfterSwap >= minPerTable || sourceCount > targetCount;
+  }
+  
+  // Verificar si un intercanvi milloraria la distribució (per màxims)
+  function wouldSwapImprove(match1: any, match2: any, playerId: string, stats: Map<any, any>, maxPercentage: number) {
+    // Comprovar si l'intercanvi millora la distribució per al jugador problemàtic
+    const playerStats = stats.get(playerId);
+    if (!playerStats) return false;
+    
+    const currentTable = match1.taula_assignada;
+    const newTable = match2.taula_assignada;
+    
+    const currentCount = playerStats.tables.get(currentTable) || 0;
+    const newCount = playerStats.tables.get(newTable) || 0;
+    
+    // Verificar mínims també
+    const totalMatches = playerStats.total;
+    let minPerTable = 0;
+    if (totalMatches >= 12) minPerTable = 3;
+    else if (totalMatches >= 8) minPerTable = 2;
+    
+    // L'intercanvi millora si redueix l'ús de la taula problemàtica
+    // i no crea un nou problema a l'altra taula ni viola els mínims
+    const newPercentageAtCurrent = (currentCount - 1) / totalMatches;
+    const newPercentageAtNew = (newCount + 1) / totalMatches;
+    const currentCountAfterSwap = currentCount - 1;
+    
+    return newPercentageAtNew <= maxPercentage && 
+           newPercentageAtCurrent < (currentCount / totalMatches) &&
+           (currentCountAfterSwap >= minPerTable || minPerTable === 0);
+  }
+  
+  // Actualitzar estadístiques després d'un intercanvi
+  function updateStatsAfterSwap(match1: any, match2: any, originalTable1: number, stats: Map<any, any>) {
+    // Actualitzar per tots els jugadors involucrats
+    const players = [
+      match1.jugador1.player_id,
+      match1.jugador2.player_id,
+      match2.jugador1.player_id,
+      match2.jugador2.player_id
+    ];
+    
+    players.forEach(playerId => {
+      const playerStats = stats.get(playerId);
+      if (!playerStats) return;
+      
+      // Recalcular comptadors de taules
+      playerStats.tables.clear();
+      playerStats.matches.forEach(({ match }) => {
+        const table = match.taula_assignada;
+        playerStats.tables.set(table, (playerStats.tables.get(table) || 0) + 1);
+      });
+    });
   }
 
   // Ordenar enfrontaments per equilibri: prioritzar jugadors amb menys partits programats
@@ -423,9 +774,24 @@
     const player1Stats = playerStats.get(player1Id);
     const player2Stats = playerStats.get(player2Id);
 
+    // Contador de slots filtrats per cada raó
+    const filterReasons = {
+      used: 0,
+      tableLimit: 0,
+      sameDay: 0,
+      consecutive: 0,
+      dayPreference: 0,
+      timePreference: 0,
+      specialRestrictions: 0,
+      total: availableDates.length
+    };
+
     // Filtrar slots disponibles amb restriccions bàsiques
     const validSlots = availableDates.filter(slot => {
-      if (slot.isUsed) return false;
+      if (slot.isUsed) {
+        filterReasons.used++;
+        return false;
+      }
 
       const dayOfWeek = getDayOfWeekCode(slot.date.getDay());
       const dateStr = slot.date.toISOString().split('T')[0];
@@ -436,20 +802,27 @@
           busyDate.toISOString().split('T')[0] === dateStr) ||
           player2Busy.some(busyDate =>
           busyDate.toISOString().split('T')[0] === dateStr)) {
+        filterReasons.sameDay++;
         return false;
       }
 
       // ✨ EVITAR DIES CONSECUTIUS: Excloure completament slots en dies consecutius
       const hasConsecutiveDayConflict = player1Busy.some(busyDate => {
-        const daysDiff = Math.abs((slotDate.getTime() - busyDate.getTime()) / (1000 * 60 * 60 * 24));
-        return daysDiff < 1; // Menys d'1 dia = consecutiu
+        // Normalitzar dates per comparar només el dia (sense hores)
+        const slotDay = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate());
+        const busyDay = new Date(busyDate.getFullYear(), busyDate.getMonth(), busyDate.getDate());
+        const daysDiff = Math.abs((slotDay.getTime() - busyDay.getTime()) / (1000 * 60 * 60 * 24));
+        return daysDiff === 1; // Exactament 1 dia = consecutiu
       }) || player2Busy.some(busyDate => {
-        const daysDiff = Math.abs((slotDate.getTime() - busyDate.getTime()) / (1000 * 60 * 60 * 24));
-        return daysDiff < 1; // Menys d'1 dia = consecutiu
+        const slotDay = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate());
+        const busyDay = new Date(busyDate.getFullYear(), busyDate.getMonth(), busyDate.getDate());
+        const daysDiff = Math.abs((slotDay.getTime() - busyDay.getTime()) / (1000 * 60 * 60 * 24));
+        return daysDiff === 1; // Exactament 1 dia = consecutiu
       });
 
       if (hasConsecutiveDayConflict) {
         consecutiveDaysCounter.count++; // Incrementar contador
+        filterReasons.consecutive++;
         return false;
       }
 
@@ -457,25 +830,61 @@
       const player1HasDayPrefs = player1Restrictions?.preferencies_dies?.length > 0;
       const player2HasDayPrefs = player2Restrictions?.preferencies_dies?.length > 0;
 
-      if (player1HasDayPrefs && !player1Restrictions.preferencies_dies.includes(dayOfWeek)) return false;
-      if (player2HasDayPrefs && !player2Restrictions.preferencies_dies.includes(dayOfWeek)) return false;
+      if (player1HasDayPrefs && !player1Restrictions.preferencies_dies.includes(dayOfWeek)) {
+        filterReasons.dayPreference++;
+        return false;
+      }
+      if (player2HasDayPrefs && !player2Restrictions.preferencies_dies.includes(dayOfWeek)) {
+        filterReasons.dayPreference++;
+        return false;
+      }
 
       // Comprovar preferències d'hores
       const player1HasTimePrefs = player1Restrictions?.preferencies_hores?.length > 0;
       const player2HasTimePrefs = player2Restrictions?.preferencies_hores?.length > 0;
 
-      if (player1HasTimePrefs && !player1Restrictions.preferencies_hores.includes(slot.time)) return false;
-      if (player2HasTimePrefs && !player2Restrictions.preferencies_hores.includes(slot.time)) return false;
+      if (player1HasTimePrefs && !player1Restrictions.preferencies_hores.includes(slot.time)) {
+        filterReasons.timePreference++;
+        return false;
+      }
+      if (player2HasTimePrefs && !player2Restrictions.preferencies_hores.includes(slot.time)) {
+        filterReasons.timePreference++;
+        return false;
+      }
 
       // ✨ NOVA FUNCIONALITAT: Comprovar restriccions especials (dates específiques d'indisponibilitat)
       if (player1Restrictions?.restriccions_especials) {
+        const dateStr = slot.date.toISOString().split('T')[0];
+        if (dateStr === '2026-01-06') {
+          console.log(`🔍 DEBUG: Comprovant 6/1/2026 per ${matchup.jugador1.soci.nom}`, {
+            slotDate: slot.date,
+            year: slot.date.getFullYear(),
+            month: slot.date.getMonth(),
+            day: slot.date.getDate(),
+            restriccions: player1Restrictions.restriccions_especials
+          });
+        }
         if (isDateRestricted(slot.date, player1Restrictions.restriccions_especials)) {
+          filterReasons.specialRestrictions++;
+          console.log(`   ⛔ ${matchup.jugador1.soci.nom} no disponible el ${dateStr}`);
           return false;
         }
       }
       
       if (player2Restrictions?.restriccions_especials) {
+        const dateStr = slot.date.toISOString().split('T')[0];
+        if (dateStr === '2026-01-06') {
+          console.log(`🔍 DEBUG: Comprovant 6/1/2026 per ${matchup.jugador2.soci.nom}`, {
+            slotDate: slot.date,
+            year: slot.date.getFullYear(),
+            month: slot.date.getMonth(),
+            day: slot.date.getDate(),
+            restriccions: player2Restrictions.restriccions_especials
+          });
+        }
         if (isDateRestricted(slot.date, player2Restrictions.restriccions_especials)) {
+          filterReasons.specialRestrictions++;
+          console.log(`   ⛔ ${matchup.jugador2.soci.nom} no disponible el ${dateStr}`);
           return false;
         }
       }
@@ -483,7 +892,21 @@
       return true;
     });
 
-    if (validSlots.length === 0) return null;
+    if (validSlots.length === 0) {
+      // Log detallat quan no es troben slots
+      if (filterReasons.total < 50) { // Només mostrar si hi ha pocs slots disponibles en general
+        console.log(`⚠️ No s'han trobat slots vàlids per ${matchup.jugador1.soci.nom} vs ${matchup.jugador2.soci.nom}`);
+        console.log(`   Slots totals: ${filterReasons.total}`);
+        console.log(`   Filtrats per ús: ${filterReasons.used}`);
+        console.log(`   Filtrats per límit de taula: ${filterReasons.tableLimit}`);
+        console.log(`   Filtrats per mateix dia: ${filterReasons.sameDay}`);
+        console.log(`   Filtrats per dies consecutius: ${filterReasons.consecutive}`);
+        console.log(`   Filtrats per preferències dia: ${filterReasons.dayPreference}`);
+        console.log(`   Filtrats per preferències hora: ${filterReasons.timePreference}`);
+        console.log(`   Filtrats per restriccions especials: ${filterReasons.specialRestrictions}`);
+      }
+      return null;
+    }
 
     // Ordenar slots per preferència d'equilibri
     const scoredSlots = validSlots.map(slot => {
@@ -506,6 +929,22 @@
         score += 50; // Acceptable: 1 dia d'espaiat
       }
       // Nota: Els dies consecutius ja no poden arribar aquí
+
+      // ✨ DIVERSIFICACIÓ DE TAULES: Bonificar taules que els jugadors han usat menys
+      const player1TableUsage = player1Stats.tableUsage.get(slot.table) || 0;
+      const player2TableUsage = player2Stats.tableUsage.get(slot.table) || 0;
+      const totalTableUsage = player1TableUsage + player2TableUsage;
+      
+      // Bonificar taules poc utilitzades
+      if (totalTableUsage === 0) {
+        score += 80; // Taula nova per ambdós jugadors
+      } else if (totalTableUsage === 1) {
+        score += 60; // Taula poc utilitzada
+      } else if (totalTableUsage === 2) {
+        score += 40; // Taula moderadament utilitzada
+      } else if (totalTableUsage >= 3) {
+        score += 20; // Taula molt utilitzada (menys preferent)
+      }
 
       // Prioritzar dates més properes (per omplir el calendari de manera més uniforme)
       const daysFromStart = Math.abs((slotDate.getTime() - new Date(dataInici).getTime()) / (1000 * 60 * 60 * 24));
@@ -538,36 +977,224 @@
     const minMatches = Math.min(...stats.map(s => s.matches));
     const maxMatches = Math.max(...stats.map(s => s.matches));
     console.log(`📈 Rang: ${minMatches} - ${maxMatches} partits per jugador`);
+    
+    // Mostrar estadístiques d'ús de taules
+    console.log('🎱 Distribució de taules per jugador:');
+    let playersExceedingLimit = 0;
+    playerStats.forEach((stats, playerId) => {
+      if (stats.matchesScheduled > 0) {
+        const tableDistribution = {};
+        stats.tableUsage.forEach((count, table) => {
+          const percentage = (count / stats.matchesScheduled * 100).toFixed(1);
+          tableDistribution[`Taula ${table}`] = `${count} (${percentage}%)`;
+          if (count / stats.matchesScheduled > 0.60) {
+            playersExceedingLimit++;
+          }
+        });
+        console.log(`  Jugador ${playerId.substring(0, 8)}:`, tableDistribution);
+      }
+    });
+    
+    if (playersExceedingLimit > 0) {
+      console.warn(`⚠️ ${playersExceedingLimit} jugadors superen el 60% en alguna taula`);
+    } else {
+      console.log(`✅ Cap jugador supera el 60% de partits a la mateixa taula`);
+    }
+  }
+
+  // Funcions per gestionar períodes de bloqueig
+  function addBlockedPeriod() {
+    if (!newBlockedStart || !newBlockedEnd) {
+      alert('Cal especificar data d\'inici i fi del període de bloqueig');
+      return;
+    }
+
+    const start = new Date(newBlockedStart);
+    const end = new Date(newBlockedEnd);
+
+    if (start > end) {
+      alert('La data d\'inici ha de ser anterior a la data de fi');
+      return;
+    }
+
+    blockedPeriods = [...blockedPeriods, {
+      start: newBlockedStart,
+      end: newBlockedEnd,
+      description: newBlockedDescription || 'Període bloquejat'
+    }];
+
+    // Actualitzar dies_festius amb les noves dates
+    updateBlockedDatesInConfig();
+
+    // Netejar formulari
+    newBlockedStart = '';
+    newBlockedEnd = '';
+    newBlockedDescription = '';
+  }
+
+  function removeBlockedPeriod(index: number) {
+    blockedPeriods = blockedPeriods.filter((_, i) => i !== index);
+    updateBlockedDatesInConfig();
+  }
+
+  function updateBlockedDatesInConfig() {
+    // Generar totes les dates dels períodes bloquejats
+    const allBlockedDates = new Set<string>();
+    
+    blockedPeriods.forEach(period => {
+      // Utilitzar dates locals sense conversió de timezone
+      const [startYear, startMonth, startDay] = period.start.split('-').map(Number);
+      const [endYear, endMonth, endDay] = period.end.split('-').map(Number);
+      
+      const start = new Date(startYear, startMonth - 1, startDay); // Month is 0-indexed
+      const end = new Date(endYear, endMonth - 1, endDay);
+      
+      console.log(`🔍 Processing blocked period: ${period.start} to ${period.end}`);
+      
+      for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        allBlockedDates.add(dateStr);
+      }
+    });
+
+    console.log(`🚫 Total blocked dates generated (${allBlockedDates.size}):`, Array.from(allBlockedDates));
+    
+    // Actualitzar dies_festius amb NOMÉS les dates bloquejades
+    // (assumint que no hi ha altres festius predefinits per simplicitat)
+    calendarConfig.dies_festius = Array.from(allBlockedDates);
+    
+    console.log(`✅ dies_festius updated with ${calendarConfig.dies_festius.length} blocked dates`);
+  }
+  
+  // Funció per calcular estadístiques d'ús de taules per jugador
+  function calculateTableStats() {
+    const stats = [];
+    const playerMap = new Map();
+    
+    // Recopilar tots els jugadors únics del calendari proposat
+    proposedCalendar.forEach(match => {
+      if (match.estat === 'generat') {
+        // Jugador 1
+        if (!playerMap.has(match.jugador1.player_id)) {
+          playerMap.set(match.jugador1.player_id, {
+            player_id: match.jugador1.player_id,
+            nom: match.jugador1.soci.nom,
+            cognoms: match.jugador1.soci.cognoms || '',
+            taula1: 0,
+            taula2: 0,
+            taula3: 0,
+            total: 0
+          });
+        }
+        const player1Stats = playerMap.get(match.jugador1.player_id);
+        player1Stats[`taula${match.taula_assignada}`]++;
+        player1Stats.total++;
+        
+        // Jugador 2
+        if (!playerMap.has(match.jugador2.player_id)) {
+          playerMap.set(match.jugador2.player_id, {
+            player_id: match.jugador2.player_id,
+            nom: match.jugador2.soci.nom,
+            cognoms: match.jugador2.soci.cognoms || '',
+            taula1: 0,
+            taula2: 0,
+            taula3: 0,
+            total: 0
+          });
+        }
+        const player2Stats = playerMap.get(match.jugador2.player_id);
+        player2Stats[`taula${match.taula_assignada}`]++;
+        player2Stats.total++;
+      }
+    });
+    
+    // Convertir a array, afegir informació de mínims i ordenar per nom
+    const result = Array.from(playerMap.values()).map(player => {
+      let minRequired = 0;
+      if (player.total >= 12) minRequired = 3;
+      else if (player.total >= 8) minRequired = 2;
+      
+      return {
+        ...player,
+        minRequired
+      };
+    });
+    
+    return result.sort((a, b) => {
+      const nomA = `${a.nom} ${a.cognoms}`.toLowerCase();
+      const nomB = `${b.nom} ${b.cognoms}`.toLowerCase();
+      return nomA.localeCompare(nomB, 'ca');
+    });
   }
 
   function generateAvailableDates() {
     const dates = [];
-    const start = new Date(dataInici);
-    const end = new Date(dataFi);
+    const [startYear, startMonth, startDay] = dataInici.split('-').map(Number);
+    const [endYear, endMonth, endDay] = dataFi.split('-').map(Number);
+    
+    // Crear dates a migdia per evitar problemes de timezone
+    const start = new Date(startYear, startMonth - 1, startDay, 12, 0, 0);
+    const end = new Date(endYear, endMonth - 1, endDay, 12, 0, 0);
 
-    for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-      const dayOfWeek = getDayOfWeekCode(date.getDay());
+    console.log(`📅 Generating available dates from ${dataInici} to ${dataFi}`);
+    console.log(`📋 Dies de la setmana configurats: ${calendarConfig.dies_setmana.join(', ')}`);
+    console.log(`🚫 Blocked dates (dies_festius):`, calendarConfig.dies_festius);
+
+    let totalDays = 0;
+    let validDays = 0;
+    let blockedDays = 0;
+    let daysByWeekday = { dl: 0, dt: 0, dc: 0, dj: 0, dv: 0, ds: 0, dg: 0 };
+
+    // Iterar amb una còpia de la data per evitar modificar la referència
+    const currentDate = new Date(start);
+    while (currentDate <= end) {
+      totalDays++;
+      const dayOfWeek = getDayOfWeekCode(currentDate.getDay());
 
       // Comprovar si el dia està disponible
       if (calendarConfig.dies_setmana.includes(dayOfWeek)) {
-        // Comprovar si no és festiu
-        const dateStr = date.toISOString().split('T')[0];
+        daysByWeekday[dayOfWeek]++;
+        
+        // Crear dateStr amb format local consistent
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        
         if (!calendarConfig.dies_festius.includes(dateStr)) {
+          validDays++;
 
           // Afegir slots per cada hora i taula
           calendarConfig.hores_disponibles.forEach(hora => {
             for (let taula = 1; taula <= calendarConfig.taules_per_slot; taula++) {
               dates.push({
-                date: new Date(date),
+                date: new Date(currentDate),
                 time: hora,
                 table: taula,
                 isUsed: false
               });
             }
           });
+        } else {
+          blockedDays++;
+          console.log(`🚫 Skipping blocked date: ${dateStr}`);
         }
       }
+      
+      // Incrementar dia
+      currentDate.setDate(currentDate.getDate() + 1);
     }
+
+    console.log(`📊 Date generation summary:`);
+    console.log(`   Total days in range: ${totalDays}`);
+    console.log(`   Valid days (matching dies_setmana): ${validDays + blockedDays}`);
+    console.log(`   Blocked days (in dies_festius): ${blockedDays}`);
+    console.log(`   Available days for scheduling: ${validDays}`);
+    console.log(`   Total slots generated: ${dates.length}`);
+    console.log(`   📅 Dies per dia de la setmana:`, daysByWeekday);
 
     return dates;
   }
@@ -600,17 +1227,47 @@
       console.log('📝 Processing line:', line);
       let found = false;
       
-      // Test 1: Períodes "del X al Y de [mes]"
-      let match = line.match(/del\s+(\d{1,2})\s+al\s+(\d{1,2})\s+de\s+([a-zA-Zàèéíòóúç]+)/i);
+      // Test 0: Períodes "del X de [mes1] al Y de [mes2]" (creua mesos/anys)
+      let match = line.match(/del\s+(\d{1,2})\s+de\s+([a-zA-Zàèéíòóúç]+)\s+al\s+(\d{1,2})\s+de\s+([a-zA-Zàèéíòóúç]+)/i);
       if (match) {
-        const [, startDay, endDay, monthName] = match;
-        const monthNumber = monthMap[monthName.toLowerCase()];
-        if (monthNumber !== undefined) {
-          const startDate = new Date(currentYear, monthNumber, parseInt(startDay));
-          const endDate = new Date(currentYear, monthNumber, parseInt(endDay));
+        const [, startDay, startMonth, endDay, endMonth] = match;
+        const startMonthNumber = monthMap[startMonth.toLowerCase()];
+        const endMonthNumber = monthMap[endMonth.toLowerCase()];
+        
+        if (startMonthNumber !== undefined && endMonthNumber !== undefined) {
+          let startDate = new Date(currentYear, startMonthNumber, parseInt(startDay));
+          let endDate = new Date(currentYear, endMonthNumber, parseInt(endDay));
+          
+          // Si la data final és abans que la inicial, assumir que creua anys
+          if (endDate < startDate) {
+            endDate = new Date(currentYear + 1, endMonthNumber, parseInt(endDay));
+          }
+          
           periods.push({ start: startDate, end: endDate });
-          console.log('✅ Found month period (de):', { start: startDate, end: endDate });
+          console.log(`✅ Període detectat: del ${startDay} de ${startMonth} al ${endDay} de ${endMonth} (ambdós inclosos)`, { 
+            dataInici: startDate.toISOString().split('T')[0], 
+            dataFinal: endDate.toISOString().split('T')[0] 
+          });
           found = true;
+        }
+      }
+      
+      // Test 1: Períodes "del X al Y de [mes]"
+      if (!found) {
+        match = line.match(/del\s+(\d{1,2})\s+al\s+(\d{1,2})\s+de\s+([a-zA-Zàèéíòóúç]+)/i);
+        if (match) {
+          const [, startDay, endDay, monthName] = match;
+          const monthNumber = monthMap[monthName.toLowerCase()];
+          if (monthNumber !== undefined) {
+            const startDate = new Date(currentYear, monthNumber, parseInt(startDay));
+            const endDate = new Date(currentYear, monthNumber, parseInt(endDay));
+            periods.push({ start: startDate, end: endDate });
+            console.log('✅ Found month period (de) - ambdós dies inclosos:', { 
+              start: startDate.toISOString().split('T')[0], 
+              end: endDate.toISOString().split('T')[0] 
+            });
+            found = true;
+          }
         }
       }
       
@@ -624,7 +1281,10 @@
             const startDate = new Date(currentYear, monthNumber, parseInt(startDay));
             const endDate = new Date(currentYear, monthNumber, parseInt(endDay));
             periods.push({ start: startDate, end: endDate });
-            console.log("✅ Found month period (d'):", { start: startDate, end: endDate });
+            console.log("✅ Found month period (d') - ambdós dies inclosos:", { 
+              start: startDate.toISOString().split('T')[0], 
+              end: endDate.toISOString().split('T')[0] 
+            });
             found = true;
           }
         }
@@ -635,10 +1295,19 @@
         match = line.match(/(\d{1,2})\/(\d{1,2})\s+al\s+(\d{1,2})\/(\d{1,2})/i);
         if (match) {
           const [, startDay, startMonth, endDay, endMonth] = match;
-          const startDate = new Date(currentYear, parseInt(startMonth) - 1, parseInt(startDay));
-          const endDate = new Date(currentYear, parseInt(endMonth) - 1, parseInt(endDay));
+          let startDate = new Date(currentYear, parseInt(startMonth) - 1, parseInt(startDay));
+          let endDate = new Date(currentYear, parseInt(endMonth) - 1, parseInt(endDay));
+          
+          // Si la data final és abans que la inicial, assumir que creua anys (ex: 15/12 al 6/1)
+          if (endDate < startDate) {
+            endDate = new Date(currentYear + 1, parseInt(endMonth) - 1, parseInt(endDay));
+          }
+          
           periods.push({ start: startDate, end: endDate });
-          console.log('✅ Found date period (/):', { start: startDate, end: endDate });
+          console.log('✅ Found date period (/) - ambdós dies inclosos:', { 
+            start: startDate.toISOString().split('T')[0], 
+            end: endDate.toISOString().split('T')[0] 
+          });
           found = true;
         }
       }
@@ -648,10 +1317,19 @@
         match = line.match(/(\d{1,2})-(\d{1,2})\s+al\s+(\d{1,2})-(\d{1,2})/i);
         if (match) {
           const [, startDay, startMonth, endDay, endMonth] = match;
-          const startDate = new Date(currentYear, parseInt(startMonth) - 1, parseInt(startDay));
-          const endDate = new Date(currentYear, parseInt(endMonth) - 1, parseInt(endDay));
+          let startDate = new Date(currentYear, parseInt(startMonth) - 1, parseInt(startDay));
+          let endDate = new Date(currentYear, parseInt(endMonth) - 1, parseInt(endDay));
+          
+          // Si la data final és abans que la inicial, assumir que creua anys
+          if (endDate < startDate) {
+            endDate = new Date(currentYear + 1, parseInt(endMonth) - 1, parseInt(endDay));
+          }
+          
           periods.push({ start: startDate, end: endDate });
-          console.log('✅ Found dash period (-):', { start: startDate, end: endDate });
+          console.log('✅ Found dash period (-) - ambdós dies inclosos:', { 
+            start: startDate.toISOString().split('T')[0], 
+            end: endDate.toISOString().split('T')[0] 
+          });
           found = true;
         }
       }
@@ -757,12 +1435,18 @@
     const restrictions = parseSpecialRestrictions(restrictionsText);
     
     return restrictions.some(restriction => {
-      // Comparar només les dates (sense hora)
-      const checkDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-      const startDate = new Date(restriction.start.getFullYear(), restriction.start.getMonth(), restriction.start.getDate());
-      const endDate = new Date(restriction.end.getFullYear(), restriction.end.getMonth(), restriction.end.getDate());
+      // Normalitzar totes les dates a mitjanit hora local per comparar només el dia
+      const checkDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+      const startDate = new Date(restriction.start.getFullYear(), restriction.start.getMonth(), restriction.start.getDate(), 0, 0, 0, 0);
+      const endDate = new Date(restriction.end.getFullYear(), restriction.end.getMonth(), restriction.end.getDate(), 0, 0, 0, 0);
       
-      return checkDate >= startDate && checkDate <= endDate;
+      const isRestricted = checkDate >= startDate && checkDate <= endDate;
+      
+      if (isRestricted) {
+        console.log(`   🔒 Data restringida: ${checkDate.toISOString().split('T')[0]} està dins del període ${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]} (ambdós inclosos)`);
+      }
+      
+      return isRestricted;
     });
   }
 
@@ -803,8 +1487,11 @@
 
   function calculateAvailableCapacity() {
     // Calcular slots reals disponibles dins el període establert
-    const startDate = new Date(dataInici);
-    const endDate = new Date(dataFi);
+    const [startYear, startMonth, startDay] = dataInici.split('-').map(Number);
+    const [endYear, endMonth, endDay] = dataFi.split('-').map(Number);
+    
+    const startDate = new Date(startYear, startMonth - 1, startDay);
+    const endDate = new Date(endYear, endMonth - 1, endDay);
     let totalSlots = 0;
 
     // Iterar per cada dia del període
@@ -813,7 +1500,10 @@
 
       // Comprovar si el dia està disponible
       if (calendarConfig.dies_setmana.includes(dayOfWeek)) {
-        const dateStr = date.toISOString().split('T')[0];
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
 
         // Comprovar si no és festiu
         if (!calendarConfig.dies_festius.includes(dateStr)) {
@@ -1115,6 +1805,121 @@
       </div>
     </div>
 
+    <!-- Períodes de bloqueig -->
+    <div class="mt-6 border-t border-gray-200 pt-6">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h4 class="text-sm font-medium text-gray-900">Períodes de Bloqueig</h4>
+          <p class="text-xs text-gray-500 mt-1">
+            Especifica períodes en els quals no es poden programar partides (vacances, Pasqua, etc.)
+          </p>
+        </div>
+        <button
+          on:click={() => showBlockedPeriods = !showBlockedPeriods}
+          class="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+        >
+          {showBlockedPeriods ? 'Amagar' : 'Gestionar Bloquejos'}
+        </button>
+      </div>
+
+      {#if showBlockedPeriods}
+        <!-- Formulari per afegir nou període -->
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+          <h5 class="text-sm font-medium text-gray-900 mb-3">Afegir Nou Període de Bloqueig</h5>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label for="blocked-start" class="block text-xs font-medium text-gray-700 mb-1">
+                Data d'inici
+              </label>
+              <input
+                id="blocked-start"
+                type="date"
+                bind:value={newBlockedStart}
+                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label for="blocked-end" class="block text-xs font-medium text-gray-700 mb-1">
+                Data de fi
+              </label>
+              <input
+                id="blocked-end"
+                type="date"
+                bind:value={newBlockedEnd}
+                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label for="blocked-description" class="block text-xs font-medium text-gray-700 mb-1">
+                Descripció (opcional)
+              </label>
+              <input
+                id="blocked-description"
+                type="text"
+                bind:value={newBlockedDescription}
+                placeholder="Ex: Setmana Santa"
+                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <div class="mt-3">
+            <button
+              on:click={addBlockedPeriod}
+              class="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+            >
+              ➕ Afegir Període
+            </button>
+          </div>
+        </div>
+
+        <!-- Llista de períodes bloquejats -->
+        {#if blockedPeriods.length > 0}
+          <div class="space-y-2">
+            <h5 class="text-sm font-medium text-gray-900">Períodes Bloquejats ({blockedPeriods.length})</h5>
+            {#each blockedPeriods as period, index}
+              <div class="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg p-3">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-medium text-gray-900">
+                      {new Date(period.start).toLocaleDateString('ca-ES')} - {new Date(period.end).toLocaleDateString('ca-ES')}
+                    </span>
+                    {#if period.description}
+                      <span class="text-xs text-gray-600 italic">({period.description})</span>
+                    {/if}
+                  </div>
+                  <div class="text-xs text-gray-500 mt-1">
+                    {Math.ceil((new Date(period.end).getTime() - new Date(period.start).getTime()) / (1000 * 60 * 60 * 24)) + 1} dies bloquejats
+                  </div>
+                </div>
+                <button
+                  on:click={() => removeBlockedPeriod(index)}
+                  class="ml-3 px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                >
+                  Eliminar
+                </button>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div class="text-center py-4 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg">
+            No hi ha períodes de bloqueig definits
+          </div>
+        {/if}
+
+        <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div class="flex items-start gap-2">
+            <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div class="text-xs text-blue-800">
+              <strong>Important:</strong> Els períodes bloquejats NO tindran partides programades, però 
+              <strong>apareixeran al calendari imprès</strong> com a dates buides, mantenint la continuïtat visual del calendari.
+            </div>
+          </div>
+        </div>
+      {/if}
+    </div>
+
     <!-- Botons d'acció -->
     <div class="mt-6 flex flex-wrap gap-3">
       {#if !dataFi}
@@ -1230,7 +2035,29 @@
                         {/if}
                       </td>
                       <td class="px-4 py-2 text-sm text-gray-900">
-                        {restrictions?.restriccions_especials || '-'}
+                        {#if restrictions?.restriccions_especials}
+                          {@const periods = parseSpecialRestrictions(restrictions.restriccions_especials)}
+                          {#if periods.length > 0}
+                            <div class="space-y-1">
+                              {#each periods as period}
+                                <div class="inline-flex items-center px-2 py-1 rounded text-xs bg-red-100 text-red-800 mr-1 mb-1">
+                                  🚫 {period.start.toLocaleDateString('ca-ES', { day: 'numeric', month: 'short' })}
+                                  {#if period.start.getTime() !== period.end.getTime()}
+                                    - {period.end.toLocaleDateString('ca-ES', { day: 'numeric', month: 'short' })}
+                                  {/if}
+                                </div>
+                              {/each}
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">
+                              Text original: {restrictions.restriccions_especials}
+                            </div>
+                          {:else}
+                            <span class="text-orange-600 text-xs">⚠️ No s'han pogut interpretar les restriccions</span>
+                            <div class="text-xs text-gray-500">{restrictions.restriccions_especials}</div>
+                          {/if}
+                        {:else}
+                          <span class="text-gray-400">-</span>
+                        {/if}
                       </td>
                     </tr>
                   {/each}
@@ -1269,6 +2096,108 @@
           </div>
         {/if}
       </div>
+
+      <!-- Estadístiques d'ús de taules per jugador -->
+      {#if proposedCalendar.filter(p => p.estat === 'generat').length > 0}
+        <div class="mb-6 border-t border-gray-200 pt-4">
+          <button
+            on:click={() => showTableStats = !showTableStats}
+            class="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+          >
+            <svg 
+              class="w-4 h-4 transform transition-transform {showTableStats ? 'rotate-90' : ''}" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+            <span>🎱 Distribució de Taules per Jugador ({calculateTableStats().length} jugadors)</span>
+          </button>
+
+          {#if showTableStats}
+            {@const tableStats = calculateTableStats()}
+            <div class="mt-4 overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Jugador</th>
+                    <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Taula 1</th>
+                    <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Taula 2</th>
+                    <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Taula 3</th>
+                    <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Total</th>
+                    <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Mínim req.</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  {#each tableStats as player}
+                    {@const maxUsage = Math.max(player.taula1, player.taula2, player.taula3)}
+                    {@const percentage1 = player.total > 0 ? (player.taula1 / player.total * 100).toFixed(0) : 0}
+                    {@const percentage2 = player.total > 0 ? (player.taula2 / player.total * 100).toFixed(0) : 0}
+                    {@const percentage3 = player.total > 0 ? (player.taula3 / player.total * 100).toFixed(0) : 0}
+                    {@const hasMaxViolation = (player.taula1 / player.total > 0.60) || (player.taula2 / player.total > 0.60) || (player.taula3 / player.total > 0.60)}
+                    {@const hasMinViolation = player.minRequired > 0 && (player.taula1 < player.minRequired || player.taula2 < player.minRequired || player.taula3 < player.minRequired)}
+                    <tr class="{hasMaxViolation || hasMinViolation ? 'bg-red-50' : ''}">
+                      <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {player.nom} {player.cognoms}
+                      </td>
+                      <td class="px-4 py-2 text-center text-sm">
+                        <span class="{
+                          player.taula1 > 0 && player.taula1 / player.total > 0.60 ? 'text-red-600 font-bold' : 
+                          player.minRequired > 0 && player.taula1 < player.minRequired ? 'text-orange-600 font-semibold' : 
+                          'text-gray-900'
+                        }">
+                          {player.taula1}
+                        </span>
+                        <span class="text-xs text-gray-500 ml-1">({percentage1}%)</span>
+                      </td>
+                      <td class="px-4 py-2 text-center text-sm">
+                        <span class="{
+                          player.taula2 > 0 && player.taula2 / player.total > 0.60 ? 'text-red-600 font-bold' : 
+                          player.minRequired > 0 && player.taula2 < player.minRequired ? 'text-orange-600 font-semibold' : 
+                          'text-gray-900'
+                        }">
+                          {player.taula2}
+                        </span>
+                        <span class="text-xs text-gray-500 ml-1">({percentage2}%)</span>
+                      </td>
+                      <td class="px-4 py-2 text-center text-sm">
+                        <span class="{
+                          player.taula3 > 0 && player.taula3 / player.total > 0.60 ? 'text-red-600 font-bold' : 
+                          player.minRequired > 0 && player.taula3 < player.minRequired ? 'text-orange-600 font-semibold' : 
+                          'text-gray-900'
+                        }">
+                          {player.taula3}
+                        </span>
+                        <span class="text-xs text-gray-500 ml-1">({percentage3}%)</span>
+                      </td>
+                      <td class="px-4 py-2 text-center text-sm font-medium text-gray-900">
+                        {player.total}
+                      </td>
+                      <td class="px-4 py-2 text-center text-sm text-gray-500">
+                        {player.minRequired > 0 ? player.minRequired : '-'}
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+              
+              <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+                <div><strong>ℹ️ Llegenda de colors:</strong></div>
+                <ul class="mt-1 ml-4 list-disc">
+                  <li><span class="text-red-600 font-bold">Vermell:</span> Supera el 60% a una taula (màxim)</li>
+                  <li><span class="text-orange-600 font-semibold">Taronja:</span> Per sota del mínim requerit</li>
+                </ul>
+                <div class="mt-2"><strong>📋 Mínims requerits:</strong></div>
+                <ul class="mt-1 ml-4 list-disc">
+                  <li>8-11 partits: mínim 2 per taula</li>
+                  <li>12+ partits: mínim 3 per taula</li>
+                </ul>
+              </div>
+            </div>
+          {/if}
+        </div>
+      {/if}
 
       <!-- Taula de partits -->
       <div class="overflow-x-auto">

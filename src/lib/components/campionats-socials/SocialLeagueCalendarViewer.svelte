@@ -814,6 +814,11 @@
 
           if (config) {
             calendarConfig = config;
+            console.log('📅 Configuració del calendari carregada:', {
+              dies_setmana: config.dies_setmana,
+              hores_disponibles: config.hores_disponibles,
+              taules_per_slot: config.taules_per_slot
+            });
           }
           
           if (configError && configError.code !== 'PGRST116') { // PGRST116 = no rows found
@@ -1115,6 +1120,11 @@
       hores_disponibles: ['18:00', '19:00'],
       taules_per_slot: 3
     };
+
+    console.log('📊 Building timeline amb configuració:', {
+      dies_setmana: config.dies_setmana,
+      totalDates: currentDates.length
+    });
 
     let totalSlots = 0;
     let matchedSlots = 0;

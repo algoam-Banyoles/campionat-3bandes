@@ -293,6 +293,14 @@
           Visualitza, filtra i gestiona les mitjanes històriques dels jugadors. Utilitzades per tots els tipus de competicions.
         </p>
       </a>
+
+      <!-- Targeta: mitjanes comparatives -->
+      <a href="/admin/mitjanes-comparatives" class="block rounded-2xl border p-4 hover:shadow-sm bg-amber-50 border-amber-200">
+        <h2 class="font-semibold text-amber-800">📈 Mitjanes Comparatives</h2>
+        <p class="text-sm text-amber-700 mt-1">
+          Compara les mitjanes dels jugadors de les dues temporades anteriors per modalitat i mostra la millor mitjana.
+        </p>
+      </a>
     </div>
   </div>
 

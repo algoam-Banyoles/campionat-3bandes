@@ -197,43 +197,38 @@
     // Get all styles from the HeadToHeadPrintable component - optimized to fit one category per A3 page
     return `
       .printable-container { width: 100%; }
-      .print-page { width: 100%; padding: 0.4cm 0.4cm 0.1cm 0.4cm; }
+      .print-page { width: 100%; padding: 0.15cm; page-break-inside: avoid; page-break-after: always; }
       .page-break { page-break-after: always; break-after: page; }
 
-      .print-header { position: relative; margin-bottom: 0.3cm; padding-bottom: 0.2cm; border-bottom: 2px solid #000; min-height: 1.8cm; }
-      .header-center { text-align: center; margin-bottom: 0.3cm; }
-      .header-center h1 { font-size: 18pt; margin: 0 0 0.2cm 0; font-weight: bold; color: #000; }
-      .header-subtitle { font-size: 11pt; margin: 0; color: #000; }
+      .print-header { position: relative; margin-bottom: 0.15cm; padding-bottom: 0.1cm; border-bottom: 1px solid #000; min-height: 0.8cm; }
+      .header-center { text-align: center; margin-bottom: 0; }
+      .header-center h1 { font-size: 10pt; margin: 0; font-weight: bold; color: #000; line-height: 1.1; }
+      .header-subtitle { font-size: 7pt; margin: 0; color: #000; }
       .header-right { position: absolute; right: 0; top: 0; text-align: right; }
-      .category-info { font-size: 11pt; margin: 0 0 0.1cm 0; color: #000; }
+      .category-info { font-size: 7pt; margin: 0; color: #000; }
 
-      .print-grid { width: 100%; border-collapse: collapse; font-size: 11pt; margin-bottom: 0.1cm; color: #000; }
-      .print-grid th, .print-grid td { border: 1.5px solid #000; padding: 3px; text-align: center; }
+      .print-grid { width: 100%; border-collapse: collapse; font-size: 5pt; margin-bottom: 0.2cm; color: #000; }
+      .print-grid th, .print-grid td { border: 1px solid #444; padding: 0; text-align: center; }
 
-      .corner-cell { background: #fff; width: 2.5cm; padding: 4px; vertical-align: middle; }
-      .corner-logo { max-width: 100%; max-height: 1.8cm; height: auto; display: block; margin: 0 auto; }
-      .player-header { background: #e8e8e8; color: #000; font-weight: bold; height: 3cm; width: 1.9cm; padding: 3px; position: relative; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .player-name-rotated { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); transform-origin: center; white-space: nowrap; font-size: 13pt; width: 3.5cm; overflow: hidden; text-overflow: ellipsis; }
+      .corner-cell { background: #fff; width: 1.5cm; padding: 1px; vertical-align: middle; }
+      .corner-logo { max-width: 100%; max-height: 1cm; height: auto; display: block; margin: 0 auto; }
+      .player-header { background: #333; color: white; font-weight: bold; height: 1cm; width: 0.7cm; padding: 0; position: relative; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .player-name-rotated { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); transform-origin: center; white-space: nowrap; font-size: 5pt; width: 1.5cm; overflow: hidden; text-overflow: ellipsis; }
 
-      .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 6px; font-size: 13pt; white-space: nowrap; width: 2.5cm; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 2px; font-size: 6pt; white-space: nowrap; width: 1.5cm; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-      .match-cell { width: 1.9cm; height: 2.1cm; padding: 2px; vertical-align: middle; }
+      .match-cell { width: 0.7cm; height: 0.6cm; padding: 0; vertical-align: middle; }
       .self-cell { background: #d0d0d0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .self-match { color: #666; font-size: 16pt; font-weight: bold; }
+      .self-match { color: #666; font-size: 10pt; font-weight: bold; }
 
-      .match-data { display: flex; flex-direction: column; gap: 2px; font-size: 10pt; color: #000; }
-      .data-row { display: flex; justify-content: space-between; align-items: center; padding: 1px 3px; }
-      .data-row.centered { justify-content: center; background: #f0f0f0; gap: 3px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .data-row.centered.win { background: #90ee90; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .data-row.centered.draw { background: #87ceeb; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .data-row.centered.loss { background: #ffcccb; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .match-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; width: 100%; height: 100%; border: 2px solid #000; gap: 1px; background-color: #000; }
+      .grid-cell { border: none; padding: 0; text-align: center; font-size: 4.5pt; font-weight: 700; display: flex; align-items: center; justify-content: center; line-height: 1; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .grid-cell.top-left { grid-column: 1; grid-row: 1; }
+      .grid-cell.top-right { grid-column: 2; grid-row: 1; }
+      .grid-cell.middle-full { grid-column: 1 / -1; grid-row: 2; background: #f0f0f0; font-weight: bold; }
+      .grid-cell.bottom-full { grid-column: 1 / -1; grid-row: 3; }
 
-      .value { font-weight: 600; color: #000; }
-      .value.points { font-weight: bold; font-size: 12pt; color: #000; }
-      .spacer { flex: 1; }
-      .no-match { color: #ccc; font-size: 11pt; }
-
-      .loading-text, .error-text, .empty-text { text-align: center; padding: 1cm; font-size: 12pt; }
+      .loading-text, .error-text, .empty-text { text-align: center; padding: 1cm; font-size: 10pt; }
       .error-text { color: #c00; }
     `;
   }
@@ -457,7 +452,8 @@
     <HeadToHeadPrintable
       bind:this={printableComponent}
       eventId={selectedEvent.id}
-      eventName="{modalityNames[selectedEvent.modalitat] || selectedEvent.modalitat} {selectedEvent.temporada}"
+      eventName="{modalityNames[selectedEvent.modalitat] || selectedEvent.modalitat}"
+      season={selectedEvent.temporada}
       categories={categories}
     />
   </div>

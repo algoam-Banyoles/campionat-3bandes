@@ -574,6 +574,61 @@ export async function getHeadToHeadResults(eventId: string, categoriaId: string)
 }> {
   try {
     console.log('Fetching head-to-head results for:', { eventId, categoriaId });
+    
+    // Primer, obtenir tots els jugadors inscrits a la categoria
+    const { data: inscriptionsData, error: inscriptionsError } = await supabase
+      .from('inscripcions')
+      .select(`
+        id,
+        soci_numero,
+        socis!inner (
+          numero_soci,
+          nom,
+          cognoms
+        )
+      `)
+      .eq('event_id', eventId)
+      .eq('categoria_assignada_id', categoriaId);
+
+    if (inscriptionsError) {
+      console.error('Error fetching inscriptions:', inscriptionsError);
+      throw inscriptionsError;
+    }
+
+    // Obtenir els players IDs dels socis inscrits
+    const sociNumbers = inscriptionsData?.map(i => i.soci_numero) || [];
+    
+    const { data: playersData, error: playersError } = await supabase
+      .from('players')
+      .select('id, numero_soci')
+      .in('numero_soci', sociNumbers);
+
+    if (playersError) {
+      console.error('Error fetching players:', playersError);
+      throw playersError;
+    }
+
+    // Crear mapa de numero_soci -> player_id
+    const sociToPlayerMap = new Map<number, string>();
+    (playersData || []).forEach(p => sociToPlayerMap.set(p.numero_soci, p.id));
+
+    // Crear llista de jugadors des de les inscripcions
+    const playersMap = new Map<string, any>();
+    (inscriptionsData || []).forEach((inscription: any) => {
+      const playerId = sociToPlayerMap.get(inscription.soci_numero);
+      if (playerId && inscription.socis) {
+        playersMap.set(playerId, {
+          id: playerId,
+          nom: inscription.socis.nom,
+          cognoms: inscription.socis.cognoms,
+          numero_soci: inscription.socis.numero_soci
+        });
+      }
+    });
+
+    console.log(`Found ${playersMap.size} players in category`);
+
+    // Ara obtenir els resultats de les partides
     const { data, error } = await supabase.rpc('get_head_to_head_results', {
       p_event_id: eventId,
       p_categoria_id: categoriaId
@@ -584,65 +639,61 @@ export async function getHeadToHeadResults(eventId: string, categoriaId: string)
       throw error;
     }
 
-    if (!data || data.length === 0) {
-      console.log('No head-to-head data found');
-      return { players: [], matches: new Map() };
-    }
-
-    console.log(`Received ${data.length} match records from database`);
-
-    // Extract unique players
-    const playersMap = new Map<string, any>();
     const matches = new Map<string, any>();
 
-    data.forEach((row: any) => {
-      // Add player 1 if not exists
-      if (!playersMap.has(row.jugador1_id)) {
-        playersMap.set(row.jugador1_id, {
-          id: row.jugador1_id,
-          nom: row.jugador1_nom,
-          cognoms: row.jugador1_cognoms,
-          numero_soci: row.jugador1_numero_soci
+    if (data && data.length > 0) {
+      console.log(`Received ${data.length} match records from database`);
+
+      data.forEach((row: any) => {
+        // Afegir jugadors de les partides al mapa (per si de cas)
+        if (!playersMap.has(row.jugador1_id)) {
+          playersMap.set(row.jugador1_id, {
+            id: row.jugador1_id,
+            nom: row.jugador1_nom,
+            cognoms: row.jugador1_cognoms,
+            numero_soci: row.jugador1_numero_soci
+          });
+        }
+
+        if (!playersMap.has(row.jugador2_id)) {
+          playersMap.set(row.jugador2_id, {
+            id: row.jugador2_id,
+            nom: row.jugador2_nom,
+            cognoms: row.jugador2_cognoms,
+            numero_soci: row.jugador2_numero_soci
+          });
+        }
+
+        // Add match data for player1 vs player2
+        const matchKey = `${row.jugador1_id}_${row.jugador2_id}`;
+        matches.set(matchKey, {
+          caramboles: row.caramboles_jugador1,
+          entrades: row.entrades_jugador1,
+          punts: row.punts_jugador1,
+          mitjana: parseFloat(row.mitjana_jugador1)
         });
-      }
 
-      // Add player 2 if not exists
-      if (!playersMap.has(row.jugador2_id)) {
-        playersMap.set(row.jugador2_id, {
-          id: row.jugador2_id,
-          nom: row.jugador2_nom,
-          cognoms: row.jugador2_cognoms,
-          numero_soci: row.jugador2_numero_soci
+        // Add reverse match data for player2 vs player1
+        const reverseMatchKey = `${row.jugador2_id}_${row.jugador1_id}`;
+
+        // Calculate punts_jugador2 from database if available, otherwise calculate
+        const punts_jugador2 = row.punts_jugador2 ?? (
+          row.caramboles_jugador2 > row.caramboles_jugador1 ? 2 :
+          row.caramboles_jugador2 === row.caramboles_jugador1 ? 1 : 0
+        );
+
+        const mitjana_jugador2 = row.entrades_jugador2 > 0 ? row.caramboles_jugador2 / row.entrades_jugador2 : 0;
+
+        matches.set(reverseMatchKey, {
+          caramboles: row.caramboles_jugador2,
+          entrades: row.entrades_jugador2,
+          punts: punts_jugador2,
+          mitjana: parseFloat(mitjana_jugador2.toFixed(3))
         });
-      }
-
-      // Add match data for player1 vs player2
-      const matchKey = `${row.jugador1_id}_${row.jugador2_id}`;
-      matches.set(matchKey, {
-        caramboles: row.caramboles_jugador1,
-        entrades: row.entrades_jugador1,
-        punts: row.punts_jugador1,
-        mitjana: parseFloat(row.mitjana_jugador1)
       });
-
-      // Add reverse match data for player2 vs player1
-      const reverseMatchKey = `${row.jugador2_id}_${row.jugador1_id}`;
-
-      // Calculate punts_jugador2 from database if available, otherwise calculate
-      const punts_jugador2 = row.punts_jugador2 ?? (
-        row.caramboles_jugador2 > row.caramboles_jugador1 ? 2 :
-        row.caramboles_jugador2 === row.caramboles_jugador1 ? 1 : 0
-      );
-
-      const mitjana_jugador2 = row.entrades_jugador2 > 0 ? row.caramboles_jugador2 / row.entrades_jugador2 : 0;
-
-      matches.set(reverseMatchKey, {
-        caramboles: row.caramboles_jugador2,
-        entrades: row.entrades_jugador2,
-        punts: punts_jugador2,
-        mitjana: parseFloat(mitjana_jugador2.toFixed(3))
-      });
-    });
+    } else {
+      console.log('No match results found yet, showing empty grid with inscribed players');
+    }
 
     // Convert players map to sorted array
     const allPlayers = Array.from(playersMap.values());

@@ -3,10 +3,12 @@
 
   export let eventId: string;
   export let eventName: string = '';
+  export let season: string = '';
   export let categories: Array<{
     id: string;
     nom: string;
     distancia_caramboles: number;
+    max_entrades?: number;
   }> = [];
 
   interface CategoryData {
@@ -72,6 +74,38 @@
       return lastNameA.localeCompare(lastNameB, 'ca');
     });
   }
+
+  function calculateOptimalSizes(numPlayers: number) {
+    // Dimensions A3 landscape: ~42cm amplada x ~29.7cm alçada
+    // Marges: 0.4cm x 2 = 0.8cm
+    // Espai disponible: ~41.2cm amplada x ~29cm alçada
+    
+    const availableWidth = 41.2; // cm
+    const availableHeight = 29; // cm
+    const headerHeight = 1.8; // cm per capçalera (augmentat)
+    const cornerWidth = 3.5; // cm per columna de noms (augmentat per més llegibilitat)
+    
+    // Espai disponible per les cel·les
+    const gridHeight = availableHeight - headerHeight - 0.8; // menys buffer
+    const gridWidth = availableWidth - cornerWidth - 0.5; // menys buffer
+    
+    // Calcular mida òptima per cel·la
+    const cellWidth = Math.min(gridWidth / numPlayers, 2.5); // màxim 2.5cm (augmentat)
+    const cellHeight = Math.min(gridHeight / numPlayers, 2.0); // màxim 2.0cm (augmentat)
+    
+    // Calcular font size proporcional - augmentat substancialment
+    const fontSize = Math.max(Math.min(cellHeight * 0.5, 11), 8); // entre 8pt i 11pt
+    const playerNameSize = Math.max(Math.min(cellHeight * 0.55, 11), 9); // mínim 9pt, màxim 11pt
+    
+    return {
+      cellWidth: Math.max(cellWidth, 1.2), // mínim 1.2cm (augmentat)
+      cellHeight: Math.max(cellHeight, 1.0), // mínim 1.0cm (augmentat)
+      fontSize: fontSize,
+      playerNameSize: playerNameSize,
+      headerHeight: Math.max(cellHeight * 2.0, 2.5), // alçada capçalera més gran per noms complets
+      cornerWidth: cornerWidth
+    };
+  }
 </script>
 
 <div class="printable-container">
@@ -84,12 +118,14 @@
       <!-- Header -->
       <div class="print-header">
         <div class="header-center">
-          <h1>CAMPIONAT SOCIAL DE {eventName.toUpperCase()}</h1>
-          <p class="header-subtitle">Secció de Billar · Foment Martinenc</p>
+          <h1 style="font-size: 12pt !important;">CAMPIONAT SOCIAL DE {eventName.toUpperCase()}</h1>
+          {#if season}
+            <p class="season-info" style="font-size: 10pt !important;">TEMPORADA {season}</p>
+          {/if}
         </div>
         <div class="header-right">
-          <p class="category-info"><strong>Categoria:</strong> {catData.category.nom}</p>
-          <p class="category-info"><strong>Distància:</strong> {catData.category.distancia_caramboles}</p>
+          <p class="category-info" style="font-size: 9pt !important;">{catData.category.nom} - {catData.category.distancia_caramboles} car.</p>
+          <p class="entries-info" style="font-size: 8pt !important;">{catData.category.max_entrades || '-'} Entrades</p>
         </div>
       </div>
 
@@ -99,18 +135,19 @@
       {:else if catData.error}
         <p class="error-text">{catData.error}</p>
       {:else if catData.players.length === 0}
-        <p class="empty-text">No hi ha resultats disponibles</p>
+        <p class="empty-text">No hi ha jugadors inscrits en aquesta categoria</p>
       {:else}
         {@const sortedPlayers = sortPlayersByLastName(catData.players)}
-        <table class="print-grid">
+        {@const sizes = calculateOptimalSizes(sortedPlayers.length)}
+        <table class="print-grid" style="font-size: {sizes.fontSize}pt;">
           <thead>
             <tr>
-              <th class="corner-cell">
-                <img src="/logo.png" alt="Logo Billar" class="corner-logo" />
+              <th class="corner-cell" style="width: {sizes.cornerWidth}cm;">
+                <img src="/logo.png" alt="Logo Billar" class="corner-logo" style="max-height: {sizes.headerHeight}cm;" />
               </th>
               {#each sortedPlayers as opponent}
-                <th class="player-header">
-                  <div class="player-name-rotated">
+                <th class="player-header" style="width: {sizes.cellWidth}cm; height: {sizes.headerHeight}cm; background: #f0f0f0; color: #000; border-left: 0.3px solid #666; border-right: 0.3px solid #666;">
+                  <div class="player-name-horizontal" style="font-size: {sizes.playerNameSize * 1.1}pt !important; padding: 2px 1px !important;">
                     {getPlayerShortName(opponent)}
                   </div>
                 </th>
@@ -120,32 +157,21 @@
           <tbody>
             {#each sortedPlayers as player}
               <tr>
-                <th class="player-row-header">
+                <th class="player-row-header" style="width: {sizes.cornerWidth}cm; font-size: {sizes.playerNameSize * 1.35}pt !important; padding: 1px 2px !important; border-top: 0.3px solid #666; border-bottom: 0.3px solid #666;">
                   {getPlayerShortName(player)}
                 </th>
                 {#each sortedPlayers as opponent}
-                  <td class="match-cell" class:self-cell={player.id === opponent.id}>
+                  <td class="match-cell" style="width: {sizes.cellWidth}cm; height: {sizes.cellHeight}cm; padding: 0;" class:self-cell={player.id === opponent.id}>
                     {#if player.id === opponent.id}
                       <div class="self-match">—</div>
                     {:else}
                       {@const matchData = getMatchData(catData.matches, player.id, opponent.id)}
-                      {#if matchData}
-                        <div class="match-data">
-                          <div class="data-row">
-                            <span class="value">{matchData.caramboles}</span>
-                            <span class="spacer"></span>
-                            <span class="value">{matchData.entrades}</span>
-                          </div>
-                          <div class="data-row centered" class:win={matchData.punts === 2} class:draw={matchData.punts === 1} class:loss={matchData.punts === 0}>
-                            <span class="value points">{matchData.punts}</span>
-                          </div>
-                          <div class="data-row">
-                            <span class="value">{matchData.mitjana.toFixed(3)}</span>
-                          </div>
-                        </div>
-                      {:else}
-                        <div class="no-match">—</div>
-                      {/if}
+                      <div class="match-grid" style="font-size: {sizes.fontSize * 0.85}pt;">
+                        <div class="grid-cell top-left" style="border-right: 0.3px solid #ccc; border-bottom: 0.3px solid #ccc;">{matchData?.caramboles ?? ''}</div>
+                        <div class="grid-cell top-right" style="border-bottom: 0.3px solid #ccc;">{matchData?.entrades ?? ''}</div>
+                        <div class="grid-cell middle-full" style="border-bottom: 0.3px solid #ccc;">{matchData?.punts ?? ''}</div>
+                        <div class="grid-cell bottom-full">{matchData ? matchData.mitjana.toFixed(3) : ''}</div>
+                      </div>
                     {/if}
                   </td>
                 {/each}
@@ -166,7 +192,8 @@
 
   .print-page {
     width: 100%;
-    padding: 0.5cm;
+    padding: 0.3cm;
+    page-break-inside: avoid;
   }
 
   .page-break {
@@ -177,26 +204,34 @@
   /* Header */
   .print-header {
     position: relative;
-    margin-bottom: 0.4cm;
-    padding-bottom: 0.3cm;
-    border-bottom: 2px solid #000;
-    min-height: 2cm;
+    margin-bottom: 0.2cm;
+    padding-bottom: 0.15cm;
+    border-bottom: 1px solid #ccc;
+    min-height: 1.2cm;
   }
 
   .header-center {
     text-align: center;
-    margin-bottom: 0.3cm;
+    margin-bottom: 0;
   }
 
   .header-center h1 {
-    font-size: 18pt;
-    margin: 0 0 0.2cm 0;
+    font-size: 10pt;
+    margin: 0;
+    font-weight: bold;
+    color: #000;
+    line-height: 1.1;
+  }
+
+  .season-info {
+    font-size: 8pt;
+    margin: 2px 0 0 0;
     font-weight: bold;
     color: #000;
   }
 
   .header-subtitle {
-    font-size: 11pt;
+    font-size: 7pt;
     margin: 0;
     color: #000;
   }
@@ -209,8 +244,15 @@
   }
 
   .category-info {
-    font-size: 11pt;
-    margin: 0 0 0.1cm 0;
+    font-size: 7pt;
+    margin: 0;
+    font-weight: bold;
+  }
+
+  .entries-info {
+    font-size: 6.5pt;
+    margin: 2px 0 0 0;
+    font-weight: bold;
     color: #000;
   }
 
@@ -218,73 +260,79 @@
   .print-grid {
     width: 100%;
     border-collapse: collapse;
-    font-size: 7pt;
-    margin-bottom: 0.3cm;
+    margin-bottom: 0.2cm;
+    table-layout: fixed;
+    page-break-inside: avoid;
   }
 
   .print-grid th,
   .print-grid td {
-    border: 1px solid #333;
-    padding: 2px;
+    padding: 0;
     text-align: center;
   }
 
   .corner-cell {
     background: #fff;
-    width: 2.5cm;
-    padding: 4px;
+    padding: 1px;
     vertical-align: middle;
   }
 
   .corner-logo {
     max-width: 100%;
-    max-height: 2cm;
-    height: auto;
+    width: auto;
     display: block;
     margin: 0 auto;
+    object-fit: contain;
   }
 
   .player-header {
     background: #333;
     color: white;
     font-weight: bold;
-    height: 2.5cm;
-    width: 1.2cm;
-    padding: 2px;
+    padding: 0;
     position: relative;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    overflow: hidden;
   }
 
   .player-name-rotated {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-45deg);
-    transform-origin: center;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
     white-space: nowrap;
-    font-size: 9pt;
-    width: 2.5cm;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-weight: 600;
+    padding: 2px 0;
+    text-align: center;
+    width: 100%;
+  }
+
+  .player-name-horizontal {
+    writing-mode: horizontal-tb;
+    white-space: normal;
+    word-wrap: break-word;
+    font-weight: 600;
+    text-align: center;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    line-height: 1.05;
   }
 
   .player-row-header {
     background: #e8e8e8;
     font-weight: bold;
     text-align: left;
-    padding-left: 4px;
-    font-size: 9pt;
     white-space: nowrap;
-    width: 2.5cm;
+    overflow: hidden;
+    text-overflow: ellipsis;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
   .match-cell {
-    width: 1.2cm;
-    height: 0.8cm;
-    padding: 1px;
+    padding: 0;
     vertical-align: middle;
   }
 
@@ -298,65 +346,56 @@
     color: #666;
     font-size: 10pt;
     font-weight: bold;
-  }
-
-  .match-data {
     display: flex;
-    flex-direction: column;
-    gap: 1px;
-    font-size: 6pt;
-  }
-
-  .data-row {
-    display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 0 2px;
-  }
-
-  .data-row.centered {
     justify-content: center;
+    height: 100%;
+  }
+
+  .match-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    width: 100%;
+    height: 100%;
+    gap: 0;
+  }
+
+  .grid-cell {
+    padding: 1px;
+    text-align: center;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .grid-cell.top-left {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .grid-cell.top-right {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .grid-cell.middle-full {
+    grid-column: 1 / -1;
+    grid-row: 2;
     background: #f0f0f0;
-    gap: 2px;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .data-row.centered.win {
-    background: #90ee90;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .data-row.centered.draw {
-    background: #87ceeb;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .data-row.centered.loss {
-    background: #ffcccb;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .value {
-    font-weight: 600;
-    color: #000;
-  }
-
-  .value.points {
     font-weight: bold;
-    font-size: 7pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
-  .spacer {
-    flex: 1;
-  }
-
-  .no-match {
-    color: #ccc;
-    font-size: 8pt;
+  .grid-cell.bottom-full {
+    grid-column: 1 / -1;
+    grid-row: 3;
   }
 
   /* Status messages */
@@ -376,7 +415,7 @@
   @media print {
     @page {
       size: A3 landscape;
-      margin: 1cm;
+      margin: 0.4cm;
     }
 
     .printable-container {
@@ -384,19 +423,9 @@
     }
 
     .print-page {
-      padding: 0;
-    }
-
-    .print-grid {
-      font-size: 7pt;
-    }
-
-    .player-name-rotated {
-      font-size: 7pt;
-    }
-
-    .match-data {
-      font-size: 6pt;
+      padding: 0.15cm;
+      page-break-inside: avoid;
+      page-break-after: always;
     }
 
     .page-break {

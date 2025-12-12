@@ -95,7 +95,7 @@
     </div>
   {:else if players.length === 0}
     <div class="empty">
-      <p>No hi ha resultats disponibles per aquesta categoria.</p>
+      <p>No hi ha jugadors inscrits en aquesta categoria.</p>
     </div>
   {:else}
     <div class="grid-wrapper">
@@ -125,28 +125,27 @@
                       <div class="self-match">-</div>
                     {:else}
                       {@const matchData = getMatchData(player.id, opponent.id)}
-                      {#if matchData}
-                        <div class="match-grid">
-                          <div class="cell top-left">
-                            <span class="label">C:</span>
-                            <span class="value">{matchData.caramboles}</span>
-                          </div>
-                          <div class="cell top-right">
-                            <span class="label">E:</span>
-                            <span class="value">{matchData.entrades}</span>
-                          </div>
-                          <div class="cell middle">
-                            <span class="label">P:</span>
-                            <span class="value points">{matchData.punts}</span>
-                          </div>
-                          <div class="cell bottom-left">
-                            <span class="label">M:</span>
-                            <span class="value">{matchData.mitjana.toFixed(3)}</span>
-                          </div>
+                      <div class="match-grid">
+                        <!-- Primera fila: 2 columnes (C i E) -->
+                        <div class="cell top-left">
+                          <span class="label">C:</span>
+                          <span class="value">{matchData?.caramboles ?? ''}</span>
                         </div>
-                      {:else}
-                        <div class="no-match">Pendent</div>
-                      {/if}
+                        <div class="cell top-right">
+                          <span class="label">E:</span>
+                          <span class="value">{matchData?.entrades ?? ''}</span>
+                        </div>
+                        <!-- Segona fila: 1 columna (P) -->
+                        <div class="cell middle">
+                          <span class="label">P:</span>
+                          <span class="value points">{matchData?.punts ?? ''}</span>
+                        </div>
+                        <!-- Tercera fila: 1 columna (M) -->
+                        <div class="cell bottom">
+                          <span class="label">M:</span>
+                          <span class="value">{matchData ? matchData.mitjana.toFixed(3) : ''}</span>
+                        </div>
+                      </div>
                     {/if}
                   </td>
                 {/each}
@@ -320,9 +319,11 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: auto auto auto;
-    gap: 2px;
+    gap: 1px;
     width: 100%;
     height: 100%;
+    background: #ddd;
+    border: 1px solid #999;
   }
 
   .cell {
@@ -331,10 +332,11 @@
     justify-content: space-between;
     padding: 2px 4px;
     background: #f8f9fa;
-    border-radius: 2px;
     font-size: 0.7rem;
+    border: 1px solid #ddd;
   }
 
+  /* Primera fila: 2 columnes */
   .cell.top-left {
     grid-column: 1;
     grid-row: 1;
@@ -345,13 +347,15 @@
     grid-row: 1;
   }
 
+  /* Segona fila: 1 columna */
   .cell.middle {
     grid-column: 1 / -1;
     grid-row: 2;
     background: #e8f4f8;
   }
 
-  .cell.bottom-left {
+  /* Tercera fila: 1 columna */
+  .cell.bottom {
     grid-column: 1 / -1;
     grid-row: 3;
   }

@@ -184,16 +184,67 @@
       <p class="text-gray-500">No hi ha classificació disponible per aquest event.</p>
     </div>
   {:else}
+    <!-- Info banner based on data type -->
+    {#if classificacio.length > 0 && classificacio[0].participants.some((p) => p.isClassification)}
+      <!-- Banner for actual classifications with match data -->
+      <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+        <div class="flex items-start">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-green-800">Classificació Actualitzada</h3>
+            <p class="mt-1 text-sm text-green-700">
+              Aquesta classificació inclou totes les dades de les partides jugades durant el campionat: punts, caramboles, entrades i mitjanes.
+            </p>
+          </div>
+        </div>
+      </div>
+    {:else}
+      <!-- Banner for historical inscriptions only -->
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div class="flex items-start">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-blue-800">Informació Històrica</h3>
+            <p class="mt-1 text-sm text-blue-700">
+              Aquest campionat mostra només la llista d'inscrits amb les seves mitjanes històriques. 
+              Les partides d'aquest campionat no van ser registrades a la plataforma.
+            </p>
+          </div>
+        </div>
+      </div>
+    {/if}
+
     <!-- Classification display -->
     <div class="space-y-8">
       {#each classificacio as categoryGroup}
         <div class="bg-white shadow rounded-lg overflow-hidden">
           <!-- Category header -->
           <div class="bg-gray-100 px-4 sm:px-6 py-3 sm:py-4 border-b">
-            <h2 class="text-lg sm:text-xl font-semibold text-gray-900">{categoryGroup.category.nom}</h2>
-            {#if categoryGroup.category.distancia_caramboles}
-              <p class="text-xs sm:text-sm text-gray-600 mt-1">Distància: {categoryGroup.category.distancia_caramboles} caramboles</p>
-            {/if}
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-lg sm:text-xl font-semibold text-gray-900">{categoryGroup.category.nom}</h2>
+                {#if categoryGroup.category.distancia_caramboles}
+                  <p class="text-xs sm:text-sm text-gray-600 mt-1">Distància: {categoryGroup.category.distancia_caramboles} caramboles</p>
+                {/if}
+              </div>
+              {#if categoryGroup.participants.some((p) => p.isClassification)}
+                <span class="hidden sm:inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  📊 Amb dades de partides
+                </span>
+              {:else}
+                <span class="hidden sm:inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  📋 Només inscrits
+                </span>
+              {/if}
+            </div>
           </div>
 
           <!-- Participants table -->
@@ -218,14 +269,14 @@
                       Ent. Tot.
                     </th>
                     <th class="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
-                      Mitjana
+                      Mitjana General
                     </th>
                     <th class="hidden md:table-cell px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
-                      M. Part.
+                      Millor Mitjana
                     </th>
                   {:else}
                     <th class="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
-                      Mitjana
+                      Mitjana Històrica
                     </th>
                     <th class="hidden sm:table-cell px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
                       Estat
@@ -309,7 +360,13 @@
       <h3 class="text-base sm:text-lg font-medium text-blue-900 mb-2">Resum de l'Event</h3>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm">
         <div>
-          <span class="font-medium text-blue-800">Total participants:</span>
+          <span class="font-medium text-blue-800">
+            {#if classificacio.length > 0 && classificacio[0].participants.some((p) => p.isClassification)}
+              Total classificats:
+            {:else}
+              Total inscrits:
+            {/if}
+          </span>
           <span class="text-blue-700">{classificacio.reduce((sum, cat) => sum + cat.participants.length, 0)}</span>
         </div>
         <div>
