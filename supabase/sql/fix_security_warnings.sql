@@ -309,7 +309,7 @@ CREATE OR REPLACE FUNCTION reactivate_player_in_league(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
   v_soci_numero INTEGER;
@@ -317,7 +317,7 @@ DECLARE
 BEGIN
   -- Get player's numero_soci
   SELECT numero_soci INTO v_soci_numero
-  FROM players
+  FROM public.players
   WHERE id = p_player_id;
 
   IF v_soci_numero IS NULL THEN
@@ -328,7 +328,7 @@ BEGIN
   END IF;
 
   -- Reactivate by setting retired_at to NULL
-  UPDATE inscripcions
+  UPDATE public.inscripcions
   SET retired_at = NULL
   WHERE event_id = p_event_id
     AND soci_numero = v_soci_numero
@@ -353,7 +353,7 @@ $$;
 GRANT EXECUTE ON FUNCTION reactivate_player_in_league(UUID, UUID) TO authenticated;
 
 COMMENT ON FUNCTION reactivate_player_in_league(UUID, UUID) IS
-'Reactivates a retired player in a league. SECURITY: Uses SET search_path = public.';
+'Reactivates a retired player in a league. SECURITY: Uses empty search_path with fully qualified table names.';
 
 
 -- 5. Fix or create retire_player_from_league if exists
@@ -375,7 +375,7 @@ CREATE OR REPLACE FUNCTION retire_player_from_league(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = ''
 AS $$
 DECLARE
   v_soci_numero INTEGER;
@@ -383,7 +383,7 @@ DECLARE
 BEGIN
   -- Get player's numero_soci
   SELECT numero_soci INTO v_soci_numero
-  FROM players
+  FROM public.players
   WHERE id = p_player_id;
 
   IF v_soci_numero IS NULL THEN
@@ -394,7 +394,7 @@ BEGIN
   END IF;
 
   -- Retire player by setting retired_at
-  UPDATE inscripcions
+  UPDATE public.inscripcions
   SET retired_at = NOW()
   WHERE event_id = p_event_id
     AND soci_numero = v_soci_numero
@@ -410,7 +410,7 @@ BEGIN
   END IF;
 
   RETURN jsonb_build_object(
-    'success', true,
+      'success', true,
     'message', 'Player retired successfully'
   );
 END;
@@ -419,7 +419,7 @@ $$;
 GRANT EXECUTE ON FUNCTION retire_player_from_league(UUID, UUID) TO authenticated;
 
 COMMENT ON FUNCTION retire_player_from_league(UUID, UUID) IS
-'Retires a player from a league. SECURITY: Uses SET search_path = public.';
+'Retires a player from a league. SECURITY: Uses empty search_path with fully qualified table names.';
 
 
 -- 6. Fix or create update_page_content_updated_at if exists
