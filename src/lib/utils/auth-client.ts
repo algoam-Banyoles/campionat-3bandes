@@ -14,69 +14,82 @@ export function getAccessTokenSync(): string | null {
 }
 
 export async function hydrateSession() {
-  try {
-    const { data, error } = await supabase.auth.getSession();
-    
-    // Si hi ha error o no hi ha sessió, establir com a anònim
-    if (error) {
-      console.warn('Auth session error:', error.message);
+  // Timeout de 10 segons per evitar bloquejos indefinits
+  const timeoutPromise = new Promise<void>((resolve) => {
+    setTimeout(() => {
+      console.warn('[auth-client] hydrateSession timeout after 10s - setting anonymous state');
       authState.set({ status: 'anonymous', session: null, user: null });
-      return;
-    }
-    
-    if (!data.session) {
-      authState.set({ status: 'anonymous', session: null, user: null });
-      return;
-    }
+      resolve();
+    }, 10000);
+  });
 
-    // Verificar que el token no hagi expirat
-    const now = Math.floor(Date.now() / 1000);
-    if (data.session.expires_at && data.session.expires_at < now) {
-      console.warn('Session expired, signing out');
-      await signOut();
-      return;
-    }
-
-    // Obtain roles
-    const roles: string[] = [];
+  const hydrationPromise = (async () => {
     try {
-      invalidateAdminCache();
-      const adm = await checkIsAdmin();
-      if (adm) roles.push('admin');
-    } catch (e) {
-      console.warn('checkIsAdmin failed', e);
-      // Si falla checkIsAdmin, potser és un problema d'autenticació
-      // Intentem refrescar el token
-      try {
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError) {
-          console.warn('Token refresh failed:', refreshError.message);
-          await signOut();
-          return;
-        }
-      } catch (refreshErr) {
-        console.warn('Token refresh error:', refreshErr);
+      const { data, error } = await supabase.auth.getSession();
+
+      // Si hi ha error o no hi ha sessió, establir com a anònim
+      if (error) {
+        console.warn('Auth session error:', error.message);
+        authState.set({ status: 'anonymous', session: null, user: null });
+        return;
+      }
+
+      if (!data.session) {
+        authState.set({ status: 'anonymous', session: null, user: null });
+        return;
+      }
+
+      // Verificar que el token no hagi expirat
+      const now = Math.floor(Date.now() / 1000);
+      if (data.session.expires_at && data.session.expires_at < now) {
+        console.warn('Session expired, signing out');
         await signOut();
         return;
       }
+
+      // Obtain roles
+      const roles: string[] = [];
+      try {
+        invalidateAdminCache();
+        const adm = await checkIsAdmin();
+        if (adm) roles.push('admin');
+      } catch (e) {
+        console.warn('checkIsAdmin failed', e);
+        // Si falla checkIsAdmin, potser és un problema d'autenticació
+        // Intentem refrescar el token
+        try {
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) {
+            console.warn('Token refresh failed:', refreshError.message);
+            await signOut();
+            return;
+          }
+        } catch (refreshErr) {
+          console.warn('Token refresh error:', refreshErr);
+          await signOut();
+          return;
+        }
+      }
+
+      const me: UserProfile = {
+        id: data.session.user.id,
+        email: data.session.user.email ?? '',
+        roles
+      };
+
+      authState.set({
+        status: 'authenticated',
+        session: { access_token: data.session.access_token },
+        user: me
+      });
+
+    } catch (error) {
+      console.error('Unexpected error in hydrateSession:', error);
+      authState.set({ status: 'anonymous', session: null, user: null });
     }
-    
-    const me: UserProfile = {
-      id: data.session.user.id,
-      email: data.session.user.email ?? '',
-      roles
-    };
-    
-    authState.set({ 
-      status: 'authenticated', 
-      session: { access_token: data.session.access_token }, 
-      user: me 
-    });
-    
-  } catch (error) {
-    console.error('Unexpected error in hydrateSession:', error);
-    authState.set({ status: 'anonymous', session: null, user: null });
-  }
+  })();
+
+  return Promise.race([hydrationPromise, timeoutPromise]);
 }
 
 export function initAuthClient() {

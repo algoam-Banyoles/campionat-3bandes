@@ -1050,26 +1050,20 @@
 
 
   function generateAvailableDates(matchesParam = []) {
-    console.log('🔍 generateAvailableDates called with matchesParam:', matchesParam.length);
-    
     // SEMPRE generar un rang ampli de dates per mostrar tots els slots possibles
     let startDate, endDate;
 
     // Usar paràmetres passats o variables globals com a fallback
     const currentMatches = matchesParam.length > 0 ? matchesParam : matches;
-    console.log('🔍 Using currentMatches:', currentMatches.length);
 
     // Si hi ha partits programats, usar el rang de dates dels partits
     const validMatches = currentMatches.filter(m => m.data_programada);
-    console.log('🔍 validMatches:', validMatches.length);
 
     if (validMatches.length > 0) {
       // Usar dates dels partits programats
       const dates = validMatches.map(m => new Date(m.data_programada));
-      console.log('🔍 Parsed dates:', dates.slice(0, 5).map(d => d.toISOString().split('T')[0]));
       startDate = new Date(Math.min(...dates.map(d => d.getTime())));
       endDate = new Date(Math.max(...dates.map(d => d.getTime())));
-      console.log('🔍 Date range:', startDate.toISOString().split('T')[0], 'to', endDate.toISOString().split('T')[0]);
 
       // Per la vista cronològica: limitar fins a la data màxima del calendari
       // Afegir només 1 dia després de l'últim partit programat
@@ -1095,24 +1089,15 @@
       allDates.push(new Date(date));
     }
 
-    console.log('🔍 Generated dates:', allDates.slice(0, 10).map(d => d.toISOString().split('T')[0]), `(total: ${allDates.length})`);
     return allDates;
   }
 
   function generateTimelineData(matchesParam = [], configParam = null, datesParam = []) {
-    console.log('🔍 generateTimelineData called with:');
-    console.log('  - matchesParam:', matchesParam.length);
-    console.log('  - datesParam:', datesParam.length);
-    console.log('  - global matches:', matches.length);
-    console.log('  - global availableDates:', availableDates?.length || 0);
-    
     const timeline = [];
 
     // Usar paràmetres passats o variables globals com a fallback
     const currentMatches = matchesParam.length > 0 ? matchesParam : matches;
     const currentDates = datesParam.length > 0 ? datesParam : availableDates;
-
-    console.log('🔍 Using currentMatches:', currentMatches.length, 'currentDates:', currentDates?.length || 0);
 
     // Assegurar-nos que tenim configuració vàlida
     const config = configParam || calendarConfig || {
@@ -1120,11 +1105,6 @@
       hores_disponibles: ['18:00', '19:00'],
       taules_per_slot: 3
     };
-
-    console.log('📊 Building timeline amb configuració:', {
-      dies_setmana: config.dies_setmana,
-      totalDates: currentDates.length
-    });
 
     let totalSlots = 0;
     let matchedSlots = 0;
@@ -1146,11 +1126,6 @@
           const matchDate = new Date(match.data_programada).toISOString().split('T')[0];
           return matchDate === dateStr;
         });
-        
-        // Debug for first few dates
-        if (index < 1 && dateMatches.length > 0) {
-          console.log(`🔍 Date ${dateStr}: Found ${dateMatches.length} matches`);
-        }
 
         hores.forEach(hora => {
           for (let taula = 1; taula <= taules; taula++) {
@@ -1200,9 +1175,6 @@
       // Si són la mateixa hora, comparar taules
       return a.taula - b.taula;
     });
-
-    const slotsWithMatches = timeline.filter(slot => slot.match).length;
-    console.log('🔍 Timeline sorted chronologically. Total slots:', timeline.length, 'Slots with matches:', slotsWithMatches);
 
     return timeline;
   }
@@ -1295,16 +1267,6 @@
     return true;
   });
 
-  // Debug del resultat del filtrat
-  $: if (timelineData.length > 0) {
-    console.log('🔍 Timeline filtering results:', {
-      totalSlots: timelineData.length,
-      slotsWithMatches: timelineData.filter(slot => slot.match).length,
-      filteredSlots: filteredTimeline.length,
-      selectedDate,
-      selectedCategory
-    });
-  }
 
   // Separar partits programats i no programats
   $: programmedMatches = filteredMatches.filter(match => match.data_programada && !['pendent_programar'].includes(match.estat));
@@ -1326,11 +1288,6 @@
       const nomB = catB?.nom || b.categoria_nom || '';
       return nomA.localeCompare(nomB);
     });
-
-    console.log('🔍 Reactive unprogrammedMatches:', unprogrammedMatches.length, 'from filteredMatches:', filteredMatches.length);
-    if (unprogrammedMatches.length > 0) {
-      console.log('🔍 Sample unprogrammed match:', unprogrammedMatches[0]);
-    }
   }
   
   // Comptar slots amb partits del jugador cercat (per debugging)

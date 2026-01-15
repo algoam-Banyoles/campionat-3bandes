@@ -114,19 +114,11 @@ export const calendarEvents = derived(
       // Crear la data correctament
       const dataStr = partida.data_programada.split('T')[0]; // '2025-10-01'
       const horaStr = partida.hora_inici; // '19:00:00'
-      
+
       // Extreure components i crear Date
       const [any, mes, dia] = dataStr.split('-').map(Number);
       const [hora, minut] = horaStr.split(':').map(Number);
       const dataHora = new Date(any, mes - 1, dia, hora, minut); // mes - 1 perquè Date usa 0-11
-      
-      console.log('🏆 Adding match to calendar:', {
-        partida: partida.jugador1_nom + ' vs ' + partida.jugador2_nom,
-        data_programada: partida.data_programada,
-        hora_inici: partida.hora_inici,
-        dataHora: dataHora.toISOString(),
-        isValidDate: !isNaN(dataHora.getTime())
-      });
       
       if (!isNaN(dataHora.getTime())) {
         // Formatar noms utilitzant les dades originals dels jugadors (com SocialLeagueCalendarViewer)
@@ -172,33 +164,6 @@ export const calendarEvents = derived(
 
       }
     });
-    
-    console.log('📅 Combined calendar events:', {
-      esdeveniments: $esdeveniments.length,
-      reptesProgramats: $reptesProgramats.length,
-      partidesCalendari: $partidesCalendari.length,
-      totalEvents: events.length,
-      matches: events.filter(e => e.type === 'challenge' && e.subtype?.startsWith('campionat-social')).length
-    });
-
-    console.log('🎯 CALENDAR DEBUG: Events created successfully!', events.length, 'total events');
-
-    // Log sample match dates to help debug
-    const matchEvents = events.filter(e => e.type === 'challenge' && e.subtype?.startsWith('campionat-social'));
-    if (matchEvents.length > 0) {
-      console.log('🗓️ Sample match dates:', matchEvents.slice(0, 3).map(e => ({
-        title: e.title,
-        date: e.start.toLocaleDateString('ca-ES'),
-        time: e.start.toLocaleTimeString('ca-ES')
-      })));
-    } else {
-      console.log('⚠️ No social league matches found in calendar events');
-    }
-
-    // Debug the partidesCalendari raw data
-    if ($partidesCalendari.length > 0) {
-      console.log('🏆 Raw partides data (first 2):', $partidesCalendari.slice(0, 2));
-    }
 
     // Funció per obtenir la prioritat d'ordenació per tipus
     const getEventTypePriority = (event: CalendarEvent): number => {
@@ -252,22 +217,15 @@ export const calendarEvents = derived(
 // Store derivat per obtenir esdeveniments d'un dia específic
 export function getEventsForDate(date: Date): CalendarEvent[] {
   if (!date) return [];
-  
+
   const allEvents = get(calendarEvents) as CalendarEvent[];
   const events = allEvents.filter(event => {
     if (!event.start) return false;
-    
+
     const eventDate = new Date(event.start);
-    const matches = eventDate.toDateString() === date.toDateString();
-    
-    // Debug log for calendar days
-    if (matches && event.type === 'challenge') {
-      console.log('📅 Found event for date', date.toDateString(), ':', event.title);
-    }
-    
-    return matches;
+    return eventDate.toDateString() === date.toDateString();
   });
-  
+
   return events;
 }
 
@@ -456,16 +414,6 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
 
     // Create partides with proper player data
     const partides: PartidaCalendari[] = data.map(item => {
-      console.log('🔄 Processing match:', {
-        id: item.id,
-        data_programada: item.data_programada,
-        hora_inici: item.hora_inici,
-        jugador1: item.jugador1,
-        jugador2: item.jugador2,
-        events: item.events,
-        categories: item.categories
-      });
-
       return {
         id: item.id,
         jugador1_nom: (item.jugador1 as any)?.socis ?
