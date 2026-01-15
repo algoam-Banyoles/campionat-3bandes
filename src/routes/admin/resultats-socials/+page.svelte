@@ -206,6 +206,7 @@
     } catch (e) {
       console.error('Error submitting result:', e);
       error = 'Error guardant el resultat';
+    } finally {
       loading = false;
     }
   }

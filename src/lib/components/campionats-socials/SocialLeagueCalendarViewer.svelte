@@ -1574,15 +1574,32 @@
   }
 
   // Funcions per gestionar resultats
-  function openResultModal(match: any) {
+  async function openResultModal(match: any) {
     if (!isAdmin) return;
 
-    resultMatch = match;
+    // Fetch full match data to get existing scores
+    const { data: fullMatchData, error: fetchError } = await supabase
+      .from('calendari_partides')
+      .select('caramboles_jugador1, caramboles_jugador2, entrades, observacions_junta')
+      .eq('id', match.id)
+      .single();
+
+    if (fetchError) {
+        alert('Error carregant les dades de la partida: ' + formatSupabaseError(fetchError));
+        return;
+    }
+
+    // Combine original match data (with player names) with fresh score data
+    resultMatch = {
+        ...match,
+        ...fullMatchData
+    };
+
     resultForm = {
-      caramboles_jugador1: match.caramboles_jugador1 || 0,
-      caramboles_jugador2: match.caramboles_jugador2 || 0,
-      entrades: match.entrades || 0,
-      observacions: match.observacions || ''
+      caramboles_jugador1: resultMatch.caramboles_jugador1 || 0,
+      caramboles_jugador2: resultMatch.caramboles_jugador2 || 0,
+      entrades: resultMatch.entrades || 0,
+      observacions: resultMatch.observacions_junta || ''
     };
     showResultModal = true;
   }
@@ -1601,35 +1618,43 @@
   async function saveResult() {
     if (!resultMatch || !isAdmin) return;
 
+    // Empats permesos: 1 punt per cada jugador
+    if (resultForm.caramboles_jugador1 === 0 && resultForm.caramboles_jugador2 === 0) {
+      alert('Introdueix les caramboles per ambdós jugadors');
+      return;
+    }
+
+    loading = true;
+
     try {
-      loading = true;
+      // Calcular punts segons el resultat
+      let punts_j1 = 0;
+      let punts_j2 = 0;
 
-      // Determinar guanyador i actualitzar estat
-      const caramboles_j1 = Number(resultForm.caramboles_jugador1);
-      const caramboles_j2 = Number(resultForm.caramboles_jugador2);
-      const entrades_num = Number(resultForm.entrades);
-
-      if (caramboles_j1 === 0 && caramboles_j2 === 0) {
-        alert('Has d\'introduir almenys una carambola per guardar el resultat');
-        loading = false;
-        return;
+      if (resultForm.caramboles_jugador1 > resultForm.caramboles_jugador2) {
+        punts_j1 = 2;  // Jugador 1 guanya
+        punts_j2 = 0;
+      } else if (resultForm.caramboles_jugador2 > resultForm.caramboles_jugador1) {
+        punts_j1 = 0;
+        punts_j2 = 2;  // Jugador 2 guanya
+      } else {
+        punts_j1 = 1;  // Empat
+        punts_j2 = 1;
       }
 
-      const guanyador_id = caramboles_j1 > caramboles_j2
-        ? resultMatch.jugador1_id
-        : resultMatch.jugador2_id;
-
-      // Actualitzar partida amb el resultat
-      const { error: updateError } = await supabase
-        .from('social_league_matches')
+      const { data: updateData, error: updateError } = await supabase
+        .from('calendari_partides')
         .update({
-          caramboles_jugador1: caramboles_j1,
-          caramboles_jugador2: caramboles_j2,
-          entrades: entrades_num,
-          observacions: resultForm.observacions,
-          guanyador_id: guanyador_id,
-          estat: 'jugada',
-          data_jugada: new Date().toISOString()
+          caramboles_jugador1: resultForm.caramboles_jugador1,
+          caramboles_jugador2: resultForm.caramboles_jugador2,
+          entrades: resultForm.entrades,
+          punts_jugador1: punts_j1,
+          punts_jugador2: punts_j2,
+          data_joc: new Date().toISOString(),
+          estat: 'validat',
+          validat_per: (await supabase.auth.getUser()).data.user?.id,
+          data_validacio: new Date().toISOString(),
+          observacions_junta: resultForm.observacions
         })
         .eq('id', resultMatch.id);
 
@@ -1637,17 +1662,12 @@
         throw updateError;
       }
 
-      // Tancar modal abans de recarregar
+      // Tancar modal i recarregar dades
       closeResultModal();
-
-      // Recarregar dades amb gestió d'estat adequada
-      loading = true;
       await loadCalendarData();
-
-      // Emetre event perquè el pare actualitzi si cal
       dispatch('matchUpdated');
 
-      alert('✅ Resultat guardat correctament');
+      alert('✅ Resultat guardat correctament!');
     } catch (err) {
       console.error('Error guardant resultat:', err);
       alert('Error guardant el resultat: ' + formatSupabaseError(err));
@@ -3056,7 +3076,7 @@
                         <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base font-medium print-hide">
                           {#if slot.match}
                             <div class="flex flex-col space-y-1">
-                              {#if slot.match.estat !== 'jugada' && slot.match.estat !== 'validat'}
+                              {#if slot.match.estat !== 'jugada' && slot.match.estat !== 'cancel·lada'}
                                 <button
                                   on:click={() => openResultModal(slot.match)}
                                   class="text-green-600 hover:text-green-900 text-sm md:text-base font-semibold"
