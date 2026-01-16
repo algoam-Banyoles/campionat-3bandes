@@ -43,24 +43,51 @@ export async function hydrateSession() {
       // Si ja ha expirat el timeout, no fer res
       if (timedOut) return;
 
-      // Si hi ha error o no hi ha sessió, establir com a anònim
+      // Si hi ha error, només registrar-lo - NO fer logout automàtic
       if (error) {
-        console.warn('Auth session error:', error.message);
-        authState.set({ status: 'anonymous', session: null, user: null });
+        console.warn('Auth session error (keeping current state):', error.message);
         return;
       }
 
+      // Si no hi ha sessió, establir com a anònim NOMÉS a l'inici
       if (!data.session) {
-        authState.set({ status: 'anonymous', session: null, user: null });
+        // Comprovar si ja estem autenticats - si és així, mantenir l'estat
+        let currentlyAuthenticated = false;
+        authState.update((s) => {
+          currentlyAuthenticated = s.status === 'authenticated';
+          return s;
+        });
+
+        if (!currentlyAuthenticated) {
+          authState.set({ status: 'anonymous', session: null, user: null });
+        } else {
+          console.warn('No session data but user is authenticated - keeping current state');
+        }
         return;
       }
 
       // Verificar que el token no hagi expirat
       const now = Math.floor(Date.now() / 1000);
       if (data.session.expires_at && data.session.expires_at < now) {
-        console.warn('Session expired, signing out');
-        await signOut();
-        return;
+        console.warn('Session expired - attempting refresh instead of logout');
+        try {
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) {
+            console.warn('Token refresh failed (keeping current state):', refreshError.message);
+            return;
+          }
+          // Si el refresh funciona, usar la nova sessió
+          if (refreshData.session) {
+            console.log('Session refreshed successfully');
+            data.session = refreshData.session; // Actualitzar amb la sessió refrescada
+          } else {
+            console.warn('Refresh succeeded but no session returned (keeping current state)');
+            return;
+          }
+        } catch (refreshErr) {
+          console.warn('Token refresh error (keeping current state):', refreshErr);
+          return;
+        }
       }
 
       // Obtain roles amb timeout més llarg
@@ -91,11 +118,8 @@ export async function hydrateSession() {
       });
 
     } catch (error) {
-      console.error('Unexpected error in hydrateSession:', error);
-      // Només establir anònim si no és un error de timeout
-      if (!timedOut) {
-        authState.set({ status: 'anonymous', session: null, user: null });
-      }
+      console.error('Unexpected error in hydrateSession (keeping current state):', error);
+      // MAI establir anònim en cas d'error - mantenir l'estat actual
     } finally {
       // Cancel·lar timeout si la promesa es resol abans
       clearTimeout(timeoutId);
@@ -118,18 +142,21 @@ export function initAuthClient() {
   // Listen to auth state changes
   supabase.auth.onAuthStateChange(async (event, session) => {
     console.log('Auth state change:', event, session?.user?.email || 'no user');
-    
+
     try {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         await hydrateSession();
       } else if (event === 'SIGNED_OUT') {
+        // Només establir anònim si realment és un SIGNED_OUT explícit
+        console.log('Explicit sign out detected');
         authState.set({ status: 'anonymous', session: null, user: null });
       } else if (event === 'USER_UPDATED') {
         await hydrateSession();
       }
+      // Ignorar altres events per evitar logouts no desitjats
     } catch (error) {
-      console.error('Error handling auth state change:', error);
-      authState.set({ status: 'anonymous', session: null, user: null });
+      console.error('Error handling auth state change (keeping current state):', error);
+      // NO fer logout en cas d'error - mantenir l'estat actual
     }
   });
   
