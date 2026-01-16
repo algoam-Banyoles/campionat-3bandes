@@ -3,6 +3,7 @@ import { supabase } from '$lib/supabaseClient';
 import { checkIsAdmin, invalidateAdminCache } from '$lib/roles';
 
 let initialized = false;
+let hydrationInProgress = false;
 
 export function getAccessTokenSync(): string | null {
   let token: string | null = null;
@@ -14,18 +15,33 @@ export function getAccessTokenSync(): string | null {
 }
 
 export async function hydrateSession() {
-  // Timeout de 10 segons per evitar bloquejos indefinits
+  // Evitar múltiples crides simultànies
+  if (hydrationInProgress) {
+    console.log('[auth-client] hydrateSession already in progress, skipping');
+    return;
+  }
+
+  hydrationInProgress = true;
+
+  // Timeout de 20 segons per evitar bloquejos indefinits (més temps per connexions lentes en mòbils)
+  let timeoutId: NodeJS.Timeout;
+  let timedOut = false;
+
   const timeoutPromise = new Promise<void>((resolve) => {
-    setTimeout(() => {
-      console.warn('[auth-client] hydrateSession timeout after 10s - setting anonymous state');
-      authState.set({ status: 'anonymous', session: null, user: null });
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      console.warn('[auth-client] hydrateSession timeout after 20s - keeping current state');
+      hydrationInProgress = false;
       resolve();
-    }, 10000);
+    }, 20000);
   });
 
   const hydrationPromise = (async () => {
     try {
       const { data, error } = await supabase.auth.getSession();
+
+      // Si ja ha expirat el timeout, no fer res
+      if (timedOut) return;
 
       // Si hi ha error o no hi ha sessió, establir com a anònim
       if (error) {
@@ -47,7 +63,7 @@ export async function hydrateSession() {
         return;
       }
 
-      // Obtain roles
+      // Obtain roles amb timeout més llarg
       const roles: string[] = [];
       try {
         invalidateAdminCache();
@@ -55,21 +71,12 @@ export async function hydrateSession() {
         if (adm) roles.push('admin');
       } catch (e) {
         console.warn('checkIsAdmin failed', e);
-        // Si falla checkIsAdmin, potser és un problema d'autenticació
-        // Intentem refrescar el token
-        try {
-          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-          if (refreshError) {
-            console.warn('Token refresh failed:', refreshError.message);
-            await signOut();
-            return;
-          }
-        } catch (refreshErr) {
-          console.warn('Token refresh error:', refreshErr);
-          await signOut();
-          return;
-        }
+        // NO fer logout si falla checkIsAdmin - mantenir usuari autenticat sense rol admin
+        // Només registrar l'error i continuar amb roles buit
       }
+
+      // Si ja ha expirat el timeout, no actualitzar l'estat
+      if (timedOut) return;
 
       const me: UserProfile = {
         id: data.session.user.id,
@@ -85,7 +92,14 @@ export async function hydrateSession() {
 
     } catch (error) {
       console.error('Unexpected error in hydrateSession:', error);
-      authState.set({ status: 'anonymous', session: null, user: null });
+      // Només establir anònim si no és un error de timeout
+      if (!timedOut) {
+        authState.set({ status: 'anonymous', session: null, user: null });
+      }
+    } finally {
+      // Cancel·lar timeout si la promesa es resol abans
+      clearTimeout(timeoutId);
+      hydrationInProgress = false;
     }
   })();
 
