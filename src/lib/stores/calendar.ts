@@ -347,6 +347,7 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
     console.log('🎯 Looking for matches in events:', eventIds);
 
     // Query matches with proper relations
+    // Only show matches that haven't been played yet (caramboles_jugador1 is null)
     const { data, error } = await supabase
       .from('calendari_partides')
       .select(`
@@ -377,6 +378,7 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
       .in('event_id', eventIds)
       .not('data_programada', 'is', null)
       .not('hora_inici', 'is', null)
+      .is('caramboles_jugador1', null)  // Només partides sense resultats
       .order('data_programada', { ascending: true });
 
     if (error) {

@@ -12,6 +12,7 @@
   import CalendarGenerator from '$lib/components/admin/CalendarGenerator.svelte';
   import PlayerRestrictionsTable from '$lib/components/campionats-socials/PlayerRestrictionsTable.svelte';
   import HeadToHeadGrid from '$lib/components/campionats-socials/HeadToHeadGrid.svelte';
+  import HallOfFame from '$lib/components/campionats-socials/HallOfFame.svelte';
   import { adminStore, user } from '$lib/stores/auth';
   import { isAdmin as isAdminNew, adminUser } from '$lib/stores/adminAuth';
   import { effectiveIsAdmin } from '$lib/stores/viewMode';
@@ -24,7 +25,7 @@
   let selectedEventId = '';
   let selectedEvent: any = null;
   let loading = false;
-  let activeView: 'preparation' | 'active' | 'history' | 'players' | 'inscriptions' | 'pagaments' = 'active';
+  let activeView: 'preparation' | 'active' | 'history' | 'players' | 'inscriptions' | 'pagaments' | 'hall-of-fame' = 'active';
 
   // Filtres per historial
   let historyModalityFilter = '';
@@ -34,7 +35,7 @@
   // Detectar paràmetre URL per canviar vista automàticament
   $: if ($page.url.searchParams.has('view')) {
     const viewParam = $page.url.searchParams.get('view');
-    if (viewParam && ['preparation', 'active', 'history', 'players', 'inscriptions'].includes(viewParam)) {
+    if (viewParam && ['preparation', 'active', 'history', 'players', 'inscriptions', 'hall-of-fame'].includes(viewParam)) {
       activeView = viewParam as typeof activeView;
       // Guardar a sessionStorage per mantenir entre reloads
       if (typeof sessionStorage !== 'undefined') {
@@ -815,6 +816,17 @@
           class:hover:text-gray-700={activeView !== 'history'}
         >
           📚 Historial
+        </button>
+        <button
+          on:click={() => activeView = 'hall-of-fame'}
+          class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px] touch-manipulation"
+          class:bg-white={activeView === 'hall-of-fame'}
+          class:text-gray-900={activeView === 'hall-of-fame'}
+          class:shadow-sm={activeView === 'hall-of-fame'}
+          class:text-gray-500={activeView !== 'hall-of-fame'}
+          class:hover:text-gray-700={activeView !== 'hall-of-fame'}
+        >
+          🏆 Quadre d'Honor
         </button>
         {#if isUserAdmin}
           <button
@@ -1749,6 +1761,10 @@
         {/if}
       </div>
     </div>
+
+  {:else if activeView === 'hall-of-fame'}
+    <!-- Quadre d'Honor -->
+    <HallOfFame />
 
   {:else if activeView === 'inscriptions'}
     <!-- Inscripcions Obertes -->
