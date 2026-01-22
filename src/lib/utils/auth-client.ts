@@ -144,8 +144,23 @@ export function initAuthClient() {
     console.log('Auth state change:', event, session?.user?.email || 'no user');
 
     try {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      if (event === 'SIGNED_IN') {
+        // Només hidratar en SIGNED_IN, no en TOKEN_REFRESHED per evitar loops
         await hydrateSession();
+      } else if (event === 'TOKEN_REFRESHED') {
+        // Per TOKEN_REFRESHED, només actualitzar el token sense recarregar tot
+        console.log('Token refreshed - updating token only');
+        if (session?.access_token) {
+          authState.update((s) => {
+            if (s.status === 'authenticated') {
+              return {
+                ...s,
+                session: { access_token: session.access_token }
+              };
+            }
+            return s;
+          });
+        }
       } else if (event === 'SIGNED_OUT') {
         // Només establir anònim si realment és un SIGNED_OUT explícit
         console.log('Explicit sign out detected');

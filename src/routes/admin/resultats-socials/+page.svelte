@@ -91,21 +91,35 @@
 
       if (matchesError) throw matchesError;
 
-      // Get soci names for each match
-      const matchesWithSocis = await Promise.all(
-        (matchesData || []).map(async (match) => {
-          const [soci1Result, soci2Result] = await Promise.all([
-            supabase.from('socis').select('nom, cognoms').eq('numero_soci', match.jugador1?.numero_soci).single(),
-            supabase.from('socis').select('nom, cognoms').eq('numero_soci', match.jugador2?.numero_soci).single()
-          ]);
+      // Get all unique numero_soci values from matches
+      const allNumerosSoci = new Set<number>();
+      (matchesData || []).forEach(match => {
+        if (match.jugador1?.numero_soci) allNumerosSoci.add(match.jugador1.numero_soci);
+        if (match.jugador2?.numero_soci) allNumerosSoci.add(match.jugador2.numero_soci);
+      });
 
-          return {
-            ...match,
-            soci1: soci1Result.data,
-            soci2: soci2Result.data
-          };
-        })
-      );
+      // Fetch all socis in ONE query instead of N queries
+      const { data: socisData, error: socisError } = await supabase
+        .from('socis')
+        .select('numero_soci, nom, cognoms')
+        .in('numero_soci', Array.from(allNumerosSoci));
+
+      if (socisError) {
+        console.warn('Error loading socis:', socisError);
+      }
+
+      // Create a lookup map for fast access
+      const socisMap = new Map();
+      (socisData || []).forEach(soci => {
+        socisMap.set(soci.numero_soci, soci);
+      });
+
+      // Map matches with soci data using the lookup map (no async needed)
+      const matchesWithSocis = (matchesData || []).map(match => ({
+        ...match,
+        soci1: socisMap.get(match.jugador1?.numero_soci) || null,
+        soci2: socisMap.get(match.jugador2?.numero_soci) || null
+      }));
 
       calendarMatches = matchesWithSocis;
     } catch (e) {
@@ -183,8 +197,11 @@
 
       console.log('✅ Resultat guardat correctament:', updateData);
 
-      // Reset form BEFORE reloading matches to avoid state conflicts
-      const categoryToReload = selectedCategory;
+      // Remove the match from the list instead of reloading everything
+      // This is much faster and doesn't block the UI
+      calendarMatches = calendarMatches.filter(m => m.id !== selectedMatch.id);
+
+      // Reset form
       selectedMatch = null;
       caramboles_jugador1 = 0;
       caramboles_jugador2 = 0;
@@ -193,11 +210,6 @@
       matchesCollapsed = false;
 
       success = true;
-
-      // Reload matches - do this AFTER resetting the form
-      if (categoryToReload) {
-        await selectCategory(categoryToReload);
-      }
 
       setTimeout(() => {
         success = false;

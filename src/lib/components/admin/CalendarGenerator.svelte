@@ -198,6 +198,164 @@
     }
   }
 
+  // Funció per validar el calendari generat
+  function validateGeneratedCalendar(matches: any[]) {
+    console.log('\n🔍 Validant calendari generat...');
+    
+    const errors = [];
+    const warnings = [];
+    const playerMatchesByDate = new Map(); // playerId -> Map<dateStr, Match[]>
+
+    // Construir mapa de partides per jugador i data
+    matches.forEach(match => {
+      if (!match.data_programada) return; // Ignorar partides no programades
+
+      const dateStr = new Date(match.data_programada).toISOString().split('T')[0];
+      
+      // Jugador 1
+      if (!playerMatchesByDate.has(match.jugador1.player_id)) {
+        playerMatchesByDate.set(match.jugador1.player_id, new Map());
+      }
+      const player1Dates = playerMatchesByDate.get(match.jugador1.player_id);
+      if (!player1Dates.has(dateStr)) {
+        player1Dates.set(dateStr, []);
+      }
+      player1Dates.get(dateStr).push(match);
+
+      // Jugador 2
+      if (!playerMatchesByDate.has(match.jugador2.player_id)) {
+        playerMatchesByDate.set(match.jugador2.player_id, new Map());
+      }
+      const player2Dates = playerMatchesByDate.get(match.jugador2.player_id);
+      if (!player2Dates.has(dateStr)) {
+        player2Dates.set(dateStr, []);
+      }
+      player2Dates.get(dateStr).push(match);
+    });
+
+    // Validació 1: Cap jugador pot tenir més d'una partida el mateix dia
+    playerMatchesByDate.forEach((dateMap, playerId) => {
+      dateMap.forEach((matchesOnDate, dateStr) => {
+        if (matchesOnDate.length > 1) {
+          const playerName = matchesOnDate[0].jugador1.player_id === playerId 
+            ? `${matchesOnDate[0].jugador1.soci.nom} ${matchesOnDate[0].jugador1.soci.cognoms}`
+            : `${matchesOnDate[0].jugador2.soci.nom} ${matchesOnDate[0].jugador2.soci.cognoms}`;
+          
+          errors.push({
+            type: 'MATEIX_DIA',
+            playerId,
+            playerName,
+            date: dateStr,
+            count: matchesOnDate.length,
+            matches: matchesOnDate.map(m => `${m.jugador1.soci.nom} vs ${m.jugador2.soci.nom} a les ${m.hora_inici}`)
+          });
+        }
+      });
+    });
+
+    // Validació 2: Cap jugador pot tenir partides en dies consecutius
+    playerMatchesByDate.forEach((dateMap, playerId) => {
+      const dates = Array.from(dateMap.keys()).sort();
+      
+      for (let i = 0; i < dates.length - 1; i++) {
+        const date1 = new Date(dates[i] as string);
+        const date2 = new Date(dates[i + 1] as string);
+        const daysDiff = Math.abs((date2.getTime() - date1.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysDiff === 1) {
+          const matches1 = dateMap.get(dates[i]);
+          const playerName = matches1[0].jugador1.player_id === playerId 
+            ? `${matches1[0].jugador1.soci.nom} ${matches1[0].jugador1.soci.cognoms}`
+            : `${matches1[0].jugador2.soci.nom} ${matches1[0].jugador2.soci.cognoms}`;
+          
+          warnings.push({
+            type: 'DIES_CONSECUTIUS',
+            playerId,
+            playerName,
+            date1: dates[i],
+            date2: dates[i + 1]
+          });
+        }
+      }
+    });
+
+    // Validació 3: Comprovar distribució de taules per jugador
+    const playerTableStats = new Map();
+    matches.forEach(match => {
+      if (!match.data_programada || !match.taula_assignada) return;
+
+      [match.jugador1.player_id, match.jugador2.player_id].forEach(playerId => {
+        if (!playerTableStats.has(playerId)) {
+          playerTableStats.set(playerId, { total: 0, tables: new Map() });
+        }
+        const stats = playerTableStats.get(playerId);
+        stats.total++;
+        stats.tables.set(match.taula_assignada, (stats.tables.get(match.taula_assignada) || 0) + 1);
+      });
+    });
+
+    playerTableStats.forEach((stats, playerId) => {
+      if (stats.total < 3) return; // Ignorar jugadors amb poques partides
+      
+      stats.tables.forEach((count, table) => {
+        const percentage = count / stats.total;
+        if (percentage > 0.60) {
+          // Trobar nom del jugador
+          const match = matches.find(m => 
+            m.jugador1.player_id === playerId || m.jugador2.player_id === playerId
+          );
+          if (match) {
+            const playerName = match.jugador1.player_id === playerId 
+              ? `${match.jugador1.soci.nom} ${match.jugador1.soci.cognoms}`
+              : `${match.jugador2.soci.nom} ${match.jugador2.soci.cognoms}`;
+            
+            warnings.push({
+              type: 'TAULA_EXCESSIVA',
+              playerId,
+              playerName,
+              table,
+              count,
+              total: stats.total,
+              percentage: (percentage * 100).toFixed(1)
+            });
+          }
+        }
+      });
+    });
+
+    // Mostrar resultats
+    console.log('\n📊 Resultats de la validació:');
+    console.log(`   Errors crítics: ${errors.length}`);
+    console.log(`   Advertiments: ${warnings.length}`);
+
+    if (errors.length > 0) {
+      console.error('\n❌ ERRORS CRÍTICS DETECTATS:');
+      errors.forEach(err => {
+        if (err.type === 'MATEIX_DIA') {
+          console.error(`   ⚠️ ${err.playerName} té ${err.count} partides el ${err.date}:`);
+          err.matches.forEach(m => console.error(`      - ${m}`));
+        }
+      });
+    }
+
+    if (warnings.length > 0) {
+      console.warn('\n⚠️ ADVERTIMENTS:');
+      warnings.forEach(warn => {
+        if (warn.type === 'DIES_CONSECUTIUS') {
+          console.warn(`   📅 ${warn.playerName}: partides en dies consecutius (${warn.date1} i ${warn.date2})`);
+        } else if (warn.type === 'TAULA_EXCESSIVA') {
+          console.warn(`   🎱 ${warn.playerName}: ${warn.percentage}% de partides a la taula ${warn.table} (${warn.count}/${warn.total})`);
+        }
+      });
+    }
+
+    if (errors.length === 0 && warnings.length === 0) {
+      console.log('   ✅ Cap problema detectat!');
+    }
+
+    return { errors, warnings, isValid: errors.length === 0 };
+  }
+
   async function generateCalendar() {
     if (!dataInici || !dataFi) {
       dispatch('error', { message: 'Selecciona la data d\'inici i fi del calendari' });
@@ -255,6 +413,14 @@
 
       // 3. Distribuir enfrontaments al calendari respectant restriccions
       const scheduledMatches = scheduleMatches(matchups, consecutiveDaysAvoided);
+
+      // 4. Validar el calendari generat
+      const validation = validateGeneratedCalendar(scheduledMatches);
+      
+      if (!validation.isValid) {
+        console.error('❌ El calendari generat conté errors crítics. Revisa els logs.');
+        // Encara mostrem el calendari perquè l'administrador pugui veure els errors
+      }
 
       proposedCalendar = scheduledMatches;
       showPreview = true;
@@ -323,7 +489,7 @@
 
     // Tracking per jugador
     const playerStats = new Map(); // jugador -> { matchesScheduled: number, lastMatchDate: Date|null, tableUsage: Map<number, number> }
-    const playerAvailability = new Map(); // jugador -> [dates ocupades]
+    const playerAvailability = new Map(); // jugador -> [{date: Date, time: string}] quan ja juga
 
     // Inicialitzar stats dels jugadors
     playersByCategory.forEach(players => {
@@ -388,7 +554,8 @@
             const stats = playerStats.get(playerId);
             stats.matchesScheduled++;
             stats.lastMatchDate = matchDate;
-            playerAvailability.get(playerId).push(matchDate);
+            // Guardar data+hora per evitar duplicats a la mateixa hora
+            playerAvailability.get(playerId).push({ date: matchDate, time: bestSlot.time });
             
             // Actualitzar ús de taula
             const currentTableUsage = stats.tableUsage.get(bestSlot.table) || 0;
@@ -797,25 +964,32 @@
       const dateStr = slot.date.toISOString().split('T')[0];
       const slotDate = new Date(slot.date);
 
-      // Comprovar si els jugadors ja juguen aquest dia
-      if (player1Busy.some(busyDate =>
-          busyDate.toISOString().split('T')[0] === dateStr) ||
-          player2Busy.some(busyDate =>
-          busyDate.toISOString().split('T')[0] === dateStr)) {
+      // Comprovar si els jugadors ja juguen aquest dia (bloquejar tot el dia)
+      const player1HasMatchThisDay = player1Busy.some(busy => {
+        const busyDateStr = busy.date.toISOString().split('T')[0];
+        return busyDateStr === dateStr; // Bloquejar tot el dia
+      });
+
+      const player2HasMatchThisDay = player2Busy.some(busy => {
+        const busyDateStr = busy.date.toISOString().split('T')[0];
+        return busyDateStr === dateStr; // Bloquejar tot el dia
+      });
+
+      if (player1HasMatchThisDay || player2HasMatchThisDay) {
         filterReasons.sameDay++;
         return false;
       }
 
       // ✨ EVITAR DIES CONSECUTIUS: Excloure completament slots en dies consecutius
-      const hasConsecutiveDayConflict = player1Busy.some(busyDate => {
+      const hasConsecutiveDayConflict = player1Busy.some(busy => {
         // Normalitzar dates per comparar només el dia (sense hores)
         const slotDay = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate());
-        const busyDay = new Date(busyDate.getFullYear(), busyDate.getMonth(), busyDate.getDate());
+        const busyDay = new Date(busy.date.getFullYear(), busy.date.getMonth(), busy.date.getDate());
         const daysDiff = Math.abs((slotDay.getTime() - busyDay.getTime()) / (1000 * 60 * 60 * 24));
         return daysDiff === 1; // Exactament 1 dia = consecutiu
-      }) || player2Busy.some(busyDate => {
+      }) || player2Busy.some(busy => {
         const slotDay = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate());
-        const busyDay = new Date(busyDate.getFullYear(), busyDate.getMonth(), busyDate.getDate());
+        const busyDay = new Date(busy.date.getFullYear(), busy.date.getMonth(), busy.date.getDate());
         const daysDiff = Math.abs((slotDay.getTime() - busyDay.getTime()) / (1000 * 60 * 60 * 24));
         return daysDiff === 1; // Exactament 1 dia = consecutiu
       });
