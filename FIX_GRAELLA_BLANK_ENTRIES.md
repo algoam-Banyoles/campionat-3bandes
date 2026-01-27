@@ -34,7 +34,9 @@ La funció utilitza `COALESCE(cp.entrades_jugador1, cp.entrades)` i `COALESCE(cp
 
 #### Sistema de punts (ja implementat):
 - **Partida normal**: Guanyador 2 punts, empat 1 punt, perdedor 0 punts
-- **Incompareixença**: Presentat 2 punts amb 0 caramboles i 0 entrades, no presentat 0 punts amb 0 caramboles i 50 entrades
+- **Incompareixença** (Migració 007 - Correcte):
+  - Jugador PRESENT: 2 punts, 0 caramboles, 0 entrades
+  - Jugador ABSENT: 0 punts, 0 caramboles, max_entrades de categoria (50 o 40)
 
 ### 2. Millores al codi JavaScript
 S'ha actualitzat [`src/lib/api/socialLeagues.ts`](src/lib/api/socialLeagues.ts):

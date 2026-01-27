@@ -45,7 +45,12 @@ BEGIN
       cp.id as match_id,
       cp.caramboles_jugador1,
       cp.caramboles_jugador2,
-      cp.entrades,
+      -- Utilitzar entrades_jugador1/jugador2 si estan disponibles, sinó usar entrades compartida
+      CASE
+        WHEN cp.jugador1_id = p.id THEN COALESCE(cp.entrades_jugador1, cp.entrades, 0)
+        WHEN cp.jugador2_id = p.id THEN COALESCE(cp.entrades_jugador2, cp.entrades, 0)
+        ELSE 0
+      END as entrades,
       CASE
         WHEN cp.jugador1_id = p.id THEN cp.caramboles_jugador1
         WHEN cp.jugador2_id = p.id THEN cp.caramboles_jugador2

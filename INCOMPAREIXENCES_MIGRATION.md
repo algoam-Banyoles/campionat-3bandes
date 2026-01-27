@@ -14,6 +14,8 @@ Les migracions s'han d'aplicar en aquest ordre específic (dividides per evitar 
 6. **20250130000006_add_estat_jugador_to_classifications.sql** - ⭐ Actualitza classificacions amb estat_jugador (retirats)
 7. **20250130000005_update_match_results_incompareixenca.sql** - Actualitza resultats públics amb incompareixences
 8. **20250130000001_fix_incompareixences_function.sql** - Crea funció registrar_incompareixenca
+9. **20250130000007_fix_incompareixences_classificacions.sql** - ⭐ Corregeix regles d'incompareixences per classificacions
+10. **20250130000008_fix_entrades_classifications.sql** - ⭐ **NOU**: Corregeix càlcul d'entrades individuals
 
 ## Opció 1: Aplicar manualment des del SQL Editor de Supabase (RECOMANAT)
 
@@ -99,6 +101,36 @@ Les migracions s'han d'aplicar en aquest ordre específic (dividides per evitar 
 - Jugador present: 0 entrades (no afecta mitjana)
 - Jugador absent: 50 entrades (mitjana 0/50 = 0.000)
 
+### Pas 9: Corregir regles d'incompareixences per classificacions (IMPORTANT) ⭐
+
+1. A **SQL Editor** de Supabase
+2. Obre el fitxer `supabase/migrations/20250130000007_fix_incompareixences_classificacions.sql`
+3. Copia tot el contingut
+4. Enganxa'l a l'editor SQL de Supabase
+5. Clica **RUN**
+
+**Què fa**: Actualitza `registrar_incompareixenca` amb les regles CORRECTES:
+- Utilitza `max_entrades` de la categoria (50 general, 40 per lliure 1a)
+- Jugador present: **0 caramboles**, 0 entrades (no afecta mitjana)
+- Jugador absent: **0 caramboles**, max_entrades (penalització forta en mitjana)
+
+Veure [FIX_INCOMPAREIXENCES_CLASSIFICACIONS.md](FIX_INCOMPAREIXENCES_CLASSIFICACIONS.md) per més detalls.
+
+### Pas 10: Corregir càlcul d'entrades individuals (IMPORTANT) ⭐
+
+1. A **SQL Editor** de Supabase
+2. Obre el fitxer `supabase/migrations/20250130000008_fix_entrades_classifications.sql`
+3. Copia tot el contingut
+4. Enganxa'l a l'editor SQL de Supabase
+5. Clica **RUN**
+
+**Què fa**: Actualitza `get_social_league_classifications` per utilitzar entrades individuals:
+- Usa `COALESCE(entrades_jugador1, entrades, 0)` per jugador 1
+- Usa `COALESCE(entrades_jugador2, entrades, 0)` per jugador 2
+- Això corregeix el càlcul de mitjanes en classificacions
+
+Veure [FIX_ENTRADES_CLASSIFICATIONS.md](FIX_ENTRADES_CLASSIFICATIONS.md) per més detalls.
+
 ## Opció 2: Executar l'script de migració
 
 Si prefereixes executar l'script automàtic:
@@ -133,9 +165,28 @@ npx tsx scripts/apply_incompareixences_migration.ts
 
 ## Regles d'Incompareixences
 
-Quan un jugador no es presenta:
-- **Jugador present**: 2 punts, 0 caramboles, 0 entrades
-- **Jugador absent**: 0 punts, 0 caramboles, 50 entrades
+### ⚠️ ACTUALITZACIÓ IMPORTANT (Migració 007)
+
+Les regles correctes per incompareixences en campionats socials són:
+
+**Jugador que NO es presenta:**
+- **Punts**: 0
+- **Caramboles**: 0
+- **Entrades**: Màxim d'entrades permès per la categoria
+  - **50 entrades** per defecte (categories generals)
+  - **40 entrades** per campionats de lliure 1a categoria
+
+**Jugador que SÍ es presenta:**
+- **Punts**: 2 (victòria per incompareixença)
+- **Caramboles**: 0 (no afecta la seva mitjana)
+- **Entrades**: 0 (no afecta la seva mitjana)
+
+### Impacte en Classificacions
+
+- El **jugador present** rep 2 punts però la seva mitjana **NO canvia** (0 caramboles / 0 entrades)
+- El **jugador absent** rep 0 punts i la seva mitjana **baixa molt** (0 caramboles / 50 entrades = 0.000)
+
+### Eliminació per Incompareixences
 
 Quan un jugador té 2 incompareixences:
 - El jugador és **eliminat automàticament** del campionat
