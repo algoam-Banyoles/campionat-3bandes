@@ -337,6 +337,7 @@
               <tbody class="divide-y divide-gray-200 bg-white">
                 {#each categoryClassifications as classification (classification.soci_numero + classification.categoria_id)}
                   <tr class="hover:bg-gray-50 {classification.posicio <= 3 ? 'bg-gradient-to-r from-yellow-50 to-orange-50' : ''}">
+                    {@const isDisqualified = classification.eliminat_per_incompareixences === true}
                     <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                       <div class="flex items-center justify-center">
                         <span class="flex items-center justify-center w-8 h-8 rounded-full border-2 {getPositionColor(classification.posicio)} font-bold text-sm">
@@ -357,8 +358,8 @@
                           {formatPlayerName(classification)}
                         </button>
                         {#if classification.estat_jugador === 'retirat'}
-                          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800" title={classification.motiu_retirada || 'Retirat'}>
-                            Retirat
+                          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800" title={classification.motiu_retirada || (isDisqualified ? 'Desqualificat' : 'Retirat')}>
+                            {isDisqualified ? 'DQF' : 'Retirat'}
                           </span>
                         {/if}
                       </div>
@@ -402,6 +403,7 @@
             <!-- Mobile Compact List View -->
             <div class="md:hidden space-y-1">
               {#each categoryClassifications as classification (classification.soci_numero + classification.categoria_id)}
+                {@const isDisqualified = classification.eliminat_per_incompareixences === true}
                 <div class="bg-white border-l-4 {classification.posicio <= 3 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'} rounded-r-lg shadow-sm overflow-hidden">
                   <!-- Compact Header -->
                   <div class="flex items-center justify-between px-1.5 py-1">
@@ -420,7 +422,9 @@
                         >
                           {formatPlayerName(classification)}
                           {#if classification.estat_jugador === 'retirat'}
-                            <span class="text-[10px] bg-red-100 text-red-800 px-1 rounded flex-shrink-0" title={classification.motiu_retirada || 'Retirat'}>R</span>
+                              <span class="text-[10px] bg-red-100 text-red-800 px-1 rounded flex-shrink-0" title={classification.motiu_retirada || (isDisqualified ? 'Desqualificat' : 'Retirat')}>
+                                {isDisqualified ? 'DQF' : 'R'}
+                              </span>
                           {/if}
                         </button>
                       </div>

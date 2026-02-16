@@ -2,6 +2,7 @@
     INNER JOIN players p ON i.soci_numero = p.numero_soci
     LEFT JOIN calendari_partides cp ON (cp.jugador1_id = p.id OR cp.jugador2_id = p.id) 
                                     AND cp.event_id = i.event_id
+                                    AND COALESCE(cp.partida_anullada, false) = false
     LEFT JOIN matches m ON cp.match_id = m.id
     WHERE i.event_id = event_id_param 
       AND i.categoria_assignada_id IS NOT NULL

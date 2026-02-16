@@ -27,7 +27,10 @@ RETURNS TABLE (
   partides_perdudes INTEGER,
   categoria_nom TEXT,
   categoria_ordre SMALLINT,
-  categoria_distancia_caramboles INTEGER
+  estat_jugador TEXT,
+  data_retirada TIMESTAMPTZ,
+  motiu_retirada TEXT,
+  eliminat_per_incompareixences BOOLEAN
 )
 SECURITY DEFINER
 SET search_path = public
@@ -43,11 +46,13 @@ BEGIN
       s.nom as soci_nom,
       s.cognoms as soci_cognoms,
       cp.id as match_id,
-      cp.jugador1_id,
-      cp.jugador2_id,
       cp.caramboles_jugador1,
       cp.caramboles_jugador2,
-      cp.entrades,
+      CASE
+        WHEN cp.jugador1_id = p.id THEN COALESCE(cp.entrades_jugador1, cp.entrades, 0)
+        WHEN cp.jugador2_id = p.id THEN COALESCE(cp.entrades_jugador2, cp.entrades, 0)
+        ELSE 0
+      END as entrades,
       CASE
         WHEN cp.jugador1_id = p.id THEN cp.caramboles_jugador1
         WHEN cp.jugador2_id = p.id THEN cp.caramboles_jugador2
@@ -63,12 +68,7 @@ BEGIN
         WHEN cp.jugador2_id = p.id AND cp.caramboles_jugador2 > cp.caramboles_jugador1 THEN 'win'
         WHEN cp.caramboles_jugador1 = cp.caramboles_jugador2 THEN 'draw'
         ELSE 'loss'
-      END as result,
-      CASE
-        WHEN cp.jugador1_id = p.id THEN cp.jugador2_id
-        WHEN cp.jugador2_id = p.id THEN cp.jugador1_id
-        ELSE NULL
-      END as opponent_id
+      END as result
     FROM inscripcions i
     INNER JOIN players p ON i.soci_numero = p.numero_soci
     LEFT JOIN socis s ON p.numero_soci = s.numero_soci
@@ -77,6 +77,7 @@ BEGIN
       AND cp.estat = 'validat'
       AND cp.caramboles_jugador1 IS NOT NULL
       AND cp.caramboles_jugador2 IS NOT NULL
+      AND COALESCE(cp.partida_anullada, false) = false
     WHERE i.event_id = p_event_id
       AND i.categoria_assignada_id IS NOT NULL
   ),
@@ -86,7 +87,18 @@ BEGIN
       p.id as player_id,
       p.numero_soci as soci_numero,
       s.nom as soci_nom,
-      s.cognoms as soci_cognoms
+      s.cognoms as soci_cognoms,
+      CASE
+        WHEN COALESCE(i.eliminat_per_incompareixences, false) = true THEN 'retirat'
+        WHEN i.estat_jugador = 'retirat' THEN 'retirat'
+        ELSE 'actiu'
+      END as estat_jugador,
+      COALESCE(i.data_retirada, i.data_eliminacio) as data_retirada,
+      CASE
+        WHEN COALESCE(i.eliminat_per_incompareixences, false) = true THEN 'Desqualificat per 2 incompareixences'
+        ELSE i.motiu_retirada
+      END as motiu_retirada,
+      COALESCE(i.eliminat_per_incompareixences, false) as eliminat_per_incompareixences
     FROM inscripcions i
     INNER JOIN players p ON i.soci_numero = p.numero_soci
     LEFT JOIN socis s ON p.numero_soci = s.numero_soci
@@ -100,6 +112,10 @@ BEGIN
       ap.soci_numero,
       ap.soci_nom,
       ap.soci_cognoms,
+      ap.estat_jugador,
+      ap.data_retirada,
+      ap.motiu_retirada,
+      ap.eliminat_per_incompareixences,
       COUNT(pm.match_id)::INTEGER as partides_jugades,
       COUNT(CASE WHEN pm.result = 'win' THEN 1 END)::INTEGER as partides_guanyades,
       COUNT(CASE WHEN pm.result = 'draw' THEN 1 END)::INTEGER as partides_empat,
@@ -122,7 +138,7 @@ BEGIN
       ), 0) as millor_mitjana
     FROM all_players ap
     LEFT JOIN player_matches pm ON ap.player_id = pm.player_id AND ap.categoria_id = pm.categoria_id
-    GROUP BY ap.categoria_id, ap.player_id, ap.soci_numero, ap.soci_nom, ap.soci_cognoms
+    GROUP BY ap.categoria_id, ap.player_id, ap.soci_numero, ap.soci_nom, ap.soci_cognoms, ap.estat_jugador, ap.data_retirada, ap.motiu_retirada, ap.eliminat_per_incompareixences
   ),
   ranked_players AS (
     SELECT
@@ -156,7 +172,10 @@ BEGIN
     rp.partides_perdudes,
     cat.nom as categoria_nom,
     cat.ordre_categoria as categoria_ordre,
-    cat.distancia_caramboles as categoria_distancia_caramboles
+    rp.estat_jugador,
+    rp.data_retirada,
+    rp.motiu_retirada,
+    rp.eliminat_per_incompareixences
   FROM ranked_players rp
   LEFT JOIN categories cat ON rp.categoria_id = cat.id
   ORDER BY cat.ordre_categoria ASC, rp.posicio ASC;
@@ -167,7 +186,7 @@ GRANT EXECUTE ON FUNCTION get_social_league_classifications(UUID) TO anon;
 GRANT EXECUTE ON FUNCTION get_social_league_classifications(UUID) TO authenticated;
 
 COMMENT ON FUNCTION get_social_league_classifications(UUID) IS
-'Returns real-time classifications for social leagues. SECURITY: Uses SET search_path = public to prevent schema injection attacks.';
+'Returns real-time classifications for social leagues with disqualifications handled. SECURITY: Uses SET search_path = public.';
 
 
 -- 2. Fix get_head_to_head_results
@@ -478,83 +497,159 @@ BEGIN
 END $$;
 
 CREATE OR REPLACE FUNCTION registrar_incompareixenca(
-  p_match_id UUID,
-  p_player_absent_id UUID,
-  p_observacions TEXT DEFAULT NULL
+  p_partida_id uuid,
+  p_jugador_que_falta smallint  -- 1 o 2
 )
-RETURNS JSONB
+RETURNS json
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_match RECORD;
-  v_winner_id UUID;
-  v_caramboles_winner INTEGER;
-  v_caramboles_absent INTEGER := 0;
+  v_partida RECORD;
+  v_jugador_id uuid;
+  v_altre_jugador_id uuid;
+  v_soci_numero integer;
+  v_event_id uuid;
+  v_categoria_id uuid;
+  v_max_entrades integer;
+  v_incompareixences_count smallint;
+  v_result json;
 BEGIN
-  -- Get match details
-  SELECT * INTO v_match
+  -- Obtenir informació de la partida
+  SELECT * INTO v_partida
   FROM calendari_partides
-  WHERE id = p_match_id;
+  WHERE id = p_partida_id;
 
-  IF v_match IS NULL THEN
-    RETURN jsonb_build_object(
-      'success', false,
-      'error', 'Match not found'
-    );
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Partida no trobada';
   END IF;
 
-  -- Determine winner (the player who showed up)
-  IF v_match.jugador1_id = p_player_absent_id THEN
-    v_winner_id := v_match.jugador2_id;
-  ELSIF v_match.jugador2_id = p_player_absent_id THEN
-    v_winner_id := v_match.jugador1_id;
+  -- Determinar quin jugador falta i quin ha vingut
+  IF p_jugador_que_falta = 1 THEN
+    v_jugador_id := v_partida.jugador1_id;
+    v_altre_jugador_id := v_partida.jugador2_id;
+  ELSIF p_jugador_que_falta = 2 THEN
+    v_jugador_id := v_partida.jugador2_id;
+    v_altre_jugador_id := v_partida.jugador1_id;
   ELSE
-    RETURN jsonb_build_object(
-      'success', false,
-      'error', 'Player not in this match'
+    RAISE EXCEPTION 'Jugador invàlid: ha de ser 1 o 2';
+  END IF;
+
+  v_event_id := v_partida.event_id;
+  v_categoria_id := v_partida.categoria_id;
+
+  -- Obtenir el numero_soci del jugador que falta
+  SELECT numero_soci INTO v_soci_numero
+  FROM players
+  WHERE id = v_jugador_id;
+
+  IF v_soci_numero IS NULL THEN
+    RAISE EXCEPTION 'No s''ha trobat el numero de soci del jugador';
+  END IF;
+
+  -- Obtenir el max_entrades de la categoria
+  SELECT max_entrades INTO v_max_entrades
+  FROM categories
+  WHERE id = v_categoria_id;
+
+  IF v_max_entrades IS NULL THEN
+    v_max_entrades := 50; -- Valor per defecte si no es troba
+  END IF;
+
+  -- Actualitzar la partida amb el resultat d'incompareixença
+  -- Jugador PRESENT: 2 punts, 0 caramboles, 0 entrades
+  -- Jugador ABSENT: 0 punts, 0 caramboles, max_entrades
+  IF p_jugador_que_falta = 1 THEN
+    UPDATE calendari_partides
+    SET
+      incompareixenca_jugador1 = true,
+      data_incompareixenca = NOW(),
+      estat = 'validat',
+      caramboles_jugador1 = 0,
+      caramboles_jugador2 = 0,
+      entrades_jugador1 = v_max_entrades,
+      entrades_jugador2 = 0,
+      entrades = v_max_entrades,
+      punts_jugador1 = 0,
+      punts_jugador2 = 2,
+      data_joc = NOW(),
+      validat_per = NULL,
+      data_validacio = NOW(),
+      observacions_junta = COALESCE(observacions_junta || E'\n', '') ||
+        '[' || TO_CHAR(NOW(), 'DD/MM/YYYY') || '] Incompareixença jugador 1. Jugador 2: 2 punts, 0 caramboles, 0 entrades. Jugador 1: 0 punts, 0 caramboles, ' || v_max_entrades || ' entrades penalització.'
+    WHERE id = p_partida_id;
+  ELSE
+    UPDATE calendari_partides
+    SET
+      incompareixenca_jugador2 = true,
+      data_incompareixenca = NOW(),
+      estat = 'validat',
+      caramboles_jugador1 = 0,
+      caramboles_jugador2 = 0,
+      entrades_jugador1 = 0,
+      entrades_jugador2 = v_max_entrades,
+      entrades = v_max_entrades,
+      punts_jugador1 = 2,
+      punts_jugador2 = 0,
+      data_joc = NOW(),
+      validat_per = NULL,
+      data_validacio = NOW(),
+      observacions_junta = COALESCE(observacions_junta || E'\n', '') ||
+        '[' || TO_CHAR(NOW(), 'DD/MM/YYYY') || '] Incompareixença jugador 2. Jugador 1: 2 punts, 0 caramboles, 0 entrades. Jugador 2: 0 punts, 0 caramboles, ' || v_max_entrades || ' entrades penalització.'
+    WHERE id = p_partida_id;
+  END IF;
+
+  -- Actualitzar comptador d'incompareixences del jugador
+  UPDATE inscripcions
+  SET incompareixences_count = incompareixences_count + 1
+  WHERE soci_numero = v_soci_numero
+    AND event_id = v_event_id
+  RETURNING incompareixences_count INTO v_incompareixences_count;
+
+  -- Si té 2 incompareixences, eliminar el jugador i anul·lar les seves partides
+  IF v_incompareixences_count >= 2 THEN
+    UPDATE inscripcions
+    SET
+      eliminat_per_incompareixences = true,
+      data_eliminacio = NOW(),
+      estat_jugador = 'retirat',
+      data_retirada = NOW(),
+      motiu_retirada = 'Desqualificat per 2 incompareixences'
+    WHERE soci_numero = v_soci_numero
+      AND event_id = v_event_id;
+
+    UPDATE calendari_partides
+    SET
+      partida_anullada = true,
+      motiu_anul·lacio = 'Jugador eliminat per 2 incompareixences'
+    WHERE event_id = v_event_id
+      AND (jugador1_id = v_jugador_id OR jugador2_id = v_jugador_id)
+      AND COALESCE(partida_anullada, false) = false;
+
+    v_result := json_build_object(
+      'incompareixences', v_incompareixences_count,
+      'jugador_eliminat', true,
+      'partides_anullades', true,
+      'max_entrades_utilitzat', v_max_entrades
+    );
+  ELSE
+    v_result := json_build_object(
+      'incompareixences', v_incompareixences_count,
+      'jugador_eliminat', false,
+      'partides_anullades', false,
+      'max_entrades_utilitzat', v_max_entrades
     );
   END IF;
 
-  -- Get the category distance for the winner's score
-  SELECT c.distancia_caramboles INTO v_caramboles_winner
-  FROM categories c
-  WHERE c.id = v_match.categoria_id;
-
-  IF v_caramboles_winner IS NULL THEN
-    v_caramboles_winner := 25; -- Default value
-  END IF;
-
-  -- Update match with walkover result
-  UPDATE calendari_partides
-  SET
-    estat = 'validat',
-    caramboles_jugador1 = CASE 
-      WHEN jugador1_id = v_winner_id THEN v_caramboles_winner 
-      ELSE v_caramboles_absent 
-    END,
-    caramboles_jugador2 = CASE 
-      WHEN jugador2_id = v_winner_id THEN v_caramboles_winner 
-      ELSE v_caramboles_absent 
-    END,
-    entrades = 1,
-    observacions_junta = COALESCE(p_observacions, 'Incompareixença registrada automàticament')
-  WHERE id = p_match_id;
-
-  RETURN jsonb_build_object(
-    'success', true,
-    'message', 'Walkover registered successfully',
-    'winner_id', v_winner_id,
-    'absent_id', p_player_absent_id
-  );
+  RETURN v_result;
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION registrar_incompareixenca(UUID, UUID, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION registrar_incompareixenca(uuid, smallint) TO authenticated;
 
-COMMENT ON FUNCTION registrar_incompareixenca(UUID, UUID, TEXT) IS
-'Registers a walkover when a player does not show up. SECURITY: Uses SET search_path = public.';
+COMMENT ON FUNCTION registrar_incompareixenca(uuid, smallint) IS
+'Registra una incompareixença segons les regles correctes i desqualifica amb 2 incompareixences. SECURITY: Uses SET search_path = public.';
 
 
 -- ============================================

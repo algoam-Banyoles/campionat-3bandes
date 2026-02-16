@@ -84,6 +84,7 @@
         estat_jugador: item.estat_jugador,
         data_retirada: item.data_retirada,
         motiu_retirada: item.motiu_retirada,
+        eliminat_per_incompareixences: item.eliminat_per_incompareixences,
         socis: {
           numero_soci: item.soci_numero,
           nom: item.nom,
@@ -207,6 +208,7 @@
                 {@const nomFormatat = formatarNomJugador(nomCompletJugador)}
                 {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
                 {@const isWithdrawn = inscription.estat_jugador === 'retirat'}
+                {@const isDisqualified = inscription.eliminat_per_incompareixences === true}
                 <div class="flex items-center py-1" class:opacity-60={isWithdrawn}>
                   <div class="flex items-center gap-1 flex-1">
                     <div class="w-6 h-6 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" class:bg-blue-500={!isWithdrawn} class:bg-gray-400={isWithdrawn}>
@@ -216,7 +218,7 @@
                       {nomFormatat}
                     </span>
                     {#if isWithdrawn}
-                      <span class="text-[10px] text-red-600 font-bold flex-shrink-0">R</span>
+                      <span class="text-[10px] text-red-600 font-bold flex-shrink-0">{isDisqualified ? 'DQF' : 'R'}</span>
                     {/if}
                   </div>
                 </div>
@@ -246,6 +248,7 @@
               {@const nomFormatat = formatarNomJugador(nomCompletSenseCategoria)}
               {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
               {@const isWithdrawn = inscription.estat_jugador === 'retirat'}
+              {@const isDisqualified = inscription.eliminat_per_incompareixences === true}
               <div class="flex items-center py-1" class:opacity-60={isWithdrawn}>
                 <div class="flex items-center gap-2">
                   <div class="w-8 h-8 text-white rounded-full flex items-center justify-center text-sm font-bold" class:bg-yellow-500={!isWithdrawn} class:bg-gray-400={isWithdrawn}>
@@ -256,7 +259,7 @@
                   </span>
                   {#if isWithdrawn}
                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                      Retirat
+                      {isDisqualified ? 'DQF' : 'Retirat'}
                     </span>
                   {/if}
                 </div>

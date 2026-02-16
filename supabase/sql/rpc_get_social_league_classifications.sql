@@ -27,7 +27,8 @@ RETURNS TABLE (
   -- Withdrawal fields
   estat_jugador TEXT,
   data_retirada TIMESTAMPTZ,
-  motiu_retirada TEXT
+  motiu_retirada TEXT,
+  eliminat_per_incompareixences BOOLEAN
 )
 SECURITY DEFINER
 LANGUAGE plpgsql
@@ -75,6 +76,7 @@ BEGIN
       AND cp.estat = 'validat'
       AND cp.caramboles_jugador1 IS NOT NULL
       AND cp.caramboles_jugador2 IS NOT NULL
+      AND COALESCE(cp.partida_anullada, false) = false
     WHERE i.event_id = p_event_id
       AND i.categoria_assignada_id IS NOT NULL
   ),
@@ -86,9 +88,17 @@ BEGIN
       p.numero_soci as soci_numero,
       s.nom as soci_nom,
       s.cognoms as soci_cognoms,
-      i.estat_jugador,
-      i.data_retirada,
-      i.motiu_retirada
+      CASE
+        WHEN COALESCE(i.eliminat_per_incompareixences, false) = true THEN 'retirat'
+        WHEN i.estat_jugador = 'retirat' THEN 'retirat'
+        ELSE 'actiu'
+      END as estat_jugador,
+      COALESCE(i.data_retirada, i.data_eliminacio) as data_retirada,
+      CASE
+        WHEN COALESCE(i.eliminat_per_incompareixences, false) = true THEN 'Desqualificat per 2 incompareixences'
+        ELSE i.motiu_retirada
+      END as motiu_retirada,
+      COALESCE(i.eliminat_per_incompareixences, false) as eliminat_per_incompareixences
     FROM inscripcions i
     INNER JOIN players p ON i.soci_numero = p.numero_soci
     LEFT JOIN socis s ON p.numero_soci = s.numero_soci
@@ -106,6 +116,7 @@ BEGIN
       ap.estat_jugador,
       ap.data_retirada,
       ap.motiu_retirada,
+      ap.eliminat_per_incompareixences,
       COUNT(pm.match_id)::INTEGER as partides_jugades,
       COUNT(CASE WHEN pm.result = 'win' THEN 1 END)::INTEGER as partides_guanyades,
       COUNT(CASE WHEN pm.result = 'draw' THEN 1 END)::INTEGER as partides_empat,
@@ -131,7 +142,7 @@ BEGIN
       ), 0) as millor_mitjana
     FROM all_players ap
     LEFT JOIN player_matches pm ON ap.player_id = pm.player_id AND ap.categoria_id = pm.categoria_id
-    GROUP BY ap.categoria_id, ap.player_id, ap.soci_numero, ap.soci_nom, ap.soci_cognoms, ap.estat_jugador, ap.data_retirada, ap.motiu_retirada
+    GROUP BY ap.categoria_id, ap.player_id, ap.soci_numero, ap.soci_nom, ap.soci_cognoms, ap.estat_jugador, ap.data_retirada, ap.motiu_retirada, ap.eliminat_per_incompareixences
   ),
   head_to_head AS (
     -- Get head-to-head results between players in same category
@@ -191,7 +202,8 @@ BEGIN
     cat.ordre_categoria as categoria_ordre,
     rp.estat_jugador,
     rp.data_retirada,
-    rp.motiu_retirada
+    rp.motiu_retirada,
+    rp.eliminat_per_incompareixences
   FROM ranked_players rp
   LEFT JOIN categories cat ON rp.categoria_id = cat.id
   ORDER BY cat.ordre_categoria ASC, rp.posicio ASC;

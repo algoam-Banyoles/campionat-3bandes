@@ -49,12 +49,19 @@ AS $$
   LEFT JOIN socis s1 ON p1.numero_soci = s1.numero_soci
   LEFT JOIN players p2 ON cp.jugador2_id = p2.id
   LEFT JOIN socis s2 ON p2.numero_soci = s2.numero_soci
+  LEFT JOIN inscripcions i1 ON i1.event_id = cp.event_id AND i1.soci_numero = p1.numero_soci
+  LEFT JOIN inscripcions i2 ON i2.event_id = cp.event_id AND i2.soci_numero = p2.numero_soci
   WHERE EXISTS (
     SELECT 1 FROM categories cat 
     WHERE cat.id = cp.categoria_id 
     AND cat.event_id = p_event_id
   )
   AND cp.estat IN ('generat', 'validat', 'publicat')
+  AND COALESCE(cp.partida_anullada, false) = false
+  AND COALESCE(i1.eliminat_per_incompareixences, false) = false
+  AND COALESCE(i2.eliminat_per_incompareixences, false) = false
+  AND COALESCE(i1.estat_jugador, 'actiu') <> 'retirat'
+  AND COALESCE(i2.estat_jugador, 'actiu') <> 'retirat'
   ORDER BY cp.data_programada ASC, cp.hora_inici ASC;
 $$;
 

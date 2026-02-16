@@ -23,6 +23,7 @@ RETURNS TABLE (
   estat_jugador TEXT,
   data_retirada TIMESTAMPTZ,
   motiu_retirada TEXT,
+  eliminat_per_incompareixences BOOLEAN,
   -- Socis information
   nom TEXT,
   cognoms TEXT,
@@ -49,6 +50,7 @@ AS $$
     i.estat_jugador,
     i.data_retirada,
     i.motiu_retirada,
+    COALESCE(i.eliminat_per_incompareixences, false) as eliminat_per_incompareixences,
     s.nom,
     s.cognoms,
     s.email,
