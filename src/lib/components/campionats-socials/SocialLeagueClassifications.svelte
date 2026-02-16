@@ -336,8 +336,8 @@
               </thead>
               <tbody class="divide-y divide-gray-200 bg-white">
                 {#each categoryClassifications as classification (classification.soci_numero + classification.categoria_id)}
+                  {@const isDisqualified = classification.eliminat_per_incompareixences === true}
                   <tr class="hover:bg-gray-50 {classification.posicio <= 3 ? 'bg-gradient-to-r from-yellow-50 to-orange-50' : ''}">
-                    {@const isDisqualified = classification.eliminat_per_incompareixences === true}
                     <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                       <div class="flex items-center justify-center">
                         <span class="flex items-center justify-center w-8 h-8 rounded-full border-2 {getPositionColor(classification.posicio)} font-bold text-sm">
