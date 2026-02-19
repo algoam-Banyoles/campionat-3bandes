@@ -82,6 +82,20 @@
         return;
       }
 
+      const { data: allInscriptions, error: allInscriptionsError } = await supabase
+        .from('inscripcions')
+        .select('soci_numero, estat_jugador, eliminat_per_incompareixences')
+        .eq('event_id', eventId);
+
+      if (allInscriptionsError) throw allInscriptionsError;
+
+      const withdrawnNumbers = new Set(
+        (allInscriptions || [])
+          .filter((item: any) => item.estat_jugador === 'retirat' || item.eliminat_per_incompareixences)
+          .map((item: any) => item.soci_numero)
+          .filter((numero: any) => typeof numero === 'number')
+      );
+
       // Get player ID from numero_soci
       const { data: playerData, error: playerError } = await supabase
         .from('players')
@@ -170,6 +184,7 @@
 
       // Create a map of player info
       const playersMap = new Map();
+      const playerNumeroMap = new Map();
       playersData?.forEach(p => {
         const sociData = p.numero_soci ? socisMap.get(p.numero_soci) : null;
         playersMap.set(p.id, {
@@ -177,10 +192,18 @@
           cognoms: sociData?.cognoms || '',
           numero_soci: p.numero_soci
         });
+        playerNumeroMap.set(p.id, p.numero_soci);
       });
 
       // Enrich matches with player names
-      matches = matchesData?.map(match => {
+      const filteredMatches = matchesData?.filter(match => {
+        if (withdrawnNumbers.size === 0) return true;
+        const j1Numero = playerNumeroMap.get(match.jugador1_id);
+        const j2Numero = playerNumeroMap.get(match.jugador2_id);
+        return !withdrawnNumbers.has(j1Numero) && !withdrawnNumbers.has(j2Numero);
+      }) || [];
+
+      matches = filteredMatches.map(match => {
         const jugador1 = playersMap.get(match.jugador1_id);
         const jugador2 = playersMap.get(match.jugador2_id);
 

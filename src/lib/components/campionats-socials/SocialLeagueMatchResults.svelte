@@ -102,6 +102,20 @@
     error = null;
 
     try {
+      const { data: inscriptionsData, error: inscriptionsError } = await supabase
+        .rpc('get_inscripcions_with_socis', {
+          p_event_id: eventId
+        });
+
+      if (inscriptionsError) throw inscriptionsError;
+
+      const withdrawnNumbers = new Set(
+        (inscriptionsData || [])
+          .filter((item: any) => item.estat_jugador === 'retirat' || item.eliminat_per_incompareixences)
+          .map((item: any) => item.soci_numero)
+          .filter((numero: any) => typeof numero === 'number')
+      );
+
       // Programmed and completed matches
       const { data, error: matchesError } = await supabase
         .rpc('get_match_results_public', {
@@ -109,7 +123,10 @@
         });
 
       if (matchesError) throw matchesError;
-      matches = data || [];
+      matches = (data || []).filter((match: any) => {
+        if (withdrawnNumbers.size === 0) return true;
+        return !withdrawnNumbers.has(match.jugador1_numero_soci) && !withdrawnNumbers.has(match.jugador2_numero_soci);
+      });
 
       // Load ALL matches for total count
       const { data: allMatchesData, error: allMatchesError } = await supabase
