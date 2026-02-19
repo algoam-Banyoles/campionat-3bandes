@@ -69,6 +69,19 @@
     matches = [];
 
     try {
+      const { data: inscriptionData, error: inscriptionError } = await supabase
+        .from('inscripcions')
+        .select('estat_jugador, eliminat_per_incompareixences')
+        .eq('event_id', eventId)
+        .eq('soci_numero', playerNumeroSoci)
+        .single();
+
+      if (inscriptionError) throw inscriptionError;
+
+      if (inscriptionData?.estat_jugador === 'retirat' || inscriptionData?.eliminat_per_incompareixences) {
+        return;
+      }
+
       // Get player ID from numero_soci
       const { data: playerData, error: playerError } = await supabase
         .from('players')
@@ -92,6 +105,7 @@
           entrades,
           jugador1_id,
           jugador2_id,
+          partida_anullada,
           estat,
           incompareixenca_jugador1,
           incompareixenca_jugador2,
@@ -102,6 +116,7 @@
         `)
         .eq('event_id', eventId)
         .eq('estat', 'validat')
+        .or('partida_anullada.is.null,partida_anullada.eq.false')
         .not('caramboles_jugador1', 'is', null)
         .not('caramboles_jugador2', 'is', null)
         .or(`jugador1_id.eq.${playerId},jugador2_id.eq.${playerId}`)
