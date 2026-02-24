@@ -129,7 +129,7 @@
           entrades_jugador2
         `)
         .eq('event_id', eventId)
-        .eq('estat', 'validat')
+        .in('estat', ['jugada', 'validat'])
         .or('partida_anullada.is.null,partida_anullada.eq.false')
         .not('caramboles_jugador1', 'is', null)
         .not('caramboles_jugador2', 'is', null)
