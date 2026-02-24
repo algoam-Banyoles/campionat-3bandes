@@ -207,22 +207,22 @@
       .header-right { position: absolute; right: 0; top: 0; text-align: right; }
       .category-info { font-size: 7pt; margin: 0; color: #000; }
 
-      .print-grid { width: 100%; border-collapse: collapse; font-size: 5pt; margin-bottom: 0.2cm; color: #000; }
+      .print-grid { width: 100%; border-collapse: collapse; font-size: 7pt; margin-bottom: 0.2cm; color: #000; }
       .print-grid th, .print-grid td { border: 1px solid #444; padding: 0; text-align: center; }
 
       .corner-cell { background: #fff; width: 1.5cm; padding: 1px; vertical-align: middle; }
       .corner-logo { max-width: 100%; max-height: 1cm; height: auto; display: block; margin: 0 auto; }
-      .player-header { background: #333; color: white; font-weight: bold; height: 1cm; width: 0.7cm; padding: 0; position: relative; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .player-header { background: #333; color: white; font-weight: bold; height: 1.2cm; width: 0.9cm; padding: 0; position: relative; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .player-name-rotated { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); transform-origin: center; white-space: nowrap; font-size: 5pt; width: 1.5cm; overflow: hidden; text-overflow: ellipsis; }
 
-      .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 2px; font-size: 6pt; white-space: nowrap; width: 1.5cm; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7pt; white-space: nowrap; width: 1.7cm; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-      .match-cell { width: 0.7cm; height: 0.6cm; padding: 0; vertical-align: middle; }
+      .match-cell { width: 0.95cm; height: 0.85cm; padding: 0; vertical-align: middle; }
       .self-cell { background: #d0d0d0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .self-match { color: #666; font-size: 10pt; font-weight: bold; }
 
       .match-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; width: 100%; height: 100%; border: 2px solid #000; gap: 1px; background-color: #000; }
-      .grid-cell { border: none; padding: 0; text-align: center; font-size: 4.5pt; font-weight: 700; display: flex; align-items: center; justify-content: center; line-height: 1; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .grid-cell { border: none; padding: 0; text-align: center; font-size: 6.5pt; font-weight: 700; display: flex; align-items: center; justify-content: center; line-height: 1; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .grid-cell.top-left { grid-column: 1; grid-row: 1; }
       .grid-cell.top-right { grid-column: 2; grid-row: 1; }
       .grid-cell.middle-full { grid-column: 1 / -1; grid-row: 2; background: #f0f0f0; font-weight: bold; }
