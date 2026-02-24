@@ -581,6 +581,8 @@ export async function getHeadToHeadResults(eventId: string, categoriaId: string)
       .select(`
         id,
         soci_numero,
+        estat_jugador,
+        eliminat_per_incompareixences,
         socis!inner (
           numero_soci,
           nom,
@@ -595,8 +597,13 @@ export async function getHeadToHeadResults(eventId: string, categoriaId: string)
       throw inscriptionsError;
     }
 
-    // Obtenir els players IDs dels socis inscrits
-    const sociNumbers = inscriptionsData?.map(i => i.soci_numero) || [];
+    // Excloure retirats o desqualificats de la graella
+    const activeInscriptions = (inscriptionsData || []).filter((i: any) =>
+      i.estat_jugador !== 'retirat' && !i.eliminat_per_incompareixences
+    );
+
+    // Obtenir els players IDs dels socis inscrits actius
+    const sociNumbers = activeInscriptions.map((i: any) => i.soci_numero) || [];
     
     const { data: playersData, error: playersError } = await supabase
       .from('players')
@@ -614,7 +621,7 @@ export async function getHeadToHeadResults(eventId: string, categoriaId: string)
 
     // Crear llista de jugadors des de les inscripcions
     const playersMap = new Map<string, any>();
-    (inscriptionsData || []).forEach((inscription: any) => {
+    activeInscriptions.forEach((inscription: any) => {
       const playerId = sociToPlayerMap.get(inscription.soci_numero);
       if (playerId && inscription.socis) {
         playersMap.set(playerId, {

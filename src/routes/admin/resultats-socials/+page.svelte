@@ -75,6 +75,22 @@
     loading = true;
 
     try {
+      // Load withdrawn/disqualified players in this category to exclude their pending matches
+      const { data: inscriptionsData, error: inscriptionsError } = await supabase
+        .from('inscripcions')
+        .select('soci_numero, estat_jugador, eliminat_per_incompareixences')
+        .eq('event_id', selectedEvent.id)
+        .eq('categoria_assignada_id', selectedCategory.id);
+
+      if (inscriptionsError) throw inscriptionsError;
+
+      const withdrawnNumbers = new Set<number>(
+        (inscriptionsData || [])
+          .filter((item: any) => item.estat_jugador === 'retirat' || item.eliminat_per_incompareixences)
+          .map((item: any) => item.soci_numero)
+          .filter((numero: any) => typeof numero === 'number')
+      );
+
       // Load calendar matches for selected category that are not yet played
       const { data: matchesData, error: matchesError } = await supabase
         .from('calendari_partides')
@@ -91,9 +107,16 @@
 
       if (matchesError) throw matchesError;
 
+      const filteredMatchesData = (matchesData || []).filter((match: any) => {
+        if (withdrawnNumbers.size === 0) return true;
+        const jugador1Numero = match.jugador1?.numero_soci;
+        const jugador2Numero = match.jugador2?.numero_soci;
+        return !withdrawnNumbers.has(jugador1Numero) && !withdrawnNumbers.has(jugador2Numero);
+      });
+
       // Get all unique numero_soci values from matches
       const allNumerosSoci = new Set<number>();
-      (matchesData || []).forEach(match => {
+      filteredMatchesData.forEach(match => {
         if (match.jugador1?.numero_soci) allNumerosSoci.add(match.jugador1.numero_soci);
         if (match.jugador2?.numero_soci) allNumerosSoci.add(match.jugador2.numero_soci);
       });
@@ -115,7 +138,7 @@
       });
 
       // Map matches with soci data using the lookup map (no async needed)
-      const matchesWithSocis = (matchesData || []).map(match => ({
+      const matchesWithSocis = filteredMatchesData.map(match => ({
         ...match,
         soci1: socisMap.get(match.jugador1?.numero_soci) || null,
         soci2: socisMap.get(match.jugador2?.numero_soci) || null
