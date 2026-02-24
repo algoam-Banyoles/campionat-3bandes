@@ -142,7 +142,9 @@
         .from('calendari_partides')
         .select('*')
         .eq('event_id', eventId)
-        .eq('estat', 'pendent_programar');
+        .eq('estat', 'pendent_programar')
+        .is('caramboles_jugador1', null)
+        .is('caramboles_jugador2', null);
       if (unprogrammedError) throw unprogrammedError;
       unprogrammedMatches = unprogrammed || [];
     } catch (e) {

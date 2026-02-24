@@ -89,9 +89,9 @@
         .from('calendari_partides')
         .select('data_joc')
         .eq('event_id', event.id)
-        .eq('estat', 'validat')
         .not('caramboles_jugador1', 'is', null)
         .not('caramboles_jugador2', 'is', null)
+        .or('partida_anullada.is.null,partida_anullada.eq.false')
         .order('data_joc', { ascending: false })
         .limit(1)
         .single();

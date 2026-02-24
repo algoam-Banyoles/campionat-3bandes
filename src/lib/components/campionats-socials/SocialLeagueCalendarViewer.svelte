@@ -135,6 +135,8 @@
   function generatePendingMatchesHTML(useDoubleColumn: boolean = true): string {
     // Identificar partides sense programar (sense data_programada o amb camps buits)
     const pendingMatches = matches.filter(match => {
+      const hasResult = match.caramboles_jugador1 != null && match.caramboles_jugador2 != null;
+      if (hasResult) return false;
       if (!match.data_programada || !match.hora_inici || !match.taula_assignada) {
         // Aplicar filtres si estan configurats
         if (selectedCategory && match.categoria_id !== selectedCategory) return false;
@@ -848,6 +850,7 @@
       console.log('🔍 Loading unprogrammed matches (only for authenticated users)...');
       let unprogrammedRaw = [];
       let unprogrammedError = null;
+      const withdrawnSocis = new Set<number>();
       
       // Verificar si l'usuari està autenticat
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -855,6 +858,22 @@
       
       if (user) {
         try {
+          // Carregar jugadors retirats/desqualificats per excloure les seves partides pendents
+          const { data: inscriptionsData, error: inscriptionsError } = await supabase
+            .rpc('get_inscripcions_with_socis', {
+              p_event_id: eventId
+            });
+
+          if (!inscriptionsError) {
+            (inscriptionsData || [])
+              .filter((item: any) => item.estat_jugador === 'retirat' || item.eliminat_per_incompareixences)
+              .forEach((item: any) => {
+                if (typeof item.soci_numero === 'number') {
+                  withdrawnSocis.add(item.soci_numero);
+                }
+              });
+          }
+
           // Carregar partides no programades amb els filtres correctes
           console.log('🔍 User authenticated, loading unprogrammed matches (estat=pendent_programar, data_programada=null)...');
           const result = await supabase
@@ -862,6 +881,8 @@
             .select('*')
             .eq('event_id', eventId)
             .eq('estat', 'pendent_programar')
+            .is('caramboles_jugador1', null)
+            .is('caramboles_jugador2', null)
             .is('data_programada', null);
 
           unprogrammedRaw = result.data;
@@ -877,11 +898,27 @@
 
             // Primer consultem 'players' per obtenir numero_soci
             if (jugadorIds.length > 0) {
+              const playerNumeroMap = new Map<string, number>();
               const { data: playersData } = await supabase
                 .from('players')
                 .select('id, numero_soci')
                 .in('id', jugadorIds);
               if (playersData && playersData.length > 0) {
+                playersData.forEach(p => {
+                  if (typeof p.numero_soci === 'number') {
+                    playerNumeroMap.set(p.id, p.numero_soci);
+                  }
+                });
+
+                // Excloure partides pendents amb jugadors retirats o desqualificats
+                if (withdrawnSocis.size > 0) {
+                  unprogrammedRaw = unprogrammedRaw.filter((match: any) => {
+                    const j1Numero = playerNumeroMap.get(match.jugador1_id);
+                    const j2Numero = playerNumeroMap.get(match.jugador2_id);
+                    return !withdrawnSocis.has(j1Numero ?? -1) && !withdrawnSocis.has(j2Numero ?? -1);
+                  });
+                }
+
                 const socisIds = playersData.map(p => p.numero_soci).filter(Boolean);
                 const { data: socisData } = await supabase
                   .from('socis')
@@ -1271,7 +1308,11 @@
   // Separar partits programats i no programats
   $: programmedMatches = filteredMatches.filter(match => match.data_programada && !['pendent_programar'].includes(match.estat));
   $: {
-    unprogrammedMatches = filteredMatches.filter(match => !match.data_programada || match.estat === 'pendent_programar');
+    unprogrammedMatches = filteredMatches.filter(match =>
+      (!match.data_programada || match.estat === 'pendent_programar') &&
+      match.caramboles_jugador1 == null &&
+      match.caramboles_jugador2 == null
+    );
 
     // Ordenar per categoria
     unprogrammedMatches.sort((a, b) => {
@@ -1608,7 +1649,7 @@
           punts_jugador1: punts_j1,
           punts_jugador2: punts_j2,
           data_joc: new Date().toISOString(),
-          estat: 'validat',
+          estat: 'jugada',
           validat_per: (await supabase.auth.getUser()).data.user?.id,
           data_validacio: new Date().toISOString(),
           observacions_junta: resultForm.observacions

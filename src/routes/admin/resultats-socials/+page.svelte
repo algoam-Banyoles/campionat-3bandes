@@ -182,7 +182,7 @@
           punts_jugador1: punts_j1,  // Punts calculats segons resultat
           punts_jugador2: punts_j2,
           data_joc: new Date().toISOString(),
-          estat: 'validat',
+          estat: 'jugada',
           validat_per: (await supabase.auth.getUser()).data.user?.id,
           data_validacio: new Date().toISOString(),
           observacions_junta: observacions
