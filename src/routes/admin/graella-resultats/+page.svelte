@@ -217,12 +217,12 @@
 
       .player-row-header { background: #e8e8e8; font-weight: bold; text-align: left; padding-left: 2px; font-size: 7pt; white-space: nowrap; width: 1.7cm; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-      .match-cell { width: 0.95cm; height: 0.85cm; padding: 0; vertical-align: middle; }
+      .match-cell { width: 1.15cm; height: 1.05cm; padding: 0; vertical-align: middle; }
       .self-cell { background: #d0d0d0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .self-match { color: #666; font-size: 10pt; font-weight: bold; }
 
       .match-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; width: 100%; height: 100%; border: 2px solid #000; gap: 1px; background-color: #000; }
-      .grid-cell { border: none; padding: 0; text-align: center; font-size: 6.5pt; font-weight: 700; display: flex; align-items: center; justify-content: center; line-height: 1; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .grid-cell { border: none; padding: 0; text-align: center; font-size: 10pt; font-weight: 800; display: flex; align-items: center; justify-content: center; line-height: 1; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .grid-cell.top-left { grid-column: 1; grid-row: 1; }
       .grid-cell.top-right { grid-column: 2; grid-row: 1; }
       .grid-cell.middle-full { grid-column: 1 / -1; grid-row: 2; background: #f0f0f0; font-weight: bold; }
