@@ -100,7 +100,7 @@
     const availableWidth = 41.2; // cm
     const availableHeight = 29; // cm
     const headerHeight = 1.8; // cm per capçalera (augmentat)
-    const footerHeight = 1.2; // cm per footer QR (1cm alçada + marges)
+    const footerHeight = 1.6; // cm per footer QR (1.4cm alçada + marges)
     const cornerWidth = 3.5; // cm per columna de noms (augmentat per més llegibilitat)
 
     // Espai disponible per les cel·les
@@ -452,17 +452,17 @@
     gap: 0.3cm;
     padding-top: 0.1cm;
     border-top: 0.5px solid #ccc;
-    height: 1cm;
+    height: 1.4cm;
   }
 
   .qr-code {
-    width: 0.8cm;
-    height: 0.8cm;
+    width: 1.2cm;
+    height: 1.2cm;
     display: block;
   }
 
   .qr-text {
-    font-size: 10pt;
+    font-size: 14pt;
     color: #555;
     font-style: italic;
     line-height: 1;

@@ -231,9 +231,9 @@
       .loading-text, .error-text, .empty-text { text-align: center; padding: 1cm; font-size: 10pt; }
       .error-text { color: #c00; }
 
-      .print-footer { position: absolute; bottom: 0.3cm; left: 0.3cm; right: 0.3cm; display: flex; align-items: center; justify-content: center; gap: 0.3cm; padding-top: 0.1cm; border-top: 0.5px solid #ccc; height: 1cm; }
-      .qr-code { width: 0.8cm; height: 0.8cm; display: block; }
-      .qr-text { font-size: 10pt; color: #555; font-style: italic; line-height: 1; }
+      .print-footer { position: absolute; bottom: 0.3cm; left: 0.3cm; right: 0.3cm; display: flex; align-items: center; justify-content: center; gap: 0.3cm; padding-top: 0.1cm; border-top: 0.5px solid #ccc; height: 1.4cm; }
+      .qr-code { width: 1.2cm; height: 1.2cm; display: block; }
+      .qr-text { font-size: 14pt; color: #555; font-style: italic; line-height: 1; }
     `;
   }
 

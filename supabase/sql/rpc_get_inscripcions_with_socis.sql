@@ -59,7 +59,6 @@ AS $$
   INNER JOIN socis s ON i.soci_numero = s.numero_soci
   WHERE i.event_id = p_event_id
     AND s.de_baixa = false
-    AND i.confirmat = true
   ORDER BY s.cognoms ASC, s.nom ASC;
 $$;
 
@@ -69,4 +68,4 @@ GRANT EXECUTE ON FUNCTION get_inscripcions_with_socis(UUID) TO authenticated;
 
 -- Add comment explaining the function
 COMMENT ON FUNCTION get_inscripcions_with_socis(UUID) IS 
-'Returns inscriptions with member data for public access in social championships. Filters only confirmed registrations from active members.';
+'Returns inscriptions with member data for public access in social championships. Returns all inscriptions from active members.';

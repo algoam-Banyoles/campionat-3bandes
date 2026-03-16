@@ -575,60 +575,58 @@ export async function getHeadToHeadResults(eventId: string, categoriaId: string)
   try {
     console.log('Fetching head-to-head results for:', { eventId, categoriaId });
     
-    // Primer, obtenir tots els jugadors inscrits a la categoria
+    // Obtenir jugadors inscrits via RPC (funciona per anònims i autenticats)
     const { data: inscriptionsData, error: inscriptionsError } = await supabase
-      .from('inscripcions')
-      .select(`
-        id,
-        soci_numero,
-        estat_jugador,
-        eliminat_per_incompareixences,
-        socis!inner (
-          numero_soci,
-          nom,
-          cognoms
-        )
-      `)
-      .eq('event_id', eventId)
-      .eq('categoria_assignada_id', categoriaId);
+      .rpc('get_inscripcions_with_socis', { p_event_id: eventId });
 
     if (inscriptionsError) {
-      console.error('Error fetching inscriptions:', inscriptionsError);
+      console.error('Error fetching inscriptions via RPC:', inscriptionsError);
       throw inscriptionsError;
     }
 
-    // Excloure retirats o desqualificats de la graella
+    // Filtrar per categoria i excloure retirats/desqualificats
     const activeInscriptions = (inscriptionsData || []).filter((i: any) =>
+      i.categoria_assignada_id === categoriaId &&
       i.estat_jugador !== 'retirat' && !i.eliminat_per_incompareixences
     );
 
     // Obtenir els players IDs dels socis inscrits actius
     const sociNumbers = activeInscriptions.map((i: any) => i.soci_numero) || [];
-    
-    const { data: playersData, error: playersError } = await supabase
-      .from('players')
-      .select('id, numero_soci')
-      .in('numero_soci', sociNumbers);
 
+    // Utilitzar RPC per obtenir players (accés públic)
+    const { data: playersData, error: playersError } = await supabase
+      .rpc('get_players_by_soci_numbers', { p_soci_numbers: sociNumbers });
+
+    // Fallback a consulta directa si la RPC no existeix
+    let playersList: any[] = [];
     if (playersError) {
-      console.error('Error fetching players:', playersError);
-      throw playersError;
+      console.warn('RPC get_players_by_soci_numbers not available, trying direct query:', playersError.message);
+      const { data: directPlayers, error: directError } = await supabase
+        .from('players')
+        .select('id, numero_soci')
+        .in('numero_soci', sociNumbers);
+      if (directError) {
+        console.error('Error fetching players:', directError);
+      }
+      playersList = directPlayers || [];
+    } else {
+      playersList = playersData || [];
     }
 
     // Crear mapa de numero_soci -> player_id
     const sociToPlayerMap = new Map<number, string>();
-    (playersData || []).forEach(p => sociToPlayerMap.set(p.numero_soci, p.id));
+    playersList.forEach((p: any) => sociToPlayerMap.set(p.numero_soci, p.id));
 
     // Crear llista de jugadors des de les inscripcions
     const playersMap = new Map<string, any>();
     activeInscriptions.forEach((inscription: any) => {
       const playerId = sociToPlayerMap.get(inscription.soci_numero);
-      if (playerId && inscription.socis) {
+      if (playerId) {
         playersMap.set(playerId, {
           id: playerId,
-          nom: inscription.socis.nom,
-          cognoms: inscription.socis.cognoms,
-          numero_soci: inscription.socis.numero_soci
+          nom: inscription.nom,
+          cognoms: inscription.cognoms,
+          numero_soci: inscription.soci_numero
         });
       }
     });
