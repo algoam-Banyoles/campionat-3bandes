@@ -14,6 +14,7 @@
   import PrintableCategoryList from '$lib/components/campionats-socials/PrintableCategoryList.svelte';
   import PrintableAveragesList from '$lib/components/campionats-socials/PrintableAveragesList.svelte';
   import { formatSupabaseError } from '$lib/ui/alerts';
+  import { loadSocisWithAverages, assignPlayersToCategories, formatAssignmentSummary } from '$lib/services/inscriptionsService';
 
   let loading = true;
   let error: string | null = null;
@@ -203,158 +204,21 @@
   }
 
   async function loadSocis() {
-    console.log('=== Loading socis from client-side ===');
-
-    // Load active socis using regular client (RLS should allow read access)
-    console.log('Loading socis...');
-    const { data: socisData, error: socisError } = await supabase
-      .from('socis')
-      .select('numero_soci, nom, cognoms, email')
-      .eq('de_baixa', false)
-      .order('nom');
-
-    if (socisError) {
-      console.error('Error loading socis:', socisError);
-      throw socisError;
-    }
-
-    console.log(`Loaded ${socisData?.length || 0} socis`);
-
-    if (!socisData || socisData.length === 0) {
-      socis = [];
-      return;
-    }
-
-    // Now load historical averages using correct column name
-    console.log('Loading historical averages...');
-
-    // Get current event modality
-    let eventModality = null;
+    let eventModality: string | null = null;
     if (selectedEventId) {
       const selectedEvent = events.find(e => e.id === selectedEventId);
-      eventModality = selectedEvent?.modalitat;
-      console.log('🔍 Selected event for socis load:', {
-        selectedEventId,
-        foundEvent: selectedEvent ? `${selectedEvent.nom} (${selectedEvent.modalitat})` : 'NOT FOUND',
-        modalitat: eventModality,
-        totalEvents: events.length
-      });
+      eventModality = selectedEvent?.modalitat ?? null;
     }
-
-    // Calculate last two seasons
-    // Temporada 2024/2025 = any 2025, Temporada 2023/2024 = any 2024
-    const currentYear = new Date().getFullYear();
-    const lastTwoYears = [currentYear, currentYear - 1];
-
-    console.log(`Filtering by modality: ${eventModality}, years: ${lastTwoYears}`);
-
-    // Load recent averages (last 2 years)
-    let queryRecent = supabase
-      .from('mitjanes_historiques')
-      .select('soci_id, mitjana, year, modalitat')
-      .in('year', lastTwoYears);
-
-    // Load ALL historical averages (for players without recent data)
-    let queryAll = supabase
-      .from('mitjanes_historiques')
-      .select('soci_id, mitjana, year, modalitat');
-
-    // Only filter by modality if event is selected and has modality
-    if (eventModality) {
-      // Map technical names to display names used in mitjanes_historiques
-      const modalityMapping = {
-        'tres_bandes': '3 BANDES',
-        'lliure': 'LLIURE',
-        'banda': 'BANDA'
-      };
-
-      const historialModality = modalityMapping[eventModality] || eventModality.toUpperCase();
-      console.log(`Mapping ${eventModality} -> ${historialModality}`);
-      queryRecent = queryRecent.eq('modalitat', historialModality);
-      queryAll = queryAll.eq('modalitat', historialModality);
-    }
-
-    const [{ data: recentMitjanes, error: recentErr }, { data: allMitjanes, error: allErr }] = await Promise.all([
-      queryRecent,
-      queryAll
-    ]);
-
-    if (recentErr) {
-      console.error('Error loading recent mitjanes_historiques:', recentErr);
-    } else {
-      console.log(`Loaded ${recentMitjanes?.length || 0} recent historical averages`);
-    }
-
-    if (allErr) {
-      console.error('Error loading all mitjanes_historiques:', allErr);
-    } else {
-      console.log(`Loaded ${allMitjanes?.length || 0} total historical averages`);
-    }
-
-    // Combine socis data with their best historical averages
-    socis = socisData.map(soci => {
-      let bestMitjana = null;
-      let bestMitjanaYear = null;
-      let oldestMitjana = null;
-      let oldestMitjanaYear = null;
-
-      if (recentMitjanes) {
-        const playerRecentMitjanes = recentMitjanes.filter(m => m.soci_id === soci.numero_soci);
-
-        if (playerRecentMitjanes.length > 0) {
-          // Get the best (highest) average from the last two years
-          const bestRecent = playerRecentMitjanes.reduce((best, current) => {
-            const currentAvg = parseFloat(current.mitjana);
-            const bestAvg = parseFloat(best.mitjana);
-            return currentAvg > bestAvg ? current : best;
-          });
-          bestMitjana = parseFloat(bestRecent.mitjana);
-          bestMitjanaYear = bestRecent.year;
-        }
-      }
-
-      // If no recent average, check older years
-      if (bestMitjana === null && allMitjanes) {
-        const playerAllMitjanes = allMitjanes
-          .filter(m => m.soci_id === soci.numero_soci)
-          .filter(m => !lastTwoYears.includes(m.year)); // Exclude recent years (already checked)
-
-        if (playerAllMitjanes.length > 0) {
-          // Get the most recent old average
-          const mostRecentOld = playerAllMitjanes.reduce((mostRecent, current) => {
-            return current.year > mostRecent.year ? current : mostRecent;
-          });
-          oldestMitjana = parseFloat(mostRecentOld.mitjana);
-          oldestMitjanaYear = mostRecentOld.year;
-        }
-      }
-
-      return {
-        numero_soci: soci.numero_soci,
-        nom: soci.nom,
-        cognoms: soci.cognoms || '',
-        email: soci.email,
-        historicalAverage: bestMitjana,
-        historicalAverageYear: bestMitjanaYear,
-        oldestAverage: oldestMitjana,
-        oldestAverageYear: oldestMitjanaYear
-      };
-    });
-
-    console.log('Socis loaded:', socis.slice(0, 2));
+    socis = await loadSocisWithAverages(supabase, eventModality);
   }
 
   async function loadEventData() {
     if (!selectedEventId) {
-      console.log('⚠️ No event selected, skipping data load');
       return;
     }
 
-    console.log('🚀 Loading event data for:', selectedEventId);
-
     try {
       await Promise.all([loadInscriptions(), loadCategories(), loadSocis()]);
-      console.log('✅ Event data loaded successfully');
     } catch (e) {
       console.error('❌ Error loading event data:', e);
       error = formatSupabaseError(e);
@@ -362,8 +226,6 @@
   }
 
   async function loadInscriptions() {
-    console.log('🔄 Loading inscriptions for event:', selectedEventId);
-
     const { data, error: inscriptionsError } = await supabase
       .from('inscripcions')
       .select(`
@@ -388,7 +250,6 @@
     }
 
     inscriptions = data || [];
-    console.log('✅ Inscriptions loaded:', inscriptions.length, 'inscriptions');
   }
 
   async function loadCategories() {
@@ -577,14 +438,11 @@
   }
 
   function handleCalendarCreated(event) {
-    console.log('Calendari creat:', event.detail);
     // Opcional: recarregar dades o mostrar missatge d'èxit
   }
 
   async function handleIntelligentMovementCompleted(event) {
     const { movements, totalMoved, message } = event.detail;
-
-    console.log('Intelligent movement completed:', { movements, totalMoved });
 
     try {
       // Recarregar inscripcions per mostrar els canvis
@@ -642,7 +500,6 @@
       return inscription;
     });
 
-    console.log('Restriccions actualitzades per jugador:', id);
   }
 
   function openWithdrawalDialog(inscription) {
@@ -783,99 +640,19 @@
     processingAssignments = true;
 
     try {
-      console.log('🔧 Arreglant assignacions de categories...');
-      console.log(`📊 ${inscriptions.length} inscripcions, ${categories.length} categories`);
+      const result = await assignPlayersToCategories(supabase, inscriptions, categories);
 
-      // Primer, netejar totes les assignacions existents
-      console.log('🧹 Netejant assignacions existents...');
-
-      const clearPromises = inscriptions.map(inscription =>
-        supabase
-          .from('inscripcions')
-          .update({ categoria_assignada_id: null })
-          .eq('id', inscription.id)
-      );
-
-      await Promise.all(clearPromises);
-
-      // Distribuir jugadors equitativament entre categories
-      const playersPerCategory = Math.floor(inscriptions.length / categories.length);
-      const remainingPlayers = inscriptions.length % categories.length;
-
-      console.log(`📈 Distribució: ${playersPerCategory} jugadors per categoria, ${remainingPlayers} restants`);
-
-      let assignments = [];
-      let playerIndex = 0;
-
-      // Ordenar categories per ordre
-      const sortedCategories = [...categories].sort((a, b) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0));
-
-      // Barrejar inscripcions per evitar biaixos (jugadors que s'apunten primer van a categories altes)
-      const shuffledInscriptions = [...inscriptions].sort(() => Math.random() - 0.5);
-
-      for (let i = 0; i < sortedCategories.length; i++) {
-        const category = sortedCategories[i];
-        const playersInThisCategory = playersPerCategory + (i < remainingPlayers ? 1 : 0);
-
-        console.log(`📝 Categoria ${category.nom}: ${playersInThisCategory} jugadors`);
-
-        for (let j = 0; j < playersInThisCategory && playerIndex < shuffledInscriptions.length; j++) {
-          assignments.push({
-            inscriptionId: shuffledInscriptions[playerIndex].id,
-            categoryId: category.id,
-            categoryName: category.nom,
-            playerName: `${shuffledInscriptions[playerIndex].socis?.nom} ${shuffledInscriptions[playerIndex].socis?.cognoms}`
-          });
-          playerIndex++;
-        }
+      if (result.error) {
+        error = result.error;
+        return;
       }
 
-      console.log('📋 Assignacions a aplicar:', assignments.length);
-
-      // Aplicar assignacions a la base de dades en lots més petits
-      const batchSize = 10;
-      for (let i = 0; i < assignments.length; i += batchSize) {
-        const batch = assignments.slice(i, i + batchSize);
-
-        const updatePromises = batch.map(({ inscriptionId, categoryId }) =>
-          supabase
-            .from('inscripcions')
-            .update({ categoria_assignada_id: categoryId })
-            .eq('id', inscriptionId)
-        );
-
-        const results = await Promise.all(updatePromises);
-
-        // Comprovar errors en aquest lot
-        const errors = results.filter(r => r.error);
-        if (errors.length > 0) {
-          console.error('❌ Errors en lot:', errors);
-          throw new Error(`Errors en ${errors.length} assignacions del lot: ${errors[0].error.message}`);
-        }
-
-        console.log(`✅ Lot ${Math.floor(i/batchSize) + 1}/${Math.ceil(assignments.length/batchSize)} completat`);
-      }
-
-      console.log('🎉 Totes les assignacions completades');
-
-      // Recarregar inscripcions
       await loadInscriptions();
 
-      // Mostrar missatge d'èxit detallat
-      const categoryDistribution = assignments.reduce((acc, assignment) => {
-        acc[assignment.categoryName] = (acc[assignment.categoryName] || 0) + 1;
-        return acc;
-      }, {});
-
-      const distributionText = Object.entries(categoryDistribution)
-        .map(([category, count]) => `${category}: ${count}`)
-        .join('\n');
-
-      successMessage = `✅ Assignacions arreglades correctament!\n\n${assignments.length} jugadors assignats:\n${distributionText}`;
+      successMessage = `Assignacions arreglades correctament!\n\n${formatAssignmentSummary(result.assignments)}`;
       setTimeout(() => successMessage = null, 10000);
 
     } catch (e) {
-      console.error('❌ Error arreglant assignacions:', e);
       error = formatSupabaseError(e);
     } finally {
       processingAssignments = false;
@@ -936,12 +713,6 @@
     const paid = validInscriptions.filter(i => i?.pagat).length;
     const assigned = validInscriptions.filter(i => i?.categoria_assignada_id).length;
 
-    console.log('📊 Summary calculated:', {
-      total, confirmed, paid, assigned,
-      inscriptions_length: validInscriptions.length,
-      eventId,
-      inscriptions_is_array: Array.isArray(inscriptionsList)
-    });
 
     return { total, confirmed, paid, assigned };
   }
@@ -950,16 +721,6 @@
   $: selectedSoci = socis.find(s => s.numero_soci === parseInt(selectedSociId));
   $: summary = getInscriptionSummary(inscriptions, selectedEventId);
 
-  // Debug CategorySetup condition
-  $: if (selectedEventId) {
-    console.log('CategorySetup condition check:', {
-      selectedEventId: selectedEventId,
-      inscriptions_length: inscriptions.length,
-      categories_length: categories.length,
-      event_status: selectedEvent?.estat_competicio,
-      should_show: inscriptions.length > 0 && selectedEvent?.estat_competicio === 'inscripcions'
-    });
-  }
 </script>
 
 <svelte:head>
@@ -1165,19 +926,6 @@
           on:applyAssignments={handleApplyAssignments}
         />
       {/if}
-
-      <!-- Fix assignacions -->
-      <div class="bg-red-50 border border-red-200 p-4 rounded-lg mb-4">
-        <p class="text-red-800 font-medium mb-2">⚠️ Problema detectat: Les assignacions de categories no estan guardades a la base de dades</p>
-        <p class="text-red-700 text-sm mb-3">Summary assigned: {summary.assigned} (hauria de ser {inscriptions.length})</p>
-        <button
-          on:click={fixCategoryAssignments}
-          class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-          disabled={processingAssignments}
-        >
-          {processingAssignments ? 'Arreglant...' : '🔧 Arreglar Assignacions de Categories'}
-        </button>
-      </div>
 
       <!-- Generador de Calendaris (quan hi ha assignacions de categories) -->
       {#if inscriptions.length > 0 && categories.length > 0}

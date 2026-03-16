@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { getHeadToHeadResults } from '$lib/api/socialLeagues';
+  import QRCode from 'qrcode';
 
   export let eventId: string;
   export let eventName: string = '';
@@ -75,6 +77,21 @@
     });
   }
 
+  const APP_URL = 'https://campionat-3bandes.vercel.app/';
+  let qrDataUrl = '';
+
+  onMount(async () => {
+    try {
+      qrDataUrl = await QRCode.toDataURL(APP_URL, {
+        width: 100,
+        margin: 1,
+        color: { dark: '#000000', light: '#ffffff' }
+      });
+    } catch (e) {
+      console.error('Error generating QR code:', e);
+    }
+  });
+
   function calculateOptimalSizes(numPlayers: number) {
     // Dimensions A3 landscape: ~42cm amplada x ~29.7cm alçada
     // Marges: 0.4cm x 2 = 0.8cm
@@ -83,10 +100,11 @@
     const availableWidth = 41.2; // cm
     const availableHeight = 29; // cm
     const headerHeight = 1.8; // cm per capçalera (augmentat)
+    const footerHeight = 1.2; // cm per footer QR (1cm alçada + marges)
     const cornerWidth = 3.5; // cm per columna de noms (augmentat per més llegibilitat)
-    
+
     // Espai disponible per les cel·les
-    const gridHeight = availableHeight - headerHeight - 0.8; // menys buffer
+    const gridHeight = availableHeight - headerHeight - footerHeight - 0.3; // menys buffer
     const gridWidth = availableWidth - cornerWidth - 0.5; // menys buffer
     
     // Calcular mida òptima per cel·la
@@ -180,6 +198,14 @@
           </tbody>
         </table>
       {/if}
+
+      <!-- Footer amb QR -->
+      {#if qrDataUrl}
+        <div class="print-footer">
+          <img src={qrDataUrl} alt="QR accés app" class="qr-code" />
+          <span class="qr-text">Accés a l'aplicació de seguiment del campionat</span>
+        </div>
+      {/if}
     </div>
   {/each}
 </div>
@@ -194,6 +220,9 @@
     width: 100%;
     padding: 0.3cm;
     page-break-inside: avoid;
+    position: relative;
+    min-height: 100vh;
+    box-sizing: border-box;
   }
 
   .page-break {
@@ -411,11 +440,39 @@
     color: #c00;
   }
 
+  /* Footer amb QR */
+  .print-footer {
+    position: absolute;
+    bottom: 0.3cm;
+    left: 0.3cm;
+    right: 0.3cm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3cm;
+    padding-top: 0.1cm;
+    border-top: 0.5px solid #ccc;
+    height: 1cm;
+  }
+
+  .qr-code {
+    width: 0.8cm;
+    height: 0.8cm;
+    display: block;
+  }
+
+  .qr-text {
+    font-size: 10pt;
+    color: #555;
+    font-style: italic;
+    line-height: 1;
+  }
+
   /* Print-specific styles */
   @media print {
     @page {
       size: A3 landscape;
-      margin: 0.4cm;
+      margin: 0;
     }
 
     .printable-container {
@@ -423,9 +480,13 @@
     }
 
     .print-page {
-      padding: 0.15cm;
+      padding: 0.4cm;
+      padding-bottom: 1.5cm;
       page-break-inside: avoid;
       page-break-after: always;
+      position: relative;
+      min-height: 100vh;
+      box-sizing: border-box;
     }
 
     .page-break {

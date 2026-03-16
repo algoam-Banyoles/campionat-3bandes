@@ -64,35 +64,63 @@
         throw inscriptionsError;
       }
 
-      console.log('✅ Loaded inscriptions:', inscriptionsData?.length || 0);
+      console.log('✅ Loaded inscriptions via RPC:', inscriptionsData?.length || 0);
 
-      if (!inscriptionsData || inscriptionsData.length === 0) {
-        inscriptions = [];
-        console.log('ℹ️ No inscriptions found for event');
-        return;
+      let finalData: any[] = [];
+
+      if (inscriptionsData && inscriptionsData.length > 0) {
+        finalData = inscriptionsData.map(item => ({
+          id: item.id,
+          soci_numero: item.soci_numero,
+          categoria_assignada_id: item.categoria_assignada_id,
+          data_inscripcio: item.data_inscripcio,
+          pagat: item.pagat,
+          confirmat: item.confirmat,
+          created_at: item.created_at,
+          estat_jugador: item.estat_jugador,
+          data_retirada: item.data_retirada,
+          motiu_retirada: item.motiu_retirada,
+          eliminat_per_incompareixences: item.eliminat_per_incompareixences,
+          socis: {
+            numero_soci: item.soci_numero,
+            nom: item.nom,
+            cognoms: item.cognoms,
+            email: item.email,
+            de_baixa: item.de_baixa
+          }
+        }));
+      } else {
+        // Fallback: consulta directa sense filtre confirmat (per campionats on confirmat no està marcat)
+        console.log('ℹ️ RPC returned empty, trying direct query without confirmat filter...');
+        const { data: directData, error: directError } = await supabase
+          .from('inscripcions')
+          .select(`
+            id,
+            soci_numero,
+            categoria_assignada_id,
+            data_inscripcio,
+            pagat,
+            confirmat,
+            created_at,
+            estat_jugador,
+            data_retirada,
+            motiu_retirada,
+            eliminat_per_incompareixences,
+            socis!inscripcions_soci_numero_fkey(numero_soci, nom, cognoms, email, de_baixa)
+          `)
+          .eq('event_id', eventId);
+
+        if (directError) {
+          console.error('❌ Error with direct query:', directError);
+        } else if (directData && directData.length > 0) {
+          console.log('✅ Loaded inscriptions via direct query:', directData.length);
+          finalData = directData.filter((item: any) => item.socis && !item.socis.de_baixa);
+        } else {
+          console.log('ℹ️ No inscriptions found for event');
+        }
       }
 
-      // Les dades ja inclouen informació dels socis gràcies a la funció RPC
-      inscriptions = inscriptionsData.map(item => ({
-        id: item.id,
-        soci_numero: item.soci_numero,
-        categoria_assignada_id: item.categoria_assignada_id,
-        data_inscripcio: item.data_inscripcio,
-        pagat: item.pagat,
-        confirmat: item.confirmat,
-        created_at: item.created_at,
-        estat_jugador: item.estat_jugador,
-        data_retirada: item.data_retirada,
-        motiu_retirada: item.motiu_retirada,
-        eliminat_per_incompareixences: item.eliminat_per_incompareixences,
-        socis: {
-          numero_soci: item.soci_numero,
-          nom: item.nom,
-          cognoms: item.cognoms,
-          email: item.email,
-          de_baixa: item.de_baixa
-        }
-      }));
+      inscriptions = finalData;
       
       console.log('✅ Final inscriptions processed:', inscriptions.length);
     } catch (e) {

@@ -134,8 +134,32 @@
     }
   }
 
+  let movingPlayer: string | null = null;
+
   function getPlayersInCategory(categoryId: string) {
     return inscriptions.filter(i => i.categoria_assignada_id === categoryId);
+  }
+
+  function getUnassignedPlayers() {
+    return inscriptions.filter(i => !i.categoria_assignada_id);
+  }
+
+  async function movePlayer(inscriptionId: string, newCategoryId: string | null) {
+    movingPlayer = inscriptionId;
+    try {
+      const { error } = await supabase
+        .from('inscripcions')
+        .update({ categoria_assignada_id: newCategoryId || null })
+        .eq('id', inscriptionId);
+
+      if (error) throw error;
+      dispatch('categoryUpdated');
+    } catch (error) {
+      console.error('Error moving player:', error);
+      alert('Error movent el jugador: ' + error.message);
+    } finally {
+      movingPlayer = null;
+    }
   }
 </script>
 
@@ -309,19 +333,83 @@
             <!-- Show players in category if any -->
             {#if playersInCategory.length > 0}
               <div class="mt-3 pt-3 border-t border-gray-200">
-                <div class="text-xs text-gray-500 mb-2">Jugadors assignats:</div>
-                <div class="flex flex-wrap gap-1">
-                  {#each playersInCategory as inscription}
+                <div class="text-xs text-gray-500 mb-2">Jugadors assignats ({playersInCategory.length}):</div>
+                <div class="space-y-1">
+                  {#each playersInCategory.sort((a, b) => {
+                    const nomA = `${a.socis?.cognoms || ''} ${a.socis?.nom || ''}`.trim();
+                    const nomB = `${b.socis?.cognoms || ''} ${b.socis?.nom || ''}`.trim();
+                    return nomA.localeCompare(nomB);
+                  }) as inscription (inscription.id)}
                     {@const sociInfo = inscription.socis || { nom: 'Desconegut', cognoms: '' }}
-                    <span class="inline-flex items-center px-2 py-1 rounded text-xs bg-white border border-gray-200 text-gray-700">
-                      {sociInfo.nom} {sociInfo.cognoms}
-                    </span>
+                    <div class="flex items-center justify-between bg-white border border-gray-200 rounded px-2 py-1 group">
+                      <span class="text-xs text-gray-700">
+                        {sociInfo.nom} {sociInfo.cognoms}
+                      </span>
+                      <select
+                        class="text-xs border border-gray-200 rounded px-1 py-0.5 bg-gray-50 opacity-50 group-hover:opacity-100 focus:opacity-100 transition-opacity cursor-pointer"
+                        value={category.id}
+                        disabled={movingPlayer === inscription.id}
+                        on:change={(e) => {
+                          const target = e.target;
+                          const newCatId = target.value;
+                          if (newCatId !== category.id) {
+                            movePlayer(inscription.id, newCatId === '' ? null : newCatId);
+                          }
+                        }}
+                      >
+                        <option value="">-- Sense categoria --</option>
+                        {#each categories.sort((a, b) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0)) as cat (cat.id)}
+                          <option value={cat.id}>{cat.nom}</option>
+                        {/each}
+                      </select>
+                    </div>
                   {/each}
                 </div>
               </div>
             {/if}
           </div>
         {/each}
+      </div>
+    {/if}
+
+    <!-- Unassigned players -->
+    {#if getUnassignedPlayers().length > 0}
+      {@const unassigned = getUnassignedPlayers()}
+      <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div class="text-sm font-medium text-yellow-800 mb-2">
+          Jugadors sense categoria ({unassigned.length})
+        </div>
+        <div class="space-y-1">
+          {#each unassigned.sort((a, b) => {
+            const nomA = `${a.socis?.cognoms || ''} ${a.socis?.nom || ''}`.trim();
+            const nomB = `${b.socis?.cognoms || ''} ${b.socis?.nom || ''}`.trim();
+            return nomA.localeCompare(nomB);
+          }) as inscription (inscription.id)}
+            {@const sociInfo = inscription.socis || { nom: 'Desconegut', cognoms: '' }}
+            <div class="flex items-center justify-between bg-white border border-yellow-200 rounded px-2 py-1">
+              <span class="text-xs text-gray-700">
+                {sociInfo.nom} {sociInfo.cognoms}
+              </span>
+              <select
+                class="text-xs border border-gray-200 rounded px-1 py-0.5 bg-gray-50 cursor-pointer"
+                value=""
+                disabled={movingPlayer === inscription.id}
+                on:change={(e) => {
+                  const target = e.target;
+                  const newCatId = target.value;
+                  if (newCatId) {
+                    movePlayer(inscription.id, newCatId);
+                  }
+                }}
+              >
+                <option value="">-- Assignar a --</option>
+                {#each categories.sort((a, b) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0)) as cat (cat.id)}
+                  <option value={cat.id}>{cat.nom}</option>
+                {/each}
+              </select>
+            </div>
+          {/each}
+        </div>
       </div>
     {/if}
   </div>

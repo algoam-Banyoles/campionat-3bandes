@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { user } from '$lib/stores/auth';
-  import { goto } from '$app/navigation';
-  import { checkIsAdmin } from '$lib/roles';
+  import { isAdmin as isAdminStore, adminChecked } from '$lib/stores/adminAuth';
+  import { supabase } from '$lib/supabaseClient';
 import Banner from '$lib/components/general/Banner.svelte';
 import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -63,21 +63,7 @@ import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
     try {
       loading = true; error = null; okMsg = null;
 
-      const u = $user;
-      if (!u?.email) {
-        // si no hi ha sessió, cap a login
-        goto('/login');
-        return;
-      }
-
-      const adm = await checkIsAdmin();
-      if (!adm) {
-        error = errText('Només els administradors poden accedir a aquesta pàgina.');
-        return;
-      }
       isAdmin = true;
-
-      const { supabase } = await import('$lib/supabaseClient');
 
       // 2) Event actiu
       const { data: ev, error: eEvent } = await supabase
@@ -152,8 +138,6 @@ async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
       if (!eventActiuId) throw new Error('No hi ha event actiu.');
       if (!reptador_id || !reptat_id) throw new Error('Cal seleccionar reptador i reptat.');
       if (reptador_id === reptat_id) throw new Error('Reptador i reptat no poden ser la mateixa persona.');
-
-      const { supabase } = await import('$lib/supabaseClient');
 
       // posicions actuals al rànquing (per coherència)
       const r1 = ranked.find(r => r.player_id === reptador_id);

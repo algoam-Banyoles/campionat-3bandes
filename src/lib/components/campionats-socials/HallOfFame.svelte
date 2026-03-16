@@ -10,6 +10,45 @@
   let winners: any[] = [];
   let allPlayers: any[] = [];
   let seasons: string[] = [];
+  let lastLoadedSeasonKey: string | null = null;
+
+  function parseSeason(value: string): { start: string; end: string } | null {
+    const match = value?.trim().match(/^(\d{4})\D+(\d{4})$/);
+    if (!match) return null;
+    return { start: match[1], end: match[2] };
+  }
+
+  function normalizeSeason(value: string): string {
+    const parsed = parseSeason(value);
+    return parsed ? `${parsed.start}/${parsed.end}` : value?.trim() ?? '';
+  }
+
+  function seasonVariants(value: string): string[] {
+    const trimmed = value?.trim();
+    if (!trimmed) return [];
+    const parsed = parseSeason(trimmed);
+    if (!parsed) return [trimmed];
+    return [`${parsed.start}/${parsed.end}`, `${parsed.start}-${parsed.end}`];
+  }
+
+  function getCurrentSeasonLabel(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const startYear = month >= 8 ? year : year - 1;
+    return `${startYear}/${startYear + 1}`;
+  }
+
+  async function reloadFilteredData(force = false) {
+    const seasonKey = selectedSeason ?? '';
+    if (!force && seasonKey === lastLoadedSeasonKey) return;
+    lastLoadedSeasonKey = seasonKey;
+
+    await Promise.all([
+      loadWinners(),
+      loadAllPlayers()
+    ]);
+  }
 
   onMount(() => {
     loadData();
@@ -20,12 +59,8 @@
     error = null;
 
     try {
-      // Carregar guanyadors i jugadors
-      await Promise.all([
-        loadWinners(),
-        loadAllPlayers(),
-        loadSeasons()
-      ]);
+      await loadSeasons();
+      await reloadFilteredData(true);
     } catch (e: any) {
       console.error('Error carregant dades:', e);
       error = e.message;
@@ -43,15 +78,19 @@
 
     if (seasonsError) throw seasonsError;
     
-    // Obtenir temporades úniques
-    const uniqueSeasons = [...new Set(data?.map(e => e.temporada))];
-    seasons = uniqueSeasons.filter(s => s) as string[];
+    // Obtenir temporades úniques normalitzades (accepta 2025/2026 i 2025-2026)
+    const uniqueSeasons = new Set<string>();
+    (data || []).forEach((event: any) => {
+      if (event?.temporada) {
+        uniqueSeasons.add(normalizeSeason(event.temporada));
+      }
+    });
+    seasons = Array.from(uniqueSeasons).sort((a, b) => b.localeCompare(a));
     
-    // Establir per defecte la segona temporada (la temporada anterior)
-    if (seasons.length > 1) {
-      selectedSeason = seasons[1];
-    } else if (seasons.length === 1) {
-      selectedSeason = seasons[0];
+    // Seleccionar per defecte la temporada en curs
+    if (seasons.length > 0) {
+      const currentSeason = getCurrentSeasonLabel();
+      selectedSeason = seasons.includes(currentSeason) ? currentSeason : seasons[0];
     }
   }
 
@@ -92,11 +131,11 @@
         )
       `)
       .lte('posicio', 3)
-      .not('events.data_fi', 'is', null);
+      .eq('events.estat_competicio', 'finalitzat');
 
     // Aplicar filtre per temporada si està seleccionat
     if (selectedSeason) {
-      query = query.eq('events.temporada', selectedSeason);
+      query = query.in('events.temporada', seasonVariants(selectedSeason));
     }
 
     const { data, error: winnersError } = await query;
@@ -120,9 +159,10 @@
 
   async function loadAllPlayers() {
     // Obtenir tots els jugadors que han participat en campionats socials
-    const { data, error: playersError } = await supabase
+    let query = supabase
       .from('inscripcions')
       .select(`
+        event_id,
         soci_numero,
         socis (
           nom,
@@ -130,11 +170,20 @@
           numero_soci
         ),
         events (
+          id,
           temporada,
           modalitat
         )
       `)
-      .eq('events.tipus_competicio', 'lliga_social');
+      .eq('events.tipus_competicio', 'lliga_social')
+      .eq('events.estat_competicio', 'finalitzat');
+
+    // Aplicar filtre de temporada al llistat de participants
+    if (selectedSeason) {
+      query = query.in('events.temporada', seasonVariants(selectedSeason));
+    }
+
+    const { data, error: playersError } = await query;
 
     if (playersError) throw playersError;
 
@@ -148,16 +197,25 @@
           numero_soci: inscripcio.soci_numero,
           nom: inscripcio.socis?.nom || '',
           cognoms: inscripcio.socis?.cognoms || '',
-          participations: []
+          participations: [],
+          participationKeys: new Set<string>()
         });
       }
       
       // Afegir participació
       if (inscripcio.events) {
-        uniquePlayers.get(key).participations.push({
+        const participation = {
           temporada: inscripcio.events?.temporada || '',
           modalitat: inscripcio.events?.modalitat || ''
-        });
+        };
+
+        const eventKey = String(inscripcio.event_id || inscripcio.events?.id || `${participation.temporada}-${participation.modalitat}`);
+        const player = uniquePlayers.get(key);
+
+        if (!player.participationKeys.has(eventKey)) {
+          player.participationKeys.add(eventKey);
+          player.participations.push(participation);
+        }
       }
     });
 
@@ -171,8 +229,8 @@
   }
 
   // Recarregar quan canvien els filtres
-  $: if (selectedSeason !== undefined) {
-    loadWinners();
+  $: if (selectedSeason !== undefined && seasons.length > 0) {
+    void reloadFilteredData();
   }
 
   // Agrupar guanyadors per torneig
@@ -206,19 +264,19 @@
   }
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
   <!-- Filtres -->
-  <div class="bg-white shadow rounded-lg p-6">
-    <h3 class="text-lg font-medium text-gray-900 mb-4">Filtres</h3>
-    <div class="grid grid-cols-1 gap-4">
+  <div class="bg-white shadow rounded-lg p-4">
+    <h3 class="text-base font-semibold text-gray-900 mb-3">Filtres</h3>
+    <div class="grid grid-cols-1 gap-3">
       <div>
-        <label for="season-filter" class="block text-sm font-medium text-gray-700 mb-2">
+        <label for="season-filter" class="block text-xs font-medium text-gray-700 mb-1">
           Temporada
         </label>
         <select
           id="season-filter"
           bind:value={selectedSeason}
-          class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          class="block w-full rounded-md border-gray-300 text-sm py-1.5 focus:border-blue-500 focus:ring-blue-500"
         >
           <option value="">Totes les temporades</option>
           {#each seasons as season}
@@ -230,51 +288,51 @@
   </div>
 
   {#if loading}
-    <div class="text-center py-12">
+    <div class="text-center py-8">
       <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       <p class="mt-2 text-gray-600">Carregant dades...</p>
     </div>
   {:else if error}
-    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-      <p class="text-red-800">{error}</p>
+    <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+      <p class="text-red-800 text-sm">{error}</p>
     </div>
   {:else}
     <!-- Quadre d'Honor -->
-    <div class="bg-white shadow rounded-lg p-6">
-      <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+    <div class="bg-white shadow rounded-lg p-4">
+      <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
         🏆 Quadre d'Honor
       </h3>
 
       {#if Object.keys(winnersByEvent).length === 0}
-        <p class="text-gray-500 text-center py-8">No hi ha classificacions disponibles amb els filtres seleccionats.</p>
+        <p class="text-gray-500 text-center py-6 text-sm">No hi ha classificacions disponibles amb els filtres seleccionats.</p>
       {:else}
-        <div class="space-y-8">
+        <div class="space-y-4">
           {#each Object.entries(winnersByEvent) as [_, eventData]}
             {@const typedEventData = eventData as any}
-            <div class="border border-gray-200 rounded-lg p-4">
-              <div class="mb-4">
-                <h4 class="font-bold text-lg text-gray-900">{typedEventData.event.nom}</h4>
-                <div class="flex flex-wrap gap-2 mt-2">
-                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            <div class="border border-gray-200 rounded-lg p-3">
+              <div class="mb-3">
+                <h4 class="font-bold text-base text-gray-900">{typedEventData.event.nom}</h4>
+                <div class="flex flex-wrap gap-1.5 mt-1.5">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-800">
                     {getModalityLabel(typedEventData.event.modalitat)}
                   </span>
-                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-800">
                     Temporada {typedEventData.event.temporada}
                   </span>
-                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-800">
                     {typedEventData.category.nom}
                   </span>
                 </div>
               </div>
 
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
                 {#each typedEventData.winners.sort((a: any, b: any) => a.posicio - b.posicio) as winner}
-                  <div class="bg-gradient-to-br {winner.posicio === 1 ? 'from-yellow-50 to-yellow-100 border-yellow-300' : winner.posicio === 2 ? 'from-gray-50 to-gray-100 border-gray-300' : 'from-orange-50 to-orange-100 border-orange-300'} border-2 rounded-lg p-4 text-center">
-                    <div class="text-4xl mb-2">{getMedalEmoji(winner.posicio)}</div>
-                    <div class="font-bold text-lg text-gray-900">
+                  <div class="bg-gradient-to-br {winner.posicio === 1 ? 'from-yellow-50 to-yellow-100 border-yellow-300' : winner.posicio === 2 ? 'from-gray-50 to-gray-100 border-gray-300' : 'from-orange-50 to-orange-100 border-orange-300'} border rounded-lg p-3 text-center">
+                    <div class="text-3xl mb-1">{getMedalEmoji(winner.posicio)}</div>
+                    <div class="font-bold text-base text-gray-900 leading-tight">
                       {winner.players.socis.nom} {winner.players.socis.cognoms}
                     </div>
-                    <div class="text-sm text-gray-600 mt-1">
+                    <div class="text-xs text-gray-600 mt-1">
                       {winner.posicio === 1 ? '1r' : winner.posicio === 2 ? '2n' : '3r'} lloc
                     </div>
                   </div>
@@ -287,8 +345,8 @@
     </div>
 
     <!-- Llistat de tots els jugadors -->
-    <div class="bg-white shadow rounded-lg p-6">
-      <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+    <div class="bg-white shadow rounded-lg p-4">
+      <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
         👥 Tots els Participants ({allPlayers.length})
       </h3>
 
@@ -296,16 +354,16 @@
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-3 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">
                 Jugador
               </th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-3 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">
                 Núm. Soci
               </th>
-              <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-3 py-2 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider">
                 Participacions
               </th>
-              <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-3 py-2 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider">
                 Temporades
               </th>
             </tr>
@@ -313,16 +371,16 @@
           <tbody class="bg-white divide-y divide-gray-200">
             {#each allPlayers as player}
               <tr class="hover:bg-gray-50">
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
                   {player.cognoms}, {player.nom}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
                   {player.numero_soci}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 text-center">
                   {player.totalParticipations}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 text-center">
                   {player.uniqueSeasons}
                 </td>
               </tr>

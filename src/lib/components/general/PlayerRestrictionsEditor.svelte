@@ -82,6 +82,7 @@
     <div
       class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/5 lg:w-1/2 shadow-lg rounded-md bg-white"
       role="document"
+      on:click|stopPropagation
     >
       <!-- Header -->
       <div class="flex items-center justify-between mb-4">

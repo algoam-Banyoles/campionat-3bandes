@@ -665,6 +665,7 @@
   let selectedDate = '';
   let selectedWeek = '';
   let playerSearch = '';
+  let selectedPlayerId: string | null = null; // ID del jugador seleccionat (filtratge exacte)
   let playerSuggestions = [];
   let showOnlyMyMatches = false;
   let myPlayerData: any = null;
@@ -1148,7 +1149,7 @@
     let validDays = 0;
 
     currentDates.forEach((date, index) => {
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = toLocalDateStr(date);
       const dayOfWeek = getDayOfWeekCode(date.getDay());
 
       // Només mostrar dies de la setmana configurats
@@ -1160,7 +1161,7 @@
         // Pre-filter matches for this specific date to optimize performance
         const dateMatches = currentMatches.filter(match => {
           if (!match.data_programada) return false;
-          const matchDate = new Date(match.data_programada).toISOString().split('T')[0];
+          const matchDate = toLocalDateStr(new Date(match.data_programada));
           return matchDate === dateStr;
         });
 
@@ -1199,21 +1200,53 @@
       }
     });
 
+    // Detectar partits orfes (programats però no vinculats a cap slot de la timeline)
+    const linkedMatchIds = new Set(timeline.filter(s => s.match).map(s => s.match.id));
+    const orphanedMatches = currentMatches.filter(m =>
+      m.data_programada && m.id && !linkedMatchIds.has(m.id)
+    );
+
+    if (orphanedMatches.length > 0) {
+      console.warn(`⚠️ ${orphanedMatches.length} partits programats no vinculats a cap slot de la timeline. Afegint-los...`);
+      orphanedMatches.forEach(match => {
+        const matchDate = new Date(match.data_programada);
+        const matchDateStr = toLocalDateStr(matchDate);
+        const matchHora = match.hora_inici?.substring(0, 5) || match.hora_inici || '18:00';
+        const matchTaula = parseInt(match.taula_assignada) || 1;
+
+        timeline.push({
+          date: matchDate,
+          dateStr: matchDateStr,
+          dayOfWeek: getDayOfWeekCode(matchDate.getDay()),
+          hora: matchHora,
+          taula: matchTaula,
+          match: match
+        });
+      });
+    }
+
     // Ordenar cronològicament: primer per data, després per hora, finalment per taula
     timeline.sort((a, b) => {
       // Primer comparar dates
       const dateComparison = a.dateStr.localeCompare(b.dateStr);
       if (dateComparison !== 0) return dateComparison;
-      
+
       // Si són el mateix dia, comparar hores
       const timeComparison = a.hora.localeCompare(b.hora);
       if (timeComparison !== 0) return timeComparison;
-      
+
       // Si són la mateixa hora, comparar taules
       return a.taula - b.taula;
     });
 
     return timeline;
+  }
+
+  function toLocalDateStr(date: Date): string {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
 
   function getDayOfWeekCode(dayIndex: number) {
@@ -1245,23 +1278,23 @@
       if (matchDate < today) return false;
     }
 
-    // Filtrar "Les meves dades" per jugador logat
+    // Filtrar per jugador: prioritzar ID si hi ha jugador seleccionat, sinó text
     if (showOnlyMyMatches && myPlayerData) {
-      const isMyMatch = match.jugador1_id === myPlayerData.id || match.jugador2_id === myPlayerData.id;
-      if (!isMyMatch) return false;
+      if (!matchPlayerById(match, myPlayerData.id)) return false;
+    } else if (selectedPlayerId) {
+      if (!matchPlayerById(match, selectedPlayerId)) return false;
+    } else if (playerSearch.length >= 2) {
+      const searchLower = playerSearch.toLowerCase().trim();
+      const player1Match = matchPlayerSearchText(match.jugador1, searchLower);
+      const player2Match = matchPlayerSearchText(match.jugador2, searchLower);
+      if (!player1Match && !player2Match) return false;
     }
 
     if (selectedCategory && match.categoria_id !== selectedCategory) return false;
     if (selectedDate) {
       const matchDate = match.data_programada ?
-        new Date(match.data_programada).toISOString().split('T')[0] : null;
+        toLocalDateStr(new Date(match.data_programada)) : null;
       if (matchDate !== selectedDate) return false;
-    }
-    if (playerSearch.length >= 2) {
-      const searchLower = playerSearch.toLowerCase().trim();
-      const player1Match = matchPlayerSearchText(match.jugador1, searchLower);
-      const player2Match = matchPlayerSearchText(match.jugador2, searchLower);
-      if (!player1Match && !player2Match) return false;
     }
     return true;
   });
@@ -1270,35 +1303,26 @@
     // Filtrar slots de dates passades - només mostrar dates futures o d'avui
     const slotDate = new Date(slot.dateStr);
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Resetear a inici del dia
+    today.setHours(0, 0, 0, 0);
 
-    // Si el slot és anterior a avui, no el mostrem
     if (slotDate < today) return false;
 
-    // Filtrar "Les meves dades" per jugador logat
+    // Filtrar per jugador: prioritzar ID si hi ha jugador seleccionat, sinó text
     if (showOnlyMyMatches && myPlayerData) {
       if (!slot.match) return false;
-      const isMyMatch = slot.match.jugador1_id === myPlayerData.id || slot.match.jugador2_id === myPlayerData.id;
-      if (!isMyMatch) return false;
-    }
-
-    // Si hi ha cerca de jugador, només mostrar slots amb partits d'aquell jugador
-    if (playerSearch.length >= 2) {
-      // Només slots amb partits quan es cerca jugador
+      if (!matchPlayerById(slot.match, myPlayerData.id)) return false;
+    } else if (selectedPlayerId) {
       if (!slot.match) return false;
-
+      if (!matchPlayerById(slot.match, selectedPlayerId)) return false;
+    } else if (playerSearch.length >= 2) {
+      if (!slot.match) return false;
       const searchLower = playerSearch.toLowerCase().trim();
       const player1Match = matchPlayerSearchText(slot.match.jugador1, searchLower);
       const player2Match = matchPlayerSearchText(slot.match.jugador2, searchLower);
-
-      // Si el partit no té el jugador cercat, no mostrar aquest slot
       if (!player1Match && !player2Match) return false;
     }
 
-    // Filtrar per data seleccionada (aplicable tant a slots buits com amb partits)
     if (selectedDate && slot.dateStr !== selectedDate) return false;
-
-    // Filtrar per categoria seleccionada (només aplicable a slots amb partits)
     if (selectedCategory && slot.match && slot.match.categoria_id !== selectedCategory) return false;
 
     return true;
@@ -1331,10 +1355,8 @@
     });
   }
   
-  // Comptar slots amb partits del jugador cercat (per debugging)
-  $: playerMatchSlots = playerSearch.length >= 2 
-    ? filteredTimeline.filter(slot => slot.match).length 
-    : filteredTimeline.filter(slot => slot.match).length;
+  // Comptar slots amb partits del jugador cercat
+  $: playerMatchSlots = filteredTimeline.filter(slot => slot.match).length;
     
   // Verificar si s'han generat slots
   $: hasValidSlots = filteredTimeline.length > 0;
@@ -1445,6 +1467,10 @@
     return 'Nom no disponible';
   }
 
+  function matchPlayerById(match: any, playerId: string): boolean {
+    return match.jugador1_id === playerId || match.jugador2_id === playerId;
+  }
+
   function matchPlayerSearchText(jugador: any, searchLower: string) {
     if (!jugador) return false;
 
@@ -1496,34 +1522,19 @@
 
     // Recollir tots els jugadors únics dels partits
     matches.forEach(match => {
-      [match.jugador1, match.jugador2].forEach(jugador => {
-        if (!jugador) return;
-
-        // Handle JSON string data
-        let playerData = jugador;
-        if (typeof jugador === 'string') {
-          try {
-            playerData = JSON.parse(jugador);
-          } catch {
-            return;
-          }
-        }
-
-        const playerId = playerData.numero_soci || playerData.id || `player_${Math.random()}`;
+      const sides = [
+        { jugador: match.jugador1, playerId: match.jugador1_id },
+        { jugador: match.jugador2, playerId: match.jugador2_id }
+      ];
+      sides.forEach(({ jugador, playerId }) => {
+        if (!jugador || !playerId) return;
         if (uniquePlayers.has(playerId)) return;
 
         if (matchPlayerSearchText(jugador, searchLower)) {
-          const fullName = playerData.nom && playerData.cognoms
-            ? `${playerData.nom} ${playerData.cognoms}`
-            : (playerData.socis?.nom && playerData.socis?.cognoms
-              ? `${playerData.socis.nom} ${playerData.socis.cognoms}`
-              : playerData.nom || 'Desconegut');
-
           uniquePlayers.set(playerId, {
             id: playerId,
             jugador,
             displayName: formatPlayerName(jugador),
-            fullName: fullName
           });
         }
       });
@@ -1535,12 +1546,14 @@
   }
 
   function selectPlayer(suggestion: any) {
-    playerSearch = suggestion.fullName;
+    playerSearch = suggestion.displayName;
+    selectedPlayerId = suggestion.id;
     playerSuggestions = [];
   }
 
   function clearPlayerSearch() {
     playerSearch = '';
+    selectedPlayerId = null;
     playerSuggestions = [];
   }
 
@@ -1559,7 +1572,7 @@
     editingMatch = match;
     editForm = {
       data_programada: match.data_programada ?
-        new Date(match.data_programada).toISOString().split('T')[0] : '',
+        toLocalDateStr(new Date(match.data_programada)) : '',
       hora_inici: match.hora_inici || '',
       taula_assignada: match.taula_assignada,
       estat: match.estat,
@@ -2580,7 +2593,7 @@
               </span>
             {/if}
 
-            {#if playerSearch.length >= 2}
+            {#if selectedPlayerId || playerSearch.length >= 2}
               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
                 🔍 Filtrant per: {playerSearch} | Partits trobats: {filteredMatches.length}/{matches.length} | Slots amb partits: {playerMatchSlots}
               </span>
@@ -2710,6 +2723,7 @@
             id="player-search"
             type="text"
             bind:value={playerSearch}
+            on:input={() => { selectedPlayerId = null; }}
             placeholder="Escriu nom o cognoms..."
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
             disabled={showOnlyMyMatches}
@@ -2735,9 +2749,6 @@
               >
                 <div class="text-sm font-medium text-gray-900">
                   {suggestion.displayName}
-                </div>
-                <div class="text-xs text-gray-500">
-                  {suggestion.fullName}
                 </div>
               </button>
             {/each}
@@ -2950,7 +2961,7 @@
           <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2z"/>
           </svg>
-          {#if playerSearch.length >= 2}
+          {#if selectedPlayerId || playerSearch.length >= 2}
             <p class="mt-2">Cap partit trobat per "{playerSearch}"</p>
             <p class="text-sm text-gray-400">Prova amb un altre nom o neteja els filtres</p>
           {:else if selectedDate || selectedCategory}

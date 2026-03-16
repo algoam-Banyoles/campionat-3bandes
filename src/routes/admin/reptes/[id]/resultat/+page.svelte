@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
     import { page } from '$app/stores';
     import { user } from '$lib/stores/auth';
-    import { checkIsAdmin } from '$lib/roles';
+    import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
   import { getSettings, type AppSettings } from '$lib/settings';
   import { refreshRanking } from '$lib/stores/rankingStore';
   import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
@@ -62,10 +62,6 @@
   async function load() {
     try {
       loading = true; error = null; okMsg = null; rpcMsg = null;
-
-      if (!$user?.email) { error = 'Has d’iniciar sessió.'; return; }
-      const adm = await checkIsAdmin();
-      if (!adm) { error = 'Només administradors poden registrar resultats.'; return; }
 
       settings = await getSettings();
 
@@ -228,7 +224,7 @@
       okMsg = `Resultat desat correctament. Repte marcat com a "${CHALLENGE_STATE_LABEL.jugat.toLowerCase()}".`;
       await refreshRanking();
     } catch (e:any) {
-      error = e?.message ?? 'No s’ha pogut desar el resultat';
+      error = e?.message ?? "No s'ha pogut desar el resultat";
     } finally {
       saving = false;
     }

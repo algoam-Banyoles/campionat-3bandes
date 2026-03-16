@@ -8,6 +8,7 @@
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
   import CalendarGenerator from '$lib/components/admin/CalendarGenerator.svelte';
+  import { supabase } from '$lib/supabaseClient';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
 
   let loading = true;
@@ -76,7 +77,7 @@
   });
 
   async function loadEvent() {
-    const { supabase } = await import('$lib/supabaseClient');
+
 
     // Load event with categories
     const { data: eventData, error: eventError } = await supabase
@@ -105,14 +106,11 @@
   }
 
   async function loadInscriptions() {
-    console.log('🔍 loadInscriptions cridat per event:', event?.nom, event?.tipus_competicio);
-
     if (!event || event.tipus_competicio !== 'lliga_social') {
-      console.log('⚠️ Skip loadInscriptions: no és campionat social');
       return;
     }
 
-    const { supabase } = await import('$lib/supabaseClient');
+
 
     // Primer carregar inscripcions simples
     const { data: inscData, error: inscError } = await supabase
@@ -137,8 +135,6 @@
       .map(i => i.soci_numero)
       .filter(Boolean);
 
-    console.log('Numeros de soci a buscar:', sociNumbers.slice(0, 5));
-
     // Carregar players corresponents
     const { data: playersData, error: playersError } = await supabase
       .from('players')
@@ -149,9 +145,6 @@
       console.error('Error carregant players:', playersError);
       throw playersError;
     }
-
-    console.log('Players trobats:', playersData?.length || 0);
-    console.log('Primers players:', playersData?.slice(0, 3));
 
     // Crear mapa soci_numero -> player_id
     const sociToPlayerMap = new Map();
@@ -167,8 +160,6 @@
       }))
       .filter(i => i.player_id && i.categoria_assignada_id);
 
-    console.log(`Inscripcions finals: ${inscriptions.length} amb player_id i categoria`);
-    console.log('Primera inscripció processada:', inscriptions[0]);
   }
 
   async function updateEvent() {
@@ -196,7 +187,7 @@
         }
       }
 
-      const { supabase } = await import('$lib/supabaseClient');
+  
 
       // Update event
       const { error: updateError } = await supabase
@@ -250,24 +241,8 @@
     }
   }
 
-  function generateCategoryName(distance, order, existingCategories) {
-    // Comprovar si ja existeix una categoria amb aquesta distància
-    const categoriesWithSameDistance = existingCategories.filter(
-      cat => cat.distancia_caramboles === distance
-    );
-
-    // Determinar el número de categoria basat en l'ordre
-    const categoryNumber = order;
-    const baseName = `${categoryNumber}a Categoria`;
-
-    // Si no hi ha cap categoria amb aquesta distància, usar nom base
-    if (categoriesWithSameDistance.length === 0) {
-      return baseName;
-    }
-
-    // Si ja existeix una categoria amb aquesta distància, afegir suffix A/B/C...
-    const suffix = String.fromCharCode(65 + categoriesWithSameDistance.length); // A=65, B=66, C=67...
-    return `${categoryNumber}a ${suffix}`;
+  function generateCategoryName(order) {
+    return `${order}a`;
   }
 
   async function addCategory() {
@@ -280,7 +255,7 @@
     const newDistance = Math.max(1, lastDistance - 5);
 
     // Generar nom intel·ligent considerant distància de caramboles
-    const categoryName = generateCategoryName(newDistance, nextOrder, categories);
+    const categoryName = generateCategoryName(nextOrder);
 
     const newCategory = {
       id: null, // Will be created when saving
@@ -304,7 +279,7 @@
     if (!category.isNew && category.id) {
       try {
         // Check if category has any classifications
-        const { supabase } = await import('$lib/supabaseClient');
+    
         const { data: classifications } = await supabase
           .from('classificacions')
           .select('id')
@@ -336,7 +311,7 @@
     categories = categories.map((cat, i) => {
       const newOrder = i + 1;
       const newName = cat.nom.includes('Categoria') ?
-        generateCategoryName(cat.distancia_caramboles, newOrder, categories.slice(0, i)) :
+        generateCategoryName(newOrder) :
         cat.nom;
 
       return {
@@ -349,7 +324,7 @@
 
   async function saveNewCategories() {
     try {
-      const { supabase } = await import('$lib/supabaseClient');
+  
 
       const newCategories = categories.filter(cat => cat.isNew);
 

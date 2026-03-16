@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { user } from '$lib/stores/auth';
+  import { supabase } from '$lib/supabaseClient';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
   import { formatSupabaseError } from '$lib/ui/alerts';
@@ -45,6 +46,27 @@
     'banda': 'Banda'
   };
 
+  function getHistoricalModality(modality: string | undefined): string | null {
+    const map: Record<string, string> = {
+      tres_bandes: '3 BANDES',
+      lliure: 'LLIURE',
+      banda: 'BANDA'
+    };
+    return modality ? (map[modality] ?? null) : null;
+  }
+
+  function getPreviousTwoSeasonYears(season: string | undefined): number[] {
+    const match = season?.match(/^(\d{4})\D+(\d{4})$/);
+    if (match) {
+      const endYear = Number(match[2]);
+      return [endYear - 1, endYear - 2];
+    }
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    return [currentYear - 1, currentYear - 2];
+  }
+
   onMount(async () => {
     const u = $user;
     if (!u?.email) {
@@ -54,7 +76,8 @@
 
     try {
       loading = true;
-      await Promise.all([loadEvent(), loadPlayer()]);
+      await loadEvent();
+      await loadPlayer();
       if (player) {
         await checkExistingInscription();
       }
@@ -66,8 +89,6 @@
   });
 
   async function loadEvent() {
-    const { supabase } = await import('$lib/supabaseClient');
-
     const { data, error: eventError } = await supabase
       .from('events')
       .select(`
@@ -98,8 +119,6 @@
   async function loadPlayer() {
     if (!$user?.email) return;
 
-    const { supabase } = await import('$lib/supabaseClient');
-
     // Get soci info
     const { data: soci, error: sociError } = await supabase
       .from('socis')
@@ -117,18 +136,21 @@
       return;
     }
 
-    // Get player's best average from the last two seasons from mitjanes_historiques
-    const currentYear = new Date().getFullYear();
-    const lastTwoSeasons = [
-      `${currentYear-1}-${currentYear}`,
-      `${currentYear-2}-${currentYear-1}`
-    ];
+    // Get player's best average from the previous two seasons for this event modality
+    const lastTwoYears = getPreviousTwoSeasonYears(event?.temporada);
+    const historicalModality = getHistoricalModality(event?.modalitat);
 
-    const { data: mitjanesList } = await supabase
+    let mitjanesQuery = supabase
       .from('mitjanes_historiques')
-      .select('mitjana, temporada')
-      .eq('numero_soci', soci.numero_soci)
-      .in('temporada', lastTwoSeasons);
+      .select('mitjana')
+      .eq('soci_id', soci.numero_soci)
+      .in('year', lastTwoYears);
+
+    if (historicalModality) {
+      mitjanesQuery = mitjanesQuery.eq('modalitat', historicalModality);
+    }
+
+    const { data: mitjanesList } = await mitjanesQuery;
 
     // Get the best average from the last two seasons
     const bestMitjana = mitjanesList?.length > 0
@@ -147,8 +169,6 @@
 
   async function checkExistingInscription() {
     if (!player) return;
-
-    const { supabase } = await import('$lib/supabaseClient');
 
     const { data, error: inscriptionError } = await supabase
       .from('inscripcions')
@@ -188,8 +208,6 @@
         error = 'No s\'ha pogut identificar el teu perfil de jugador';
         return;
       }
-
-      const { supabase } = await import('$lib/supabaseClient');
 
       const inscriptionData = {
         event_id: eventId,

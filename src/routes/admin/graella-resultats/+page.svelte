@@ -142,11 +142,11 @@
       <html>
         <head>
           <meta charset="UTF-8">
-          <title>Graella de Resultats - Impressió</title>
+          <title></title>
           <style>
             @page {
               size: A3 landscape;
-              margin: 1cm;
+              margin: 0;
             }
 
             @media print {
@@ -197,7 +197,7 @@
     // Get all styles from the HeadToHeadPrintable component - optimized to fit one category per A3 page
     return `
       .printable-container { width: 100%; }
-      .print-page { width: 100%; padding: 0.15cm; page-break-inside: avoid; page-break-after: always; }
+      .print-page { width: 100%; padding: 0.4cm; padding-bottom: 1.5cm; page-break-inside: avoid; page-break-after: always; position: relative; min-height: 100vh; box-sizing: border-box; }
       .page-break { page-break-after: always; break-after: page; }
 
       .print-header { position: relative; margin-bottom: 0.15cm; padding-bottom: 0.1cm; border-bottom: 1px solid #000; min-height: 0.8cm; }
@@ -230,6 +230,10 @@
 
       .loading-text, .error-text, .empty-text { text-align: center; padding: 1cm; font-size: 10pt; }
       .error-text { color: #c00; }
+
+      .print-footer { position: absolute; bottom: 0.3cm; left: 0.3cm; right: 0.3cm; display: flex; align-items: center; justify-content: center; gap: 0.3cm; padding-top: 0.1cm; border-top: 0.5px solid #ccc; height: 1cm; }
+      .qr-code { width: 0.8cm; height: 0.8cm; display: block; }
+      .qr-text { font-size: 10pt; color: #555; font-style: italic; line-height: 1; }
     `;
   }
 

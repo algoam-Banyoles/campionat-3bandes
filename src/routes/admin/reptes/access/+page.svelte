@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { user } from '$lib/stores/auth';
-    import { checkIsAdmin } from '$lib/roles';
+    import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
   import Banner from '$lib/components/general/Banner.svelte';
   import { resolveAccessChallenge } from '$lib/challenges';
   import { refreshRanking } from '$lib/stores/rankingStore';
@@ -28,16 +28,6 @@
       loading = true;
       error = null;
       okMsg = null;
-
-      if (!$user?.email) {
-        error = 'Has d\'iniciar sessió.';
-        return;
-      }
-      const adm = await checkIsAdmin();
-      if (!adm) {
-        error = 'Només administradors.';
-        return;
-      }
 
       const { supabase } = await import('$lib/supabaseClient');
       const { data: ch, error: e1 } = await supabase

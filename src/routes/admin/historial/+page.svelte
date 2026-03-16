@@ -4,7 +4,8 @@
     import Banner from '$lib/components/general/Banner.svelte';
     import { supabase } from '$lib/supabaseClient';
     import { formatSupabaseError } from '$lib/ui/alerts';
-    import { adminStore } from '$lib/stores/auth';
+    import { isAdmin } from '$lib/stores/adminAuth';
+    import { initAdminPage } from '$lib/utils/adminPage';
 
   type Change = {
     creat_el: string;
@@ -103,7 +104,9 @@
     return true;
   });
 
-  onMount(loadMore);
+  onMount(async () => {
+    await initAdminPage(loadMore);
+  });
 </script>
 
 <svelte:head>
@@ -112,7 +115,7 @@
 
 <h1 class="text-2xl font-semibold mb-4">Historial de moviments</h1>
 
-{#if $adminStore}
+{#if $isAdmin}
   {#if loading && changes.length === 0}
     <Loader />
   {:else if error}

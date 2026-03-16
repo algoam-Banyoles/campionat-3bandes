@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { formatSupabaseError } from '$lib/ui/alerts';
+  import { authFetch } from '$lib/utils/http';
 
   let loading = false;
   let error: string | null = null;
@@ -10,6 +11,7 @@
   let downloading = false;
   let showNewSociForm = false;
   let editingSoci: any = null;
+  let editingOriginalNumeroSoci: number | null = null;
   let uploading = false;
   let uploadSummary: {
     toAdd: any[];
@@ -74,32 +76,21 @@
         return;
       }
 
-      // Comprovar que el número de soci no existeixi
-      const { data: existingSoci } = await supabase
-        .from('socis')
-        .select('numero_soci')
-        .eq('numero_soci', parseInt(newSoci.numero_soci))
-        .single();
-
-      if (existingSoci) {
-        error = 'Ja existeix un soci amb aquest número';
-        return;
-      }
-
-      const { error: createError } = await supabase
-        .from('socis')
-        .insert([{
+      const response = await authFetch('/admin/socis', {
+        method: 'POST',
+        body: JSON.stringify({
           numero_soci: parseInt(newSoci.numero_soci),
           nom: newSoci.nom.trim(),
           cognoms: newSoci.cognoms.trim(),
           email: newSoci.email?.trim() || null,
           telefon: newSoci.telefon?.trim() || null,
-          data_naixement: newSoci.data_naixement || null,
-          de_baixa: false
-        }]);
+          data_naixement: newSoci.data_naixement || null
+        })
+      });
 
-      if (createError) {
-        throw createError;
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || 'No s\'ha pogut crear el soci');
       }
 
       success = 'Soci creat correctament';
@@ -119,12 +110,15 @@
       success = null;
 
       if (!editingSoci) return;
+      if (editingOriginalNumeroSoci === null) {
+        throw new Error('No s\'ha pogut identificar el soci original');
+      }
 
-      console.log('Actualitzant soci:', editingSoci.numero_soci);
-
-      const { data: updateData, error: updateError } = await supabase
-        .from('socis')
-        .update({
+      const response = await authFetch('/admin/socis', {
+        method: 'PUT',
+        body: JSON.stringify({
+          numero_soci_original: editingOriginalNumeroSoci,
+          numero_soci: parseInt(editingSoci.numero_soci),
           nom: editingSoci.nom.trim(),
           cognoms: editingSoci.cognoms.trim(),
           email: editingSoci.email?.trim() || null,
@@ -132,26 +126,21 @@
           data_naixement: editingSoci.data_naixement || null,
           de_baixa: editingSoci.de_baixa
         })
-        .eq('numero_soci', editingSoci.numero_soci)
-        .select();
+      });
 
-      console.log('Resultat update:', { updateData, updateError, rowsAffected: updateData?.length });
-
-      if (updateError) {
-        console.error('Error updateSoci:', updateError);
-        throw updateError;
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || 'No s\'ha pogut actualitzar el soci');
       }
 
-      if (!updateData || updateData.length === 0) {
-        throw new Error('No s\'ha pogut actualitzar el soci. Comprova els permisos RLS.');
-      }
-
-      success = 'Soci actualitzat correctament';
+      success = payload?.renumbered
+        ? 'Soci actualitzat i número propagat correctament a totes les dades relacionades'
+        : 'Soci actualitzat correctament';
       editingSoci = null;
+      editingOriginalNumeroSoci = null;
       await loadSocis();
 
     } catch (e: any) {
-      console.error('Exception updateSoci:', e);
       error = formatSupabaseError(e);
     }
   }
@@ -196,11 +185,13 @@
 
   function startEditing(soci: any) {
     editingSoci = { ...soci };
+    editingOriginalNumeroSoci = soci.numero_soci;
     showNewSociForm = false;
   }
 
   function cancelEditing() {
     editingSoci = null;
+    editingOriginalNumeroSoci = null;
   }
 
   // Filtrar socis segons cerca i filtres
@@ -419,94 +410,23 @@
       console.log('=== Iniciant processament CSV ===');
 
       // 1. Donar d'alta nous socis
-      if (uploadSummary.toAdd.length > 0) {
-        console.log(`Donant d'alta ${uploadSummary.toAdd.length} socis...`);
-        const { error: insertError } = await supabase
-          .from('socis')
-          .insert(uploadSummary.toAdd.map(s => ({
-            numero_soci: s.numero_soci,
-            nom: s.nom,
-            cognoms: s.cognoms,
-            email: s.email,
-            telefon: s.telefon,
-            data_naixement: s.data_naixement,
-            de_baixa: false
-          })));
-
-        if (insertError) {
-          console.error('Error inserint socis:', insertError);
-          throw insertError;
-        }
-        console.log('✅ Socis donats d\'alta correctament');
-      }
-
-      // 2. Actualitzar dades de socis existents (només els seleccionats)
       const socisToUpdate = uploadSummary.toUpdate.filter(s => selectedUpdates.has(parseInt(s.numero_soci)));
 
-      if (socisToUpdate.length > 0) {
-        console.log(`Actualitzant dades de ${socisToUpdate.length} socis...`);
+      const response = await authFetch('/admin/socis', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          toAdd: uploadSummary.toAdd,
+          toUpdate: socisToUpdate,
+          toDeactivate: uploadSummary.toDeactivate
+        })
+      });
 
-        // Preparar els registres per upsert (mantenim nom i cognoms de la BBDD)
-        const socisToUpsert = socisToUpdate.map(soci => ({
-          numero_soci: parseInt(soci.numero_soci),
-          nom: soci.oldData.nom,  // Mantenim el nom original de la BBDD
-          cognoms: soci.oldData.cognoms,  // Mantenim els cognoms originals de la BBDD
-          email: soci.email,
-          telefon: soci.telefon,
-          data_naixement: soci.data_naixement,
-          de_baixa: soci.oldData.de_baixa || false,
-          data_baixa: soci.oldData.data_baixa || null
-        }));
-
-        // Fer upsert en batch (molt més ràpid que 104 updates individuals)
-        const { data: updateData, error: updateError } = await supabase
-          .from('socis')
-          .upsert(socisToUpsert, {
-            onConflict: 'numero_soci',
-            ignoreDuplicates: false
-          })
-          .select();
-
-        if (updateError) {
-          console.error('❌ Error actualitzant socis:', updateError);
-          throw updateError;
-        }
-
-        const updatedCount = updateData?.length || 0;
-        console.log(`✅ Total: ${updatedCount} socis actualitzats correctament`);
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || 'No s\'ha pogut processar el CSV');
       }
 
-      // 3. Donar de baixa socis que no estan al CSV
-      if (uploadSummary.toDeactivate.length > 0) {
-        const numerosToDeactivate = uploadSummary.toDeactivate.map(s => parseInt(s.numero_soci));
-
-        console.log('Donant de baixa socis:', numerosToDeactivate);
-
-        // Actualitzar tots de cop amb la política RLS ja configurada
-        const { data: updateData, error: updateError } = await supabase
-          .from('socis')
-          .update({ de_baixa: true })
-          .in('numero_soci', numerosToDeactivate)
-          .select();
-
-        console.log('Resultat actualització en bloc:', { updateData, updateError, count: updateData?.length });
-
-        if (updateError) {
-          console.error('Error actualitzant socis:', updateError);
-          throw updateError;
-        }
-
-        if (!updateData || updateData.length === 0) {
-          console.warn('⚠️ No s\'ha actualitzat cap soci. Comprovant polítiques RLS...');
-          error = 'No s\'han pogut donar de baixa els socis. Comprova que tens permisos d\'administrador.';
-          return;
-        }
-
-        console.log(`✅ ${updateData.length} socis donats de baixa correctament`);
-      }
-
-      const actualitzats = uploadSummary.toUpdate.filter(s => selectedUpdates.has(parseInt(s.numero_soci))).length;
-      success = `CSV processat correctament: ${uploadSummary.toAdd.length} socis donats d'alta, ${actualitzats} actualitzats, ${uploadSummary.toDeactivate.length} donats de baixa`;
+      success = `CSV processat correctament: ${payload?.added ?? uploadSummary.toAdd.length} socis donats d'alta, ${payload?.updated ?? socisToUpdate.length} actualitzats, ${payload?.deactivated ?? uploadSummary.toDeactivate.length} donats de baixa`;
 
       showUploadConfirmation = false;
       uploadSummary = null;
@@ -671,11 +591,11 @@
     <div class="fixed inset-0 flex items-center justify-center z-50 p-4">
       <button
         type="button"
-        class="absolute inset-0 bg-black bg-opacity-50"
+        class="absolute inset-0 bg-black bg-opacity-50 z-0"
         aria-label="Tanca el modal Nou Soci"
         on:click={() => { showNewSociForm = false; resetNewSociForm(); }}
       ></button>
-  <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="document" on:pointerdown|stopPropagation>
+  <div class="relative z-10 bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="document" on:pointerdown|stopPropagation>
         <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
           <div class="flex items-center justify-between">
             <h2 class="text-xl font-semibold text-gray-900">Nou Soci</h2>
@@ -947,11 +867,11 @@
     <div class="fixed inset-0 flex items-center justify-center z-50 p-4">
       <button
         type="button"
-        class="absolute inset-0 bg-black bg-opacity-50"
+        class="absolute inset-0 bg-black bg-opacity-50 z-0"
         aria-label="Tanca modal Editar Soci"
         on:click={cancelEditing}
       ></button>
-  <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="document" on:pointerdown|stopPropagation>
+  <div class="relative z-10 bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" role="document" on:pointerdown|stopPropagation>
         <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
           <div class="flex items-center justify-between">
             <h2 class="text-xl font-semibold text-gray-900">Editar Soci: {editingSoci.nom} {editingSoci.cognoms}</h2>
@@ -975,9 +895,10 @@
               <input
                 id="edit-numero-soci"
                 type="number"
-                value={editingSoci.numero_soci}
-                disabled
-                class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                bind:value={editingSoci.numero_soci}
+                min="1"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>

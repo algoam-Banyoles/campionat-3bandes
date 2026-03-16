@@ -5,6 +5,7 @@
   import { checkIsAdmin } from '$lib/roles';
   import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
   import Banner from '$lib/components/general/Banner.svelte';
+  import { supabase } from '$lib/supabaseClient';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
 
   let loading = false;
@@ -116,24 +117,8 @@
     }));
   }
 
-  function generateCategoryName(distance, order, existingCategories) {
-    // Comprovar si ja existeix una categoria amb aquesta distància
-    const categoriesWithSameDistance = existingCategories.filter(
-      cat => cat.distancia_caramboles === distance
-    );
-
-    // Determinar el número de categoria basat en l'ordre
-    const categoryNumber = order;
-    const baseName = `${categoryNumber}a Categoria`;
-
-    // Si no hi ha cap categoria amb aquesta distància, usar nom base
-    if (categoriesWithSameDistance.length === 0) {
-      return baseName;
-    }
-
-    // Si ja existeix una categoria amb aquesta distància, afegir suffix A/B/C...
-    const suffix = String.fromCharCode(65 + categoriesWithSameDistance.length); // A=65, B=66, C=67...
-    return `${categoryNumber}a ${suffix}`;
+  function generateCategoryName(order) {
+    return `${order}a`;
   }
 
   function addCategory() {
@@ -142,7 +127,7 @@
     const newDistance = Math.max(1, lastDistance - 5);
 
     // Generar nom intel·ligent considerant distància de caramboles
-    const categoryName = generateCategoryName(newDistance, nextOrder, categories);
+    const categoryName = generateCategoryName(nextOrder);
 
     categories = [...categories, {
       nom: categoryName,
@@ -170,7 +155,7 @@
       // Reorder categories and regenerate names
       categories = categories.map((cat, i) => {
         const newOrder = i + 1;
-        const newName = generateCategoryName(cat.distancia_caramboles, newOrder, categories.slice(0, i));
+        const newName = generateCategoryName(newOrder);
 
         return {
           ...cat,
@@ -210,7 +195,7 @@
         }
       }
 
-      const { supabase } = await import('$lib/supabaseClient');
+
 
       // Create event
       const { data: event, error: eventError } = await supabase

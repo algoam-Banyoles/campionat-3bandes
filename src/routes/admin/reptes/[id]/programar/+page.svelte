@@ -2,7 +2,7 @@
       import { onMount } from 'svelte';
     import { page } from '$app/stores';
     import { user } from '$lib/stores/auth';
-    import { checkIsAdmin } from '$lib/roles';
+    import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
     import Banner from '$lib/components/general/Banner.svelte';
     import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
     import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
@@ -40,16 +40,6 @@
       loading = true;
       error = null;
       okMsg = null;
-
-        if (!$user?.email) {
-          error = errText('Has d’iniciar sessió.');
-          return;
-        }
-        const isAdmin = await checkIsAdmin();
-        if (!isAdmin) {
-          error = errText('Només administradors poden programar reptes.');
-          return;
-        }
 
       const { supabase } = await import('$lib/supabaseClient');
 

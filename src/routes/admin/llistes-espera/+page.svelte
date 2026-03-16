@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
-  import { user } from '$lib/stores/auth';
+  import { supabase } from '$lib/supabaseClient';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
   import { formatSupabaseError } from '$lib/ui/alerts';
+  import { initAdminPage } from '$lib/utils/adminPage';
 
   let loading = true;
   let error: string | null = null;
@@ -30,25 +30,12 @@
   };
 
   onMount(async () => {
-    const u = $user;
-    if (!u?.email) {
-      goto('/login');
-      return;
-    }
-
-    try {
-      loading = true;
-      await loadEvents();
-    } catch (e) {
-      error = formatSupabaseError(e);
-    } finally {
-      loading = false;
-    }
+    const result = await initAdminPage(loadEvents, { redirectIfNoSession: '/login' });
+    loading = result.loading;
+    error = result.error;
   });
 
   async function loadEvents() {
-    const { supabase } = await import('$lib/supabaseClient');
-
     const { data, error: eventsError } = await supabase
       .from('events')
       .select('*')
@@ -81,8 +68,6 @@
   async function loadWaitingList() {
     if (!selectedEventId) return;
 
-    const { supabase } = await import('$lib/supabaseClient');
-
     const { data, error: waitingError } = await supabase
       .from('v_llista_espera_detall')
       .select('*')
@@ -97,8 +82,6 @@
   async function loadStatistics() {
     if (!selectedEventId) return;
 
-    const { supabase } = await import('$lib/supabaseClient');
-
     const { data, error: statsError } = await supabase
       .rpc('get_estadistiques_llista_espera', { p_event_id: selectedEventId })
       .single();
@@ -112,8 +95,6 @@
 
   async function promoteFromWaitingList(waitingId: string) {
     try {
-      const { supabase } = await import('$lib/supabaseClient');
-
       // Trobem el registre de llista d'espera
       const waitingRecord = waitingList.find(w => w.id === waitingId);
       if (!waitingRecord) return;
@@ -141,8 +122,6 @@
     if (!confirm('Estàs segur que vols eliminar aquest jugador de la llista d\'espera?')) return;
 
     try {
-      const { supabase } = await import('$lib/supabaseClient');
-
       const waitingRecord = waitingList.find(w => w.id === waitingId);
       if (!waitingRecord) return;
 
@@ -175,8 +154,6 @@
 
   async function updatePriority(waitingId: string, newPriority: number) {
     try {
-      const { supabase } = await import('$lib/supabaseClient');
-
       const { error } = await supabase
         .from('llista_espera')
         .update({ prioritat: newPriority })

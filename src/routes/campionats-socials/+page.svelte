@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import type { PageData } from './$types';
   import SocialLeagueCalendarViewer from '$lib/components/campionats-socials/SocialLeagueCalendarViewer.svelte';
@@ -13,10 +14,11 @@
   import PlayerRestrictionsTable from '$lib/components/campionats-socials/PlayerRestrictionsTable.svelte';
   import HeadToHeadGrid from '$lib/components/campionats-socials/HeadToHeadGrid.svelte';
   import HallOfFame from '$lib/components/campionats-socials/HallOfFame.svelte';
-  import { adminStore, user } from '$lib/stores/auth';
-  import { isAdmin as isAdminNew, adminUser } from '$lib/stores/adminAuth';
+  import { user } from '$lib/stores/auth';
+  import { isAdmin, adminUser } from '$lib/stores/adminAuth';
   import { effectiveIsAdmin } from '$lib/stores/viewMode';
   import { getSocialLeagueEvents, exportCalendariToCSV } from '$lib/api/socialLeagues';
+  import { generateFinalClassifications } from '$lib/api/classifications';
   import { supabase } from '$lib/supabaseClient';
 
   export const data: PageData = {} as PageData; // Unused export for type compatibility
@@ -25,29 +27,22 @@
   let selectedEventId = '';
   let selectedEvent: any = null;
   let loading = false;
-  let activeView: 'preparation' | 'active' | 'history' | 'players' | 'inscriptions' | 'pagaments' | 'hall-of-fame' = 'active';
+  type ViewType = 'preparation' | 'active' | 'history' | 'players' | 'inscriptions' | 'pagaments' | 'hall-of-fame';
+  const validViews: ViewType[] = ['preparation', 'active', 'history', 'players', 'inscriptions', 'pagaments', 'hall-of-fame'];
+
+  // Single source of truth: URL search param
+  $: activeView = (validViews.includes($page.url.searchParams.get('view') as ViewType)
+    ? $page.url.searchParams.get('view')
+    : 'active') as ViewType;
+
+  function setView(view: ViewType) {
+    goto(`?view=${view}`, { replaceState: true, noScroll: true });
+  }
 
   // Filtres per historial
   let historyModalityFilter = '';
   let historySeasonFilter = '';
   let displayLimit = 10;
-
-  // Detectar paràmetre URL per canviar vista automàticament
-  $: if ($page.url.searchParams.has('view')) {
-    const viewParam = $page.url.searchParams.get('view');
-    if (viewParam && ['preparation', 'active', 'history', 'players', 'inscriptions', 'hall-of-fame'].includes(viewParam)) {
-      activeView = viewParam as typeof activeView;
-      // Guardar a sessionStorage per mantenir entre reloads
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem('campionats-socials-activeView', viewParam);
-      }
-    }
-  }
-
-  // També guardar quan canvia manualment activeView
-  $: if (typeof sessionStorage !== 'undefined' && activeView) {
-    sessionStorage.setItem('campionats-socials-activeView', activeView);
-  }
 
 
 
@@ -57,13 +52,35 @@
   let inscriptions: any[] = [];
   let loadingSocis = false;
   let loadingInscriptions = false;
+  let _lastLoadedEventId = '';
   let calendarStatus = 'not-generated'; // 'not-generated', 'generated', 'validated', 'published'
 
   // Variable per la categoria seleccionada a la graella head-to-head
   let selectedHeadToHeadCategory: any = null;
 
+  function getHistoricalModality(modality: string | undefined): string | null {
+    const map: Record<string, string> = {
+      tres_bandes: '3 BANDES',
+      lliure: 'LLIURE',
+      banda: 'BANDA'
+    };
+    return modality ? (map[modality] ?? null) : null;
+  }
+
+  function getPreviousTwoSeasonYears(season: string | undefined): number[] {
+    const match = season?.match(/^(\d{4})\D+(\d{4})$/);
+    if (match) {
+      const endYear = Number(match[2]);
+      return [endYear - 1, endYear - 2];
+    }
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    return [currentYear - 1, currentYear - 2];
+  }
+
   // Computed per verificar si és admin (comprovant tots dos sistemes i view mode)
-  $: isUserAdmin = $adminStore || $effectiveIsAdmin;
+  $: isUserAdmin = $isAdmin || $effectiveIsAdmin;
 
   // Categories per la pestanya de pagaments
   $: paymentCategories = selectedEvent?.categories || [];
@@ -184,12 +201,6 @@
 
   // Funció manual per recalcular filtres i fer debug
   function recalculateFilters() {
-    console.log('� MANUAL RECOMPUTE amb', events.length, 'events:');
-    
-    events.forEach((event, i) => {
-      console.log(`${i+1}. "${event.nom}" - actiu: ${event.actiu}, estat: "${event.estat_competicio}"`);
-    });
-    
     // Test manual dels filtres
     const prep = events.filter(e => e.actiu && (
       e.estat_competicio === 'preparacio' ||
@@ -210,8 +221,6 @@
       e.estat_competicio === 'actiu' ||
       e.estat_competicio === 'ongoing'
     ));
-    
-    console.log('✅ Manual results: prep =', prep.length, ', active =', active.length);
     
     // També escriu l'info en el document
     if (typeof document !== 'undefined') {
@@ -281,19 +290,12 @@
 
   $: if (selectedEventId) {
     selectedEvent = events.find(e => e.id === selectedEventId);
-    console.log('🎯 Selected event:', selectedEvent?.nom, 'Categories:', selectedEvent?.categories?.length || 0);
-    if (selectedEvent && (activeView === 'preparation' || activeView === 'active')) {
+    if (selectedEvent && selectedEventId !== _lastLoadedEventId && (activeView === 'preparation' || activeView === 'active')) {
+      _lastLoadedEventId = selectedEventId;
       loadInscriptionsData();
       if (activeView === 'preparation') {
         checkCalendarStatus();
       }
-    }
-  }
-
-  // Carregar dades quan es canvia la vista de gestió a inscripcions, classificació o calendari
-  $: if (selectedEventId && selectedEvent && managementView === 'inscriptions' && activeView === 'active' && isUserAdmin) {
-    if (!loadingInscriptions) {
-      loadInscriptionsData();
     }
   }
 
@@ -341,6 +343,16 @@
 
       if (error) throw error;
 
+      // Si es finalitza el campionat, generar classificacions finals automàticament
+      if (newStatus === 'finalitzat') {
+        try {
+          const result = await generateFinalClassifications(eventId);
+        } catch (classError) {
+          console.error('⚠️ Error generant classificacions finals:', classError);
+          // No bloquejar el canvi d'estat si falla la generació de classificacions
+        }
+      }
+
       // Recarregar events per actualitzar la vista
       await loadEvents();
 
@@ -377,15 +389,21 @@
       let socisWithAverages = [];
       if (socisData && socisData.length > 0) {
         const socisNumbers = socisData.map(s => s.numero_soci);
-        const currentYear = new Date().getFullYear();
-        const lastTwoYears = [currentYear, currentYear - 1];
+        const currentEvent = selectedEvent || events.find(e => e.id === selectedEventId);
+        const lastTwoYears = getPreviousTwoSeasonYears(currentEvent?.temporada);
+        const historicalModality = getHistoricalModality(currentEvent?.modalitat);
 
-        const { data: mitjanes, error: mitjErr } = await supabase
+        let mitjanesQuery = supabase
           .from('mitjanes_historiques')
           .select('soci_id, mitjana, year, modalitat')
           .in('soci_id', socisNumbers)
-          .in('year', lastTwoYears)
-          .eq('modalitat', '3 BANDES');
+          .in('year', lastTwoYears);
+
+        if (historicalModality) {
+          mitjanesQuery = mitjanesQuery.eq('modalitat', historicalModality);
+        }
+
+        const { data: mitjanes, error: mitjErr } = await mitjanesQuery;
 
         if (mitjErr) {
           console.warn('Error fetching historical averages:', mitjErr);
@@ -420,7 +438,7 @@
           preferencies_dies,
           preferencies_hores,
           restriccions_especials,
-          socis!inscripcions_soci_numero_fkey(numero_soci, nom, cognoms, email)
+          socis!inscripcions_soci_numero_fkey(numero_soci, nom, cognoms, email, data_naixement)
         `)
         .eq('event_id', selectedEventId);
 
@@ -441,13 +459,10 @@
   // Check calendar status
   async function checkCalendarStatus() {
     if (!selectedEventId) {
-      console.log('🔍 checkCalendarStatus: No selectedEventId');
       return;
     }
 
     try {
-      console.log('🔍 Checking calendar status for event:', selectedEventId);
-      
       const { data: matches, error } = await supabase
         .from('calendari_partides')
         .select('id, estat')
@@ -458,32 +473,20 @@
         return;
       }
 
-      console.log('📊 Found matches:', matches?.length || 0);
-      
       if (!matches || matches.length === 0) {
         calendarStatus = 'not-generated';
-        console.log('📅 Calendar status: NOT GENERATED');
       } else {
         const validatedMatches = matches.filter(match => match.estat === 'validat');
         const publishedMatches = matches.filter(match => match.estat === 'publicat');
         
-        console.log('📈 Match stats:');
-        console.log('  - Total:', matches.length);
-        console.log('  - Validated:', validatedMatches.length);
-        console.log('  - Published:', publishedMatches.length);
-        
         if (publishedMatches.length > 0) {
           calendarStatus = 'published';
-          console.log('📅 Calendar status: PUBLISHED');
         } else if (validatedMatches.length === matches.length) {
           calendarStatus = 'validated';
-          console.log('📅 Calendar status: VALIDATED');
         } else if (validatedMatches.length > 0) {
           calendarStatus = 'partially-validated';
-          console.log('📅 Calendar status: PARTIALLY VALIDATED');
         } else {
           calendarStatus = 'generated';
-          console.log('📅 Calendar status: GENERATED');
         }
       }
     } catch (error) {
@@ -641,72 +644,7 @@
     try {
       loading = true;
 
-      // DEBUG: Verificar autenticació d'admin
-      console.log('🔍 DEBUG ADMIN AUTH:');
-      console.log('$adminStore (old system):', $adminStore);
-      console.log('$effectiveIsAdmin (with view mode):', $effectiveIsAdmin);
-      console.log('isUserAdmin (combined):', isUserAdmin);
-      console.log('$user:', $user);
-
-      // Verificar si tenim usuari logat
-      if ($user?.email) {
-        console.log('User email:', $user.email);
-
-        // Importar i verificar amb el nou sistema
-        const { checkAdminStatus } = await import('$lib/stores/adminAuth');
-        const isAdminNewSystem = await checkAdminStatus($user.email);
-        console.log('Admin status (manual check):', isAdminNewSystem);
-      }
-
       events = await getSocialLeagueEvents();
-
-      events.forEach((event, index) => {
-        console.log(`\n${index + 1}. "${event.nom}"`);
-        console.log(`   Temporada: ${event.temporada}`);
-        console.log(`   Modalitat: ${event.modalitat}`);
-        console.log(`   Actiu: ${event.actiu}`);
-        console.log(`   Estat Competició: "${event.estat_competicio}"`);
-        console.log(`   Categories: ${event.categories?.length || 0}`);
-        if (event.categories?.length > 0) {
-          event.categories.forEach(cat => {
-            console.log(`     - ${cat.nom} (${cat.distancia_caramboles} car.)`);
-          });
-        }
-        const isActiveEvent = event.actiu && (
-          event.estat_competicio === 'en_curs' ||
-          event.estat_competicio === 'en_progres' ||
-          event.estat_competicio === 'actiu' ||
-          event.estat_competicio === 'ongoing'
-        );
-        console.log(`   Seria ACTIU: ${isActiveEvent ? '✅' : '❌'}`);
-      });
-
-      console.log('\nValors únics estat_competicio:', [...new Set(events.map(e => e.estat_competicio))]);
-
-      // DEBUG DETALLAT: Verificar cada event individualment
-      console.log('\n🔍 EVENTS DETALLATS:');
-      events.forEach((event, index) => {
-        console.log(`${index + 1}. "${event.nom}"`);
-        console.log(`   actiu: ${event.actiu} (type: ${typeof event.actiu})`);
-        console.log(`   estat_competicio: "${event.estat_competicio}"`);
-        console.log(`   temporada: ${event.temporada}`);
-        
-        // Test filtres individuals
-        const isActive = event.actiu && (
-          event.estat_competicio === 'en_curs' ||
-          event.estat_competicio === 'en_progres' ||
-          event.estat_competicio === 'actiu' ||
-          event.estat_competicio === 'ongoing'
-        );
-        console.log(`   ➜ Seria ACTIU?: ${isActive}`);
-        console.log('');
-      });
-
-      // DEBUG: Verificar filtres
-      console.log('\n🔍 FILTRES DEBUG:');
-      console.log('Preparation events:', preparationEvents.length, preparationEvents.map(e => e.nom));
-      console.log('Active events:', activeEvents.length, activeEvents.map(e => e.nom));
-      console.log('Historical events:', historicalEvents.length);
 
       // Auto-seleccionar: campionats actius per defecte, preparació només per admins
       const preparationEvent = preparationEvents[0];
@@ -721,53 +659,22 @@
          e.estat_competicio === 'ongoing')
       );
       
-      // Detectar si hi ha un paràmetre view a l'URL
       const hasViewParam = $page.url.searchParams.has('view');
-
-      // Intentar recuperar l'última vista de sessionStorage
-      const savedView = typeof sessionStorage !== 'undefined'
-        ? sessionStorage.getItem('campionats-socials-activeView')
-        : null;
 
       if (manualActiveEvent) {
         selectedEventId = manualActiveEvent.id;
-        // Només canviar activeView si no hi ha paràmetre URL ni vista guardada
-        if (!hasViewParam && !savedView) {
-          activeView = 'active';
-        } else if (savedView && !hasViewParam) {
-          activeView = savedView as typeof activeView;
-        }
-        console.log('🔍 Manual active event, isUserAdmin:', isUserAdmin);
-        // managementView ja està per defecte a 'view-calendar' (calendari)
+        if (!hasViewParam) setView('active');
       } else if (activeEvent) {
         selectedEventId = activeEvent.id;
-        // Només canviar activeView si no hi ha paràmetre URL ni vista guardada
-        if (!hasViewParam && !savedView) {
-          activeView = 'active';
-        } else if (savedView && !hasViewParam) {
-          activeView = savedView as typeof activeView;
-        }
-        // managementView ja està per defecte a 'view-calendar' (calendari)
+        if (!hasViewParam) setView('active');
       } else if (isUserAdmin && preparationEvent) {
         selectedEventId = preparationEvent.id;
-        // Només canviar activeView si no hi ha paràmetre URL ni vista guardada
-        if (!hasViewParam && !savedView) {
-          activeView = 'preparation';
-        } else if (savedView && !hasViewParam) {
-          activeView = savedView as typeof activeView;
-        }
+        if (!hasViewParam) setView('preparation');
       } else {
-        // Si no hi ha campionats actius ni en preparació
-        // Preferir vista guardada > paràmetre URL > per defecte 'active' (no 'history')
-        if (!hasViewParam && savedView) {
-          activeView = savedView as typeof activeView;
-        } else if (!hasViewParam) {
-          // Per defecte, mantenir 'active' fins que l'usuari triï history explícitament
-          activeView = 'active';
-        }
         if (events.length > 0) {
           selectedEventId = events[0].id;
         }
+        if (!hasViewParam) setView('active');
       }
     } catch (error) {
       console.error('Error loading events:', error);
@@ -796,7 +703,7 @@
       <!-- Navegació ràpida amb touch targets millors -->
       <div class="flex bg-gray-100 rounded-lg p-1 w-full sm:w-auto min-h-[44px]">
         <button
-          on:click={() => activeView = 'active'}
+          on:click={() => setView('active')}
           class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px] touch-manipulation"
           class:bg-white={activeView === 'active'}
           class:text-gray-900={activeView === 'active'}
@@ -807,7 +714,7 @@
           🏃 Actius
         </button>
         <button
-          on:click={() => activeView = 'history'}
+          on:click={() => setView('history')}
           class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px] touch-manipulation"
           class:bg-white={activeView === 'history'}
           class:text-gray-900={activeView === 'history'}
@@ -818,7 +725,7 @@
           📚 Historial
         </button>
         <button
-          on:click={() => activeView = 'hall-of-fame'}
+          on:click={() => setView('hall-of-fame')}
           class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px] touch-manipulation"
           class:bg-white={activeView === 'hall-of-fame'}
           class:text-gray-900={activeView === 'hall-of-fame'}
@@ -830,7 +737,7 @@
         </button>
         {#if isUserAdmin}
           <button
-            on:click={() => activeView = 'preparation'}
+            on:click={() => setView('preparation')}
             class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px] touch-manipulation"
             class:bg-white={activeView === 'preparation'}
             class:text-gray-900={activeView === 'preparation'}
@@ -841,7 +748,7 @@
             🔧 Preparació
           </button>
           <button
-            on:click={() => activeView = 'pagaments'}
+            on:click={() => setView('pagaments')}
             class="flex-1 sm:flex-none px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors"
             class:bg-white={activeView === 'pagaments'}
             class:text-gray-900={activeView === 'pagaments'}
@@ -1139,9 +1046,8 @@
                       // Reload events to get updated categories
                       window.location.reload();
                     }}
-                    on:categoryUpdated={() => {
-                      // Reload events to get updated categories
-                      window.location.reload();
+                    on:categoryUpdated={async () => {
+                      await loadInscriptionsData();
                     }}
                   />
 
@@ -1151,10 +1057,12 @@
                     {inscriptions}
                     {socis}
                     categories={selectedEvent.categories || []}
-                    on:categoriesUpdated={() => {
-                      // Reload events to get updated categories
-                      window.location.reload();
+                    on:categoriesCreated={async () => {
+                      _lastLoadedEventId = '';
+                      await loadEvents();
+                      await loadInscriptionsData();
                     }}
+                    on:error={(e) => { console.error(e.detail.message); }}
                   />
                 </div>
               {:else if managementView === 'restrictions'}
@@ -1239,6 +1147,17 @@
                       console.log('Match updated in preparation');
                     }}
                   />
+
+                  {#if calendarStatus === 'validated' || calendarStatus === 'partially-validated'}
+                    <!-- Llista de jugadors inscrits per categoria -->
+                    <div class="mt-8">
+                      <h4 class="text-lg font-medium text-gray-900 mb-4">Jugadors Inscrits per Categoria</h4>
+                      <SocialLeaguePlayersGrid
+                        eventId={selectedEventId}
+                        categories={selectedEvent?.categories || []}
+                      />
+                    </div>
+                  {/if}
                 </div>
               {/if}
             </div>
@@ -1804,7 +1723,7 @@
                     </span>
                     <div class="flex flex-col sm:flex-row gap-3">
                       <button
-                        on:click={() => { selectedEventId = event.id; activeView = 'inscriptions'; }}
+                        on:click={() => { selectedEventId = event.id; setView('inscriptions'); }}
                         class="inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-blue-700 bg-blue-100 hover:bg-blue-200 min-h-[44px] touch-manipulation"
                       >
                         📋 Veure Calendari

@@ -3,6 +3,7 @@
     import { goto, invalidateAll, invalidate } from '$app/navigation';
     import { user } from '$lib/stores/auth';
     import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
+  import { supabase } from '$lib/supabaseClient';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
@@ -108,7 +109,6 @@
       preBusy = true;
       preOk = null;
       preErr = null;
-      const { supabase } = await import('$lib/supabaseClient');
       const { data: events, error: eventsError } = await supabase.from('events').select('id');
       if (eventsError) throw eventsError;
       for (const event of events) {
@@ -130,7 +130,6 @@
       inactBusy = true;
       inactOk = null;
       inactErr = null;
-      const { supabase } = await import('$lib/supabaseClient');
       const { data: events, error: eventsError } = await supabase.from('events').select('id');
       if (eventsError) throw eventsError;
       for (const event of events) {
@@ -153,7 +152,6 @@
       deadlinesBusy = true;
       deadlinesErr = null;
       deadlinesRes = null;
-      const { supabase } = await import('$lib/supabaseClient');
       const res = await runDeadlines(supabase, $user?.email ?? null);
       deadlinesRes = res;
       await Promise.all([invalidate('/reptes'), invalidate('/admin/reptes')]);
@@ -168,7 +166,6 @@
       captureBusy = true;
       captureOk = null;
       captureErr = null;
-      const { supabase } = await import('$lib/supabaseClient');
       const { error } = await supabase.rpc('capture_initial_ranking', {
         p_event: null
       });
@@ -188,7 +185,6 @@
       resetOk = null;
       resetErr = null;
       // Usar la nova funció admin_reset_championship directament
-      const { supabase } = await import('$lib/supabaseClient');
       const { data: result, error } = await supabase.rpc('admin_reset_championship');
       
       if (error) {
@@ -221,7 +217,6 @@
     try {
       histLoading = true;
       histErr = null;
-      const { supabase } = await import('$lib/supabaseClient');
       const { data: ev, error: eEv } = await supabase
         .from('events')
         .select('id')

@@ -2,7 +2,8 @@
 
         import { onMount } from 'svelte';
         import { user } from '$lib/stores/auth';
-      import { checkIsAdmin } from '$lib/roles';
+      import { supabase } from '$lib/supabaseClient';
+      import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
       import Banner from '$lib/components/general/Banner.svelte';
       import Loader from '$lib/components/general/Loader.svelte';
       import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
@@ -32,7 +33,6 @@
   let okMsg: string | null = null;
   let rows: ChallengeRow[] = [];
   let busy: string | null = null; // id en acció
-  let isAdmin = false;
   const REPRO_LIMIT = 3;
   let reproLimit = REPRO_LIMIT;
 
@@ -56,20 +56,6 @@
       loading = true;
       error = null;
       okMsg = null;
-
-        if (!$user?.email) {
-          error = errText('Has d’iniciar sessió.');
-          return;
-        }
-        // aquesta pàgina està pensada per a administradors
-        const adm = await checkIsAdmin();
-        if (!adm) {
-          error = errText('Només administradors poden veure aquesta pàgina.');
-          return;
-        }
-        isAdmin = true;
-
-      const { supabase } = await import('$lib/supabaseClient');
 
       // Usar el store optimitzat per obtenir challenges
       await refreshActiveChallenges();
@@ -138,7 +124,7 @@
   function programInfo(r: ChallengeRow) {
     if (r.estat === 'proposat') return { allowed: true };
     if (['acceptat', 'programat'].includes(r.estat)) {
-      if (!isAdmin && r.estat === 'programat' && r.reprogram_count >= reproLimit) {
+      if (!$isAdmin && r.estat === 'programat' && r.reprogram_count >= reproLimit) {
         return { allowed: false, reason: 'límit de reprogramació assolit' };
       }
       return { allowed: true };
@@ -182,7 +168,6 @@
       busy = r.id;
       error = null;
       okMsg = null;
-      const { supabase } = await import('$lib/supabaseClient');
       const { data, error: e } = await supabase
         .from('challenges')
         .update({ estat: 'refusat' })
@@ -208,7 +193,6 @@
       busy = r.id;
       error = null;
       okMsg = null;
-      const { supabase } = await import('$lib/supabaseClient');
       const { error: e } = await supabase.rpc('apply_challenge_penalty', {
         p_challenge: r.id,
         p_tipus: 'incompareixenca'

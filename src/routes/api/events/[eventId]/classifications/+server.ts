@@ -1,6 +1,9 @@
 import { json } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseEnv } from '$lib/server/env';
 import type { RequestHandler } from './$types';
+
+const { url, key } = getSupabaseEnv(true);
 
 export const GET: RequestHandler = async ({ params, request }) => {
   const { eventId } = params;
@@ -10,14 +13,10 @@ export const GET: RequestHandler = async ({ params, request }) => {
   }
 
   try {
-    // Use hardcoded values for debugging (these should be in environment later)
-    const supabaseUrl = 'https://qbldqtaqawnahuzlzsjs.supabase.co';
-    const serviceRoleKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFibGRxdGFxYXduYWh1emx6c2pzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzA1OTIwOCwiZXhwIjoyMDcyNjM1MjA4fQ.-tP6NsvVa6vMFcYXRbXjqQsKC-rm5DxUYi6MzJuiAVI';
-    
     // Create Supabase client with service role for historical events access
     const supabaseAdmin = createClient(
-      supabaseUrl,
-      serviceRoleKey,
+      url,
+      key,
       {
         auth: { persistSession: false, autoRefreshToken: false }
       }
@@ -78,9 +77,55 @@ export const GET: RequestHandler = async ({ params, request }) => {
       return json({ error: 'Error loading classifications' }, { status: 500 });
     }
 
-    // If no classifications found, try to get inscriptions as fallback
+    // If no classifications found, try to generate them on-the-fly for finalized events
     if (!classificacionsData || classificacionsData.length === 0) {
 
+      // Try to generate classifications if the event is finalized
+      if (event.estat_competicio === 'finalitzat') {
+        console.log('📊 API: No classifications found for finalized event, generating...');
+        try {
+          const { data: genResult, error: genError } = await supabaseAdmin
+            .rpc('generate_final_classifications', { p_event_id: eventId });
+
+          if (!genError && genResult && genResult.length > 0 && genResult[0].success) {
+            console.log('✅ API: Classifications generated:', genResult[0].message);
+
+            // Re-fetch the newly generated classifications
+            const { data: newClassifications, error: newClassError } = await supabaseAdmin
+              .from('classificacions')
+              .select(`
+                *,
+                player:players (
+                  id,
+                  nom,
+                  email,
+                  numero_soci
+                ),
+                categoria:categories (
+                  id,
+                  nom,
+                  ordre_categoria,
+                  distancia_caramboles
+                )
+              `)
+              .eq('event_id', eventId)
+              .order('posicio', { ascending: true });
+
+            if (!newClassError && newClassifications && newClassifications.length > 0) {
+              return json({
+                event,
+                classifications: newClassifications,
+                inscriptions: [],
+                hasClassifications: true
+              });
+            }
+          }
+        } catch (genErr) {
+          console.error('⚠️ API: Could not generate classifications:', genErr);
+        }
+      }
+
+      // Fallback to inscriptions if no classifications could be generated
       const { data: inscriptionsData, error: inscriptionsError } = await supabaseAdmin
         .from('inscripcions')
         .select(`

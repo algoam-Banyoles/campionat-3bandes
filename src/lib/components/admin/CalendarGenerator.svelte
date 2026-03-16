@@ -26,8 +26,28 @@
   let proposedCalendar = [];
   let generatingCalendar = false;
   let showRestrictions = false;
-  let showDeleteConfirmation = false; // Modal per doble confirmació
-  let calendariPublicat = false; // Estat del calendari publicat
+  let showPlayers = true;
+  let showDeleteConfirmation = false;
+  let calendariPublicat = false;
+
+  // Preview controls
+  let previewSearch = '';
+  let previewViewMode: 'cronologia' | 'categoria' = 'cronologia';
+  let previewSelectedCategory = '';
+
+  $: previewSearchLower = previewSearch.toLowerCase();
+  $: filteredPreview = proposedCalendar.filter(m => {
+    if (previewSearchLower && !(
+      m.jugador1?.soci?.nom?.toLowerCase().includes(previewSearchLower) ||
+      m.jugador1?.soci?.cognoms?.toLowerCase().includes(previewSearchLower) ||
+      m.jugador2?.soci?.nom?.toLowerCase().includes(previewSearchLower) ||
+      m.jugador2?.soci?.cognoms?.toLowerCase().includes(previewSearchLower)
+    )) return false;
+    if (previewSelectedCategory && m.categoria_id !== previewSelectedCategory) return false;
+    return true;
+  });
+  $: previewProgrammed = filteredPreview.filter(m => m.estat === 'generat');
+  $: previewPending = filteredPreview.filter(m => m.estat === 'pendent_programar');
   
   // Gestió de períodes de bloqueig
   let showBlockedPeriods = false;
@@ -38,10 +58,60 @@
   
   // Gestió de vista d'estadístiques de taules
   let showTableStats = false;
+  let calendarKPIs: any = null;
 
   // Mapes per optimitzar cerques
   let playerRestrictions = new Map();
   let playersByCategory = new Map();
+
+  // Cache per restriccions especials parsejades (evita re-parsejar a cada slot check)
+  let parsedRestrictionsCache = new Map<string, Array<{ start: Date; end: Date }>>();
+  let calendarError = '';
+
+  // Clau localStorage per persistir configuració entre generacions
+  $: storageKey = `calendarConfig_${eventId}`;
+
+  // Carregar configuració guardada al muntar o canviar event
+  $: if (eventId) {
+    loadSavedConfig();
+  }
+
+  function loadSavedConfig() {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const config = JSON.parse(saved);
+        if (config.dataInici) dataInici = config.dataInici;
+        if (config.dataFi) dataFi = config.dataFi;
+        if (config.blockedPeriods) blockedPeriods = config.blockedPeriods;
+        if (config.calendarConfig) {
+          calendarConfig = { ...calendarConfig, ...config.calendarConfig };
+        }
+      }
+    } catch (e) {
+      console.warn('Error carregant configuració guardada:', e);
+    }
+  }
+
+  function saveConfig() {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({
+        dataInici,
+        dataFi,
+        blockedPeriods,
+        calendarConfig
+      }));
+    } catch (e) {
+      console.warn('Error guardant configuració:', e);
+    }
+  }
+
+  // Auto-guardar quan canvien les dates, bloqueigs o configuració
+  $: if (eventId) {
+    // Referenciar totes les variables per activar reactivitat
+    const _trigger = JSON.stringify({ dataInici, dataFi, blockedPeriods, calendarConfig });
+    saveConfig();
+  }
 
   // Carregar restriccions dels jugadors i estat del calendari
   $: if (inscriptions.length > 0) {
@@ -67,6 +137,7 @@
   async function loadPlayerRestrictions() {
     playerRestrictions.clear();
     playersByCategory.clear();
+    parsedRestrictionsCache.clear();
 
     console.log('Carregant restriccions de', inscriptions.length, 'inscripcions');
 
@@ -98,13 +169,42 @@
         sociToPlayerMap.set(player.numero_soci, player.id);
       });
 
+      // Detectar socis inscrits que no tenen registre a players i crear-los
+      const missingSociNumbers = sociNumbers.filter(sn => !sociToPlayerMap.has(sn));
+      if (missingSociNumbers.length > 0) {
+        console.log(`Creant ${missingSociNumbers.length} jugadors nous per socis sense registre a players:`, missingSociNumbers);
+
+        // Obtenir dades dels socis per crear els players
+        const missingInscriptions = inscriptions.filter(i => missingSociNumbers.includes(i.soci_numero));
+        const newPlayers = missingInscriptions.map(ins => ({
+          nom: ins.socis ? `${ins.socis.nom} ${ins.socis.cognoms}`.trim() : `Soci ${ins.soci_numero}`,
+          email: ins.socis?.email || null,
+          numero_soci: ins.soci_numero,
+          estat: 'actiu'
+        }));
+
+        const { data: createdPlayers, error: createError } = await supabase
+          .from('players')
+          .insert(newPlayers)
+          .select('id, numero_soci');
+
+        if (createError) {
+          console.error('Error creant players:', createError);
+        } else if (createdPlayers) {
+          console.log(`✅ ${createdPlayers.length} jugadors creats a players`);
+          createdPlayers.forEach(p => {
+            sociToPlayerMap.set(p.numero_soci, p.id);
+          });
+        }
+      }
+
       let validPlayers = 0;
 
       inscriptions.forEach((inscription, index) => {
         const playerId = sociToPlayerMap.get(inscription.soci_numero);
 
         if (!playerId) {
-          console.log(`Skip inscripció ${index}: soci ${inscription.soci_numero} no té player_id`);
+          console.warn(`Skip inscripció ${index}: soci ${inscription.soci_numero} no s'ha pogut crear a players`);
           return;
         }
 
@@ -113,20 +213,23 @@
           return;
         }
 
-        console.log(`Processing inscription ${index}:`, {
-          soci_numero: inscription.soci_numero,
-          player_id: playerId,
-          categoria: inscription.categoria_assignada_id,
-          has_socis_data: !!inscription.socis,
-          socis_data: inscription.socis
-        });
-
         validPlayers++;
+
+        // Calcular edat del jugador
+        let edat: number | null = null;
+        if (inscription.socis?.data_naixement) {
+          const birth = new Date(inscription.socis.data_naixement);
+          const today = new Date();
+          edat = today.getFullYear() - birth.getFullYear();
+          const m = today.getMonth() - birth.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) edat--;
+        }
 
         playerRestrictions.set(playerId, {
           preferencies_dies: inscription.preferencies_dies || [],
           preferencies_hores: inscription.preferencies_hores || [],
           restriccions_especials: inscription.restriccions_especials || null,
+          edat,
           soci: inscription.socis || {
             nom: `Soci ${inscription.soci_numero}`,
             cognoms: '',
@@ -139,6 +242,8 @@
         }
         playersByCategory.get(inscription.categoria_assignada_id).push({
           player_id: playerId,
+          inscription_id: inscription.id,
+          soci_numero: inscription.soci_numero,
           soci: inscription.socis || {
             nom: `Soci ${inscription.soci_numero}`,
             cognoms: '',
@@ -156,17 +261,43 @@
     console.log('Restriccions carregades:', playerRestrictions.size, 'jugadors');
     console.log('Jugadors per categoria:', Object.fromEntries(playersByCategory));
 
-    // Debug detallat de restriccions
-    console.log('🔍 DETALL DE RESTRICCIONS:');
-    playerRestrictions.forEach((restrictions, playerId) => {
-      console.log(`Jugador ${playerId}:`, {
-        nom: restrictions.soci.nom,
-        cognoms: restrictions.soci.cognoms,
-        dies_disponibles: restrictions.preferencies_dies,
-        hores_disponibles: restrictions.preferencies_hores,
-        restriccions_especials: restrictions.restriccions_especials
-      });
-    });
+  }
+
+  async function changePlayerCategory(player, fromCategoryId, toCategoryId) {
+    if (fromCategoryId === toCategoryId) return;
+
+    try {
+      // Persistir a la BD
+      const { error } = await supabase
+        .from('inscripcions')
+        .update({ categoria_assignada_id: toCategoryId })
+        .eq('id', player.inscription_id);
+
+      if (error) {
+        console.error('Error canviant categoria:', error);
+        dispatch('error', { message: `Error movent jugador: ${error.message}` });
+        return;
+      }
+
+      // Actualitzar mapa local
+      const fromPlayers = playersByCategory.get(fromCategoryId);
+      if (fromPlayers) {
+        playersByCategory.set(fromCategoryId, fromPlayers.filter(p => p.player_id !== player.player_id));
+      }
+
+      if (!playersByCategory.has(toCategoryId)) {
+        playersByCategory.set(toCategoryId, []);
+      }
+      playersByCategory.get(toCategoryId).push(player);
+
+      // Forçar reactivitat
+      playersByCategory = new Map(playersByCategory);
+
+      console.log(`✅ ${player.soci.nom} mogut de ${categories.find(c => c.id === fromCategoryId)?.nom} a ${categories.find(c => c.id === toCategoryId)?.nom}`);
+    } catch (e) {
+      console.error('Error canviant categoria:', e);
+      dispatch('error', { message: 'Error movent jugador de categoria' });
+    }
   }
 
   async function calculateProposal() {
@@ -198,162 +329,276 @@
     }
   }
 
-  // Funció per validar el calendari generat
+  // Funció per obtenir el nom d'un jugador a partir d'un match i playerId
+  function getPlayerName(match: any, playerId: string): string {
+    if (match.jugador1?.player_id === playerId) {
+      return `${match.jugador1.soci?.nom || ''} ${match.jugador1.soci?.cognoms || ''}`.trim();
+    }
+    return `${match.jugador2.soci?.nom || ''} ${match.jugador2.soci?.cognoms || ''}`.trim();
+  }
+
+  // Funció per validar el calendari generat i calcular KPIs
   function validateGeneratedCalendar(matches: any[]) {
-    console.log('\n🔍 Validant calendari generat...');
-    
-    const errors = [];
-    const warnings = [];
-    const playerMatchesByDate = new Map(); // playerId -> Map<dateStr, Match[]>
+    const scheduled = matches.filter(m => m.data_programada);
+    const pending = matches.filter(m => !m.data_programada);
 
-    // Construir mapa de partides per jugador i data
-    matches.forEach(match => {
-      if (!match.data_programada) return; // Ignorar partides no programades
+    // Construir mapa de partides per jugador
+    const playerMatches = new Map<string, any[]>(); // playerId -> matches[]
+    const playerNames = new Map<string, string>();
 
-      const dateStr = new Date(match.data_programada).toISOString().split('T')[0];
-      
-      // Jugador 1
-      if (!playerMatchesByDate.has(match.jugador1.player_id)) {
-        playerMatchesByDate.set(match.jugador1.player_id, new Map());
-      }
-      const player1Dates = playerMatchesByDate.get(match.jugador1.player_id);
-      if (!player1Dates.has(dateStr)) {
-        player1Dates.set(dateStr, []);
-      }
-      player1Dates.get(dateStr).push(match);
-
-      // Jugador 2
-      if (!playerMatchesByDate.has(match.jugador2.player_id)) {
-        playerMatchesByDate.set(match.jugador2.player_id, new Map());
-      }
-      const player2Dates = playerMatchesByDate.get(match.jugador2.player_id);
-      if (!player2Dates.has(dateStr)) {
-        player2Dates.set(dateStr, []);
-      }
-      player2Dates.get(dateStr).push(match);
+    scheduled.forEach(match => {
+      [match.jugador1, match.jugador2].forEach(j => {
+        const pid = j.player_id;
+        if (!playerMatches.has(pid)) playerMatches.set(pid, []);
+        playerMatches.get(pid).push(match);
+        if (!playerNames.has(pid)) {
+          playerNames.set(pid, `${j.soci?.nom || ''} ${j.soci?.cognoms || ''}`.trim());
+        }
+      });
     });
 
-    // Validació 1: Cap jugador pot tenir més d'una partida el mateix dia
-    playerMatchesByDate.forEach((dateMap, playerId) => {
-      dateMap.forEach((matchesOnDate, dateStr) => {
-        if (matchesOnDate.length > 1) {
-          const playerName = matchesOnDate[0].jugador1.player_id === playerId 
-            ? `${matchesOnDate[0].jugador1.soci.nom} ${matchesOnDate[0].jugador1.soci.cognoms}`
-            : `${matchesOnDate[0].jugador2.soci.nom} ${matchesOnDate[0].jugador2.soci.cognoms}`;
-          
-          errors.push({
-            type: 'MATEIX_DIA',
-            playerId,
-            playerName,
+    // KPI 1: Dues partides el mateix dia
+    const sameDayViolations: any[] = [];
+    playerMatches.forEach((pMatches, playerId) => {
+      const byDate = new Map<string, any[]>();
+      pMatches.forEach(m => {
+        const d = new Date(m.data_programada);
+        const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        if (!byDate.has(ds)) byDate.set(ds, []);
+        byDate.get(ds).push(m);
+      });
+      byDate.forEach((ms, dateStr) => {
+        if (ms.length > 1) {
+          sameDayViolations.push({
+            player: playerNames.get(playerId),
             date: dateStr,
-            count: matchesOnDate.length,
-            matches: matchesOnDate.map(m => `${m.jugador1.soci.nom} vs ${m.jugador2.soci.nom} a les ${m.hora_inici}`)
+            count: ms.length,
+            matches: ms.map(m => `${getPlayerName(m, m.jugador1.player_id)} vs ${getPlayerName(m, m.jugador2.player_id)} ${m.hora_inici}`)
           });
         }
       });
     });
 
-    // Validació 2: Cap jugador pot tenir partides en dies consecutius
-    playerMatchesByDate.forEach((dateMap, playerId) => {
-      const dates = Array.from(dateMap.keys()).sort();
-      
-      for (let i = 0; i < dates.length - 1; i++) {
-        const date1 = new Date(dates[i] as string);
-        const date2 = new Date(dates[i + 1] as string);
-        const daysDiff = Math.abs((date2.getTime() - date1.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (daysDiff === 1) {
-          const matches1 = dateMap.get(dates[i]);
-          const playerName = matches1[0].jugador1.player_id === playerId 
-            ? `${matches1[0].jugador1.soci.nom} ${matches1[0].jugador1.soci.cognoms}`
-            : `${matches1[0].jugador2.soci.nom} ${matches1[0].jugador2.soci.cognoms}`;
-          
-          warnings.push({
-            type: 'DIES_CONSECUTIUS',
-            playerId,
-            playerName,
-            date1: dates[i],
-            date2: dates[i + 1]
+    // KPI 2: Superen max partides per setmana
+    const weeklyViolations: any[] = [];
+    const maxWeekly = calendarConfig.max_partides_per_setmana;
+    playerMatches.forEach((pMatches, playerId) => {
+      const byWeek = new Map<string, any[]>();
+      pMatches.forEach(m => {
+        const wk = getISOWeekKey(new Date(m.data_programada));
+        if (!byWeek.has(wk)) byWeek.set(wk, []);
+        byWeek.get(wk).push(m);
+      });
+      byWeek.forEach((ms, weekKey) => {
+        if (ms.length > maxWeekly) {
+          weeklyViolations.push({
+            player: playerNames.get(playerId),
+            week: weekKey,
+            count: ms.length,
+            max: maxWeekly
+          });
+        }
+      });
+    });
+
+    // KPI 2b: Jugadors +75 amb dies consecutius
+    const seniorConsecutiveViolations: any[] = [];
+    playerMatches.forEach((pMatches, playerId) => {
+      if (!isPlayerOver75(playerId)) return;
+      if (hasOnly2ConsecutiveDayPrefs(playerId)) return;
+      const dates = pMatches.map(m => {
+        const d = new Date(m.data_programada);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      });
+      const uniqueDates = [...new Set(dates)].sort((a, b) => a - b);
+      for (let i = 0; i < uniqueDates.length - 1; i++) {
+        if ((uniqueDates[i + 1] - uniqueDates[i]) / 86400000 === 1) {
+          const fmt = (t: number) => { const d = new Date(t); return `${d.getDate()}/${d.getMonth()+1}`; };
+          const r = playerRestrictions.get(playerId);
+          seniorConsecutiveViolations.push({
+            player: playerNames.get(playerId),
+            edat: r?.edat,
+            dates: `${fmt(uniqueDates[i])} i ${fmt(uniqueDates[i+1])}`
           });
         }
       }
     });
 
-    // Validació 3: Comprovar distribució de taules per jugador
-    const playerTableStats = new Map();
-    matches.forEach(match => {
-      if (!match.data_programada || !match.taula_assignada) return;
-
-      [match.jugador1.player_id, match.jugador2.player_id].forEach(playerId => {
-        if (!playerTableStats.has(playerId)) {
-          playerTableStats.set(playerId, { total: 0, tables: new Map() });
+    // KPI 3: Dies consecutius
+    const consecutiveViolations: any[] = [];
+    playerMatches.forEach((pMatches, playerId) => {
+      const dates = pMatches.map(m => {
+        const d = new Date(m.data_programada);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      });
+      const uniqueDates = [...new Set(dates)].sort((a, b) => a - b);
+      for (let i = 0; i < uniqueDates.length - 1; i++) {
+        const diff = (uniqueDates[i + 1] - uniqueDates[i]) / 86400000;
+        if (diff === 1) {
+          const d1 = new Date(uniqueDates[i]);
+          const d2 = new Date(uniqueDates[i + 1]);
+          const fmt = (d: Date) => `${d.getDate()}/${d.getMonth()+1}`;
+          consecutiveViolations.push({
+            player: playerNames.get(playerId),
+            dates: `${fmt(d1)} i ${fmt(d2)}`
+          });
         }
-        const stats = playerTableStats.get(playerId);
-        stats.total++;
-        stats.tables.set(match.taula_assignada, (stats.tables.get(match.taula_assignada) || 0) + 1);
+      }
+    });
+
+    // KPI 3b: 3 partides en dies consecutius
+    const threeConsecutiveViolations: any[] = [];
+    playerMatches.forEach((pMatches, playerId) => {
+      const dates = pMatches.map(m => {
+        const d = new Date(m.data_programada);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      });
+      const uniqueDates = [...new Set(dates)].sort((a, b) => a - b);
+      for (let i = 0; i < uniqueDates.length - 2; i++) {
+        const diff1 = (uniqueDates[i + 1] - uniqueDates[i]) / 86400000;
+        const diff2 = (uniqueDates[i + 2] - uniqueDates[i + 1]) / 86400000;
+        if (diff1 === 1 && diff2 === 1) {
+          const fmt = (t: number) => { const d = new Date(t); return `${d.getDate()}/${d.getMonth()+1}`; };
+          threeConsecutiveViolations.push({
+            player: playerNames.get(playerId),
+            dates: `${fmt(uniqueDates[i])}, ${fmt(uniqueDates[i+1])} i ${fmt(uniqueDates[i+2])}`
+          });
+        }
+      }
+    });
+
+    // KPI 3c: Més de 2 parells de dies consecutius
+    const excessConsecutivePairs: any[] = [];
+    playerMatches.forEach((pMatches, playerId) => {
+      if (hasOnly2ConsecutiveDayPrefs(playerId)) return; // Exceptuats
+      const dates = pMatches.map(m => {
+        const d = new Date(m.data_programada);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      });
+      const uniqueDates = [...new Set(dates)].sort((a, b) => a - b);
+      let pairs = 0;
+      for (let i = 0; i < uniqueDates.length - 1; i++) {
+        if ((uniqueDates[i + 1] - uniqueDates[i]) / 86400000 === 1) pairs++;
+      }
+      if (pairs > 2) {
+        excessConsecutivePairs.push({
+          player: playerNames.get(playerId),
+          pairs
+        });
+      }
+    });
+
+    // KPI 4: Partides fora de preferències de dies
+    const dayPrefViolations: any[] = [];
+    const dayNames = ['dg', 'dl', 'dt', 'dc', 'dj', 'dv', 'ds'];
+    const dayLabels = { 'dg': 'Diumenge', 'dl': 'Dilluns', 'dt': 'Dimarts', 'dc': 'Dimecres', 'dj': 'Dijous', 'dv': 'Divendres', 'ds': 'Dissabte' };
+    scheduled.forEach(match => {
+      const matchDate = new Date(match.data_programada);
+      const dayCode = dayNames[matchDate.getDay()];
+      [match.jugador1, match.jugador2].forEach(j => {
+        const r = playerRestrictions.get(j.player_id);
+        if (r?.preferencies_dies?.length > 0 && !r.preferencies_dies.includes(dayCode)) {
+          dayPrefViolations.push({
+            player: playerNames.get(j.player_id),
+            date: `${matchDate.getDate()}/${matchDate.getMonth()+1}`,
+            day: dayLabels[dayCode] || dayCode,
+            prefereix: r.preferencies_dies.map(d => dayLabels[d] || d).join(', ')
+          });
+        }
       });
     });
 
-    playerTableStats.forEach((stats, playerId) => {
-      if (stats.total < 3) return; // Ignorar jugadors amb poques partides
-      
-      stats.tables.forEach((count, table) => {
-        const percentage = count / stats.total;
-        if (percentage > 0.60) {
-          // Trobar nom del jugador
-          const match = matches.find(m => 
-            m.jugador1.player_id === playerId || m.jugador2.player_id === playerId
-          );
-          if (match) {
-            const playerName = match.jugador1.player_id === playerId 
-              ? `${match.jugador1.soci.nom} ${match.jugador1.soci.cognoms}`
-              : `${match.jugador2.soci.nom} ${match.jugador2.soci.cognoms}`;
-            
-            warnings.push({
-              type: 'TAULA_EXCESSIVA',
-              playerId,
-              playerName,
-              table,
-              count,
-              total: stats.total,
-              percentage: (percentage * 100).toFixed(1)
-            });
-          }
+    // KPI 5: Partides fora de preferències d'hores
+    const hourPrefViolations: any[] = [];
+    scheduled.forEach(match => {
+      const matchHour = match.hora_inici;
+      [match.jugador1, match.jugador2].forEach(j => {
+        const r = playerRestrictions.get(j.player_id);
+        if (r?.preferencies_hores?.length > 0 && !r.preferencies_hores.includes(matchHour)) {
+          hourPrefViolations.push({
+            player: playerNames.get(j.player_id),
+            date: (() => { const d = new Date(match.data_programada); return `${d.getDate()}/${d.getMonth()+1}`; })(),
+            hora: matchHour,
+            prefereix: r.preferencies_hores.join(', ')
+          });
         }
       });
     });
 
-    // Mostrar resultats
-    console.log('\n📊 Resultats de la validació:');
-    console.log(`   Errors crítics: ${errors.length}`);
-    console.log(`   Advertiments: ${warnings.length}`);
-
-    if (errors.length > 0) {
-      console.error('\n❌ ERRORS CRÍTICS DETECTATS:');
-      errors.forEach(err => {
-        if (err.type === 'MATEIX_DIA') {
-          console.error(`   ⚠️ ${err.playerName} té ${err.count} partides el ${err.date}:`);
-          err.matches.forEach(m => console.error(`      - ${m}`));
+    // KPI 6: Partides dins períodes de restricció especial
+    const specialRestrViolations: any[] = [];
+    scheduled.forEach(match => {
+      const matchDate = new Date(match.data_programada);
+      [match.jugador1, match.jugador2].forEach(j => {
+        const r = playerRestrictions.get(j.player_id);
+        if (r?.restriccions_especials && isDateRestricted(matchDate, r.restriccions_especials)) {
+          specialRestrViolations.push({
+            player: playerNames.get(j.player_id),
+            date: `${matchDate.getDate()}/${matchDate.getMonth()+1}`,
+            restriccio: r.restriccions_especials.substring(0, 60)
+          });
         }
       });
-    }
+    });
 
-    if (warnings.length > 0) {
-      console.warn('\n⚠️ ADVERTIMENTS:');
-      warnings.forEach(warn => {
-        if (warn.type === 'DIES_CONSECUTIUS') {
-          console.warn(`   📅 ${warn.playerName}: partides en dies consecutius (${warn.date1} i ${warn.date2})`);
-        } else if (warn.type === 'TAULA_EXCESSIVA') {
-          console.warn(`   🎱 ${warn.playerName}: ${warn.percentage}% de partides a la taula ${warn.table} (${warn.count}/${warn.total})`);
+    // KPI 7: Resum general
+    const totalPlayers = playerMatches.size;
+    const matchCounts = Array.from(playerMatches.values()).map(m => m.length);
+    const minMatches = Math.min(...matchCounts);
+    const maxMatchCount = Math.max(...matchCounts);
+
+    // Dates rang
+    const allDates = scheduled.map(m => new Date(m.data_programada).getTime());
+    const firstDate = allDates.length > 0 ? new Date(Math.min(...allDates)) : null;
+    const lastDate = allDates.length > 0 ? new Date(Math.max(...allDates)) : null;
+    const totalWeeks = firstDate && lastDate
+      ? Math.ceil((lastDate.getTime() - firstDate.getTime()) / (7 * 86400000)) + 1
+      : 0;
+
+    // Slots usats vs disponibles
+    const totalSlots = (() => {
+      if (!firstDate || !lastDate) return 0;
+      let count = 0;
+      for (let d = new Date(firstDate); d <= lastDate; d.setDate(d.getDate() + 1)) {
+        const dc = dayNames[d.getDay()];
+        if (calendarConfig.dies_setmana.includes(dc)) {
+          count += calendarConfig.hores_disponibles.length * calendarConfig.taules_per_slot;
         }
-      });
-    }
+      }
+      return count;
+    })();
+    const slotsUsats = scheduled.length;
 
-    if (errors.length === 0 && warnings.length === 0) {
-      console.log('   ✅ Cap problema detectat!');
-    }
+    const kpis = {
+      resum: {
+        programats: scheduled.length,
+        pendents: pending.length,
+        total: matches.length,
+        jugadors: totalPlayers,
+        partidesPerJugador: `${minMatches}-${maxMatchCount}`,
+        setmanes: totalWeeks,
+        slotsUsats,
+        slotsDisponibles: totalSlots,
+        ocupacio: totalSlots > 0 ? `${(slotsUsats / totalSlots * 100).toFixed(1)}%` : '-',
+        primerDia: firstDate ? `${firstDate.getDate()}/${firstDate.getMonth()+1}/${firstDate.getFullYear()}` : '-',
+        ultimDia: lastDate ? `${lastDate.getDate()}/${lastDate.getMonth()+1}/${lastDate.getFullYear()}` : '-',
+      },
+      sameDayViolations,
+      weeklyViolations,
+      seniorConsecutiveViolations,
+      consecutiveViolations,
+      threeConsecutiveViolations,
+      excessConsecutivePairs,
+      dayPrefViolations,
+      hourPrefViolations,
+      specialRestrViolations,
+      isValid: sameDayViolations.length === 0 && dayPrefViolations.length === 0 &&
+               hourPrefViolations.length === 0 && specialRestrViolations.length === 0 &&
+               threeConsecutiveViolations.length === 0 && excessConsecutivePairs.length === 0 &&
+               seniorConsecutiveViolations.length === 0
+    };
 
-    return { errors, warnings, isValid: errors.length === 0 };
+    return kpis;
   }
 
   async function generateCalendar() {
@@ -363,6 +608,7 @@
     }
 
     generatingCalendar = true;
+    calendarError = '';
 
     try {
       console.log('=== GENERANT CALENDARI ===');
@@ -372,20 +618,7 @@
       console.log('🚫 Dies festius configurats:', calendarConfig.dies_festius);
       console.log('Generant calendari amb dates fixades...');
 
-      // 0. Processar restriccions especials dels jugadors
-      let totalSpecialRestrictions = 0;
-      let consecutiveDaysAvoided = { count: 0 }; // 🔄 Contador per dies consecutius evitats
-      
-      playerRestrictions.forEach((restrictions, playerId) => {
-        if (restrictions.restriccions_especials) {
-          const parsedRestrictions = parseSpecialRestrictions(restrictions.restriccions_especials);
-          if (parsedRestrictions.length > 0) {
-            totalSpecialRestrictions += parsedRestrictions.length;
-            console.log(`🚫 Jugador ${playerId}: ${parsedRestrictions.length} restriccions especials detectades`);
-          }
-        }
-      });
-      console.log(`📋 Total restriccions especials processades: ${totalSpecialRestrictions}`);
+      let consecutiveDaysAvoided = { count: 0 };
 
       // 1. Generar tots els enfrontaments possibles per categoria
       const matchups = generateAllMatchups();
@@ -414,13 +647,8 @@
       // 3. Distribuir enfrontaments al calendari respectant restriccions
       const scheduledMatches = scheduleMatches(matchups, consecutiveDaysAvoided);
 
-      // 4. Validar el calendari generat
-      const validation = validateGeneratedCalendar(scheduledMatches);
-      
-      if (!validation.isValid) {
-        console.error('❌ El calendari generat conté errors crítics. Revisa els logs.');
-        // Encara mostrem el calendari perquè l'administrador pugui veure els errors
-      }
+      // 4. Validar el calendari generat i calcular KPIs
+      calendarKPIs = validateGeneratedCalendar(scheduledMatches);
 
       proposedCalendar = scheduledMatches;
       showPreview = true;
@@ -430,7 +658,8 @@
 
     } catch (error) {
       console.error('Error generant calendari:', error);
-      dispatch('error', { message: formatSupabaseError(error) });
+      calendarError = error instanceof Error ? error.message : formatSupabaseError(error);
+      dispatch('error', { message: calendarError });
     } finally {
       generatingCalendar = false;
     }
@@ -440,13 +669,36 @@
     const matchups = [];
 
     console.log('Generant enfrontaments per categories:', Object.fromEntries(playersByCategory));
+    console.log('Categories disponibles (prop):', categories.map(c => ({ id: c.id, nom: c.nom })));
+    console.log('Categories al playersByCategory:', Array.from(playersByCategory.keys()));
 
     playersByCategory.forEach((players, categoryId) => {
       const category = categories.find(c => c.id === categoryId);
-      console.log(`Categoria ${categoryId}:`, category?.nom, `${players.length} jugadors`);
+      console.log(`Categoria ${categoryId}:`, category?.nom || '⚠️ NO TROBADA', `${players.length} jugadors`);
 
-      if (!category || players.length < 2) {
-        console.log(`Saltant categoria ${category?.nom || categoryId}: ${players.length < 2 ? 'menys de 2 jugadors' : 'categoria no trobada'}`);
+      if (!category) {
+        console.error(`❌ Categoria ${categoryId} no trobada a les categories del prop! Jugadors: ${players.length}`);
+        // Usar la categoria directament per no perdre partides
+        const fallbackCategory = { id: categoryId, nom: `Cat-${categoryId.substring(0, 8)}` };
+        if (players.length >= 2) {
+          for (let i = 0; i < players.length; i++) {
+            for (let j = i + 1; j < players.length; j++) {
+              matchups.push({
+                categoria_id: categoryId,
+                categoria_nom: fallbackCategory.nom,
+                jugador1: players[i],
+                jugador2: players[j],
+                prioritat: Math.random()
+              });
+            }
+          }
+          console.log(`  ✅ Generades ${players.length * (players.length - 1) / 2} partides amb fallback`);
+        }
+        return;
+      }
+
+      if (players.length < 2) {
+        console.log(`Saltant categoria ${category.nom}: menys de 2 jugadors`);
         return;
       }
 
@@ -472,24 +724,21 @@
     const scheduled = [];
     const unscheduled = [];
 
-    // Log de restriccions especials carregades
-    console.log(`\n🔐 Restriccions especials de jugadors carregades: ${playerRestrictions.size}`);
+    // Pre-cachejar totes les restriccions especials
     let playersWithRestrictions = 0;
     playerRestrictions.forEach((restrictions, playerId) => {
       if (restrictions.restriccions_especials) {
         playersWithRestrictions++;
-        const periods = parseSpecialRestrictions(restrictions.restriccions_especials);
-        console.log(`   📅 ${restrictions.soci.nom}: ${periods.length} períodes restringits`);
-        periods.forEach(p => {
-          console.log(`      - ${p.start.toISOString().split('T')[0]} a ${p.end.toISOString().split('T')[0]}`);
-        });
+        const cached = parseSpecialRestrictions(restrictions.restriccions_especials);
+        parsedRestrictionsCache.set(restrictions.restriccions_especials, cached);
       }
     });
-    console.log(`   Total jugadors amb restriccions: ${playersWithRestrictions}\n`);
+    console.log(`Restriccions especials: ${playersWithRestrictions} jugadors amb períodes restringits`);
 
     // Tracking per jugador
-    const playerStats = new Map(); // jugador -> { matchesScheduled: number, lastMatchDate: Date|null, tableUsage: Map<number, number> }
-    const playerAvailability = new Map(); // jugador -> [{date: Date, time: string}] quan ja juga
+    const playerStats = new Map();
+    const playerAvailability = new Map();
+    const playerWeeklyMatches = new Map(); // playerId -> Map<weekKey, count>
 
     // Inicialitzar stats dels jugadors
     playersByCategory.forEach(players => {
@@ -497,43 +746,70 @@
         playerStats.set(player.player_id, {
           matchesScheduled: 0,
           lastMatchDate: null,
-          tableUsage: new Map() // taula -> nombre de partits
+          tableUsage: new Map()
         });
         playerAvailability.set(player.player_id, []);
+        playerWeeklyMatches.set(player.player_id, new Map());
       });
     });
 
     // Generar dates disponibles
     const availableDates = generateAvailableDates();
 
-    // Algoritme equilibrat: processar per rondes
-    let remainingMatchups = [...matchups];
-    let attempts = 0;
-    const maxAttempts = 10;
-    
     const startTime = Date.now();
-    const maxExecutionTime = 30000; // 30 segons màxim
+    const maxExecutionTime = 30000;
+
+    // Fase 0: Detectar partides impossibles per incompatibilitat de preferències
+    const incompatibleMatchups = [];
+    const schedulableMatchups = [];
+
+    matchups.forEach(matchup => {
+      const reason = checkScheduleIncompatibility(matchup);
+      if (reason) {
+        incompatibleMatchups.push({ matchup, reason });
+      } else {
+        schedulableMatchups.push(matchup);
+      }
+    });
+
+    if (incompatibleMatchups.length > 0) {
+      console.warn(`\n⛔ ${incompatibleMatchups.length} partides impossibles per incompatibilitat:`);
+      incompatibleMatchups.forEach(({ matchup, reason }) => {
+        console.warn(`   ${matchup.jugador1.soci.nom} vs ${matchup.jugador2.soci.nom}: ${reason}`);
+        unscheduled.push({
+          ...matchup,
+          data_programada: null,
+          hora_inici: null,
+          taula_assignada: null,
+          estat: 'pendent_programar',
+          motiu: reason
+        });
+      });
+    }
+
+    let remainingMatchups = [...schedulableMatchups];
+    let attempts = 0;
+    const maxAttempts = 50;
 
     while (remainingMatchups.length > 0 && attempts < maxAttempts) {
-      // Comprovar timeout
       if (Date.now() - startTime > maxExecutionTime) {
         console.warn(`⏱️ TIMEOUT: Generació interrompuda després de 30 segons`);
-        console.warn(`   Partits programats: ${scheduled.length}`);
-        console.warn(`   Partits pendents: ${remainingMatchups.length}`);
         break;
       }
-      
-      attempts++;
-      console.log(`📅 Ronda ${attempts}/${maxAttempts}: ${remainingMatchups.length} partits per programar`);
 
-      // Ordenar enfrontaments per prioritat equilibrada
+      attempts++;
+      console.log(`📅 Ronda ${attempts}: ${remainingMatchups.length} partits per programar`);
+
       remainingMatchups = sortMatchupsByBalance(remainingMatchups, playerStats);
 
       const scheduledThisRound = [];
       const unscheduledThisRound = [];
 
       for (const matchup of remainingMatchups) {
-        const bestSlot = findBestBalancedSlot(matchup, availableDates, playerAvailability, playerStats, consecutiveDaysCounter);
+        const bestSlot = findBestBalancedSlot(
+          matchup, availableDates, playerAvailability, playerStats,
+          consecutiveDaysCounter, playerWeeklyMatches
+        );
 
         if (bestSlot) {
           const scheduledMatch = {
@@ -547,22 +823,22 @@
           scheduled.push(scheduledMatch);
           scheduledThisRound.push(scheduledMatch);
 
-          // Actualitzar stats dels jugadors
           const matchDate = new Date(bestSlot.date);
+          const weekKey = getISOWeekKey(matchDate);
 
           [matchup.jugador1.player_id, matchup.jugador2.player_id].forEach(playerId => {
             const stats = playerStats.get(playerId);
             stats.matchesScheduled++;
             stats.lastMatchDate = matchDate;
-            // Guardar data+hora per evitar duplicats a la mateixa hora
             playerAvailability.get(playerId).push({ date: matchDate, time: bestSlot.time });
-            
-            // Actualitzar ús de taula
+
             const currentTableUsage = stats.tableUsage.get(bestSlot.table) || 0;
             stats.tableUsage.set(bestSlot.table, currentTableUsage + 1);
+
+            const weekMap = playerWeeklyMatches.get(playerId);
+            weekMap.set(weekKey, (weekMap.get(weekKey) || 0) + 1);
           });
 
-          // Marcar slot com utilitzat
           bestSlot.isUsed = true;
         } else {
           unscheduledThisRound.push(matchup);
@@ -571,44 +847,71 @@
 
       remainingMatchups = unscheduledThisRound;
 
-      // Si no s'ha programat cap partit en aquesta ronda, sortir
       if (scheduledThisRound.length === 0) {
-        console.warn('⚠️ No s\'han pogut programar més partits en aquesta ronda');
-        console.warn(`   Slots totals disponibles: ${availableDates.length}`);
-        console.warn(`   Slots usats: ${availableDates.filter(s => s.isUsed).length}`);
+        console.warn(`⚠️ No s'han pogut programar més partits`);
         console.warn(`   Slots lliures: ${availableDates.filter(s => !s.isUsed).length}`);
         break;
       }
 
       console.log(`✅ Ronda ${attempts}: ${scheduledThisRound.length} partits programats`);
-
-      // Mostrar estadístiques d'equilibri cada 2 rondes
-      if (attempts % 2 === 0) {
-        logPlayerBalance(playerStats);
-      }
     }
-    
-    // Log final detallat
+
     const executionTime = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log(`⏱️ Temps d'execució: ${executionTime}s`);
 
-    // Afegir partits no programats com a pendents
+    // Afegir partits no programats com a pendents (amb motiu si és possible)
     remainingMatchups.forEach(matchup => {
+      const reason = checkScheduleIncompatibility(matchup);
       unscheduled.push({
         ...matchup,
         data_programada: null,
         hora_inici: null,
         taula_assignada: null,
-        estat: 'pendent_programar'
+        estat: 'pendent_programar',
+        motiu: reason || 'Sense slots disponibles dins el període'
       });
     });
+
+    // Fase d'intercanvi: partides flexibles cedeixen lloc a partides no programades
+    if (unscheduled.length > 0 && scheduled.length > 0) {
+      const swapResult = trySwapFlexibleMatches(
+        scheduled, unscheduled, availableDates,
+        playerAvailability, playerStats, playerWeeklyMatches, consecutiveDaysCounter, startTime, maxExecutionTime
+      );
+      // Només actualitzar si el resultat és una referència diferent (hi ha hagut intercanvis)
+      if (swapResult.scheduled !== scheduled) {
+        scheduled.length = 0;
+        scheduled.push(...swapResult.scheduled);
+      }
+      if (swapResult.unscheduled !== unscheduled) {
+        unscheduled.length = 0;
+        unscheduled.push(...swapResult.unscheduled);
+      }
+    }
 
     console.log(`📊 Resum final:`);
     console.log(`✅ Partits programats: ${scheduled.length}`);
     console.log(`⏳ Partits pendents: ${unscheduled.length}`);
     logPlayerBalance(playerStats);
 
-    // ✨ PAS DE REBALANCEIG: Optimitzar la distribució de taules
+    // Validació final: verificar que cap jugador té dues partides el mateix dia
+    const dayConflicts = validateNoDuplicateDays(scheduled);
+    if (dayConflicts.length > 0) {
+      console.error(`❌ ALERTA: ${dayConflicts.length} conflictes detectats (jugadors amb 2 partides el mateix dia):`);
+      dayConflicts.forEach(c => console.error(`   ${c}`));
+    } else {
+      console.log(`✅ Validació: cap jugador té dues partides el mateix dia`);
+    }
+
+    // Validació: max_partides_per_setmana
+    const weekConflicts = validateWeeklyLimits(scheduled);
+    if (weekConflicts.length > 0) {
+      console.error(`❌ ALERTA: ${weekConflicts.length} conflictes setmanals detectats:`);
+      weekConflicts.forEach(c => console.error(`   ${c}`));
+    } else {
+      console.log(`✅ Validació: cap jugador supera ${calendarConfig.max_partides_per_setmana} partides/setmana`);
+    }
+
     if (scheduled.length > 0) {
       console.log(`\n🔄 Iniciant rebalanceig de taules...`);
       const rebalancedScheduled = rebalanceTableDistribution(scheduled);
@@ -616,6 +919,399 @@
     }
 
     return [...scheduled, ...unscheduled];
+  }
+
+  // Helper: comprovar si un jugador té +75 anys
+  function isPlayerOver75(playerId: string): boolean {
+    const r = playerRestrictions.get(playerId);
+    return r?.edat != null && r.edat > 75;
+  }
+
+  // Helper: comprovar si un jugador té dies preferits que són exactament 2 i consecutius
+  function hasOnly2ConsecutiveDayPrefs(playerId: string): boolean {
+    const r = playerRestrictions.get(playerId);
+    const prefs = r?.preferencies_dies;
+    if (!prefs || prefs.length !== 2) return false;
+    const dayOrder = ['dl', 'dt', 'dc', 'dj', 'dv', 'ds', 'dg'];
+    const i0 = dayOrder.indexOf(prefs[0]);
+    const i1 = dayOrder.indexOf(prefs[1]);
+    return Math.abs(i0 - i1) === 1;
+  }
+
+  // Helper: comptar parells de dies consecutius existents per un jugador
+  // i comprovar si afegir slotDate en crearia un de nou (max 2 parells permesos)
+  function wouldExceedConsecutivePairs(busy: any[], slotDate: Date): boolean {
+    const DAY = 86400000;
+    const busyDays = new Set(busy.map(b => {
+      const d = new Date(b.date);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    }));
+    const slotTime = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate()).getTime();
+
+    // Comprovar si el slot crea un nou parell consecutiu
+    const createsNewPair = busyDays.has(slotTime - DAY) || busyDays.has(slotTime + DAY);
+    if (!createsNewPair) return false;
+
+    // Comptar parells consecutius existents (sense el slot)
+    const sortedDays = [...busyDays].sort((a, b) => a - b);
+    let existingPairs = 0;
+    for (let i = 0; i < sortedDays.length - 1; i++) {
+      if (sortedDays[i + 1] - sortedDays[i] === DAY) existingPairs++;
+    }
+
+    return existingPairs >= 2;
+  }
+
+  // Helper: comprovar si afegir slotDate crearia 3 dies consecutius amb partides
+  function wouldCreate3ConsecutiveDays(busy: any[], slotDate: Date): boolean {
+    const slotTime = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate()).getTime();
+    const DAY = 86400000;
+    const busyDays = new Set(busy.map(b => {
+      const d = new Date(b.date);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    }));
+
+    const hasD_2 = busyDays.has(slotTime - 2 * DAY);
+    const hasD_1 = busyDays.has(slotTime - DAY);
+    const hasD1 = busyDays.has(slotTime + DAY);
+    const hasD2 = busyDays.has(slotTime + 2 * DAY);
+
+    if (hasD_2 && hasD_1) return true;
+    if (hasD_1 && hasD1) return true;
+    if (hasD1 && hasD2) return true;
+
+    return false;
+  }
+
+  // Comprovar si un jugador té restriccions de dies o hores
+  function isFlexiblePlayer(playerId) {
+    const r = playerRestrictions.get(playerId);
+    if (!r) return true;
+    const hasDayPrefs = r.preferencies_dies?.length > 0;
+    const hasTimePrefs = r.preferencies_hores?.length > 0;
+    return !hasDayPrefs && !hasTimePrefs;
+  }
+
+  // Comprovar si un slot compleix TOTES les restriccions dures per un matchup
+  // (excloent slot.isUsed, que es gestiona externament)
+  function slotPassesHardConstraints(slot, matchup, playerAvailability, playerWeeklyMatches, excludeMatchId = null) {
+    const p1Id = matchup.jugador1.player_id;
+    const p2Id = matchup.jugador2.player_id;
+    const p1Restrictions = playerRestrictions.get(p1Id);
+    const p2Restrictions = playerRestrictions.get(p2Id);
+    const dateStr = slot.date.toISOString().split('T')[0];
+    const dayOfWeek = getDayOfWeekCode(slot.date.getDay());
+
+    // Mateix dia (excloent la partida que s'està movent)
+    const p1Busy = (playerAvailability.get(p1Id) || []).filter(b =>
+      !excludeMatchId || b.matchId !== excludeMatchId
+    );
+    const p2Busy = (playerAvailability.get(p2Id) || []).filter(b =>
+      !excludeMatchId || b.matchId !== excludeMatchId
+    );
+
+    if (p1Busy.some(b => b.date.toISOString().split('T')[0] === dateStr)) return false;
+    if (p2Busy.some(b => b.date.toISOString().split('T')[0] === dateStr)) return false;
+
+    // Jugadors +75 anys: no dies consecutius (excepte si dies preferits són 2 consecutius)
+    const slotTime75h = new Date(slot.date.getFullYear(), slot.date.getMonth(), slot.date.getDate()).getTime();
+    const DAY75h = 86400000;
+    for (const [pid, busy] of [[p1Id, p1Busy], [p2Id, p2Busy]] as [string, any[]][]) {
+      if (isPlayerOver75(pid) && !hasOnly2ConsecutiveDayPrefs(pid)) {
+        const hasAdjacent = busy.some(b => {
+          const bTime = new Date(b.date.getFullYear(), b.date.getMonth(), b.date.getDate()).getTime();
+          return Math.abs(bTime - slotTime75h) === DAY75h;
+        });
+        if (hasAdjacent) return false;
+      }
+    }
+
+    // 3 dies consecutius (si max_partides_per_setmana < 5)
+    if (calendarConfig.max_partides_per_setmana < 5) {
+      const slotTime = new Date(slot.date.getFullYear(), slot.date.getMonth(), slot.date.getDate()).getTime();
+      const DAY = 86400000;
+      for (const busy of [p1Busy, p2Busy]) {
+        const busyDays = new Set(busy.map(b => {
+          const d = new Date(b.date);
+          return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+        }));
+        if ((busyDays.has(slotTime - 2*DAY) && busyDays.has(slotTime - DAY)) ||
+            (busyDays.has(slotTime - DAY) && busyDays.has(slotTime + DAY)) ||
+            (busyDays.has(slotTime + DAY) && busyDays.has(slotTime + 2*DAY))) {
+          return false;
+        }
+      }
+    }
+
+    // Max 2 parells de dies consecutius per jugador
+    for (const [pid, busy] of [[p1Id, p1Busy], [p2Id, p2Busy]] as [string, any[]][]) {
+      if (!hasOnly2ConsecutiveDayPrefs(pid) && wouldExceedConsecutivePairs(busy, slot.date)) {
+        return false;
+      }
+    }
+
+    // DUR: Setmanal
+    const weekKey = getISOWeekKey(slot.date);
+    const maxWeekly = calendarConfig.max_partides_per_setmana;
+    let p1Week = playerWeeklyMatches.get(p1Id)?.get(weekKey) || 0;
+    let p2Week = playerWeeklyMatches.get(p2Id)?.get(weekKey) || 0;
+    if (p1Week >= maxWeekly || p2Week >= maxWeekly) return false;
+
+    // Dies
+    if (p1Restrictions?.preferencies_dies?.length > 0 &&
+        !p1Restrictions.preferencies_dies.includes(dayOfWeek)) return false;
+    if (p2Restrictions?.preferencies_dies?.length > 0 &&
+        !p2Restrictions.preferencies_dies.includes(dayOfWeek)) return false;
+
+    // Hores
+    if (p1Restrictions?.preferencies_hores?.length > 0 &&
+        !p1Restrictions.preferencies_hores.includes(slot.time)) return false;
+    if (p2Restrictions?.preferencies_hores?.length > 0 &&
+        !p2Restrictions.preferencies_hores.includes(slot.time)) return false;
+
+    // Restriccions especials
+    if (p1Restrictions?.restriccions_especials &&
+        isDateRestricted(slot.date, p1Restrictions.restriccions_especials)) return false;
+    if (p2Restrictions?.restriccions_especials &&
+        isDateRestricted(slot.date, p2Restrictions.restriccions_especials)) return false;
+
+    return true;
+  }
+
+  // Fase d'intercanvi: partides flexibles (sense restriccions de dies/hores) cedeixen el seu slot
+  // a partides no programades, i busquen un nou slot per elles mateixes
+  function trySwapFlexibleMatches(scheduled, unscheduled, availableDates, playerAvailability, playerStats, playerWeeklyMatches, consecutiveDaysCounter, startTime, maxExecutionTime) {
+    // Filtrar partides no programades que NO són incompatibles (tenen motiu d'incompatibilitat)
+    const swappableUnscheduled = unscheduled.filter(m => !checkScheduleIncompatibility(m));
+    if (swappableUnscheduled.length === 0) {
+      console.log(`🔄 Intercanvi: cap partida pendent és compatible, no es fan intercanvis`);
+      return { scheduled, unscheduled };
+    }
+
+    // Identificar partides flexibles (ambdós jugadors sense restriccions de dies/hores)
+    const flexibleScheduled = scheduled.filter(m =>
+      isFlexiblePlayer(m.jugador1.player_id) && isFlexiblePlayer(m.jugador2.player_id)
+    );
+
+    console.log(`\n🔄 Fase d'intercanvi:`);
+    console.log(`   Partides pendents compatibles: ${swappableUnscheduled.length}`);
+    console.log(`   Partides flexibles programades: ${flexibleScheduled.length}`);
+
+    if (flexibleScheduled.length === 0) {
+      console.log(`   Cap partida flexible disponible per intercanvi`);
+      return { scheduled, unscheduled };
+    }
+
+    let swapCount = 0;
+    const newScheduled = [...scheduled];
+    const newUnscheduled = [...unscheduled];
+
+    for (let ui = newUnscheduled.length - 1; ui >= 0; ui--) {
+      if (Date.now() - startTime > maxExecutionTime) break;
+
+      const pendingMatch = newUnscheduled[ui];
+      // Saltar partides incompatibles
+      if (checkScheduleIncompatibility(pendingMatch)) continue;
+
+      const p1Id = pendingMatch.jugador1.player_id;
+      const p2Id = pendingMatch.jugador2.player_id;
+
+      // Buscar una partida flexible el slot de la qual serveixi per la partida pendent
+      for (let si = 0; si < newScheduled.length; si++) {
+        const flexMatch = newScheduled[si];
+        // Només considerar partides flexibles
+        if (!isFlexiblePlayer(flexMatch.jugador1.player_id) ||
+            !isFlexiblePlayer(flexMatch.jugador2.player_id)) continue;
+
+        const candidateSlot = {
+          date: flexMatch.data_programada,
+          time: flexMatch.hora_inici,
+          table: flexMatch.taula_assignada
+        };
+
+        // 1. El slot de la partida flexible serveix per la partida pendent?
+        // Primer: treure temporalment la partida flexible de les estructures
+        const flexP1Id = flexMatch.jugador1.player_id;
+        const flexP2Id = flexMatch.jugador2.player_id;
+        const flexDateStr = candidateSlot.date.toISOString().split('T')[0];
+        const flexWeekKey = getISOWeekKey(candidateSlot.date);
+
+        // Simular que la partida flexible no existeix
+        const removeFromAvailability = (playerId, dateStr) => {
+          const busy = playerAvailability.get(playerId);
+          if (!busy) return -1;
+          const idx = busy.findIndex(b => b.date.toISOString().split('T')[0] === dateStr);
+          if (idx >= 0) busy.splice(idx, 1);
+          return idx;
+        };
+        const removeFromWeekly = (playerId, weekKey) => {
+          const weekMap = playerWeeklyMatches.get(playerId);
+          if (!weekMap) return;
+          const count = weekMap.get(weekKey) || 0;
+          if (count > 1) weekMap.set(weekKey, count - 1);
+          else weekMap.delete(weekKey);
+        };
+
+        // Treure la partida flexible temporalment
+        removeFromAvailability(flexP1Id, flexDateStr);
+        removeFromAvailability(flexP2Id, flexDateStr);
+        removeFromWeekly(flexP1Id, flexWeekKey);
+        removeFromWeekly(flexP2Id, flexWeekKey);
+
+        // Comprovar si el slot serveix per la partida pendent
+        const pendingFits = slotPassesHardConstraints(
+          candidateSlot, pendingMatch, playerAvailability, playerWeeklyMatches
+        );
+
+        if (pendingFits) {
+          // 2. Buscar un nou slot per la partida flexible
+          const flexMatchup = {
+            jugador1: flexMatch.jugador1,
+            jugador2: flexMatch.jugador2,
+            categoria_id: flexMatch.categoria_id,
+            categoria_nom: flexMatch.categoria_nom
+          };
+
+          // Alliberar el slot original
+          const originalSlot = availableDates.find(s =>
+            s.date.toISOString().split('T')[0] === flexDateStr &&
+            s.time === candidateSlot.time &&
+            s.table === candidateSlot.table
+          );
+          if (originalSlot) originalSlot.isUsed = false;
+
+          const newSlotForFlex = findBestBalancedSlot(
+            flexMatchup, availableDates, playerAvailability, playerStats,
+            consecutiveDaysCounter, playerWeeklyMatches
+          );
+
+          if (newSlotForFlex) {
+            // Intercanvi reeixit!
+            // Marcar el nou slot de la flexible com a usat
+            newSlotForFlex.isUsed = true;
+
+            // Actualitzar la partida flexible amb el nou slot
+            newScheduled[si] = {
+              ...flexMatch,
+              data_programada: newSlotForFlex.date,
+              hora_inici: newSlotForFlex.time,
+              taula_assignada: newSlotForFlex.table
+            };
+
+            // Registrar la flexible al nou lloc
+            const newFlexDate = new Date(newSlotForFlex.date);
+            const newFlexWeekKey = getISOWeekKey(newFlexDate);
+            [flexP1Id, flexP2Id].forEach(pid => {
+              playerAvailability.get(pid).push({ date: newFlexDate, time: newSlotForFlex.time });
+              const wm = playerWeeklyMatches.get(pid);
+              wm.set(newFlexWeekKey, (wm.get(newFlexWeekKey) || 0) + 1);
+            });
+
+            // Marcar el slot original com a usat per la partida pendent
+            if (originalSlot) originalSlot.isUsed = true;
+
+            // Programar la partida pendent al slot alliberat
+            const scheduledPending = {
+              ...pendingMatch,
+              data_programada: candidateSlot.date,
+              hora_inici: candidateSlot.time,
+              taula_assignada: candidateSlot.table,
+              estat: 'generat',
+              motiu: undefined
+            };
+            newScheduled.push(scheduledPending);
+
+            // Registrar la pendent
+            const pendDate = new Date(candidateSlot.date);
+            const pendWeekKey = getISOWeekKey(pendDate);
+            [p1Id, p2Id].forEach(pid => {
+              playerAvailability.get(pid).push({ date: pendDate, time: candidateSlot.time });
+              const wm = playerWeeklyMatches.get(pid);
+              wm.set(pendWeekKey, (wm.get(pendWeekKey) || 0) + 1);
+              const stats = playerStats.get(pid);
+              if (stats) stats.matchesScheduled++;
+            });
+
+            // Treure de la llista de pendents
+            newUnscheduled.splice(ui, 1);
+            swapCount++;
+
+            console.log(`   ✅ Intercanvi #${swapCount}: ${pendingMatch.jugador1.soci.nom} vs ${pendingMatch.jugador2.soci.nom} ← slot de ${flexMatch.jugador1.soci.nom} vs ${flexMatch.jugador2.soci.nom}`);
+            break; // Següent partida pendent
+          } else {
+            // No s'ha trobat nou slot per la flexible, desfer
+            if (originalSlot) originalSlot.isUsed = true;
+            // Restaurar la flexible a les estructures
+            [flexP1Id, flexP2Id].forEach(pid => {
+              playerAvailability.get(pid).push({ date: candidateSlot.date, time: candidateSlot.time });
+              const wm = playerWeeklyMatches.get(pid);
+              wm.set(flexWeekKey, (wm.get(flexWeekKey) || 0) + 1);
+            });
+          }
+        } else {
+          // El slot no serveix per la pendent, restaurar la flexible
+          [flexP1Id, flexP2Id].forEach(pid => {
+            playerAvailability.get(pid).push({ date: candidateSlot.date, time: candidateSlot.time });
+            const wm = playerWeeklyMatches.get(pid);
+            wm.set(flexWeekKey, (wm.get(flexWeekKey) || 0) + 1);
+          });
+        }
+      }
+    }
+
+    console.log(`   🔄 Total intercanvis realitzats: ${swapCount}`);
+    return { scheduled: newScheduled, unscheduled: newUnscheduled };
+  }
+
+  // Validar que cap jugador juga 2 partides el mateix dia
+  function validateNoDuplicateDays(matches) {
+    const playerDays = new Map(); // playerId -> Set<dateStr>
+    const conflicts = [];
+
+    matches.forEach(match => {
+      if (!match.data_programada) return;
+      const dateStr = new Date(match.data_programada).toISOString().split('T')[0];
+
+      [match.jugador1, match.jugador2].forEach(jugador => {
+        const pid = jugador.player_id;
+        if (!playerDays.has(pid)) playerDays.set(pid, new Set());
+        const days = playerDays.get(pid);
+        if (days.has(dateStr)) {
+          conflicts.push(`${jugador.soci.nom} ${jugador.soci.cognoms} té 2 partides el ${dateStr}`);
+        }
+        days.add(dateStr);
+      });
+    });
+
+    return conflicts;
+  }
+
+  // Validar que cap jugador supera max_partides_per_setmana (amb marge +1 si max < 5)
+  function validateWeeklyLimits(matches) {
+    const playerWeeks = new Map();
+    const conflicts = [];
+    const maxPerWeek = calendarConfig.max_partides_per_setmana;
+    const hardLimit = maxPerWeek >= 5 ? maxPerWeek : maxPerWeek + 1;
+
+    matches.forEach(match => {
+      if (!match.data_programada) return;
+      const weekKey = getISOWeekKey(new Date(match.data_programada));
+
+      [match.jugador1, match.jugador2].forEach(jugador => {
+        const pid = jugador.player_id;
+        if (!playerWeeks.has(pid)) playerWeeks.set(pid, new Map());
+        const weeks = playerWeeks.get(pid);
+        const count = (weeks.get(weekKey) || 0) + 1;
+        weeks.set(weekKey, count);
+        if (count > hardLimit) {
+          conflicts.push(`❌ ${jugador.soci.nom} ${jugador.soci.cognoms} té ${count} partides a la setmana ${weekKey} (supera límit dur ${hardLimit})`);
+        } else if (count > maxPerWeek) {
+          conflicts.push(`⚠️ ${jugador.soci.nom} ${jugador.soci.cognoms} té ${count} partides a la setmana ${weekKey} (supera nominal ${maxPerWeek}, dins marge)`);
+        }
+      });
+    });
+
+    return conflicts;
   }
 
   // Funció per rebalancejar la distribució de taules després de la generació
@@ -907,29 +1603,140 @@
   }
 
   // Ordenar enfrontaments per equilibri: prioritzar jugadors amb menys partits programats
+  // Calcular la dificultat de programació d'un enfrontament
+  // Més restriccions = menys slots possibles = més difícil = prioritat més alta
+  function getMatchupDifficulty(matchup) {
+    let difficulty = 0;
+    const p1 = playerRestrictions.get(matchup.jugador1.player_id);
+    const p2 = playerRestrictions.get(matchup.jugador2.player_id);
+
+    const totalConfigDays = calendarConfig.dies_setmana.length;
+    const totalConfigHours = calendarConfig.hores_disponibles.length;
+
+    // Restriccions de dies: menys dies disponibles = més difícil
+    const p1Days = p1?.preferencies_dies?.length > 0 ? p1.preferencies_dies : null;
+    const p2Days = p2?.preferencies_dies?.length > 0 ? p2.preferencies_dies : null;
+    if (p1Days && p2Days) {
+      const commonDays = p1Days.filter(d => p2Days.includes(d) && calendarConfig.dies_setmana.includes(d));
+      difficulty += (totalConfigDays - commonDays.length) * 10;
+    } else if (p1Days) {
+      const validDays = p1Days.filter(d => calendarConfig.dies_setmana.includes(d));
+      difficulty += (totalConfigDays - validDays.length) * 5;
+    } else if (p2Days) {
+      const validDays = p2Days.filter(d => calendarConfig.dies_setmana.includes(d));
+      difficulty += (totalConfigDays - validDays.length) * 5;
+    }
+
+    // Restriccions d'hores: menys hores disponibles = més difícil
+    const p1Hours = p1?.preferencies_hores?.length > 0 ? p1.preferencies_hores : null;
+    const p2Hours = p2?.preferencies_hores?.length > 0 ? p2.preferencies_hores : null;
+    if (p1Hours && p2Hours) {
+      const commonHours = p1Hours.filter(h => p2Hours.includes(h) && calendarConfig.hores_disponibles.includes(h));
+      difficulty += (totalConfigHours - commonHours.length) * 15;
+    } else if (p1Hours) {
+      const validHours = p1Hours.filter(h => calendarConfig.hores_disponibles.includes(h));
+      difficulty += (totalConfigHours - validHours.length) * 8;
+    } else if (p2Hours) {
+      const validHours = p2Hours.filter(h => calendarConfig.hores_disponibles.includes(h));
+      difficulty += (totalConfigHours - validHours.length) * 8;
+    }
+
+    // Restriccions especials: si tenen períodes bloquejats, més difícil
+    if (p1?.restriccions_especials) difficulty += 5;
+    if (p2?.restriccions_especials) difficulty += 5;
+
+    return difficulty;
+  }
+
   function sortMatchupsByBalance(matchups, playerStats) {
     return [...matchups].sort((a, b) => {
+      // Primer criteri: dificultat (partides difícils primer)
+      const aDifficulty = getMatchupDifficulty(a);
+      const bDifficulty = getMatchupDifficulty(b);
+      if (aDifficulty !== bDifficulty) {
+        return bDifficulty - aDifficulty; // Més difícils primer
+      }
+
+      // Segon criteri: equilibri (jugadors amb menys partits primer)
       const aPlayer1Stats = playerStats.get(a.jugador1.player_id);
       const aPlayer2Stats = playerStats.get(a.jugador2.player_id);
       const bPlayer1Stats = playerStats.get(b.jugador1.player_id);
       const bPlayer2Stats = playerStats.get(b.jugador2.player_id);
 
-      // Calcular el total de partits programats per cada enfrontament
       const aTotalMatches = aPlayer1Stats.matchesScheduled + aPlayer2Stats.matchesScheduled;
       const bTotalMatches = bPlayer1Stats.matchesScheduled + bPlayer2Stats.matchesScheduled;
 
-      // Prioritzar enfrontaments amb jugadors que tenen menys partits
       if (aTotalMatches !== bTotalMatches) {
         return aTotalMatches - bTotalMatches;
       }
 
-      // Si iguals, prioritzar per prioritat original (aleatòria)
       return b.prioritat - a.prioritat;
     });
   }
 
-  // Funció millorada per trobar el millor slot considerant equilibri
-  function findBestBalancedSlot(matchup, availableDates, playerAvailability, playerStats, consecutiveDaysCounter) {
+  // Detectar si dos jugadors tenen preferències completament incompatibles
+  function checkScheduleIncompatibility(matchup) {
+    const p1 = playerRestrictions.get(matchup.jugador1.player_id);
+    const p2 = playerRestrictions.get(matchup.jugador2.player_id);
+    const p1Name = `${matchup.jugador1.soci.nom} ${matchup.jugador1.soci.cognoms}`.trim();
+    const p2Name = `${matchup.jugador2.soci.nom} ${matchup.jugador2.soci.cognoms}`.trim();
+
+    const p1Days = p1?.preferencies_dies?.length > 0 ? p1.preferencies_dies : null;
+    const p2Days = p2?.preferencies_dies?.length > 0 ? p2.preferencies_dies : null;
+    const p1Hours = p1?.preferencies_hores?.length > 0 ? p1.preferencies_hores : null;
+    const p2Hours = p2?.preferencies_hores?.length > 0 ? p2.preferencies_hores : null;
+    const configDays = calendarConfig.dies_setmana;
+    const configHours = calendarConfig.hores_disponibles;
+
+    // Comprovar que cada jugador té almenys un dia vàlid al calendari
+    if (p1Days) {
+      const validDays = p1Days.filter(d => configDays.includes(d));
+      if (validDays.length === 0) {
+        return `${p1Name} no té cap dia disponible al calendari: prefereix [${p1Days.join(',')}], calendari: [${configDays.join(',')}]`;
+      }
+    }
+    if (p2Days) {
+      const validDays = p2Days.filter(d => configDays.includes(d));
+      if (validDays.length === 0) {
+        return `${p2Name} no té cap dia disponible al calendari: prefereix [${p2Days.join(',')}], calendari: [${configDays.join(',')}]`;
+      }
+    }
+
+    // Comprovar que cada jugador té almenys una hora vàlida al calendari
+    if (p1Hours) {
+      const validHours = p1Hours.filter(h => configHours.includes(h));
+      if (validHours.length === 0) {
+        return `${p1Name} no té cap hora disponible al calendari: prefereix [${p1Hours.join(',')}], calendari: [${configHours.join(',')}]`;
+      }
+    }
+    if (p2Hours) {
+      const validHours = p2Hours.filter(h => configHours.includes(h));
+      if (validHours.length === 0) {
+        return `${p2Name} no té cap hora disponible al calendari: prefereix [${p2Hours.join(',')}], calendari: [${configHours.join(',')}]`;
+      }
+    }
+
+    // Si ambdós tenen preferències de dies, comprovar intersecció dins el calendari
+    if (p1Days && p2Days) {
+      const commonDays = p1Days.filter(d => p2Days.includes(d) && configDays.includes(d));
+      if (commonDays.length === 0) {
+        return `Incompatibilitat de dies: ${p1Name} [${p1Days.join(',')}] vs ${p2Name} [${p2Days.join(',')}]`;
+      }
+    }
+
+    // Si ambdós tenen preferències d'hores, comprovar intersecció dins el calendari
+    if (p1Hours && p2Hours) {
+      const commonHours = p1Hours.filter(h => p2Hours.includes(h) && configHours.includes(h));
+      if (commonHours.length === 0) {
+        return `Incompatibilitat d'horaris: ${p1Name} [${p1Hours.join(',')}] vs ${p2Name} [${p2Hours.join(',')}]`;
+      }
+    }
+
+    return null; // Compatible
+  }
+
+  // Trobar el millor slot per un enfrontament, amb restriccions dures i toves
+  function findBestBalancedSlot(matchup, availableDates, playerAvailability, playerStats, consecutiveDaysCounter, playerWeeklyMatches) {
     const player1Id = matchup.jugador1.player_id;
     const player2Id = matchup.jugador2.player_id;
 
@@ -941,124 +1748,120 @@
     const player1Stats = playerStats.get(player1Id);
     const player2Stats = playerStats.get(player2Id);
 
-    // Contador de slots filtrats per cada raó
     const filterReasons = {
       used: 0,
-      tableLimit: 0,
       sameDay: 0,
-      consecutive: 0,
+      consecutiveStreak: 0,
+      weeklyLimit: 0,
       dayPreference: 0,
       timePreference: 0,
       specialRestrictions: 0,
       total: availableDates.length
     };
 
-    // Filtrar slots disponibles amb restriccions bàsiques
+    // FILTRES DURS: restriccions que MAI es poden violar
     const validSlots = availableDates.filter(slot => {
       if (slot.isUsed) {
         filterReasons.used++;
         return false;
       }
 
-      const dayOfWeek = getDayOfWeekCode(slot.date.getDay());
       const dateStr = slot.date.toISOString().split('T')[0];
-      const slotDate = new Date(slot.date);
+      const dayOfWeek = getDayOfWeekCode(slot.date.getDay());
 
-      // Comprovar si els jugadors ja juguen aquest dia (bloquejar tot el dia)
-      const player1HasMatchThisDay = player1Busy.some(busy => {
-        const busyDateStr = busy.date.toISOString().split('T')[0];
-        return busyDateStr === dateStr; // Bloquejar tot el dia
-      });
-
-      const player2HasMatchThisDay = player2Busy.some(busy => {
-        const busyDateStr = busy.date.toISOString().split('T')[0];
-        return busyDateStr === dateStr; // Bloquejar tot el dia
-      });
-
+      // DUR: Cap jugador pot jugar 2 partides el mateix dia
+      const player1HasMatchThisDay = player1Busy.some(busy =>
+        busy.date.toISOString().split('T')[0] === dateStr
+      );
+      const player2HasMatchThisDay = player2Busy.some(busy =>
+        busy.date.toISOString().split('T')[0] === dateStr
+      );
       if (player1HasMatchThisDay || player2HasMatchThisDay) {
         filterReasons.sameDay++;
         return false;
       }
 
-      // ✨ EVITAR DIES CONSECUTIUS: Excloure completament slots en dies consecutius
-      const hasConsecutiveDayConflict = player1Busy.some(busy => {
-        // Normalitzar dates per comparar només el dia (sense hores)
-        const slotDay = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate());
-        const busyDay = new Date(busy.date.getFullYear(), busy.date.getMonth(), busy.date.getDate());
-        const daysDiff = Math.abs((slotDay.getTime() - busyDay.getTime()) / (1000 * 60 * 60 * 24));
-        return daysDiff === 1; // Exactament 1 dia = consecutiu
-      }) || player2Busy.some(busy => {
-        const slotDay = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate());
-        const busyDay = new Date(busy.date.getFullYear(), busy.date.getMonth(), busy.date.getDate());
-        const daysDiff = Math.abs((slotDay.getTime() - busyDay.getTime()) / (1000 * 60 * 60 * 24));
-        return daysDiff === 1; // Exactament 1 dia = consecutiu
-      });
-
-      if (hasConsecutiveDayConflict) {
-        consecutiveDaysCounter.count++; // Incrementar contador
-        filterReasons.consecutive++;
-        return false;
-      }
-
-      // Comprovar preferències de dies
-      const player1HasDayPrefs = player1Restrictions?.preferencies_dies?.length > 0;
-      const player2HasDayPrefs = player2Restrictions?.preferencies_dies?.length > 0;
-
-      if (player1HasDayPrefs && !player1Restrictions.preferencies_dies.includes(dayOfWeek)) {
-        filterReasons.dayPreference++;
-        return false;
-      }
-      if (player2HasDayPrefs && !player2Restrictions.preferencies_dies.includes(dayOfWeek)) {
-        filterReasons.dayPreference++;
-        return false;
-      }
-
-      // Comprovar preferències d'hores
-      const player1HasTimePrefs = player1Restrictions?.preferencies_hores?.length > 0;
-      const player2HasTimePrefs = player2Restrictions?.preferencies_hores?.length > 0;
-
-      if (player1HasTimePrefs && !player1Restrictions.preferencies_hores.includes(slot.time)) {
-        filterReasons.timePreference++;
-        return false;
-      }
-      if (player2HasTimePrefs && !player2Restrictions.preferencies_hores.includes(slot.time)) {
-        filterReasons.timePreference++;
-        return false;
-      }
-
-      // ✨ NOVA FUNCIONALITAT: Comprovar restriccions especials (dates específiques d'indisponibilitat)
-      if (player1Restrictions?.restriccions_especials) {
-        const dateStr = slot.date.toISOString().split('T')[0];
-        if (dateStr === '2026-01-06') {
-          console.log(`🔍 DEBUG: Comprovant 6/1/2026 per ${matchup.jugador1.soci.nom}`, {
-            slotDate: slot.date,
-            year: slot.date.getFullYear(),
-            month: slot.date.getMonth(),
-            day: slot.date.getDate(),
-            restriccions: player1Restrictions.restriccions_especials
+      // DUR: Jugadors +75 anys no poden jugar en dies consecutius
+      // (excepte si els seus dies preferits són exactament 2 i consecutius)
+      const slotTime75 = new Date(slot.date.getFullYear(), slot.date.getMonth(), slot.date.getDate()).getTime();
+      const DAY75 = 86400000;
+      for (const [pid, busy] of [[player1Id, player1Busy], [player2Id, player2Busy]] as [string, any[]][]) {
+        if (isPlayerOver75(pid) && !hasOnly2ConsecutiveDayPrefs(pid)) {
+          const hasAdjacent = busy.some(b => {
+            const bTime = new Date(b.date.getFullYear(), b.date.getMonth(), b.date.getDate()).getTime();
+            return Math.abs(bTime - slotTime75) === DAY75;
           });
+          if (hasAdjacent) {
+            filterReasons.consecutiveStreak++;
+            return false;
+          }
         }
-        if (isDateRestricted(slot.date, player1Restrictions.restriccions_especials)) {
-          filterReasons.specialRestrictions++;
-          console.log(`   ⛔ ${matchup.jugador1.soci.nom} no disponible el ${dateStr}`);
+      }
+
+      // DUR (si max_partides_per_setmana < 5): No permetre 3 partides en dies consecutius
+      if (calendarConfig.max_partides_per_setmana < 5) {
+        if (wouldCreate3ConsecutiveDays(player1Busy, slot.date) ||
+            wouldCreate3ConsecutiveDays(player2Busy, slot.date)) {
+          filterReasons.consecutiveStreak++;
           return false;
         }
       }
-      
-      if (player2Restrictions?.restriccions_especials) {
-        const dateStr = slot.date.toISOString().split('T')[0];
-        if (dateStr === '2026-01-06') {
-          console.log(`🔍 DEBUG: Comprovant 6/1/2026 per ${matchup.jugador2.soci.nom}`, {
-            slotDate: slot.date,
-            year: slot.date.getFullYear(),
-            month: slot.date.getMonth(),
-            day: slot.date.getDate(),
-            restriccions: player2Restrictions.restriccions_especials
-          });
+
+      // DUR: Max 2 parells de dies consecutius per jugador
+      // (excepte si els seus dies preferits són exactament 2 i consecutius)
+      if (!hasOnly2ConsecutiveDayPrefs(player1Id) && wouldExceedConsecutivePairs(player1Busy, slot.date)) {
+        filterReasons.consecutiveStreak++;
+        return false;
+      }
+      if (!hasOnly2ConsecutiveDayPrefs(player2Id) && wouldExceedConsecutivePairs(player2Busy, slot.date)) {
+        filterReasons.consecutiveStreak++;
+        return false;
+      }
+
+      // DUR: Màxim de partides per setmana per jugador
+      const weekKey = getISOWeekKey(slot.date);
+      const p1WeekCount = playerWeeklyMatches.get(player1Id)?.get(weekKey) || 0;
+      const p2WeekCount = playerWeeklyMatches.get(player2Id)?.get(weekKey) || 0;
+      const maxWeekly = calendarConfig.max_partides_per_setmana;
+      if (p1WeekCount >= maxWeekly || p2WeekCount >= maxWeekly) {
+        filterReasons.weeklyLimit++;
+        return false;
+      }
+
+      // DUR: Preferències de dies (si el jugador ha indicat dies, respectar-los)
+      if (player1Restrictions?.preferencies_dies?.length > 0 &&
+          !player1Restrictions.preferencies_dies.includes(dayOfWeek)) {
+        filterReasons.dayPreference++;
+        return false;
+      }
+      if (player2Restrictions?.preferencies_dies?.length > 0 &&
+          !player2Restrictions.preferencies_dies.includes(dayOfWeek)) {
+        filterReasons.dayPreference++;
+        return false;
+      }
+
+      // DUR: Preferències d'hores (si el jugador ha indicat hores, respectar-les)
+      if (player1Restrictions?.preferencies_hores?.length > 0 &&
+          !player1Restrictions.preferencies_hores.includes(slot.time)) {
+        filterReasons.timePreference++;
+        return false;
+      }
+      if (player2Restrictions?.preferencies_hores?.length > 0 &&
+          !player2Restrictions.preferencies_hores.includes(slot.time)) {
+        filterReasons.timePreference++;
+        return false;
+      }
+
+      // DUR: Restriccions especials (períodes de bloqueig)
+      if (player1Restrictions?.restriccions_especials) {
+        if (isDateRestricted(slot.date, player1Restrictions.restriccions_especials)) {
+          filterReasons.specialRestrictions++;
+          return false;
         }
+      }
+      if (player2Restrictions?.restriccions_especials) {
         if (isDateRestricted(slot.date, player2Restrictions.restriccions_especials)) {
           filterReasons.specialRestrictions++;
-          console.log(`   ⛔ ${matchup.jugador2.soci.nom} no disponible el ${dateStr}`);
           return false;
         }
       }
@@ -1067,67 +1870,70 @@
     });
 
     if (validSlots.length === 0) {
-      // Log detallat quan no es troben slots
-      if (filterReasons.total < 50) { // Només mostrar si hi ha pocs slots disponibles en general
-        console.log(`⚠️ No s'han trobat slots vàlids per ${matchup.jugador1.soci.nom} vs ${matchup.jugador2.soci.nom}`);
-        console.log(`   Slots totals: ${filterReasons.total}`);
-        console.log(`   Filtrats per ús: ${filterReasons.used}`);
-        console.log(`   Filtrats per límit de taula: ${filterReasons.tableLimit}`);
-        console.log(`   Filtrats per mateix dia: ${filterReasons.sameDay}`);
-        console.log(`   Filtrats per dies consecutius: ${filterReasons.consecutive}`);
-        console.log(`   Filtrats per preferències dia: ${filterReasons.dayPreference}`);
-        console.log(`   Filtrats per preferències hora: ${filterReasons.timePreference}`);
-        console.log(`   Filtrats per restriccions especials: ${filterReasons.specialRestrictions}`);
+      const freeSlots = availableDates.filter(s => !s.isUsed).length;
+      if (freeSlots < 100) {
+        console.log(`⚠️ Sense slots per ${matchup.jugador1.soci.nom} vs ${matchup.jugador2.soci.nom}`);
+        console.log(`   Lliures: ${freeSlots}, Mateix dia: ${filterReasons.sameDay}, Setmana plena: ${filterReasons.weeklyLimit}, Dies: ${filterReasons.dayPreference}, Hores: ${filterReasons.timePreference}, Restriccions: ${filterReasons.specialRestrictions}`);
       }
       return null;
     }
 
-    // Ordenar slots per preferència d'equilibri
+    // PUNTUACIÓ: Restriccions toves (preferències, no obligatòries)
+    // Prioritat principal: omplir els primers dies disponibles (partides ASAP)
     const scoredSlots = validSlots.map(slot => {
       let score = 0;
-
-      // Evitar dies consecutius (puntuació alta = millor)
       const slotDate = new Date(slot.date);
-      const daysBetween1 = player1Stats.lastMatchDate ?
-        Math.abs((slotDate.getTime() - player1Stats.lastMatchDate.getTime()) / (1000 * 60 * 60 * 24)) : 999;
-      const daysBetween2 = player2Stats.lastMatchDate ?
-        Math.abs((slotDate.getTime() - player2Stats.lastMatchDate.getTime()) / (1000 * 60 * 60 * 24)) : 999;
 
-      // Prioritzar dies amb més separació (els consecutius ja estan exclosos)
-      const minDaysBetween = Math.min(daysBetween1, daysBetween2);
-      if (minDaysBetween >= 3) {
-        score += 150; // Excel·lent: 3+ dies d'espaiat
-      } else if (minDaysBetween >= 2) {
-        score += 100; // Perfecte: 2+ dies d'espaiat
-      } else if (minDaysBetween >= 1) {
-        score += 50; // Acceptable: 1 dia d'espaiat
+      // --- PROXIMITAT: prioritzar dates més properes (pes dominant) ---
+      // Les partides s'han de jugar al més aviat possible
+      const daysFromStart = Math.abs((slotDate.getTime() - new Date(dataInici).getTime()) / 86400000);
+      score -= daysFromStart * 10; // Penalització forta per cada dia lluny de l'inici
+
+      // --- DIES CONSECUTIUS: penalització (evitar 2 partides en dies seguits) ---
+      const hasConsecutive = [player1Busy, player2Busy].some(busy =>
+        busy.some(b => {
+          const daysDiff = Math.abs(Math.round(
+            (new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate()).getTime() -
+             new Date(b.date.getFullYear(), b.date.getMonth(), b.date.getDate()).getTime()) / 86400000
+          ));
+          return daysDiff === 1;
+        })
+      );
+      if (hasConsecutive) {
+        score -= 80;
+        consecutiveDaysCounter.count++;
       }
-      // Nota: Els dies consecutius ja no poden arribar aquí
 
-      // ✨ DIVERSIFICACIÓ DE TAULES: Bonificar taules que els jugadors han usat menys
+      // --- ESPAIAT ENTRE PARTIDES: bonificació moderada ---
+      // Preferir espaiat però sense que anul·li la proximitat
+      const daysBetween1 = player1Stats.lastMatchDate
+        ? Math.abs((slotDate.getTime() - player1Stats.lastMatchDate.getTime()) / 86400000)
+        : 999;
+      const daysBetween2 = player2Stats.lastMatchDate
+        ? Math.abs((slotDate.getTime() - player2Stats.lastMatchDate.getTime()) / 86400000)
+        : 999;
+      const minDaysBetween = Math.min(daysBetween1, daysBetween2);
+
+      if (minDaysBetween >= 3) score += 30;
+      else if (minDaysBetween >= 2) score += 20;
+
+      // --- DIVERSIFICACIÓ DE TAULES ---
       const player1TableUsage = player1Stats.tableUsage.get(slot.table) || 0;
       const player2TableUsage = player2Stats.tableUsage.get(slot.table) || 0;
       const totalTableUsage = player1TableUsage + player2TableUsage;
-      
-      // Bonificar taules poc utilitzades
-      if (totalTableUsage === 0) {
-        score += 80; // Taula nova per ambdós jugadors
-      } else if (totalTableUsage === 1) {
-        score += 60; // Taula poc utilitzada
-      } else if (totalTableUsage === 2) {
-        score += 40; // Taula moderadament utilitzada
-      } else if (totalTableUsage >= 3) {
-        score += 20; // Taula molt utilitzada (menys preferent)
-      }
 
-      // Prioritzar dates més properes (per omplir el calendari de manera més uniforme)
-      const daysFromStart = Math.abs((slotDate.getTime() - new Date(dataInici).getTime()) / (1000 * 60 * 60 * 24));
-      score += Math.max(0, 30 - daysFromStart * 0.1);
+      if (totalTableUsage === 0) score += 15;
+      else if (totalTableUsage <= 2) score += 5;
+
+      // --- EQUILIBRI SETMANAL: penalitzar setmanes massa carregades ---
+      const weekKey = getISOWeekKey(slotDate);
+      const p1WeekCount = playerWeeklyMatches.get(player1Id)?.get(weekKey) || 0;
+      const p2WeekCount = playerWeeklyMatches.get(player2Id)?.get(weekKey) || 0;
+      score -= (p1WeekCount + p2WeekCount) * 15;
 
       return { slot, score };
     });
 
-    // Retornar el slot amb millor puntuació
     scoredSlots.sort((a, b) => b.score - a.score);
     return scoredSlots[0].slot;
   }
@@ -1379,6 +2185,14 @@
     return days[dayIndex];
   }
 
+  function getISOWeekKey(date: Date): string {
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+    const yearStart = new Date(d.getFullYear(), 0, 1);
+    const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+    return `${d.getFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+  }
+
   // Processar restriccions especials de text lliure
   function parseSpecialRestrictions(restrictions) {
     if (!restrictions || restrictions.trim() === '') return [];
@@ -1392,13 +2206,10 @@
       'juliol': 6, 'agost': 7, 'setembre': 8, 'octubre': 9, 'novembre': 10, 'desembre': 11
     };
     
-    console.log('🔍 Parsing restrictions:', restrictions);
-    
     // Dividir per línies i processar cada línia
     const lines = restrictions.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-    
+
     for (const line of lines) {
-      console.log('📝 Processing line:', line);
       let found = false;
       
       // Test 0: Períodes "del X de [mes1] al Y de [mes2]" (creua mesos/anys)
@@ -1418,10 +2229,6 @@
           }
           
           periods.push({ start: startDate, end: endDate });
-          console.log(`✅ Període detectat: del ${startDay} de ${startMonth} al ${endDay} de ${endMonth} (ambdós inclosos)`, { 
-            dataInici: startDate.toISOString().split('T')[0], 
-            dataFinal: endDate.toISOString().split('T')[0] 
-          });
           found = true;
         }
       }
@@ -1436,10 +2243,6 @@
             const startDate = new Date(currentYear, monthNumber, parseInt(startDay));
             const endDate = new Date(currentYear, monthNumber, parseInt(endDay));
             periods.push({ start: startDate, end: endDate });
-            console.log('✅ Found month period (de) - ambdós dies inclosos:', { 
-              start: startDate.toISOString().split('T')[0], 
-              end: endDate.toISOString().split('T')[0] 
-            });
             found = true;
           }
         }
@@ -1455,10 +2258,6 @@
             const startDate = new Date(currentYear, monthNumber, parseInt(startDay));
             const endDate = new Date(currentYear, monthNumber, parseInt(endDay));
             periods.push({ start: startDate, end: endDate });
-            console.log("✅ Found month period (d') - ambdós dies inclosos:", { 
-              start: startDate.toISOString().split('T')[0], 
-              end: endDate.toISOString().split('T')[0] 
-            });
             found = true;
           }
         }
@@ -1478,10 +2277,6 @@
           }
           
           periods.push({ start: startDate, end: endDate });
-          console.log('✅ Found date period (/) - ambdós dies inclosos:', { 
-            start: startDate.toISOString().split('T')[0], 
-            end: endDate.toISOString().split('T')[0] 
-          });
           found = true;
         }
       }
@@ -1500,10 +2295,6 @@
           }
           
           periods.push({ start: startDate, end: endDate });
-          console.log('✅ Found dash period (-) - ambdós dies inclosos:', { 
-            start: startDate.toISOString().split('T')[0], 
-            end: endDate.toISOString().split('T')[0] 
-          });
           found = true;
         }
       }
@@ -1517,7 +2308,6 @@
           if (monthNumber !== undefined) {
             const date = new Date(currentYear, monthNumber, parseInt(day));
             periods.push({ start: date, end: date });
-            console.log('✅ Found specific date:', { start: date, end: date });
             found = true;
           }
         }
@@ -1532,7 +2322,6 @@
           if (monthNumber !== undefined) {
             const date = new Date(currentYear, monthNumber, parseInt(day));
             periods.push({ start: date, end: date });
-            console.log('✅ Found specific date (no "de"):', { start: date, end: date });
             found = true;
           }
         }
@@ -1549,17 +2338,16 @@
             const date2 = new Date(currentYear, monthNumber, parseInt(day2));
             periods.push({ start: date1, end: date1 });
             periods.push({ start: date2, end: date2 });
-            console.log('✅ Found multiple specific dates:', { date1, date2 });
             found = true;
           }
         }
       }
       
       if (!found) {
-        console.log('❌ No pattern matched for line:', line);
+        console.warn('Restricció no reconeguda:', line);
       }
     }
-    
+
     return periods;
   }
   
@@ -1602,25 +2390,23 @@
     return null;
   }
   
-  // Comprovar si una data està dins les restriccions especials
+  // Comprovar si una data està dins les restriccions especials (amb cache)
   function isDateRestricted(date, restrictionsText) {
     if (!restrictionsText || restrictionsText.trim() === '') return false;
-    
-    const restrictions = parseSpecialRestrictions(restrictionsText);
-    
+
+    // Usar cache per evitar re-parsejar el mateix text milers de vegades
+    let restrictions = parsedRestrictionsCache.get(restrictionsText);
+    if (!restrictions) {
+      restrictions = parseSpecialRestrictions(restrictionsText);
+      parsedRestrictionsCache.set(restrictionsText, restrictions);
+    }
+
+    const checkDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+
     return restrictions.some(restriction => {
-      // Normalitzar totes les dates a mitjanit hora local per comparar només el dia
-      const checkDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
       const startDate = new Date(restriction.start.getFullYear(), restriction.start.getMonth(), restriction.start.getDate(), 0, 0, 0, 0);
       const endDate = new Date(restriction.end.getFullYear(), restriction.end.getMonth(), restriction.end.getDate(), 0, 0, 0, 0);
-      
-      const isRestricted = checkDate >= startDate && checkDate <= endDate;
-      
-      if (isRestricted) {
-        console.log(`   🔒 Data restringida: ${checkDate.toISOString().split('T')[0]} està dins del període ${startDate.toISOString().split('T')[0]} - ${endDate.toISOString().split('T')[0]} (ambdós inclosos)`);
-      }
-      
-      return isRestricted;
+      return checkDate >= startDate && checkDate <= endDate;
     });
   }
 
@@ -2094,6 +2880,63 @@
       {/if}
     </div>
 
+    <!-- Jugadors per categoria -->
+    {#if playersByCategory.size > 0}
+      <div class="mt-6">
+        <button
+          on:click={() => showPlayers = !showPlayers}
+          class="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 mb-3"
+        >
+          <span class="transform transition-transform {showPlayers ? 'rotate-90' : ''}">&gt;</span>
+          Jugadors per Categoria ({Array.from(playersByCategory.values()).reduce((sum, p) => sum + p.length, 0)} jugadors en {playersByCategory.size} categories)
+        </button>
+
+        {#if showPlayers}
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {#each Array.from(playersByCategory.entries()) as [categoryId, players]}
+              {@const category = categories.find(c => c.id === categoryId)}
+              <div class="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                <h5 class="font-medium text-gray-900 mb-2 flex items-center justify-between">
+                  <span>{category?.nom || 'Desconeguda'}</span>
+                  <span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">{players.length} jug.</span>
+                </h5>
+                <div class="space-y-1">
+                  {#each players as player}
+                    {@const restrictions = playerRestrictions.get(player.player_id)}
+                    <div class="flex items-center justify-between bg-white rounded px-2 py-1.5 text-sm border border-gray-100">
+                      <div class="flex-1 min-w-0">
+                        <span class="font-medium text-gray-800 truncate block">{player.soci.nom} {player.soci.cognoms || ''}</span>
+                        <div class="flex flex-wrap gap-1 mt-0.5">
+                          {#if restrictions?.preferencies_dies?.length > 0}
+                            <span class="text-xs text-blue-600">{restrictions.preferencies_dies.join(',')}</span>
+                          {/if}
+                          {#if restrictions?.preferencies_hores?.length > 0}
+                            <span class="text-xs text-green-600">{restrictions.preferencies_hores.join(',')}</span>
+                          {/if}
+                          {#if restrictions?.restriccions_especials}
+                            <span class="text-xs text-red-500" title={restrictions.restriccions_especials}>bloqueig</span>
+                          {/if}
+                        </div>
+                      </div>
+                      <select
+                        value={categoryId}
+                        on:change={(e) => changePlayerCategory(player, categoryId, e.target.value)}
+                        class="ml-2 text-xs border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 py-1"
+                      >
+                        {#each categories as cat}
+                          <option value={cat.id}>{cat.nom}</option>
+                        {/each}
+                      </select>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
+
     <!-- Botons d'acció -->
     <div class="mt-6 flex flex-wrap gap-3">
       {#if !dataFi}
@@ -2149,6 +2992,12 @@
         </button>
       {/if}
     </div>
+
+    {#if calendarError}
+      <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        <strong>Error:</strong> {calendarError}
+      </div>
+    {/if}
   </div>
 
   <!-- Restriccions dels jugadors -->
@@ -2255,21 +3104,216 @@
         <span class="mr-2">👀</span> Vista Prèvia del Calendari
       </h3>
 
-      <div class="mb-4 text-sm text-gray-600">
-        {#if proposedCalendar.filter(p => p.estat === 'generat').length > 0}
-          <div class="space-y-1">
-            <div><strong>✅ Partits programats:</strong> {proposedCalendar.filter(p => p.estat === 'generat').length}</div>
-            {#if proposedCalendar.filter(p => p.estat === 'pendent_programar').length > 0}
-              <div><strong>⏳ Partits pendents:</strong> {proposedCalendar.filter(p => p.estat === 'pendent_programar').length}</div>
+      <!-- KPIs del calendari generat -->
+      {#if calendarKPIs}
+        <div class="mb-6 space-y-4">
+          <!-- Resum general -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+              <div class="text-2xl font-bold text-green-700">{calendarKPIs.resum.programats}</div>
+              <div class="text-xs text-green-600">Programats</div>
+            </div>
+            {#if calendarKPIs.resum.pendents > 0}
+              <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+                <div class="text-2xl font-bold text-yellow-700">{calendarKPIs.resum.pendents}</div>
+                <div class="text-xs text-yellow-600">Pendents</div>
+              </div>
             {/if}
-            <div><strong>📊 Total:</strong> {proposedCalendar.length} partits</div>
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+              <div class="text-2xl font-bold text-blue-700">{calendarKPIs.resum.jugadors}</div>
+              <div class="text-xs text-blue-600">Jugadors</div>
+            </div>
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
+              <div class="text-2xl font-bold text-gray-700">{calendarKPIs.resum.partidesPerJugador}</div>
+              <div class="text-xs text-gray-500">Partides/jugador</div>
+            </div>
+            <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center">
+              <div class="text-2xl font-bold text-purple-700">{calendarKPIs.resum.ocupacio}</div>
+              <div class="text-xs text-purple-600">Ocupació slots</div>
+            </div>
           </div>
-        {:else}
-          <div class="text-yellow-600">
-            <strong>⚠️ Cap partit programat automàticament</strong> - tots requereixen programació manual
+
+          <div class="text-xs text-gray-500">
+            {calendarKPIs.resum.primerDia} - {calendarKPIs.resum.ultimDia} ({calendarKPIs.resum.setmanes} setmanes) | {calendarKPIs.resum.slotsUsats}/{calendarKPIs.resum.slotsDisponibles} slots
           </div>
-        {/if}
-      </div>
+
+          <!-- Validacions de restriccions dures -->
+          <div class="border border-gray-200 rounded-lg overflow-hidden">
+            <div class="bg-gray-50 px-4 py-2 border-b border-gray-200">
+              <h4 class="text-sm font-semibold text-gray-800">Validació de Restriccions</h4>
+            </div>
+            <div class="divide-y divide-gray-100">
+              <!-- Mateix dia -->
+              <div class="px-4 py-2 flex items-center justify-between">
+                <span class="text-sm text-gray-700">Dues partides el mateix dia</span>
+                {#if calendarKPIs.sameDayViolations.length === 0}
+                  <span class="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">0 violacions</span>
+                {:else}
+                  <span class="text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full">{calendarKPIs.sameDayViolations.length} violacions</span>
+                {/if}
+              </div>
+              {#if calendarKPIs.sameDayViolations.length > 0}
+                <div class="px-4 py-1 bg-red-50">
+                  {#each calendarKPIs.sameDayViolations as v}
+                    <div class="text-xs text-red-700">{v.player}: {v.count} partides el {v.date}</div>
+                  {/each}
+                </div>
+              {/if}
+
+              <!-- Max setmanal -->
+              <div class="px-4 py-2 flex items-center justify-between">
+                <span class="text-sm text-gray-700">Superen {calendarConfig.max_partides_per_setmana} partides/setmana</span>
+                {#if calendarKPIs.weeklyViolations.length === 0}
+                  <span class="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">0 violacions</span>
+                {:else}
+                  <span class="text-xs font-medium text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full">{calendarKPIs.weeklyViolations.length} violacions</span>
+                {/if}
+              </div>
+              {#if calendarKPIs.weeklyViolations.length > 0}
+                <div class="px-4 py-1 bg-orange-50">
+                  {#each calendarKPIs.weeklyViolations as v}
+                    <div class="text-xs text-orange-700">{v.player}: {v.count} partides setmana {v.week} (max {v.max})</div>
+                  {/each}
+                </div>
+              {/if}
+
+              <!-- Dies consecutius -->
+              <!-- Jugadors +75 amb dies consecutius -->
+              <div class="px-4 py-2 flex items-center justify-between">
+                <span class="text-sm text-gray-700">Jugadors +75 anys amb dies consecutius</span>
+                {#if calendarKPIs.seniorConsecutiveViolations.length === 0}
+                  <span class="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">0 violacions</span>
+                {:else}
+                  <span class="text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full">{calendarKPIs.seniorConsecutiveViolations.length} violacions</span>
+                {/if}
+              </div>
+              {#if calendarKPIs.seniorConsecutiveViolations.length > 0}
+                <div class="px-4 py-1 bg-red-50 max-h-32 overflow-y-auto">
+                  {#each calendarKPIs.seniorConsecutiveViolations as v}
+                    <div class="text-xs text-red-700">{v.player} ({v.edat} anys): {v.dates}</div>
+                  {/each}
+                </div>
+              {/if}
+
+              <div class="px-4 py-2 flex items-center justify-between">
+                <span class="text-sm text-gray-700">Partides en dies consecutius</span>
+                {#if calendarKPIs.consecutiveViolations.length === 0}
+                  <span class="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">0 casos</span>
+                {:else}
+                  <span class="text-xs font-medium text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">{calendarKPIs.consecutiveViolations.length} casos</span>
+                {/if}
+              </div>
+              {#if calendarKPIs.consecutiveViolations.length > 0}
+                <div class="px-4 py-1 bg-yellow-50 max-h-32 overflow-y-auto">
+                  {#each calendarKPIs.consecutiveViolations as v}
+                    <div class="text-xs text-yellow-700">{v.player}: {v.dates}</div>
+                  {/each}
+                </div>
+              {/if}
+
+              <!-- 3 dies consecutius -->
+              <div class="px-4 py-2 flex items-center justify-between">
+                <span class="text-sm text-gray-700">3 partides en dies consecutius</span>
+                {#if calendarKPIs.threeConsecutiveViolations.length === 0}
+                  <span class="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">0 casos</span>
+                {:else}
+                  <span class="text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full">{calendarKPIs.threeConsecutiveViolations.length} casos</span>
+                {/if}
+              </div>
+              {#if calendarKPIs.threeConsecutiveViolations.length > 0}
+                <div class="px-4 py-1 bg-red-50 max-h-32 overflow-y-auto">
+                  {#each calendarKPIs.threeConsecutiveViolations as v}
+                    <div class="text-xs text-red-700">{v.player}: {v.dates}</div>
+                  {/each}
+                </div>
+              {/if}
+
+              <!-- Més de 2 parells consecutius -->
+              <div class="px-4 py-2 flex items-center justify-between">
+                <span class="text-sm text-gray-700">Més de 2 parells dies consecutius</span>
+                {#if calendarKPIs.excessConsecutivePairs.length === 0}
+                  <span class="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">0 casos</span>
+                {:else}
+                  <span class="text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full">{calendarKPIs.excessConsecutivePairs.length} casos</span>
+                {/if}
+              </div>
+              {#if calendarKPIs.excessConsecutivePairs.length > 0}
+                <div class="px-4 py-1 bg-red-50 max-h-32 overflow-y-auto">
+                  {#each calendarKPIs.excessConsecutivePairs as v}
+                    <div class="text-xs text-red-700">{v.player}: {v.pairs} parells</div>
+                  {/each}
+                </div>
+              {/if}
+
+              <!-- Fora preferències dies -->
+              <div class="px-4 py-2 flex items-center justify-between">
+                <span class="text-sm text-gray-700">Fora de preferencia de dies</span>
+                {#if calendarKPIs.dayPrefViolations.length === 0}
+                  <span class="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">0 violacions</span>
+                {:else}
+                  <span class="text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full">{calendarKPIs.dayPrefViolations.length} violacions</span>
+                {/if}
+              </div>
+              {#if calendarKPIs.dayPrefViolations.length > 0}
+                <div class="px-4 py-1 bg-red-50 max-h-32 overflow-y-auto">
+                  {#each calendarKPIs.dayPrefViolations as v}
+                    <div class="text-xs text-red-700">{v.player}: {v.date} ({v.day}) - prefereix {v.prefereix}</div>
+                  {/each}
+                </div>
+              {/if}
+
+              <!-- Fora preferències hores -->
+              <div class="px-4 py-2 flex items-center justify-between">
+                <span class="text-sm text-gray-700">Fora de preferencia d'hores</span>
+                {#if calendarKPIs.hourPrefViolations.length === 0}
+                  <span class="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">0 violacions</span>
+                {:else}
+                  <span class="text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full">{calendarKPIs.hourPrefViolations.length} violacions</span>
+                {/if}
+              </div>
+              {#if calendarKPIs.hourPrefViolations.length > 0}
+                <div class="px-4 py-1 bg-red-50 max-h-32 overflow-y-auto">
+                  {#each calendarKPIs.hourPrefViolations as v}
+                    <div class="text-xs text-red-700">{v.player}: {v.date} a les {v.hora} - prefereix {v.prefereix}</div>
+                  {/each}
+                </div>
+              {/if}
+
+              <!-- Fora restriccions especials (períodes bloqueig) -->
+              <div class="px-4 py-2 flex items-center justify-between">
+                <span class="text-sm text-gray-700">Dins periode de bloqueig personal</span>
+                {#if calendarKPIs.specialRestrViolations.length === 0}
+                  <span class="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">0 violacions</span>
+                {:else}
+                  <span class="text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full">{calendarKPIs.specialRestrViolations.length} violacions</span>
+                {/if}
+              </div>
+              {#if calendarKPIs.specialRestrViolations.length > 0}
+                <div class="px-4 py-1 bg-red-50 max-h-32 overflow-y-auto">
+                  {#each calendarKPIs.specialRestrViolations as v}
+                    <div class="text-xs text-red-700">{v.player}: {v.date} - {v.restriccio}</div>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+
+            <!-- Resum validació -->
+            <div class="px-4 py-2 border-t border-gray-200 bg-gray-50">
+              {#if calendarKPIs.isValid && calendarKPIs.consecutiveViolations.length === 0 && calendarKPIs.weeklyViolations.length === 0}
+                <span class="text-sm font-medium text-green-700">Totes les restriccions dures respectades</span>
+              {:else if calendarKPIs.isValid}
+                <span class="text-sm font-medium text-yellow-700">Restriccions dures OK - {calendarKPIs.consecutiveViolations.length + calendarKPIs.weeklyViolations.length} advertiments</span>
+              {:else}
+                <span class="text-sm font-medium text-red-700">Hi ha violacions de restriccions dures</span>
+              {/if}
+            </div>
+          </div>
+        </div>
+      {:else}
+        <div class="mb-4 text-sm text-gray-600">
+          <div><strong>📊 Total:</strong> {proposedCalendar.length} partits</div>
+        </div>
+      {/if}
 
       <!-- Estadístiques d'ús de taules per jugador -->
       {#if proposedCalendar.filter(p => p.estat === 'generat').length > 0}
@@ -2373,47 +3417,140 @@
         </div>
       {/if}
 
-      <!-- Taula de partits -->
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Taula</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoria</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Enfrontament</th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            {#each proposedCalendar.slice(0, 20) as match}
-              <tr class="{match.estat === 'pendent_programar' ? 'bg-yellow-50' : ''}">
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {match.estat === 'pendent_programar' ? '⏳ Pendent' : match.data_programada.toLocaleDateString('ca-ES')}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {match.estat === 'pendent_programar' ? '-' : match.hora_inici}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {match.estat === 'pendent_programar' ? '-' : `Taula ${match.taula_assignada}`}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {match.categoria_nom}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {match.jugador1.soci.nom} vs {match.jugador2.soci.nom}
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+      <!-- Controls de filtre i vista -->
+      <div class="flex flex-wrap items-center gap-3 mb-4">
+        <input
+          type="text"
+          bind:value={previewSearch}
+          placeholder="Cercar jugador..."
+          class="px-3 py-1.5 border border-gray-300 rounded text-sm w-48 focus:ring-blue-500 focus:border-blue-500"
+        />
 
-        {#if proposedCalendar.length > 20}
-          <div class="text-center py-4 text-sm text-gray-500">
-            ... i {proposedCalendar.length - 20} partits més
-          </div>
+        <div class="flex rounded-lg border border-gray-300 overflow-hidden">
+          <button
+            on:click={() => previewViewMode = 'cronologia'}
+            class="px-3 py-1.5 text-sm {previewViewMode === 'cronologia' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}"
+          >
+            Cronologia
+          </button>
+          <button
+            on:click={() => previewViewMode = 'categoria'}
+            class="px-3 py-1.5 text-sm {previewViewMode === 'categoria' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}"
+          >
+            Per Categoria
+          </button>
+        </div>
+
+        {#if previewViewMode === 'categoria'}
+          <select
+            bind:value={previewSelectedCategory}
+            class="px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">Totes les categories</option>
+            {#each categories as cat}
+              <option value={cat.id}>{cat.nom}</option>
+            {/each}
+          </select>
+        {/if}
+
+        {#if previewSearch}
+          <span class="text-sm text-gray-600">
+            {previewProgrammed.length} programats + {previewPending.length} pendents = <strong>{filteredPreview.length}</strong> partits
+          </span>
         {/if}
       </div>
+
+      <!-- Taula de partits -->
+      {#if previewViewMode === 'cronologia'}
+        <!-- Vista cronològica -->
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Taula</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Categoria</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Enfrontament</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              {#each filteredPreview as match}
+                <tr class="{match.estat === 'pendent_programar' ? 'bg-yellow-50' : ''}">
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    {match.estat === 'pendent_programar' ? '⏳ Pendent' : match.data_programada.toLocaleDateString('ca-ES')}
+                  </td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    {match.estat === 'pendent_programar' ? '-' : match.hora_inici}
+                  </td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    {match.estat === 'pendent_programar' ? '-' : `Taula ${match.taula_assignada}`}
+                  </td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                    {match.categoria_nom}
+                  </td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    {match.jugador1.soci.nom} vs {match.jugador2.soci.nom}
+                    {#if match.motiu}
+                      <div class="text-xs text-red-500 mt-1">{match.motiu}</div>
+                    {/if}
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {:else}
+        <!-- Vista per categoria -->
+        {#each [...new Set(filteredPreview.map(m => m.categoria_id))] as catId}
+          {@const catName = categories.find(c => c.id === catId)?.nom || catId}
+          {@const catMatches = filteredPreview.filter(m => m.categoria_id === catId)}
+          {@const catProgrammed = catMatches.filter(m => m.estat === 'generat')}
+          {@const catPending = catMatches.filter(m => m.estat === 'pendent_programar')}
+
+          <div class="mb-4 border border-gray-200 rounded-lg overflow-hidden">
+            <div class="bg-gray-50 px-4 py-2 font-medium text-sm text-gray-900">
+              {catName} — {catProgrammed.length} programats
+              {#if catPending.length > 0}
+                <span class="text-yellow-600">+ {catPending.length} pendents</span>
+              {/if}
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Taula</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Enfrontament</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  {#each catMatches as match}
+                    <tr class="{match.estat === 'pendent_programar' ? 'bg-yellow-50' : ''}">
+                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                        {match.estat === 'pendent_programar' ? '⏳ Pendent' : match.data_programada.toLocaleDateString('ca-ES')}
+                      </td>
+                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                        {match.estat === 'pendent_programar' ? '-' : match.hora_inici}
+                      </td>
+                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                        {match.estat === 'pendent_programar' ? '-' : `Taula ${match.taula_assignada}`}
+                      </td>
+                      <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                        {match.jugador1.soci.nom} vs {match.jugador2.soci.nom}
+                        {#if match.motiu}
+                          <div class="text-xs text-red-500 mt-1">{match.motiu}</div>
+                        {/if}
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        {/each}
+      {/if}
 
       <!-- Botons d'acció -->
       <div class="flex items-center space-x-3 mt-6">
@@ -2437,8 +3574,15 @@
   {#if showPreview && proposedCalendar.length === 0}
     <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
       <div class="text-yellow-800">
-        <strong>Atenció:</strong> No s'han pogut generar partits amb les restriccions actuals.
-        Prova d'ampliar les dates o reduir les restriccions.
+        <strong>Atenció:</strong> No s'han pogut generar partits.
+        <ul class="mt-2 text-sm list-disc list-inside">
+          <li>Categories amb jugadors: {Array.from(playersByCategory.entries()).map(([id, p]) => `${categories.find(c => c.id === id)?.nom || id}: ${p.length} jugadors`).join(', ') || 'cap'}</li>
+          <li>Inscripcions totals: {inscriptions.length}</li>
+          <li>Inscripcions amb categoria: {inscriptions.filter(i => i.categoria_assignada_id).length}</li>
+          <li>Dies configurats: {calendarConfig.dies_setmana.join(', ')}</li>
+          <li>Hores configurades: {calendarConfig.hores_disponibles.join(', ')}</li>
+        </ul>
+        <p class="mt-2 text-sm">Comprova que els jugadors tenen categories assignades i que les dates/restriccions permeten alguna programació.</p>
       </div>
     </div>
   {/if}

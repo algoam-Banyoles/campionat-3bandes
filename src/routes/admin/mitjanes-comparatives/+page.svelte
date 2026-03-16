@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { goto } from '$app/navigation';
-	import { adminStore } from '$lib/stores/auth';
+	import { isAdmin } from '$lib/stores/adminAuth';
 
 	type JugadorMitjanes = {
 		soci_id: number;
@@ -32,11 +32,6 @@
 	let modalitatsDisponibles: string[] = [];
 
 	onMount(async () => {
-		// Assegurar-se que només els admins poden accedir
-		if (!$adminStore) {
-			goto('/');
-			return;
-		}
 		await carregarModalitats();
 		await carregarDades();
 	});
@@ -178,12 +173,9 @@
 		URL.revokeObjectURL(url);
 	}
 
-	// Recarregar quan canvien els filtres
-	$: {
-		if (filtreModalitat !== undefined || cercaNom !== undefined) {
-			paginaActual = 1;
-			carregarDades();
-		}
+	function handleFilterChange() {
+		paginaActual = 1;
+		carregarDades();
 	}
 </script>
 
@@ -249,6 +241,7 @@
 					<select
 						id="filtre-modalitat"
 						bind:value={filtreModalitat}
+						on:change={handleFilterChange}
 						class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
 					>
 						{#each modalitatsDisponibles as modalitat}
@@ -262,6 +255,7 @@
 						id="cerca-nom"
 						type="text"
 						bind:value={cercaNom}
+						on:input={handleFilterChange}
 						placeholder="Nom, cognoms o número soci..."
 						class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
 					>

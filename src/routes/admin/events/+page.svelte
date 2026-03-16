@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { user } from '$lib/stores/auth';
   import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
+  import { supabase } from '$lib/supabaseClient';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
@@ -85,7 +86,7 @@
   }
 
   async function loadEvents() {
-    const { supabase } = await import('$lib/supabaseClient');
+
     const { data, error: eventsError } = await supabase
       .from('events')
       .select(`
@@ -106,7 +107,7 @@
 
   async function updateEventStatus(eventId: string, newStatus: EventStatus) {
     try {
-      const { supabase } = await import('$lib/supabaseClient');
+  
       const { error: updateError } = await supabase
         .from('events')
         .update({ estat_competicio: newStatus })
@@ -126,7 +127,7 @@
 
   async function toggleEventActive(eventId: string, currentActive: boolean) {
     try {
-      const { supabase } = await import('$lib/supabaseClient');
+  
       const { error: updateError } = await supabase
         .from('events')
         .update({ actiu: !currentActive })

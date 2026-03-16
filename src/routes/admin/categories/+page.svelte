@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
-  import { user, adminStore } from '$lib/stores/auth';
-  import { checkIsAdmin } from '$lib/roles';
+  import { isAdmin } from '$lib/stores/adminAuth';
+  import { supabase } from '$lib/supabaseClient';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
-  import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
+  import { formatSupabaseError } from '$lib/ui/alerts';
+  import { initAdminPage } from '$lib/utils/adminPage';
 
   let loading = true;
   let error: string | null = null;
@@ -37,32 +37,12 @@
   let successMessage: string | null = null;
 
   onMount(async () => {
-    try {
-      loading = true;
-      error = null;
-
-      const u = $user;
-      if (!u?.email) {
-        goto('/login');
-        return;
-      }
-
-      const adm = await checkIsAdmin();
-      if (!adm) {
-        error = errText('Només els administradors poden accedir a aquesta pàgina.');
-        return;
-      }
-
-      await loadEvents();
-    } catch (e) {
-      error = formatSupabaseError(e);
-    } finally {
-      loading = false;
-    }
+    const result = await initAdminPage(loadEvents);
+    loading = result.loading;
+    error = result.error;
   });
 
   async function loadEvents() {
-    const { supabase } = await import('$lib/supabaseClient');
     const { data, error: eventsError } = await supabase
       .from('events')
       .select('id, nom, modalitat, tipus_competicio, estat_competicio')
@@ -81,7 +61,6 @@
   async function loadCategories() {
     if (!selectedEventId) return;
 
-    const { supabase } = await import('$lib/supabaseClient');
     const { data, error: categoriesError } = await supabase
       .from('categories')
       .select('*')
@@ -106,8 +85,7 @@
       successMessage = null;
       error = null;
 
-      const { supabase } = await import('$lib/supabaseClient');
-      const { error: updateError } = await supabase
+        const { error: updateError } = await supabase
         .from('categories')
         .update({ promig_minim: newPromig })
         .eq('id', categoryId);
@@ -133,8 +111,7 @@
     if (!selectedEventId) return;
 
     try {
-      const { supabase } = await import('$lib/supabaseClient');
-      const { data: promotions, error: promotionsError } = await supabase
+        const { data: promotions, error: promotionsError } = await supabase
         .rpc('get_eligible_promotions', { event_id_param: selectedEventId });
 
       if (promotionsError) throw promotionsError;
@@ -179,7 +156,7 @@
     <Loader />
   {:else if error}
     <Banner type="error" message={error} />
-  {:else if $adminStore}
+  {:else if $isAdmin}
     {#if successMessage}
       <Banner type="success" message={successMessage} class="mb-4" />
     {/if}

@@ -24,24 +24,8 @@
   let proposedCategories = [];
   let generatingProposal = false;
 
-  function generateCategoryName(distance, order, existingCategories) {
-    // Comprovar si ja existeix una categoria amb aquesta distància
-    const categoriesWithSameDistance = existingCategories.filter(
-      cat => cat.distancia_caramboles === distance
-    );
-
-    // Determinar el número de categoria basat en l'ordre
-    const categoryNumber = order;
-    const baseName = `${categoryNumber}a`;
-
-    // Si no hi ha cap categoria amb aquesta distància, usar nom base
-    if (categoriesWithSameDistance.length === 0) {
-      return baseName;
-    }
-
-    // Si ja existeix una categoria amb aquesta distància, afegir suffix A/B/C...
-    const suffix = String.fromCharCode(65 + categoriesWithSameDistance.length); // A=65, B=66, C=67...
-    return `${categoryNumber}a ${suffix}`;
+  function generateCategoryName(order) {
+    return `${order}a`;
   }
 
   // Configuració inicial de categories (l'usuari podrà modificar les caramboles)
@@ -49,13 +33,13 @@
     const categories = [];
     for (let i = 0; i < count; i++) {
       const distance = 40; // Valor per defecte que l'usuari podrà canviar
-      const categoryName = generateCategoryName(distance, i + 1, categories);
+      const categoryName = generateCategoryName(i + 1);
 
       categories.push({
         nom: categoryName,
         distancia_caramboles: distance,
         ordre_categoria: i + 1,
-        max_entrades: 2,
+        max_entrades: 50,
         min_jugadors: 4,
         max_jugadors: 16
       });
@@ -401,7 +385,7 @@
   function addCustomCategory() {
     const newOrder = customCategories.length + 1;
     const distance = 40;
-    const categoryName = generateCategoryName(distance, newOrder, customCategories);
+    const categoryName = generateCategoryName(newOrder);
 
     customCategories = [...customCategories, {
       nom: categoryName,
@@ -418,7 +402,7 @@
     // Reorder remaining categories and regenerate names
     customCategories = customCategories.map((cat, i) => {
       const newOrder = i + 1;
-      const newName = generateCategoryName(cat.distancia_caramboles, newOrder, customCategories.slice(0, i));
+      const newName = generateCategoryName(newOrder);
 
       return {
         ...cat,
@@ -470,20 +454,50 @@
     if (toCategoryIndex === -1) {
       // Moure al bucket sense categoria - no fem res, es maneja automàticament
       proposedCategories = [...proposedCategories]; // Force reactivity
+      // Persistir: treure categoria assignada
+      if (existingCategories) {
+        persistCategoryChange(playerId, null);
+      }
       return;
     }
 
     // Afegir a la categoria destí
     proposedCategories[toCategoryIndex].players = [...proposedCategories[toCategoryIndex].players, player];
 
-    // Reequilibrar automàticament totes les categories
-    rebalanceCategories();
+    // Reequilibrar categories sense moure el jugador que s'acaba de canviar manualment
+    rebalanceCategories(new Set([playerId]));
 
     // Force reactivity per actualitzar tots els buckets
     proposedCategories = [...proposedCategories];
+
+    // Persistir immediatament si ja existeixen categories a la BD
+    if (existingCategories) {
+      const targetCategoryName = proposedCategories[toCategoryIndex].nom;
+      const realCategory = categories.find(cat => cat.nom === targetCategoryName);
+      if (realCategory) {
+        persistCategoryChange(playerId, realCategory.id);
+      }
+    }
   }
 
-  function rebalanceCategories() {
+  async function persistCategoryChange(inscriptionId: string, categoryId: string | null) {
+    try {
+      const { error } = await supabase
+        .from('inscripcions')
+        .update({ categoria_assignada_id: categoryId })
+        .eq('id', inscriptionId);
+
+      if (error) {
+        console.error('Error persistint canvi de categoria:', error);
+        dispatch('error', { message: `Error movent jugador: ${error.message}` });
+      }
+    } catch (e) {
+      console.error('Error persistint canvi de categoria:', e);
+      dispatch('error', { message: 'Error movent jugador de categoria' });
+    }
+  }
+
+  function rebalanceCategories(pinnedPlayerIds: Set<string> = new Set()) {
     // Calcular distribució objectiu amb TOTS els jugadors (assignats + sense assignar)
     const totalPlayers = inscriptionsWithAverages.length;
     const basePlayersPerCategory = Math.floor(totalPlayers / numberOfCategories);
@@ -504,8 +518,9 @@
         // Categoria té massa jugadors - moure l'excés directament a la següent categoria
         const excessPlayers = currentSize - targetSize;
 
-        // Agafar els jugadors amb pitjor mitjana per moure'ls (sense mitjana primer, després pitjors mitjanes)
-        const sortedPlayers = sortPlayersByAverage(category.players).reverse(); // Invertim per tenir els pitjors primer
+        // Agafar els jugadors amb pitjor mitjana per moure'ls, excloent els fixats manualment
+        const movablePlayers = category.players.filter(p => !pinnedPlayerIds.has(p.id));
+        const sortedPlayers = sortPlayersByAverage(movablePlayers).reverse(); // Invertim per tenir els pitjors primer
         const playersToMove = sortedPlayers.slice(0, excessPlayers);
 
         // Moure'ls a la categoria immediatament inferior
