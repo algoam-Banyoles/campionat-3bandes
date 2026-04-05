@@ -28,6 +28,7 @@
   };
   let updateError: string | null = null;
   let updateSuccess: string | null = null;
+  let saving = false;
 
   onMount(() => {
     if (eventId) {
@@ -322,6 +323,9 @@
     if (!editingMatch) return;
 
     try {
+      if (saving) return;
+      saving = true;
+
       updateError = null;
       updateSuccess = null;
 
@@ -364,6 +368,8 @@
       console.error('Exception updating match:', e);
       console.error('Exception details:', JSON.stringify(e, null, 2));
       updateError = e.message || 'Error actualitzant el resultat';
+    } finally {
+      saving = false;
     }
   }
 </script>
@@ -783,6 +789,7 @@
           <button
             type="submit"
             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            disabled={saving}
           >
             Guardar
           </button>

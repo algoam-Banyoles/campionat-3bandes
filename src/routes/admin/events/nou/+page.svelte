@@ -27,6 +27,56 @@
     actiu: true
   };
 
+  // Handicap-specific config
+  let handicapConfig = {
+    sistema_puntuacio: 'distancia' as 'distancia' | 'percentatge',
+    limit_entrades: 50,
+    distancies_per_categoria: [
+      { nom: '1a', distancia: 20 },
+      { nom: '2a', distancia: 15 },
+      { nom: 'resta', distancia: 10 }
+    ] as Array<{ nom: string; distancia: number }>,
+    horaris_extra_enabled: false,
+    horaris_extra_franja: '17:00',
+    horaris_extra_dies: [] as string[]
+  };
+
+  const diesSetmana = [
+    { value: 'dl', label: 'Dilluns' },
+    { value: 'dt', label: 'Dimarts' },
+    { value: 'dc', label: 'Dimecres' },
+    { value: 'dj', label: 'Dijous' },
+    { value: 'dv', label: 'Divendres' }
+  ];
+
+  // Auto-set format when handicap is selected
+  $: if (formData.tipus_competicio === 'handicap') {
+    formData.format_joc = 'eliminatoria_doble';
+  }
+
+  $: isHandicap = formData.tipus_competicio === 'handicap';
+
+  function addDistanciaGrup() {
+    handicapConfig.distancies_per_categoria = [
+      ...handicapConfig.distancies_per_categoria,
+      { nom: '', distancia: 10 }
+    ];
+  }
+
+  function removeDistanciaGrup(index: number) {
+    if (handicapConfig.distancies_per_categoria.length > 1) {
+      handicapConfig.distancies_per_categoria = handicapConfig.distancies_per_categoria.filter((_, i) => i !== index);
+    }
+  }
+
+  function toggleDiaExtra(dia: string) {
+    if (handicapConfig.horaris_extra_dies.includes(dia)) {
+      handicapConfig.horaris_extra_dies = handicapConfig.horaris_extra_dies.filter(d => d !== dia);
+    } else {
+      handicapConfig.horaris_extra_dies = [...handicapConfig.horaris_extra_dies, dia];
+    }
+  }
+
   // Category configuration - start with no categories (will be created dynamically)
   let categories = [];
 
@@ -182,9 +232,22 @@
         return;
       }
 
-      if (createCategoriesNow && categories.length === 0) {
+      if (!isHandicap && createCategoriesNow && categories.length === 0) {
         error = 'Si vols crear categories ara, cal definir almenys una categoria';
         return;
+      }
+
+      // Handicap validation
+      if (isHandicap) {
+        const validDistancies = handicapConfig.distancies_per_categoria.filter(d => d.nom.trim() && d.distancia > 0);
+        if (validDistancies.length === 0) {
+          error = 'Cal definir almenys un grup de distancia';
+          return;
+        }
+        if (handicapConfig.sistema_puntuacio === 'percentatge' && (!handicapConfig.limit_entrades || handicapConfig.limit_entrades < 1)) {
+          error = 'El sistema percentatge requereix un limit d\'entrades valid';
+          return;
+        }
       }
 
       // Validate dates if provided
@@ -218,8 +281,8 @@
 
       if (eventError) throw eventError;
 
-      // Create categories only if specified
-      if (createCategoriesNow && categories.length > 0) {
+      // Create categories only if specified (not for handicap)
+      if (!isHandicap && createCategoriesNow && categories.length > 0) {
         const categoriesData = categories.map(cat => ({
           event_id: event.id,
           nom: cat.nom,
@@ -238,8 +301,35 @@
         if (categoriesError) throw categoriesError;
       }
 
-      // Redirect to event details
-      goto(`/admin/events/${event.id}`);
+      // Create handicap config if applicable
+      if (isHandicap) {
+        const configData: any = {
+          event_id: event.id,
+          sistema_puntuacio: handicapConfig.sistema_puntuacio,
+          limit_entrades: handicapConfig.sistema_puntuacio === 'percentatge' ? handicapConfig.limit_entrades : null,
+          distancies_per_categoria: handicapConfig.distancies_per_categoria.filter(d => d.nom.trim() && d.distancia > 0)
+        };
+
+        if (handicapConfig.horaris_extra_enabled && handicapConfig.horaris_extra_dies.length > 0) {
+          configData.horaris_extra = {
+            franja: handicapConfig.horaris_extra_franja,
+            dies: handicapConfig.horaris_extra_dies
+          };
+        }
+
+        const { error: configError } = await supabase
+          .from('handicap_config')
+          .insert(configData);
+
+        if (configError) throw configError;
+      }
+
+      // Redirect to event details or handicap config
+      if (isHandicap) {
+        goto('/handicap/configuracio');
+      } else {
+        goto(`/admin/events/${event.id}`);
+      }
 
     } catch (e) {
       error = formatSupabaseError(e);
@@ -334,12 +424,16 @@
             <select
               id="format_joc"
               bind:value={formData.format_joc}
-              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              disabled={isHandicap}
+              class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 {isHandicap ? 'bg-gray-100' : ''}"
             >
               {#each Object.entries(formatTypes) as [value, label]}
                 <option {value}>{label}</option>
               {/each}
             </select>
+            {#if isHandicap}
+              <p class="mt-1 text-xs text-gray-500">Fixat a Eliminatoria Doble per handicap</p>
+            {/if}
           </div>
 
           <div>
@@ -427,7 +521,142 @@
       </div>
     </div>
 
-    <!-- Categories -->
+    <!-- Handicap Config -->
+    {#if isHandicap}
+      <div class="bg-white shadow sm:rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+          <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Configuracio Handicap</h3>
+
+          <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div>
+              <label for="sistema_puntuacio" class="block text-sm font-medium text-gray-700">Sistema de Puntuacio *</label>
+              <select
+                id="sistema_puntuacio"
+                bind:value={handicapConfig.sistema_puntuacio}
+                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="distancia">Distancia (primer a arribar)</option>
+                <option value="percentatge">Percentatge (amb limit d'entrades)</option>
+              </select>
+              <p class="mt-1 text-xs text-gray-500">
+                {#if handicapConfig.sistema_puntuacio === 'distancia'}
+                  Guanya qui arriba primer a la seva distancia, sense limit d'entrades.
+                {:else}
+                  Guanya qui fa mes percentatge de caramboles respecte la seva distancia dins el limit d'entrades.
+                {/if}
+              </p>
+            </div>
+
+            {#if handicapConfig.sistema_puntuacio === 'percentatge'}
+              <div>
+                <label for="limit_entrades" class="block text-sm font-medium text-gray-700">Limit d'Entrades *</label>
+                <input
+                  type="number"
+                  id="limit_entrades"
+                  bind:value={handicapConfig.limit_entrades}
+                  min="1"
+                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            {/if}
+          </div>
+
+          <!-- Distancies per categoria -->
+          <div class="mt-6">
+            <div class="flex justify-between items-center mb-3">
+              <label class="block text-sm font-medium text-gray-700">Distancies per Grup de Nivell</label>
+              <button
+                type="button"
+                on:click={addDistanciaGrup}
+                class="inline-flex items-center px-2 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+              >
+                + Afegir grup
+              </button>
+            </div>
+
+            <div class="space-y-2">
+              {#each handicapConfig.distancies_per_categoria as grup, index}
+                <div class="flex items-center gap-3">
+                  <input
+                    type="text"
+                    bind:value={grup.nom}
+                    placeholder="Nom (ex: 1a)"
+                    class="w-32 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  />
+                  <input
+                    type="number"
+                    bind:value={grup.distancia}
+                    min="1"
+                    placeholder="Caramboles"
+                    class="w-28 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  />
+                  <span class="text-sm text-gray-500">caramboles</span>
+                  {#if handicapConfig.distancies_per_categoria.length > 1}
+                    <button
+                      type="button"
+                      on:click={() => removeDistanciaGrup(index)}
+                      class="text-red-500 hover:text-red-700 text-sm"
+                    >
+                      Eliminar
+                    </button>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          </div>
+
+          <!-- Horaris extra -->
+          <div class="mt-6">
+            <div class="flex items-center mb-3">
+              <input
+                type="checkbox"
+                id="horaris_extra"
+                bind:checked={handicapConfig.horaris_extra_enabled}
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label for="horaris_extra" class="ml-2 block text-sm font-medium text-gray-700">
+                Habilitar franja horaria extra
+              </label>
+            </div>
+
+            {#if handicapConfig.horaris_extra_enabled}
+              <div class="ml-6 space-y-3">
+                <div>
+                  <label for="franja_extra" class="block text-sm font-medium text-gray-700">Franja</label>
+                  <input
+                    type="time"
+                    id="franja_extra"
+                    bind:value={handicapConfig.horaris_extra_franja}
+                    class="mt-1 w-32 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Dies de la setmana</label>
+                  <div class="flex flex-wrap gap-2">
+                    {#each diesSetmana as dia}
+                      <button
+                        type="button"
+                        on:click={() => toggleDiaExtra(dia.value)}
+                        class="px-3 py-1 text-sm rounded-full border {
+                          handicapConfig.horaris_extra_dies.includes(dia.value)
+                            ? 'bg-purple-600 text-white border-purple-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }"
+                      >
+                        {dia.label}
+                      </button>
+                    {/each}
+                  </div>
+                </div>
+              </div>
+            {/if}
+          </div>
+        </div>
+      </div>
+    {/if}
+
+    <!-- Categories (no aplica a handicap) -->
+    {#if !isHandicap}
     <div class="bg-white shadow sm:rounded-lg">
       <div class="px-4 py-5 sm:p-6">
         <div class="flex justify-between items-center mb-4">
@@ -601,6 +830,7 @@
         </div>
       </div>
     </div>
+    {/if}
 
     <!-- Submit Button -->
     <div class="flex justify-end space-x-3">

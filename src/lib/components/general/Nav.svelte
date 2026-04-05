@@ -72,7 +72,16 @@
       icon: '⚖️',
       color: 'purple',
       links: [
-        { href: '/handicap', label: 'Proximament', disabled: true }
+        { href: '/handicap', label: 'Dashboard' },
+        { href: '/handicap/quadre', label: 'Quadre' },
+        { href: '/handicap/partides', label: 'Partides' },
+        { href: '/handicap/historial', label: 'Historial' },
+        { href: '/handicap/estadistiques', label: 'Estadístiques' }
+      ],
+      adminLinks: [
+        { href: '/handicap/configuracio', label: 'Configuració' },
+        { href: '/handicap/inscripcions', label: 'Inscripcions' },
+        { href: '/handicap/sorteig', label: 'Sorteig' }
       ]
     },
     admin: {

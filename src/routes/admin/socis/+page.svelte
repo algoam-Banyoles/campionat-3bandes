@@ -321,7 +321,13 @@
         const cognoms = values[6] || ''; // Columna 6 (cognoms)
         const email = values[9] || null; // Columna 9 (mail)
         const telefon = values[11] || values[10] || null; // Columna 11 (mòbil) prioritzat, o 10 (telèfon fix)
-        const dataNaixement = values[16] || null; // Columna 16 (datanaixement)
+        const rawDate = values[16] || null; // Columna 16 (datanaixement)
+        // Normalitzar data: dd/mm/yyyy → yyyy-mm-dd (PostgreSQL espera ISO)
+        let dataNaixement: string | null = rawDate;
+        if (rawDate && /^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
+          const [dd, mm, yyyy] = rawDate.split('/');
+          dataNaixement = `${yyyy}-${mm}-${dd}`;
+        }
 
         if (!numeroSoci || !nom || !cognoms) {
           parseErrors.push(`Línia ${i + 1}: falta número (${values[2]}), nom (${values[5]}) o cognoms (${values[6]})`);

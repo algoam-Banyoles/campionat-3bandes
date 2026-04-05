@@ -154,6 +154,7 @@
   }
 
   async function submitResult() {
+    if (loading) return; // evita submissions concurrents (doble click)
     if (!selectedMatch) {
       error = 'Selecciona una partida';
       return;
@@ -277,6 +278,7 @@
   }
 
   async function marcarIncompareixenca(jugadorQueFalta: 1 | 2) {
+    if (loading) return; // evita RPC concurrents
     if (!incompareixencaMatch) return;
 
     const jugadorNom = jugadorQueFalta === 1

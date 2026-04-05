@@ -743,8 +743,10 @@
   //   }
   // }
 
-  // Estat combinat de loading - només considera carregat quan tenim dades reals
-  $: isDataReady = !loading && matches.length > 0;
+  // Estat combinat de loading.
+  // IMPORTANT: no depenem de `matches.length > 0` perquè quan es fan múltiples uploads,
+  // la llista pot quedar momentàniament buida i la UI pot quedar enganxada en l'estat "Carregant".
+  $: isDataReady = !loading;
   
   // Debug per veure quan es considera que les dades estan llestes
   // $: {
@@ -1628,6 +1630,7 @@
 
   async function saveResult() {
     if (!resultMatch || !isAdmin) return;
+    if (loading) return; // evita submissions concurrents (doble click)
 
     // Empats permesos: 1 punt per cada jugador
     if (resultForm.caramboles_jugador1 === 0 && resultForm.caramboles_jugador2 === 0) {
@@ -1701,6 +1704,7 @@
 
   async function marcarIncompareixenca(jugadorQueFalta: 1 | 2) {
     if (!incompareixencaMatch || !isAdmin) return;
+    if (loading) return; // evita RPC concurrents
 
     const jugadorNom = jugadorQueFalta === 1
       ? formatPlayerName(incompareixencaMatch.jugador1)
