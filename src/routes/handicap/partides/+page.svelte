@@ -247,10 +247,13 @@
 
 		let partMap = new Map<string, any>();
 		if (participantIds.length > 0) {
+			// Fase 5c-S2b: nom via FK directe `soci_numero → socis`. Mantenim
+			// `player_id` al SELECT perquè altres parts del codi hi depenen
+			// (es netejarà a Sessió 3 quan eliminem la columna).
 			const { data: parts } = await supabase
 				.from('handicap_participants')
 				.select(
-					'id, distancia, seed, player_id, preferencies_dies, preferencies_hores, players!inner(id, socis!inner(nom, cognoms))'
+					'id, distancia, seed, player_id, soci_numero, preferencies_dies, preferencies_hores, socis!handicap_participants_soci_numero_fkey(nom, cognoms)'
 				)
 				.in('id', participantIds);
 
@@ -326,10 +329,10 @@
 				matchPos,
 				estat: m.estat,
 				player1_name: p1
-					? `${p1.players.socis.nom} ${p1.players.socis.cognoms}`
+					? (() => { const r = p1.socis; const s = Array.isArray(r) ? r[0] : r; return s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : '?'; })()
 					: (() => { const s = slotSourceMap.get(m.slot1_id); return s ? `${s.role} ${s.code}` : 'Per determinar'; })(),
 				player2_name: p2
-					? `${p2.players.socis.nom} ${p2.players.socis.cognoms}`
+					? (() => { const r = p2.socis; const s = Array.isArray(r) ? r[0] : r; return s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : '?'; })()
 					: (() => { const s = slotSourceMap.get(m.slot2_id); return s ? `${s.role} ${s.code}` : 'Per determinar'; })(),
 				player1_distancia: p1?.distancia ?? m.distancia_jugador1 ?? null,
 				player2_distancia: p2?.distancia ?? m.distancia_jugador2 ?? null,

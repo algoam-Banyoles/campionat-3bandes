@@ -78,10 +78,10 @@
 		eventNom = (ev as any).nom ?? '';
 		const eventId = (ev as any).id as string;
 
-		// Participants
+		// Participants (Fase 5c-S2b: FK directe via soci_numero)
 		const { data: parts, error: pErr } = await supabase
 			.from('handicap_participants')
-			.select('id, distancia, seed, eliminat, player_id, players!inner(socis!inner(nom, cognoms))')
+			.select('id, distancia, seed, eliminat, soci_numero, socis!handicap_participants_soci_numero_fkey(nom, cognoms)')
 			.eq('event_id', eventId);
 
 		if (pErr || !parts) {
@@ -142,7 +142,8 @@
 		}
 
 		participants = (parts as any[]).map((p) => {
-			const soci = p.players.socis;
+			const rawS = p.socis;
+			const soci = Array.isArray(rawS) ? rawS[0] : rawS;
 			const st = statsMap.get(p.id) ?? { jugades: 0, guanyades: 0, perdudes: 0, walkover: 0 };
 			const estat: ParticipantStat['estat'] =
 				p.id === championId ? 'campió' :
@@ -150,7 +151,7 @@
 				p.eliminat ? 'eliminat' : 'actiu';
 			return {
 				id: p.id,
-				nom: `${soci.nom} ${soci.cognoms}`,
+				nom: soci ? `${soci.nom ?? ''} ${soci.cognoms ?? ''}`.trim() : '?',
 				distancia: p.distancia,
 				seed: p.seed,
 				eliminat: p.eliminat,
@@ -219,9 +220,13 @@
 		// Participants names
 		const partIds = [...new Set((allSlots ?? []).filter((s: any) => s.participant_id).map((s: any) => s.participant_id as string))];
 		const { data: partNames } = partIds.length
-			? await supabase.from('handicap_participants').select('id, players!inner(socis!inner(nom, cognoms))').in('id', partIds)
+			? await supabase.from('handicap_participants').select('id, socis!handicap_participants_soci_numero_fkey(nom, cognoms)').in('id', partIds)
 			: { data: [] };
-		const nameMap = new Map((partNames ?? []).map((p: any) => [p.id as string, `${p.players.socis.nom} ${p.players.socis.cognoms}`]));
+		const nameMap = new Map((partNames ?? []).map((p: any) => {
+			const raw = p.socis;
+			const s = Array.isArray(raw) ? raw[0] : raw;
+			return [p.id as string, s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : '?'];
+		}));
 
 		const entries: JornadaEntry[] = [];
 		for (const m of allMatches ?? []) {

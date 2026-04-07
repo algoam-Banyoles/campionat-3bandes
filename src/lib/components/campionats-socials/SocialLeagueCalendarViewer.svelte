@@ -766,19 +766,23 @@
     }
 
     try {
-      // Use email to find player since players table doesn't have user_id
-      const { data: playerData, error: playerError } = await supabase
-        .from('players')
-        .select('id, numero_soci, nom, email')
+      // Fase 5c-S2c-2: directe via socis.email
+      const { data: sociData, error: sociError } = await supabase
+        .from('socis')
+        .select('numero_soci, nom, cognoms, email')
         .eq('email', $user.email)
-        .single();
+        .maybeSingle();
 
-      if (playerError) {
-        console.log('No player data found for user email:', $user.email);
+      if (sociError || !sociData) {
+        console.log('No soci data found for user email:', $user.email);
         myPlayerData = null;
       } else {
-        myPlayerData = playerData;
-        console.log('✅ Loaded player data for user:', myPlayerData);
+        myPlayerData = {
+          id: sociData.numero_soci,
+          numero_soci: sociData.numero_soci,
+          nom: `${sociData.nom ?? ''} ${sociData.cognoms ?? ''}`.trim(),
+          email: sociData.email
+        };
       }
     } catch (e) {
       console.error('Error loading player data:', e);
@@ -892,54 +896,36 @@
           unprogrammedError = result.error;
 
           // Si hi ha partides, buscar noms reals de jugadors i categories
+          // Fase 5c-S2c-2: query directa a `socis` per `*_soci_numero`
           if (unprogrammedRaw && unprogrammedRaw.length > 0) {
-            // Eliminar duplicats, nulls, undefined i strings buits
-            const jugadorIds = Array.from(new Set([
-              ...unprogrammedRaw.map(m => m.jugador1_id),
-              ...unprogrammedRaw.map(m => m.jugador2_id)
-            ].filter(id => id && typeof id === 'string' && id.trim().length > 0)));
+            const sociNumbers = Array.from(new Set([
+              ...unprogrammedRaw.map((m: any) => m.jugador1_soci_numero),
+              ...unprogrammedRaw.map((m: any) => m.jugador2_soci_numero)
+            ].filter((n: any) => typeof n === 'number'))) as number[];
 
-            // Primer consultem 'players' per obtenir numero_soci
-            if (jugadorIds.length > 0) {
-              const playerNumeroMap = new Map<string, number>();
-              const { data: playersData } = await supabase
-                .from('players')
-                .select('id, numero_soci')
-                .in('id', jugadorIds);
-              if (playersData && playersData.length > 0) {
-                playersData.forEach(p => {
-                  if (typeof p.numero_soci === 'number') {
-                    playerNumeroMap.set(p.id, p.numero_soci);
-                  }
+            if (sociNumbers.length > 0) {
+              // Excloure partides pendents amb jugadors retirats
+              if (withdrawnSocis.size > 0) {
+                unprogrammedRaw = unprogrammedRaw.filter((match: any) => {
+                  return !withdrawnSocis.has(match.jugador1_soci_numero ?? -1)
+                      && !withdrawnSocis.has(match.jugador2_soci_numero ?? -1);
                 });
+              }
 
-                // Excloure partides pendents amb jugadors retirats o desqualificats
-                if (withdrawnSocis.size > 0) {
-                  unprogrammedRaw = unprogrammedRaw.filter((match: any) => {
-                    const j1Numero = playerNumeroMap.get(match.jugador1_id);
-                    const j2Numero = playerNumeroMap.get(match.jugador2_id);
-                    return !withdrawnSocis.has(j1Numero ?? -1) && !withdrawnSocis.has(j2Numero ?? -1);
-                  });
-                }
-
-                const socisIds = playersData.map(p => p.numero_soci).filter(Boolean);
-                const { data: socisData } = await supabase
-                  .from('socis')
-                  .select('numero_soci, nom, cognoms')
-                  .in('numero_soci', socisIds);
-                if (socisData) {
-                  playersData.forEach(p => {
-                    const soci = socisData.find(s => s.numero_soci === p.numero_soci);
-                    if (soci) {
-                      const inicialNom = soci.nom ? soci.nom.trim().charAt(0).toUpperCase() : '';
-                      const primerCognom = soci.cognoms ? soci.cognoms.trim().split(' ')[0] : '';
-                      playersMap.set(p.id, { nom: inicialNom, cognoms: primerCognom });
-                    }
-                  });
-                }
+              const { data: socisData } = await supabase
+                .from('socis')
+                .select('numero_soci, nom, cognoms')
+                .in('numero_soci', sociNumbers);
+              if (socisData) {
+                socisData.forEach((soci: any) => {
+                  const inicialNom = soci.nom ? soci.nom.trim().charAt(0).toUpperCase() : '';
+                  const primerCognom = soci.cognoms ? soci.cognoms.trim().split(' ')[0] : '';
+                  // playersMap aquí es composa per soci_numero (no UUID).
+                  playersMap.set(soci.numero_soci, { nom: inicialNom, cognoms: primerCognom });
+                });
               }
             }
-            const categoriaIds = [...new Set(unprogrammedRaw.map(m => m.categoria_id).filter(Boolean))];
+            const categoriaIds = [...new Set(unprogrammedRaw.map((m: any) => m.categoria_id).filter(Boolean))];
 
             // Carregar categories
             if (categoriaIds.length > 0) {
@@ -1012,7 +998,8 @@
       })) || [];
 
       // Transformar les partides no programades al mateix format
-      const unprogrammedData = unprogrammedRaw?.map(match => ({
+      // (Fase 5c-S2c-2: lookup per soci_numero)
+      const unprogrammedData = unprogrammedRaw?.map((match: any) => ({
         id: match.id,
         categoria_id: match.categoria_id,
         categoria_nom: categoriesMap.get(match.categoria_id) || '',
@@ -1020,11 +1007,13 @@
         hora_inici: match.hora_inici,
         jugador1_id: match.jugador1_id,
         jugador2_id: match.jugador2_id,
+        jugador1_soci_numero: match.jugador1_soci_numero,
+        jugador2_soci_numero: match.jugador2_soci_numero,
         estat: match.estat,
         taula_assignada: match.taula_assignada,
         observacions_junta: match.observacions_junta,
-        jugador1: playersMap.get(match.jugador1_id) || { nom: 'J.', cognoms: '(No programat)' },
-        jugador2: playersMap.get(match.jugador2_id) || { nom: 'J.', cognoms: '(No programat)' }
+        jugador1: playersMap.get(match.jugador1_soci_numero) || { nom: 'J.', cognoms: '(No programat)' },
+        jugador2: playersMap.get(match.jugador2_soci_numero) || { nom: 'J.', cognoms: '(No programat)' }
       })) || [];
 
       console.log('🔍 Unprogrammed data processed:', unprogrammedData.length);
@@ -1469,8 +1458,15 @@
     return 'Nom no disponible';
   }
 
-  function matchPlayerById(match: any, playerId: string): boolean {
-    return match.jugador1_id === playerId || match.jugador2_id === playerId;
+  function matchPlayerById(match: any, playerId: string | number): boolean {
+    // Fase 5c-S2c-2: `myPlayerData.id === numero_soci`. Comparem per
+    // soci_numero amb fallback al UUID antic per partides amb forma RPC.
+    return (
+      match.jugador1_soci_numero === playerId ||
+      match.jugador2_soci_numero === playerId ||
+      match.jugador1_id === playerId ||
+      match.jugador2_id === playerId
+    );
   }
 
   function matchPlayerSearchText(jugador: any, searchLower: string) {

@@ -121,13 +121,10 @@
           nom,
           ordre_categoria
         ),
-        players!inner (
-          id,
+        socis:socis!classificacions_soci_numero_fkey (
           numero_soci,
-          socis!inner (
-            nom,
-            cognoms
-          )
+          nom,
+          cognoms
         )
       `)
       .lte('posicio', 3)
@@ -330,7 +327,7 @@
                   <div class="bg-gradient-to-br {winner.posicio === 1 ? 'from-yellow-50 to-yellow-100 border-yellow-300' : winner.posicio === 2 ? 'from-gray-50 to-gray-100 border-gray-300' : 'from-orange-50 to-orange-100 border-orange-300'} border rounded-lg p-3 text-center">
                     <div class="text-3xl mb-1">{getMedalEmoji(winner.posicio)}</div>
                     <div class="font-bold text-base text-gray-900 leading-tight">
-                      {winner.players.socis.nom} {winner.players.socis.cognoms}
+                      {(Array.isArray(winner.socis) ? winner.socis[0] : winner.socis)?.nom ?? ''} {(Array.isArray(winner.socis) ? winner.socis[0] : winner.socis)?.cognoms ?? ''}
                     </div>
                     <div class="text-xs text-gray-600 mt-1">
                       {winner.posicio === 1 ? '1r' : winner.posicio === 2 ? '2n' : '3r'} lloc

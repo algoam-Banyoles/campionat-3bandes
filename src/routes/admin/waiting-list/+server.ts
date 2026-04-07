@@ -21,22 +21,28 @@ export const GET: RequestHandler = async (event) => {
       return json({ ok: false, error: 'No hi ha cap event actiu' }, { status: 400 });
     }
 
+    // Fase 5a: nom llegit des de `socis` via JOIN niat.
     const { data, error } = await supabase
       .from('waiting_list')
-      .select('id, player_id, ordre, data_inscripcio, players (nom)')
+      .select('id, player_id, ordre, data_inscripcio, players(socis(nom, cognoms))')
       .eq('event_id', eventRow.id)
       .order('ordre', { ascending: true });
     if (error) {
       return json({ ok: false, error: 'Error obtenint llista d\u2019espera' }, { status: 400 });
     }
 
-    const rows = (data ?? []).map((r: any) => ({
-      id: r.id,
-      player_id: r.player_id,
-      nom: r.players?.nom ?? '',
-      ordre: r.ordre,
-      data_inscripcio: r.data_inscripcio
-    }));
+    const rows = (data ?? []).map((r: any) => {
+      const players = Array.isArray(r.players) ? r.players[0] : r.players;
+      const soci = players && (Array.isArray(players.socis) ? players.socis[0] : players.socis);
+      const nom = soci ? `${soci.nom ?? ''} ${soci.cognoms ?? ''}`.trim() : '';
+      return {
+        id: r.id,
+        player_id: r.player_id,
+        nom,
+        ordre: r.ordre,
+        data_inscripcio: r.data_inscripcio
+      };
+    });
 
     return json({ rows });
   } catch (e: any) {

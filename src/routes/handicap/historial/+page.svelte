@@ -205,15 +205,17 @@
 					.map((s: any) => s.participant_id as string)
 			)
 		];
+		// Fase 5c-S2b: FK directe via soci_numero
 		const { data: parts } = await supabase
 			.from('handicap_participants')
-			.select('id, players!inner(socis!inner(nom, cognoms))')
+			.select('id, socis!handicap_participants_soci_numero_fkey(nom, cognoms)')
 			.in('id', participantIds);
 		const nameMap = new Map(
-			(parts ?? []).map((p: any) => [
-				p.id as string,
-				`${p.players.socis.nom} ${p.players.socis.cognoms}`
-			])
+			(parts ?? []).map((p: any) => {
+				const raw = p.socis;
+				const s = Array.isArray(raw) ? raw[0] : raw;
+				return [p.id as string, s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : '?'];
+			})
 		);
 
 		// Calendari_partides (per data i caramboles)

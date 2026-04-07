@@ -529,24 +529,16 @@
 
       if (updateError) throw updateError;
 
-      // Get player ID from soci_numero
-      const { data: player } = await supabase
-        .from('players')
-        .select('id')
-        .eq('numero_soci', selectedInscriptionForWithdrawal.soci_numero)
-        .single();
+      // Fase 5c-S2c-2: cancel·lar partides directament filtrant per soci_numero
+      const sociNum = selectedInscriptionForWithdrawal.soci_numero;
+      const { error: cancelError } = await supabase
+        .from('calendari_partides')
+        .update({ estat: 'cancel·lada_per_retirada' })
+        .eq('event_id', selectedInscriptionForWithdrawal.event_id)
+        .or(`jugador1_soci_numero.eq.${sociNum},jugador2_soci_numero.eq.${sociNum}`)
+        .not('estat', 'eq', 'jugada');
 
-      if (player) {
-        // Cancel all calendar matches for this player
-        const { error: cancelError } = await supabase
-          .from('calendari_partides')
-          .update({ estat: 'cancel·lada_per_retirada' })
-          .eq('event_id', selectedInscriptionForWithdrawal.event_id)
-          .or(`jugador1_id.eq.${player.id},jugador2_id.eq.${player.id}`)
-          .not('estat', 'eq', 'jugada');
-
-        if (cancelError) throw cancelError;
-      }
+      if (cancelError) throw cancelError;
 
       // Close dialog and reload
       withdrawalDialogOpen = false;

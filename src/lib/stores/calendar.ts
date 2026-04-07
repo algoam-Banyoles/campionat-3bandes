@@ -348,6 +348,10 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
 
     // Query matches with proper relations
     // Only show matches that haven't been played yet (caramboles_jugador1 is null)
+    // Fase 5c-S2c: nom dels jugadors via FK directe `*_soci_numero → socis`,
+    // sense passar per la taula intermèdia `players`. Mantenim els camps
+    // `jugador1_id`/`jugador2_id` al SELECT i a la sortida perquè altres
+    // components encara filtren per ells (es netejarà a Sessió 3).
     const { data, error } = await supabase
       .from('calendari_partides')
       .select(`
@@ -361,16 +365,10 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
         categoria_id,
         jugador1_id,
         jugador2_id,
-        jugador1:jugador1_id(
-          id,
-          nom,
-          socis(nom, cognoms)
-        ),
-        jugador2:jugador2_id(
-          id,
-          nom,
-          socis(nom, cognoms)
-        ),
+        jugador1_soci_numero,
+        jugador2_soci_numero,
+        jugador1_soci:socis!calendari_partides_jugador1_soci_numero_fkey(numero_soci, nom, cognoms),
+        jugador2_soci:socis!calendari_partides_jugador2_soci_numero_fkey(numero_soci, nom, cognoms),
         events(id, nom),
         categories(id, nom)
       `)
@@ -414,19 +412,27 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
       return;
     }
 
-    // Create partides with proper player data
-    const partides: PartidaCalendari[] = data.map(item => {
+    // Create partides amb dades de jugador llegides directament des de socis
+    // (Fase 5c-S2c). Mantenim la forma `{ socis: { nom, cognoms } }` als
+    // camps `jugador1`/`jugador2` per no trencar el formateig downstream
+    // (`formatPlayerName` al derived store).
+    const partides: PartidaCalendari[] = data.map((item: any) => {
+      const j1Raw = item.jugador1_soci;
+      const j2Raw = item.jugador2_soci;
+      const j1Soci = Array.isArray(j1Raw) ? j1Raw[0] : j1Raw;
+      const j2Soci = Array.isArray(j2Raw) ? j2Raw[0] : j2Raw;
+
+      const j1Name = j1Soci ? `${j1Soci.nom ?? ''} ${j1Soci.cognoms ?? ''}`.trim() || 'Desconegut' : 'Desconegut';
+      const j2Name = j2Soci ? `${j2Soci.nom ?? ''} ${j2Soci.cognoms ?? ''}`.trim() || 'Desconegut' : 'Desconegut';
+
       return {
         id: item.id,
-        jugador1_nom: (item.jugador1 as any)?.socis ?
-          `${(item.jugador1 as any).socis.nom} ${(item.jugador1 as any).socis.cognoms}` :
-          ((item.jugador1 as any)?.nom || 'Desconegut'),
-        jugador2_nom: (item.jugador2 as any)?.socis ?
-          `${(item.jugador2 as any).socis.nom} ${(item.jugador2 as any).socis.cognoms}` :
-          ((item.jugador2 as any)?.nom || 'Desconegut'),
-        // Add original player data for proper formatting
-        jugador1: item.jugador1,
-        jugador2: item.jugador2,
+        jugador1_nom: j1Name,
+        jugador2_nom: j2Name,
+        // Estructura compatible amb `formatPlayerName` del derived store:
+        // espera `jugador.socis.nom` i `jugador.socis.cognoms`.
+        jugador1: { id: item.jugador1_id, nom: j1Name, socis: j1Soci },
+        jugador2: { id: item.jugador2_id, nom: j2Name, socis: j2Soci },
         data_programada: item.data_programada,
         hora_inici: item.hora_inici,
         taula_assignada: item.taula_assignada,
@@ -478,38 +484,88 @@ export async function deleteEsdeveniment(id: string): Promise<void> {
   }
 }
 
-export async function refreshCalendarData(): Promise<void> {
+// ── SWR (stale-while-revalidate) per `refreshCalendarData` ──────────────────
+//
+// Objectiu: en navegar entre pàgines (p. ex. dashboard → calendari → tornar
+// al dashboard) no refer les 3 queries cada cop. Comportament:
+//   · Si no hi ha dades carregades mai → fa fetch i bloqueja (cas inicial).
+//   · Si les dades són **fresques** (< FRESH_TTL_MS) → no-op (retorn instantani).
+//   · Si són **stale** (entre FRESH i STALE_TTL_MS) → retorn instantani amb les
+//     dades antigues + revalidació en background.
+//   · Si superen STALE_TTL_MS → fetch i bloqueja com el cas inicial.
+//
+const FRESH_TTL_MS = 30_000;          // 30 s sense refer res
+const STALE_TTL_MS = 5 * 60_000;      // 5 min: encara servim cached però revalidem
+let lastRefreshAt = 0;
+let inflightRefresh: Promise<void> | null = null;
+
+async function doRefreshCalendarData(): Promise<void> {
   try {
     calendarLoading.set(true);
     calendarError.set(null);
 
     console.log('🔄 Refreshing calendar data...');
 
-    // Load all data in parallel, passing false to prevent individual loading states
     const results = await Promise.allSettled([
       loadEsdeveniments(false),
       loadReptesProgramats(false),
       loadPartidesCalendari(false)
     ]);
 
-    // Check for errors
     const errors = results
       .filter(r => r.status === 'rejected')
       .map(r => (r as PromiseRejectedResult).reason);
 
     if (errors.length > 0) {
       console.error('❌ Errors refreshing calendar data:', errors);
-      // Set error but don't throw - partial data is better than nothing
       calendarError.set(`Error carregant algunes dades: ${errors.map(e => e.message).join(', ')}`);
     } else {
       console.log('✅ All calendar data refreshed successfully');
     }
+    lastRefreshAt = Date.now();
   } catch (error: any) {
     console.error('❌ Unexpected error in refreshCalendarData:', error);
     calendarError.set(error.message);
   } finally {
     calendarLoading.set(false);
   }
+}
+
+export async function refreshCalendarData(options: { force?: boolean } = {}): Promise<void> {
+  const force = options.force === true;
+  const age = Date.now() - lastRefreshAt;
+  const hasData = lastRefreshAt > 0;
+
+  // Coalesce concurrent calls: si ja n'hi ha una en marxa, espera-la.
+  if (inflightRefresh) {
+    return inflightRefresh;
+  }
+
+  // Cas A: dades fresques → no-op
+  if (!force && hasData && age < FRESH_TTL_MS) {
+    return;
+  }
+
+  // Cas B: dades stale però encara útils → revalida en background sense
+  // bloquejar la UI. El caller veu les dades cached immediatament.
+  if (!force && hasData && age < STALE_TTL_MS) {
+    inflightRefresh = doRefreshCalendarData().finally(() => {
+      inflightRefresh = null;
+    });
+    // Important: NO esperem la promesa
+    return;
+  }
+
+  // Cas C: primer carregament o dades caducades → fetch bloquejant
+  inflightRefresh = doRefreshCalendarData().finally(() => {
+    inflightRefresh = null;
+  });
+  return inflightRefresh;
+}
+
+/** Invalida la cache SWR — útil després d'operacions d'escriptura. */
+export function invalidateCalendarCache(): void {
+  lastRefreshAt = 0;
 }
 
 // Funcions d'utilitat per dates

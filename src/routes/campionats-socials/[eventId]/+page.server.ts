@@ -40,7 +40,10 @@ export const load: PageServerLoad = async ({ params }) => {
       console.error('Error loading calendar config:', configError);
     }
 
-    // Carregar partits del calendari
+    // Carregar partits del calendari (Fase 5c-S2c: nom des de socis via FK
+    // directe `*_soci_numero`, sense passar per `players`).
+    // Atenció: la query original llegia `players.cognoms` que NO existeix
+    // a la taula `players` — sempre retornava null. Bug latent corregit.
     const { data: matches, error: matchesError } = await supabase
       .from('calendari_partides')
       .select(`
@@ -49,12 +52,12 @@ export const load: PageServerLoad = async ({ params }) => {
           nom,
           ordre_categoria
         ),
-        jugador1:players!calendari_partides_jugador1_id_fkey (
+        jugador1:socis!calendari_partides_jugador1_soci_numero_fkey (
           nom,
           cognoms,
           numero_soci
         ),
-        jugador2:players!calendari_partides_jugador2_id_fkey (
+        jugador2:socis!calendari_partides_jugador2_soci_numero_fkey (
           nom,
           cognoms,
           numero_soci

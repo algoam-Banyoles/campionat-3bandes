@@ -50,7 +50,7 @@
 
       const userSociNumber = userData.numero_soci;
 
-      // Load user's matches for this event
+      // Load user's matches for this event (Fase 5c-S2c-2: FK directe a socis)
       const { data: matchesData, error: matchesError } = await supabase
         .from('calendari_partides')
         .select(`
@@ -58,26 +58,20 @@
           categoria_id,
           data_programada,
           hora_inici,
-          jugador1_id,
-          jugador2_id,
+          jugador1_soci_numero,
+          jugador2_soci_numero,
           estat,
           taula_assignada,
           observacions_junta,
-          jugador1:players!calendari_partides_jugador1_id_fkey (
-            id,
+          jugador1:socis!calendari_partides_jugador1_soci_numero_fkey (
             numero_soci,
-            socis!players_numero_soci_fkey (
-              nom,
-              cognoms
-            )
+            nom,
+            cognoms
           ),
-          jugador2:players!calendari_partides_jugador2_id_fkey (
-            id,
+          jugador2:socis!calendari_partides_jugador2_soci_numero_fkey (
             numero_soci,
-            socis!players_numero_soci_fkey (
-              nom,
-              cognoms
-            )
+            nom,
+            cognoms
           ),
           categories!calendari_partides_categoria_id_fkey(
             id,
@@ -86,7 +80,7 @@
           )
         `)
         .eq('event_id', eventId)
-        .or(`jugador1.numero_soci.eq.${userSociNumber},jugador2.numero_soci.eq.${userSociNumber}`)
+        .or(`jugador1_soci_numero.eq.${userSociNumber},jugador2_soci_numero.eq.${userSociNumber}`)
         .order('data_programada', { ascending: true })
         .order('hora_inici', { ascending: true });
 
@@ -156,7 +150,8 @@
       }
     }
 
-    return playerData.numero_soci || 0;
+    const obj = Array.isArray(playerData) ? playerData[0] : playerData;
+    return obj?.numero_soci || 0;
   }
 
   function formatPlayerName(playerData: any) {
@@ -171,13 +166,16 @@
       }
     }
 
-    // Nova estructura amb joins
-    if (playerData.socis?.nom && playerData.socis?.cognoms) {
-      return `${playerData.socis.nom} ${playerData.socis.cognoms}`;
+    // Fase 5c-S2c-2: la nova query retorna `{ numero_soci, nom, cognoms }`
+    // directament (sense socis niat). PostgREST pot tornar-ho com a array.
+    const obj = Array.isArray(playerData) ? playerData[0] : playerData;
+    if (obj?.nom || obj?.cognoms) {
+      return `${obj.nom ?? ''} ${obj.cognoms ?? ''}`.trim() || 'Jugador desconegut';
     }
-
-    // Fallback a estructura anterior
-    return `${playerData.nom || 'N/A'} ${playerData.cognoms || ''}`;
+    if (obj?.socis?.nom || obj?.socis?.cognoms) {
+      return `${obj.socis.nom ?? ''} ${obj.socis.cognoms ?? ''}`.trim();
+    }
+    return 'Jugador desconegut';
   }
 
   function getOpponentName(match: any, userSociNumber: number) {

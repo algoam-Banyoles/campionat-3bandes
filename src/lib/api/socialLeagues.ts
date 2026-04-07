@@ -125,7 +125,7 @@ export async function getSocialLeagueEventById(eventId: string): Promise<SocialL
           caramboles_favor,
           caramboles_contra,
           mitjana_particular,
-          players (
+          socis:socis!classificacions_soci_numero_fkey (
             nom,
             cognoms
           )
@@ -148,15 +148,18 @@ export async function getSocialLeagueEventById(eventId: string): Promise<SocialL
     created_at: event.creat_el, // Map creat_el to created_at for type compatibility
     categories: event.categories?.map(category => ({
       ...category,
-      classificacions: category.classificacions?.map(cl => ({
+      classificacions: category.classificacions?.map((cl: any) => {
+        const rawS = (cl as any).socis;
+        const sObj = Array.isArray(rawS) ? rawS[0] : rawS;
+        return ({
         id: cl.id,
         event_id: cl.event_id,
         categoria_id: cl.categoria_id,
         soci_id: cl.soci_id,
         posicio: cl.posicio,
         player_id: cl.player_id,
-        player_nom: cl.players?.nom || '',
-        player_cognom: cl.players?.cognoms || '',
+        player_nom: sObj?.nom || '',
+        player_cognom: sObj?.cognoms || '',
         partides_jugades: cl.partides_jugades,
         partides_guanyades: cl.partides_guanyades,
         partides_perdudes: cl.partides_perdudes,
@@ -165,7 +168,8 @@ export async function getSocialLeagueEventById(eventId: string): Promise<SocialL
         caramboles_favor: cl.caramboles_favor,
         caramboles_contra: cl.caramboles_contra,
         mitjana_particular: cl.mitjana_particular
-      })).sort((a, b) => a.posicio - b.posicio) || []
+      });
+      }).sort((a: any, b: any) => a.posicio - b.posicio) || []
     })).sort((a, b) => a.ordre_categoria - b.ordre_categoria) || []
   };
 }
@@ -272,7 +276,7 @@ export async function getCategoryClassifications(categoryId: string): Promise<Cl
       caramboles_favor,
       caramboles_contra,
       mitjana_particular,
-      players (
+      socis:socis!classificacions_soci_numero_fkey (
         nom,
         cognoms
       )
@@ -285,15 +289,15 @@ export async function getCategoryClassifications(categoryId: string): Promise<Cl
     throw error;
   }
 
-  return classifications?.map(cl => ({
+  return classifications?.map((cl: any) => ({
     id: cl.id,
     event_id: cl.event_id,
     categoria_id: cl.categoria_id,
     soci_id: cl.soci_id,
     posicio: cl.posicio,
     player_id: cl.player_id,
-    player_nom: Array.isArray(cl.players) ? (cl.players[0] as any)?.nom || '' : (cl.players as any)?.nom || '',
-    player_cognom: Array.isArray(cl.players) ? (cl.players[0] as any)?.cognoms || '' : (cl.players as any)?.cognoms || '',
+    player_nom: Array.isArray(cl.socis) ? (cl.socis[0] as any)?.nom || '' : (cl.socis as any)?.nom || '',
+    player_cognom: Array.isArray(cl.socis) ? (cl.socis[0] as any)?.cognoms || '' : (cl.socis as any)?.cognoms || '',
     partides_jugades: cl.partides_jugades,
     partides_guanyades: cl.partides_guanyades,
     partides_perdudes: cl.partides_perdudes,
@@ -319,15 +323,20 @@ export async function searchPlayerInClassifications(playerName: string): Promise
     partides_jugades: number;
   }[];
 }[]> {
+  // Fase 5a: el nom/cognom es llegeixen sempre des de `socis` (font de
+  // veritat). La query original llegia `players(nom, cognoms)` però `cognoms`
+  // no existeix a `players` — silenciosament tornava null.
   const { data: results, error } = await supabase
     .from('classificacions')
     .select(`
       posicio,
       punts,
       partides_jugades,
-      players (
-        nom,
-        cognoms
+      players!inner (
+        socis!inner (
+          nom,
+          cognoms
+        )
       ),
       categories (
         nom,
@@ -337,7 +346,7 @@ export async function searchPlayerInClassifications(playerName: string): Promise
         )
       )
     `)
-    .ilike('players.nom', `%${playerName}%`);
+    .ilike('players.socis.nom', `%${playerName}%`);
 
   if (error) {
     console.error('Error searching player classifications:', error);
@@ -349,16 +358,19 @@ export async function searchPlayerInClassifications(playerName: string): Promise
 
   results?.forEach(result => {
     const players = Array.isArray(result.players) ? result.players[0] : result.players;
+    const soci = players && (Array.isArray((players as any).socis) ? (players as any).socis[0] : (players as any).socis);
     const categories = Array.isArray(result.categories) ? result.categories[0] : result.categories;
     const events = Array.isArray(categories?.events) ? categories.events[0] : categories?.events;
 
-    if (!players || !events || !categories) return;
+    if (!soci || !events || !categories) return;
 
-    const playerKey = `${players.nom} ${players.cognoms}`;
+    const nom = soci.nom ?? '';
+    const cognoms = soci.cognoms ?? '';
+    const playerKey = `${nom} ${cognoms}`.trim();
 
     if (!playersMap.has(playerKey)) {
       playersMap.set(playerKey, {
-        player: { nom: players.nom, cognom: players.cognoms },
+        player: { nom, cognom: cognoms },
         classifications: []
       });
     }
@@ -381,7 +393,7 @@ export async function searchPlayerInClassifications(playerName: string): Promise
  */
 export async function exportCalendariToCSV(eventId: string): Promise<string> {
   try {
-    // First get the calendar matches
+    // First get the calendar matches (Fase 5c-S2c-2: usem soci_numero directe)
     const { data: partides, error: partidesError } = await supabase
       .from('calendari_partides')
       .select(`
@@ -390,8 +402,8 @@ export async function exportCalendariToCSV(eventId: string): Promise<string> {
         hora_inici,
         taula_assignada,
         estat,
-        jugador1_id,
-        jugador2_id,
+        jugador1_soci_numero,
+        jugador2_soci_numero,
         categoria_id
       `)
       .eq('event_id', eventId)
@@ -407,25 +419,28 @@ export async function exportCalendariToCSV(eventId: string): Promise<string> {
       throw new Error('No hi ha partides al calendari per exportar');
     }
 
-    // Get unique player IDs and category IDs
-    const playerIds = [...new Set([
-      ...partides.map(p => p.jugador1_id),
-      ...partides.map(p => p.jugador2_id)
-    ].filter(Boolean))];
+    // Get unique soci numbers and category IDs
+    const sociNumbers = [...new Set([
+      ...partides.map(p => p.jugador1_soci_numero),
+      ...partides.map(p => p.jugador2_soci_numero)
+    ].filter(Boolean))] as number[];
 
     const categoryIds = [...new Set(partides.map(p => p.categoria_id).filter(Boolean))];
 
-    // Fetch players and categories separately
-    const [playersResult, categoriesResult] = await Promise.all([
-      supabase.from('players').select('id, nom').in('id', playerIds),
+    // Fetch socis i categories en paral·lel
+    const [sociResult, categoriesResult] = await Promise.all([
+      supabase
+        .from('socis')
+        .select('numero_soci, nom, cognoms')
+        .in('numero_soci', sociNumbers),
       supabase.from('categories').select('id, nom').in('id', categoryIds)
     ]);
 
-    // Create lookup maps
-    const playersMap = new Map();
-    if (playersResult.data) {
-      playersResult.data.forEach(player => {
-        playersMap.set(player.id, player.nom);
+    // Create lookup maps (numero_soci → fullName)
+    const playersMap = new Map<number, string>();
+    if (sociResult.data) {
+      sociResult.data.forEach((s: any) => {
+        playersMap.set(s.numero_soci, `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim());
       });
     }
 
@@ -447,8 +462,8 @@ export async function exportCalendariToCSV(eventId: string): Promise<string> {
       partida.hora_inici || '',
       partida.taula_assignada || '',
       partida.estat || '',
-      playersMap.get(partida.jugador1_id) || '',
-      playersMap.get(partida.jugador2_id) || ''
+      playersMap.get(partida.jugador1_soci_numero as any) || '',
+      playersMap.get(partida.jugador2_soci_numero as any) || ''
     ]);
 
     // Combinar capçalera i files
@@ -508,29 +523,15 @@ export async function searchActivePlayers(playerName: string): Promise<{
     return [];
   }
 
-  // Obtenir la millor mitjana històrica de les classificacions
-  // Primer necessitem obtenir els player_id corresponents als numero_soci
+  // Obtenir la millor mitjana històrica de les classificacions.
+  // Fase 5c-S2c-2: ja podem filtrar directament per `soci_numero` sense
+  // passar per la taula `players`.
   const socisNumbers = filteredSocis.map(s => s.numero_soci);
-
-  const { data: players, error: playersErr } = await supabase
-    .from('players')
-    .select('id, numero_soci')
-    .in('numero_soci', socisNumbers);
-
-  if (playersErr) {
-    console.warn('Error fetching players:', playersErr);
-  }
-
-  // Crear un map de numero_soci -> player_id
-  const playerIdMap = new Map(players?.map(p => [p.numero_soci, p.id]) || []);
-
-  // Obtenir les millors mitjanes de classificacions
-  const playerIds = players?.map(p => p.id) || [];
 
   const { data: classificacions, error: classErr } = await supabase
     .from('classificacions')
-    .select('player_id, mitjana_particular')
-    .in('player_id', playerIds)
+    .select('soci_numero, mitjana_particular')
+    .in('soci_numero', socisNumbers)
     .gt('mitjana_particular', 0);
 
   if (classErr) {
@@ -539,10 +540,9 @@ export async function searchActivePlayers(playerName: string): Promise<{
 
   // Combinar dades dels socis amb les seves millors mitjanes històriques
   return filteredSocis.map(soci => {
-    const playerId = playerIdMap.get(soci.numero_soci);
-    const playerClassificacions = classificacions?.filter(c => c.player_id === playerId) || [];
-    const bestMitjana = playerClassificacions.length > 0
-      ? Math.max(...playerClassificacions.map(c => c.mitjana_particular))
+    const sociClass = classificacions?.filter((c: any) => c.soci_numero === soci.numero_soci) || [];
+    const bestMitjana = sociClass.length > 0
+      ? Math.max(...sociClass.map((c: any) => c.mitjana_particular))
       : null;
 
     return {

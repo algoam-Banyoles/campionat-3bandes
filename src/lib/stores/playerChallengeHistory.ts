@@ -25,7 +25,13 @@ export async function getPlayerChallengeHistory(playerId: string, eventId: strin
         )
       `)
       .eq('challenges.event_id', eventId)
-      .or(`challenges.reptador_id.eq.${playerId},challenges.reptat_id.eq.${playerId}`)
+      // PostgREST: per filtrar amb OR sobre una taula referenciada cal
+      // passar `referencedTable` en lloc de prefixar amb el nom de la taula
+      // dins la cadena. La sintaxi anterior generava PGRST100 (400).
+      .or(
+        `reptador_id.eq.${playerId},reptat_id.eq.${playerId}`,
+        { referencedTable: 'challenges' }
+      )
       .order('data_joc', { ascending: false })
       .limit(limit);
 

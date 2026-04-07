@@ -19,7 +19,35 @@ export interface RetryOptions {
   maxDelay: number;
   backoffFactor: number;
   immediateRetry?: boolean;
+  /** Timeout dur per a cada intent de l'operació, en ms. */
+  perAttemptTimeoutMs?: number;
 }
+
+/**
+ * Error llançat quan el circuit breaker està obert: el sistema ha detectat
+ * massa errors consecutius i bloqueja noves crides durant un període de
+ * recuperació. Permet fallar ràpid en lloc de penjar la UI.
+ */
+export class CircuitOpenError extends Error {
+  readonly code = 'CIRCUIT_OPEN';
+  constructor(public readonly cooldownRemainingMs: number) {
+    super(`Circuit breaker obert (${cooldownRemainingMs} ms restants)`);
+    this.name = 'CircuitOpenError';
+  }
+}
+
+/** Error llançat quan un intent supera `perAttemptTimeoutMs`. */
+export class OperationTimeoutError extends Error {
+  readonly code = 'OPERATION_TIMEOUT';
+  constructor(public readonly timeoutMs: number) {
+    super(`Operació avortada per timeout (${timeoutMs} ms)`);
+    this.name = 'OperationTimeoutError';
+  }
+}
+
+const CIRCUIT_BREAKER_THRESHOLD = 5; // errors consecutius
+const CIRCUIT_BREAKER_COOLDOWN_MS = 15000;
+const DEFAULT_PER_ATTEMPT_TIMEOUT_MS = 15000;
 
 export interface ConnectionEvent {
   type: 'online' | 'offline' | 'connected' | 'disconnected' | 'retry' | 'error';
@@ -43,6 +71,10 @@ class ConnectionManager {
   private retryTimeoutId: number | null = null;
   private healthCheckInterval: number | null = null;
   private lastPingTime: number = 0;
+
+  // Circuit breaker state
+  private consecutiveFailures = 0;
+  private circuitOpenedAt: number | null = null;
 
   // Default retry strategies per operation type
   private retryStrategies: Record<string, RetryOptions> = {
@@ -280,6 +312,50 @@ class ConnectionManager {
     }));
   }
 
+  /** Comprova el circuit breaker; llança si està obert i encara en cooldown. */
+  private assertCircuitClosed() {
+    if (this.circuitOpenedAt === null) return;
+    const elapsed = Date.now() - this.circuitOpenedAt;
+    if (elapsed >= CIRCUIT_BREAKER_COOLDOWN_MS) {
+      // Cooldown finalitzat → tanca el circuit i permet reintentar
+      this.circuitOpenedAt = null;
+      this.consecutiveFailures = 0;
+      return;
+    }
+    throw new CircuitOpenError(CIRCUIT_BREAKER_COOLDOWN_MS - elapsed);
+  }
+
+  private recordSuccess() {
+    this.consecutiveFailures = 0;
+    this.circuitOpenedAt = null;
+  }
+
+  private recordFailure() {
+    this.consecutiveFailures += 1;
+    if (
+      this.consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD &&
+      this.circuitOpenedAt === null
+    ) {
+      this.circuitOpenedAt = Date.now();
+      this.addEvent({
+        type: 'error',
+        timestamp: new Date(),
+        details: { circuitOpened: true, failures: this.consecutiveFailures }
+      });
+    }
+  }
+
+  /** Embolcalla `operation()` amb un timeout dur. */
+  private withAttemptTimeout<T>(operation: () => Promise<T>, timeoutMs: number): Promise<T> {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new OperationTimeoutError(timeoutMs)), timeoutMs);
+    });
+    return Promise.race([operation(), timeoutPromise]).finally(() => {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    });
+  }
+
   // Public API
   async executeWithRetry<T>(
     operation: () => Promise<T>,
@@ -287,7 +363,12 @@ class ConnectionManager {
     customOptions?: Partial<RetryOptions>
   ): Promise<T> {
     const options = { ...this.retryStrategies[strategy], ...customOptions };
+    const perAttemptTimeoutMs =
+      options.perAttemptTimeoutMs ?? DEFAULT_PER_ATTEMPT_TIMEOUT_MS;
     const state = get(this.connectionState);
+
+    // Circuit breaker: fail fast si està obert
+    this.assertCircuitClosed();
 
     // If offline and no immediate retry, throw immediately
     if (!(state as any).isOnline && !options.immediateRetry) {
@@ -299,7 +380,8 @@ class ConnectionManager {
 
     while (retryCount <= options.maxRetries) {
       try {
-        const result = await operation();
+        const result = await this.withAttemptTimeout(operation, perAttemptTimeoutMs);
+        this.recordSuccess();
         
         // Success - reset retry state if this was a retry
         if (retryCount > 0) {
@@ -315,6 +397,7 @@ class ConnectionManager {
 
       } catch (error) {
         lastError = error;
+        this.recordFailure();
         retryCount++;
 
         // Check if we should retry
@@ -323,10 +406,15 @@ class ConnectionManager {
         }
 
         const errorType = this.determineErrorType(error);
-        
+
         // Don't retry auth errors
         if (errorType === 'auth') {
           break;
+        }
+
+        // Si el circuit s'ha obert durant aquest intent, fail fast
+        if (this.circuitOpenedAt !== null) {
+          throw new CircuitOpenError(CIRCUIT_BREAKER_COOLDOWN_MS);
         }
 
         // Calculate delay with exponential backoff
@@ -393,15 +481,15 @@ class ConnectionManager {
 
   destroy() {
     this.stopRetrying();
-    
+
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
     }
-
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('online', this.handleOnlineEvent);
-      window.removeEventListener('offline', this.handleOfflineEvent);
-    }
+    // Nota: el listener 'online' s'afegeix com a arrow function inline a
+    // initializeConnectionMonitoring(), per tant no es pot eliminar des d'aquí.
+    // El singleton viu durant tota la sessió de la PWA, així que aquest
+    // destroy() només s'invoca a tests/teardown.
   }
 }
 

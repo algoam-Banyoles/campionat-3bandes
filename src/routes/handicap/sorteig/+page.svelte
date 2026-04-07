@@ -21,7 +21,7 @@
 
 	let event: any = null;
 	let config: any = null;
-	let participants: any[] = []; // handicap_participants amb players.socis
+	let participants: any[] = []; // handicap_participants amb socis (FK directe via soci_numero)
 
 	// Assignació de seeds: participant.id → seed (1-based)
 	let seedMap: Record<string, number> = {};
@@ -47,8 +47,9 @@
 	$: r1Preview = validSeeds ? getR1Pairings(participantInputs) : [];
 
 	function playerName(p: any): string {
-		const s = p.players?.socis;
-		return s ? `${s.nom} ${s.cognoms}` : '—';
+		const raw = p.socis;
+		const s = Array.isArray(raw) ? raw[0] : raw;
+		return s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() || '—' : '—';
 	}
 
 	// Ordenar participants per seed assignat (o per id si no té seed)
@@ -161,10 +162,10 @@
 			.single();
 		config = cfg;
 
-		// Carregar participants
+		// Carregar participants (Fase 5c-S2b: FK directe via soci_numero)
 		const { data: parts } = await supabase
 			.from('handicap_participants')
-			.select('id, distancia, seed, players!inner(id, numero_soci, socis!inner(nom, cognoms))')
+			.select('id, distancia, seed, soci_numero, socis!handicap_participants_soci_numero_fkey(nom, cognoms)')
 			.eq('event_id', ev.id)
 			.order('seed', { ascending: true, nullsFirst: false });
 

@@ -42,7 +42,7 @@
     loadCategories();
   }
 
-  // Load player data for logged-in user
+  // Load player data for logged-in user (Fase 5c-S2c-2: directe via socis.email)
   async function loadMyPlayerData() {
     if (!$user) {
       myPlayerData = null;
@@ -50,19 +50,25 @@
     }
 
     try {
-      // Use email to find player since players table doesn't have user_id
-      const { data: playerData, error: playerError } = await supabase
-        .from('players')
-        .select('id, numero_soci, nom, email')
+      const { data: sociData, error: sociError } = await supabase
+        .from('socis')
+        .select('numero_soci, nom, cognoms, email')
         .eq('email', $user.email)
-        .single();
+        .maybeSingle();
 
-      if (playerError) {
-        console.log('No player data found for user email:', $user.email);
+      if (sociError || !sociData) {
+        console.log('No soci data found for user email:', $user.email);
         myPlayerData = null;
       } else {
-        myPlayerData = playerData;
-        console.log('✅ Loaded player data for user:', myPlayerData);
+        // Compatible amb el codi downstream que espera `id` (player_id) i
+        // `numero_soci`. Posem `id = numero_soci` perquè els filtres
+        // compararan per soci_numero.
+        myPlayerData = {
+          id: sociData.numero_soci,
+          numero_soci: sociData.numero_soci,
+          nom: `${sociData.nom ?? ''} ${sociData.cognoms ?? ''}`.trim(),
+          email: sociData.email
+        };
       }
     } catch (e) {
       console.error('Error loading player data:', e);
@@ -262,9 +268,15 @@
       return false;
     }
 
-    // Filter "Les meves dades" per jugador logat
+    // Filter "Les meves dades" per jugador logat (Fase 5c-S2c-2: matching
+    // per soci_numero ja que `myPlayerData.id === numero_soci`).
     if (showOnlyMyResults && myPlayerData) {
-      const isMyMatch = match.jugador1_id === myPlayerData.id || match.jugador2_id === myPlayerData.id;
+      const myNum = myPlayerData.numero_soci;
+      const isMyMatch =
+        match.jugador1_numero_soci === myNum ||
+        match.jugador2_numero_soci === myNum ||
+        // Fallback per RPCs que encara retornen jugador*_id (player UUID)
+        match.jugador1_id === myPlayerData.id || match.jugador2_id === myPlayerData.id;
       if (!isMyMatch) return false;
     }
 

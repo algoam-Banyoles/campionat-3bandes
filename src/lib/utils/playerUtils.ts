@@ -85,6 +85,35 @@ export function obtenirInicials(nomComplet: string): string {
 }
 
 /**
+ * Tipus laxe per als camps mínims d'un soci necessaris per formatar el nom.
+ * Acceptem null/undefined perquè els JOINs de Supabase poden retornar valors
+ * absents quan la relació és opcional.
+ */
+export type SociNomLike = {
+  nom?: string | null;
+  cognoms?: string | null;
+} | null | undefined;
+
+/**
+ * Construeix el nom complet (`nom + cognoms`) a partir d'un objecte amb camps
+ * de soci. Retorna cadena buida si no hi ha dades. Cal usar-la sempre que
+ * tinguem un JOIN tipus `players(socis(nom, cognoms))` en lloc de llegir
+ * `players.nom` (que pot estar desincronitzat — vegeu Fase 5a a quality-baseline).
+ */
+export function nomComplertSoci(soci: SociNomLike): string {
+  if (!soci) return '';
+  return `${soci.nom ?? ''} ${soci.cognoms ?? ''}`.trim();
+}
+
+/**
+ * Igual que `nomComplertSoci` però aplicant `formatarNomJugador` (inicials +
+ * primer cognom).
+ */
+export function nomFormatatSoci(soci: SociNomLike): string {
+  return formatarNomJugador(nomComplertSoci(soci));
+}
+
+/**
  * Verifica si un nom té un format vàlid per al formateig
  *
  * @param nomComplet - El nom complet del jugador

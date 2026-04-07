@@ -95,21 +95,25 @@
 	});
 
 	async function loadData(eventId: string) {
-		// 1. Participants
+		// 1. Participants (Fase 5c-S2b: FK directe via soci_numero)
 		const { data: parts } = await supabase
 			.from('handicap_participants')
-			.select('id, distancia, eliminat, players!inner(socis!inner(nom, cognoms))')
+			.select('id, distancia, eliminat, socis!handicap_participants_soci_numero_fkey(nom, cognoms)')
 			.eq('event_id', eventId);
 
 		const partMap = new Map(
-			(parts ?? []).map((p: any) => [
-				p.id as string,
-				{
-					name: `${p.players.socis.nom} ${p.players.socis.cognoms}`,
-					distancia: p.distancia as number,
-					eliminat: p.eliminat as boolean
-				}
-			])
+			(parts ?? []).map((p: any) => {
+				const raw = p.socis;
+				const s = Array.isArray(raw) ? raw[0] : raw;
+				return [
+					p.id as string,
+					{
+						name: s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : '?',
+						distancia: p.distancia as number,
+						eliminat: p.eliminat as boolean
+					}
+				];
+			})
 		);
 
 		// 2. Slots

@@ -72,47 +72,29 @@
         return;
       }
 
-      // Obtenir IDs únics de jugadors
-      const jugadorIds = Array.from(new Set([
-        ...matchesData.map(m => m.jugador1_id),
-        ...matchesData.map(m => m.jugador2_id)
-      ].filter(id => id)));
+      // Fase 5c-S2c-2: socis directes via soci_numero
+      const sociNumbers = Array.from(new Set([
+        ...matchesData.map((m: any) => m.jugador1_soci_numero),
+        ...matchesData.map((m: any) => m.jugador2_soci_numero)
+      ].filter((n: any) => typeof n === 'number'))) as number[];
 
-      // Carregar dades de jugadors via players → socis
-      const playersMap = new Map();
-      if (jugadorIds.length > 0) {
-        const { data: playersData } = await supabase
-          .from('players')
-          .select('id, numero_soci')
-          .in('id', jugadorIds);
-
-        if (playersData && playersData.length > 0) {
-          const socisIds = playersData.map(p => p.numero_soci).filter(Boolean);
-          const { data: socisData } = await supabase
-            .from('socis')
-            .select('numero_soci, nom, cognoms')
-            .in('numero_soci', socisIds);
-
-          if (socisData) {
-            const socisMap = new Map(socisData.map(s => [s.numero_soci, s]));
-            playersData.forEach(p => {
-              const sociData = socisMap.get(p.numero_soci);
-              if (sociData) {
-                playersMap.set(p.id, sociData);
-              }
-            });
-          }
-        }
+      const playersMap = new Map<number, any>();
+      if (sociNumbers.length > 0) {
+        const { data: socisData } = await supabase
+          .from('socis')
+          .select('numero_soci, nom, cognoms')
+          .in('numero_soci', sociNumbers);
+        (socisData ?? []).forEach((s: any) => playersMap.set(s.numero_soci, s));
       }
 
       // Carregar categories
       const categoriesMap = new Map(categories.map(c => [c.id, c]));
 
       // Combinar tota la informació
-      oldMatches = matchesData.map(match => ({
+      oldMatches = matchesData.map((match: any) => ({
         ...match,
-        jugador1: playersMap.get(match.jugador1_id) || null,
-        jugador2: playersMap.get(match.jugador2_id) || null,
+        jugador1: playersMap.get(match.jugador1_soci_numero) || null,
+        jugador2: playersMap.get(match.jugador2_soci_numero) || null,
         categoria: categoriesMap.get(match.categoria_id) || null
       }));
 

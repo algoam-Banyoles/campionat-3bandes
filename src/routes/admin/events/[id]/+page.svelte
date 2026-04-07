@@ -130,36 +130,11 @@
       throw inscError;
     }
 
-    // Obtenir tots els numeros de soci
-    const sociNumbers = (inscData || [])
-      .map(i => i.soci_numero)
-      .filter(Boolean);
-
-    // Carregar players corresponents
-    const { data: playersData, error: playersError } = await supabase
-      .from('players')
-      .select('id, numero_soci')
-      .in('numero_soci', sociNumbers);
-
-    if (playersError) {
-      console.error('Error carregant players:', playersError);
-      throw playersError;
-    }
-
-    // Crear mapa soci_numero -> player_id
-    const sociToPlayerMap = new Map();
-    (playersData || []).forEach(player => {
-      sociToPlayerMap.set(player.numero_soci, player.id);
-    });
-
-    // Combinar dades
+    // Fase 5c-S2c-2: ja no necessitem el lookup a `players` perquè
+    // `player_id` no s'usa downstream — només es desa al state. Filtrem
+    // les inscripcions vàlides per categoria assignada directament.
     inscriptions = (inscData || [])
-      .map(inscription => ({
-        ...inscription,
-        player_id: sociToPlayerMap.get(inscription.soci_numero)
-      }))
-      .filter(i => i.player_id && i.categoria_assignada_id);
-
+      .filter((i: any) => i.soci_numero && i.categoria_assignada_id);
   }
 
   async function updateEvent() {

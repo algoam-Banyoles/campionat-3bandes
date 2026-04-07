@@ -127,11 +127,14 @@
 	async function loadParticipants() {
 		const { data, error: pErr } = await supabase
 			.from('handicap_participants')
+			// Fase 5c-S2b: nom via FK directe `soci_numero → socis`. Mantenim
+			// `player_id` (i el seu nested players(...)) perquè el path d'edició
+			// encara hi depèn (sortirà a Sessió 3 en eliminar la columna).
 			.select(`
 				id, distancia, seed, preferencies_dies, preferencies_hores,
 				restriccions_especials, eliminat, created_at,
-				players!handicap_participants_player_id_fkey(id, numero_soci,
-					socis!players_numero_soci_fkey(nom, cognoms, email))
+				player_id, soci_numero,
+				socis!handicap_participants_soci_numero_fkey(numero_soci, nom, cognoms, email)
 			`)
 			.eq('event_id', event.id)
 			.order('created_at', { ascending: true });
@@ -144,9 +147,9 @@
 		if (term.length < 3) { playerResults = []; return; }
 		try {
 			const all = await searchActivePlayers(term);
-			// Filtrar els ja inscrits
+			// Filtrar els ja inscrits (Fase 5c-S2b: directe via soci_numero)
 			const inscritsSocis = new Set(
-				participants.map((p: any) => p.players?.numero_soci)
+				participants.map((p: any) => p.soci_numero)
 			);
 			playerResults = all.filter(s => !inscritsSocis.has(s.numero_soci));
 		} catch { playerResults = []; }
@@ -237,8 +240,11 @@
 
 	function openEditModal(p: any) {
 		editingId = p.id;
-		selectedSoci = p.players?.socis || null;
-		selectedPlayerId = p.players?.id || null;
+		// Fase 5c-S2b: socis ve directe via FK soci_numero. player_id encara
+		// es manté com a fallback per al path d'escriptura.
+		const rawS = p.socis;
+		selectedSoci = (Array.isArray(rawS) ? rawS[0] : rawS) || null;
+		selectedPlayerId = p.player_id || null;
 		playerSearch = selectedSoci ? `${selectedSoci.nom} ${selectedSoci.cognoms}` : '';
 		playerResults = [];
 
@@ -367,8 +373,14 @@
 
 			const playerMap = new Map((players || []).map((p: any) => [p.numero_soci, p.id]));
 
-			// Ja inscrits al hàndicap
-			const inscritIds = new Set(participants.map((p: any) => p.players?.id));
+			// Ja inscrits al hàndicap (Fase 5c-S2b: matching via soci_numero)
+			const inscritsSocis = new Set(participants.map((p: any) => p.soci_numero));
+			const inscritIds = new Set(
+				inscripcions
+					.filter((i: any) => inscritsSocis.has(i.soci_numero))
+					.map((i: any) => playerMap.get(i.soci_numero))
+					.filter(Boolean)
+			);
 
 			// Deduplicar per jugador (un jugador pot tenir ≤1 inscripció per event, però per seguretat)
 			const seen = new Map<number, any>();
@@ -508,8 +520,10 @@
 
 	// ─── Helpers ──────────────────────────────────────────────
 	function playerNom(p: any): string {
-		const s = p.players?.socis;
-		return s ? `${s.nom} ${s.cognoms}` : `Jugador ${p.id.slice(0, 6)}`;
+		// Fase 5c-S2b: socis ara ve directe via FK soci_numero
+		const raw = p.socis;
+		const s = Array.isArray(raw) ? raw[0] : raw;
+		return s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() || `Jugador ${p.id.slice(0, 6)}` : `Jugador ${p.id.slice(0, 6)}`;
 	}
 
 	function formatDies(dies: string[]): string {

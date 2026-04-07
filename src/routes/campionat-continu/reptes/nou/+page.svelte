@@ -85,7 +85,7 @@
         if (!oppId) {
           const { data: pos20, error: p20Err } = await supabase
             .from('ranking_positions')
-            .select('player_id, players!inner(nom)')
+            .select('player_id, players!inner(socis!inner(nom, cognoms))')
             .eq('event_id', eventId)
             .eq('posicio', 20)
             .maybeSingle();
@@ -95,7 +95,11 @@
           }
           if (pos20) {
             oppId = (pos20 as any).player_id;
-            opponentName = (pos20 as any).players.nom ?? '';
+            const soci = (pos20 as any).players?.socis;
+            const sociObj = Array.isArray(soci) ? soci[0] : soci;
+            opponentName = sociObj
+              ? `${sociObj.nom ?? ''} ${sociObj.cognoms ?? ''}`.trim()
+              : '';
           }
         } else {
           const { data: opp } = await supabase

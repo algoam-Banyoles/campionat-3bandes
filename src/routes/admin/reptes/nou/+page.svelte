@@ -77,19 +77,31 @@ import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
       eventActiuId = ev.id;
 
       // 3) Rànquing de l’event actiu (ranking_positions + players)
+      // Fase 5a: nom/email es llegeixen sempre des de `socis`.
       const { data: rp, error: eRank } = await supabase
         .from('ranking_positions')
-        .select('player_id, posicio, players(id, nom, email)')
+        .select('player_id, posicio, players(id, socis(nom, cognoms, email))')
         .eq('event_id', eventActiuId)
         .order('posicio', { ascending: true });
       if (eRank) throw eRank;
 
-      ranked = (rp ?? []).map(row => ({
-        player_id: row.player_id,
-        posicio: row.posicio,
-        nom: (row as any).players?.nom ?? '—',
-        email: (row as any).players?.email ?? null
-      }));
+      const extractSoci = (players: any) => {
+        const p = Array.isArray(players) ? players[0] : players;
+        const s = p && (Array.isArray(p.socis) ? p.socis[0] : p.socis);
+        return s ?? null;
+      };
+      const sociFullName = (s: any) =>
+        s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() || '—' : '—';
+
+      ranked = (rp ?? []).map(row => {
+        const soci = extractSoci((row as any).players);
+        return {
+          player_id: row.player_id,
+          posicio: row.posicio,
+          nom: sociFullName(soci),
+          email: soci?.email ?? null
+        };
+      });
 
       // diccionari auxiliar
       playersById = new Map(ranked.map(r => [r.player_id, { id: r.player_id, nom: r.nom, email: r.email }]));
@@ -97,17 +109,18 @@ import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
       // 4) Primer jugador de la llista d'espera
       const { data: wl, error: eWl } = await supabase
         .from('waiting_list')
-        .select('player_id, players(id, nom, email)')
+        .select('player_id, players(id, socis(nom, cognoms, email))')
         .eq('event_id', eventActiuId)
         .order('ordre', { ascending: true })
         .limit(1)
         .maybeSingle();
       if (eWl) throw eWl;
       if (wl) {
+        const soci = extractSoci((wl as any).players);
         waitFirst = {
           id: wl.player_id,
-          nom: (wl as any).players?.nom ?? '—',
-          email: (wl as any).players?.email ?? null
+          nom: sociFullName(soci),
+          email: soci?.email ?? null
         };
         playersById.set(waitFirst.id, waitFirst);
       }

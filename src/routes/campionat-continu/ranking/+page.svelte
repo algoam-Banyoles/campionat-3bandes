@@ -44,6 +44,7 @@
   let badgeMap = new Map<string, VPlayerBadges>();
   let playerHistoryMap = new Map<string, ChallengeResult[]>();
   let intervalRef: NodeJS.Timeout;
+  let cancelled = false;
 
   $: if (badgesLoaded) {
     badgeMap = new Map(badges.map((b) => [b.player_id, b]));
@@ -59,6 +60,7 @@
 
       // Subscriure's al store optimitzat
       unsub = ranking.subscribe((base) => {
+        if (cancelled) return;
         const rdata = base.slice(0, 20);
         rows = rdata.map((r) => ({
           ...r,
@@ -132,20 +134,24 @@
 
       // Configurar refresh automàtic cada 5 minuts
       intervalRef = setInterval(async () => {
+        if (cancelled) return;
         await refreshRanking();
+        if (cancelled) return;
         await refreshActiveChallenges();
       }, 5 * 60 * 1000);
 
     } catch (e: any) {
-      error = e?.message ?? 'Error desconegut';
+      if (!cancelled) error = e?.message ?? 'Error desconegut';
     } finally {
-      loading = false;
+      if (!cancelled) loading = false;
       performanceMonitor.endMeasurement(refreshId, 'ranking_page_load', 'component');
     }
   });
 
   onDestroy(() => {
+    cancelled = true;
     unsub?.();
+    unsub = null;
     if (typeof intervalRef !== 'undefined') {
       clearInterval(intervalRef);
     }

@@ -89,11 +89,15 @@
 			const calMap = new Map((calPartides ?? []).map((c: any) => [c.id as string, c]));
 
 			const partIds = [...new Set((slots ?? []).filter((s: any) => s.participant_id).map((s: any) => s.participant_id as string))];
+			// Fase 5c-S2b: lectura via FK directe `soci_numero → socis`
 			const { data: parts } = await supabase
 				.from('handicap_participants')
-				.select('id, players!inner(socis!inner(nom, cognoms))')
+				.select('id, socis!handicap_participants_soci_numero_fkey(nom, cognoms)')
 				.in('id', partIds);
-			const nameMap = new Map((parts ?? []).map((p: any) => [p.id as string, `${p.players.socis.nom} ${p.players.socis.cognoms}`]));
+			const nameMap = new Map((parts ?? []).map((p: any) => {
+				const s = Array.isArray(p.socis) ? p.socis[0] : p.socis;
+				return [p.id as string, s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : '?'];
+			}));
 
 			// Últimes 3 partides jugades
 			const jugades = (matchStats as any[])
@@ -197,12 +201,13 @@
 					if (gfMatch?.guanyador_participant_id) {
 						const { data: champ } = await supabase
 							.from('handicap_participants')
-							.select('players!inner(socis!inner(nom, cognoms))')
+							.select('socis!handicap_participants_soci_numero_fkey(nom, cognoms)')
 							.eq('id', gfMatch.guanyador_participant_id)
 							.single();
 						if (champ) {
-							const s = (champ as any).players.socis;
-							champName = `${s.nom} ${s.cognoms}`;
+							const s = (champ as any).socis;
+							const sociObj = Array.isArray(s) ? s[0] : s;
+							if (sociObj) champName = `${sociObj.nom ?? ''} ${sociObj.cognoms ?? ''}`.trim();
 						}
 					}
 				}

@@ -34,3 +34,13 @@ mitjanes_*.sql
 *.tmp
 *.bak
 *.old
+
+# Local DB backups (Fase 5c)
+backups/
+
+# Test coverage output
+coverage/
+
+# Playwright test results
+test-results/
+playwright-report/

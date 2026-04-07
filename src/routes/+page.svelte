@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { refreshCalendarData, getEventsForDate } from '$lib/stores/calendar';
 
   let upcomingEvents: any[] = [];
   let loading = true;
+  let cancelled = false;
 
   // Dynamic content variables
   let mainContent = { title: '', content: '' };
@@ -20,8 +21,9 @@
   onMount(async () => {
     loading = true;
     try {
-      await refreshCalendarData();
-      await loadPageContent();
+      // Paral·lelitzem les dues queries: són independents, una no espera l'altra.
+      await Promise.all([refreshCalendarData(), loadPageContent()]);
+      if (cancelled) return;
 
       // Obtenir esdeveniments d'avui i demà
       const today = new Date();
@@ -41,8 +43,12 @@
     } catch (error) {
       console.error('❌ Error carregant esdeveniments:', error);
     } finally {
-      loading = false;
+      if (!cancelled) loading = false;
     }
+  });
+
+  onDestroy(() => {
+    cancelled = true;
   });
 
   async function loadPageContent() {

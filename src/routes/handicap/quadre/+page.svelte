@@ -156,89 +156,112 @@
 
 	// ── Càrrega de dades ──────────────────────────────────────────────────────
 
-	onMount(async () => {
-		// 1. Event actiu, o si no n'hi ha, el més recent de tipus handicap
-		let ev: any = null;
-		const { data: activeEv } = await supabase
-			.from('events')
-			.select('id, nom, estat_competicio')
-			.eq('tipus_competicio', 'handicap')
-			.eq('actiu', true)
-			.limit(1)
-			.maybeSingle();
+	let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+	let realtimeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+	let cancelled = false;
 
-		if (activeEv) {
-			ev = activeEv;
-		} else {
-			const { data: recentEv } = await supabase
+	onMount(async () => {
+		try {
+			// 1. Event actiu, o si no n'hi ha, el més recent de tipus handicap
+			let ev: any = null;
+			const { data: activeEv } = await supabase
 				.from('events')
 				.select('id, nom, estat_competicio')
 				.eq('tipus_competicio', 'handicap')
-				.order('creat_el', { ascending: false })
+				.eq('actiu', true)
 				.limit(1)
 				.maybeSingle();
-			ev = recentEv;
+			if (cancelled) return;
+
+			if (activeEv) {
+				ev = activeEv;
+			} else {
+				const { data: recentEv } = await supabase
+					.from('events')
+					.select('id, nom, estat_competicio')
+					.eq('tipus_competicio', 'handicap')
+					.order('creat_el', { ascending: false })
+					.limit(1)
+					.maybeSingle();
+				if (cancelled) return;
+				ev = recentEv;
+			}
+
+			if (!ev) {
+				error = 'No hi ha cap event hàndicap.';
+				return;
+			}
+			event = ev;
+			estatCompeticio = (ev as any).estat_competicio ?? 'en_curs';
+
+			// 1b. Configuració del torneig
+			const { data: cfg } = await supabase
+				.from('handicap_config')
+				.select('sistema_puntuacio, limit_entrades')
+				.eq('event_id', ev.id)
+				.single();
+			if (cancelled) return;
+			if (cfg) {
+				sistemaPuntuacio = (cfg.sistema_puntuacio as string) ?? 'distancia';
+				limitEntrades = (cfg.limit_entrades as number | null) ?? null;
+			}
+
+			// 2. Comprovar que hi ha bracket generat
+			const { count: slotCount } = await supabase
+				.from('handicap_bracket_slots')
+				.select('*', { count: 'exact', head: true })
+				.eq('event_id', ev.id);
+			if (cancelled) return;
+
+			if ((slotCount ?? 0) === 0) {
+				await goto('/handicap/sorteig');
+				return;
+			}
+
+			await loadBracketData(ev.id);
+			if (cancelled) return;
+
+			// Subscripció realtime: recarregar quan canviïn partides o slots
+			realtimeChannel = supabase
+				.channel(`handicap-quadre-${ev.id}`)
+				.on('postgres_changes', { event: '*', schema: 'public', table: 'handicap_matches', filter: `event_id=eq.${ev.id}` }, () => {
+					if (cancelled) return;
+					if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
+					realtimeDebounceTimer = setTimeout(() => {
+						if (!cancelled) loadBracketData(ev.id);
+					}, 300);
+				})
+				.on('postgres_changes', { event: '*', schema: 'public', table: 'handicap_bracket_slots', filter: `event_id=eq.${ev.id}` }, () => {
+					if (cancelled) return;
+					if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
+					realtimeDebounceTimer = setTimeout(() => {
+						if (!cancelled) loadBracketData(ev.id);
+					}, 300);
+				})
+				.subscribe();
+		} catch (e: any) {
+			if (!cancelled) error = e?.message ?? 'Error carregant el quadre hàndicap';
+		} finally {
+			if (!cancelled) loading = false;
 		}
-
-		if (!ev) {
-			error = 'No hi ha cap event hàndicap.';
-			loading = false;
-			return;
-		}
-		event = ev;
-		estatCompeticio = (ev as any).estat_competicio ?? 'en_curs';
-
-		// 1b. Configuració del torneig
-		const { data: cfg } = await supabase
-			.from('handicap_config')
-			.select('sistema_puntuacio, limit_entrades')
-			.eq('event_id', ev.id)
-			.single();
-		if (cfg) {
-			sistemaPuntuacio = (cfg.sistema_puntuacio as string) ?? 'distancia';
-			limitEntrades = (cfg.limit_entrades as number | null) ?? null;
-		}
-
-		// 2. Comprovar que hi ha bracket generat
-		const { count: slotCount } = await supabase
-			.from('handicap_bracket_slots')
-			.select('*', { count: 'exact', head: true })
-			.eq('event_id', ev.id);
-
-		if ((slotCount ?? 0) === 0) {
-			await goto('/handicap/sorteig');
-			return;
-		}
-
-		await loadBracketData(ev.id);
-		loading = false;
-
-		// Subscripció realtime: recarregar quan canviïn partides o slots
-		let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-		realtimeChannel = supabase
-			.channel(`handicap-quadre-${ev.id}`)
-			.on('postgres_changes', { event: '*', schema: 'public', table: 'handicap_matches', filter: `event_id=eq.${ev.id}` }, () => {
-				if (debounceTimer) clearTimeout(debounceTimer);
-				debounceTimer = setTimeout(() => loadBracketData(ev.id), 300);
-			})
-			.on('postgres_changes', { event: '*', schema: 'public', table: 'handicap_bracket_slots', filter: `event_id=eq.${ev.id}` }, () => {
-				if (debounceTimer) clearTimeout(debounceTimer);
-				debounceTimer = setTimeout(() => loadBracketData(ev.id), 300);
-			})
-			.subscribe();
 	});
 
-	let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
 	onDestroy(() => {
+		cancelled = true;
+		if (realtimeDebounceTimer) {
+			clearTimeout(realtimeDebounceTimer);
+			realtimeDebounceTimer = null;
+		}
 		realtimeChannel?.unsubscribe();
+		realtimeChannel = null;
 	});
 
 	async function loadBracketData(eventId: string) {
-		// 3. Participants amb noms
+		// 3. Participants amb noms (Fase 5c-S2b: FK directe via soci_numero)
 		const { data: partsData, error: pErr } = await supabase
 			.from('handicap_participants')
 			.select(
-				'id, distancia, seed, eliminat, players!inner(socis!inner(nom, cognoms))'
+				'id, distancia, seed, eliminat, socis!handicap_participants_soci_numero_fkey(nom, cognoms)'
 			)
 			.eq('event_id', eventId);
 
@@ -246,16 +269,22 @@
 		participants = partsData ?? [];
 
 		const participantMap = new Map<string, PlayerInfo>(
-			participants.map((p: any) => [
-				p.id,
-				{
-					id: p.id,
-					name: `${p.players.socis.nom} ${p.players.socis.cognoms}`,
-					shortName: shortName(p.players.socis.nom, p.players.socis.cognoms),
-					distancia: p.distancia,
-					seed: p.seed
-				}
-			])
+			participants.map((p: any) => {
+				const raw = p.socis;
+				const s = Array.isArray(raw) ? raw[0] : raw;
+				const nom = s?.nom ?? '';
+				const cognoms = s?.cognoms ?? '';
+				return [
+					p.id,
+					{
+						id: p.id,
+						name: `${nom} ${cognoms}`.trim(),
+						shortName: shortName(nom, cognoms),
+						distancia: p.distancia,
+						seed: p.seed
+					}
+				];
+			})
 		);
 
 		// 4. Slots
@@ -313,15 +342,18 @@
 		}).filter(Boolean) as MatchView[];
 
 		// Detectar si l'usuari autenticat és participant del torneig
+		// Fase 5c-S2b: matching directe via soci_numero, sense passar per players
 		const userEmail = $user?.email;
 		if (userEmail && !myParticipantId) {
 			const { data: soci } = await supabase.from('socis').select('numero_soci').eq('email', userEmail).maybeSingle();
 			if (soci) {
-				const { data: player } = await supabase.from('players').select('id').eq('numero_soci', soci.numero_soci).maybeSingle();
-				if (player) {
-					const { data: part } = await supabase.from('handicap_participants').select('id').eq('event_id', eventId).eq('player_id', player.id).maybeSingle();
-					myParticipantId = part?.id ?? null;
-				}
+				const { data: part } = await supabase
+					.from('handicap_participants')
+					.select('id')
+					.eq('event_id', eventId)
+					.eq('soci_numero', soci.numero_soci)
+					.maybeSingle();
+				myParticipantId = part?.id ?? null;
 			}
 		}
 	}

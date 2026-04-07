@@ -174,11 +174,10 @@
       if (missingSociNumbers.length > 0) {
         console.log(`Creant ${missingSociNumbers.length} jugadors nous per socis sense registre a players:`, missingSociNumbers);
 
-        // Obtenir dades dels socis per crear els players
+        // Fase 5b: ja no escrivim nom/email aquí — les columnes són nullable
+        // i la font de veritat és `socis` via JOIN.
         const missingInscriptions = inscriptions.filter(i => missingSociNumbers.includes(i.soci_numero));
         const newPlayers = missingInscriptions.map(ins => ({
-          nom: ins.socis ? `${ins.socis.nom} ${ins.socis.cognoms}`.trim() : `Soci ${ins.soci_numero}`,
-          email: ins.socis?.email || null,
           numero_soci: ins.soci_numero,
           estat: 'actiu'
         }));

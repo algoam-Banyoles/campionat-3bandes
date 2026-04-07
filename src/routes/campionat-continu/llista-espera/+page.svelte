@@ -54,12 +54,17 @@ let loading = true;
       if (eventId) {
         const { data: p20 } = await supabase
           .from('ranking_positions')
-          .select('players!inner(id, nom)')
+          .select('players!inner(id, socis!inner(nom, cognoms))')
           .eq('event_id', eventId)
           .eq('posicio', 20)
           .maybeSingle();
         if (p20) {
-          player20 = { id: (p20 as any).players.id, nom: (p20 as any).players.nom };
+          const players = (p20 as any).players;
+          const soci = Array.isArray(players?.socis) ? players.socis[0] : players?.socis;
+          const fullName = soci
+            ? `${soci.nom ?? ''} ${soci.cognoms ?? ''}`.trim()
+            : '';
+          player20 = { id: players.id, nom: fullName };
         }
       }
 

@@ -25,10 +25,11 @@
 
       console.log('Loading champions from previous season:', previousSeason);
 
+      // Fase 5c-S2c-2: nom des de socis directament via FK
       const { data: champions, error } = await supabase
         .from('classificacions')
         .select(`
-          player_id,
+          soci_numero,
           posicio,
           categories (
             nom,
@@ -38,14 +39,15 @@
               temporada
             )
           ),
-          players (
+          socis:socis!classificacions_soci_numero_fkey (
             numero_soci,
-            nom
+            nom,
+            cognoms
           )
         `)
         .eq('categories.events.modalitat', currentEvent.modalitat)
         .eq('categories.events.temporada', previousSeason)
-        .in('posicio', [1, 2]) // només campió i subcampió
+        .in('posicio', [1, 2])
         .order('posicio');
 
       if (error) {
@@ -55,16 +57,18 @@
 
       previousChampions.clear();
 
-      champions?.forEach(champion => {
-        if (champion.players?.[0]?.numero_soci) {
-          const numeroSoci = champion.players[0].numero_soci;
+      champions?.forEach((champion: any) => {
+        const sociRaw = champion.socis;
+        const sociObj = Array.isArray(sociRaw) ? sociRaw[0] : sociRaw;
+        const numeroSoci = sociObj?.numero_soci ?? champion.soci_numero;
+        if (numeroSoci) {
           const championInfo = {
             posicio: champion.posicio,
             categoria_nom: champion.categories?.[0]?.nom,
             ordre_categoria: champion.categories?.[0]?.ordre_categoria,
             modalitat: champion.categories?.[0]?.events?.[0]?.modalitat,
             temporada: champion.categories?.[0]?.events?.[0]?.temporada,
-            nom: champion.players?.[0]?.nom
+            nom: sociObj ? `${sociObj.nom ?? ''} ${sociObj.cognoms ?? ''}`.trim() : ''
           };
 
           previousChampions.set(numeroSoci, championInfo);
