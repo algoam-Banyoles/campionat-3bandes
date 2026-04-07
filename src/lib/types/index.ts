@@ -219,10 +219,12 @@ export interface RankingPosition {
   id: UUID;
   event_id: UUID;
   player_id: UUID;
+  /** Nou camp Fase 5c — substituirà player_id un cop migrats tots els consumidors */
+  soci_numero: number;
   posicio: number;
   created_at: string;
 
-  // Camps calculats/joins via players
+  // Camps calculats/joins via players (en transició a socis + socis_jugador)
   nom: string | null;
   cognoms: string | null;
   mitjana: number | null;
