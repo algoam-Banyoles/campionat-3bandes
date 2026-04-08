@@ -69,22 +69,26 @@
       // 1) Carrega repte
       const { data: c, error: e1 } = await supabase
         .from('challenges')
-        .select('id,event_id,reptador_id,reptat_id,pos_reptador,pos_reptat,data_programada')
+        .select('id,event_id,reptador_id,reptat_id,reptador_soci_numero,reptat_soci_numero,pos_reptador,pos_reptat,data_programada')
         .eq('id', id)
         .maybeSingle();
       if (e1) throw e1;
       if (!c) { error = errText('Repte no trobat.'); return; }
-      chal = c;
+      chal = c as any;
 
-      // 2) Noms jugadors
-      const { data: players, error: e2 } = await supabase
-        .from('players')
-        .select('id, socis!inner(nom)')
-        .in('id', [c.reptador_id, c.reptat_id]);
-      if (e2) throw e2;
-      const dict = new Map((players ?? []).map((p:any)=>[p.id, p.socis?.nom]));
-      reptadorNom = dict.get(c.reptador_id) ?? '—';
-      reptatNom = dict.get(c.reptat_id) ?? '—';
+      // 2) Noms jugadors (via soci_numero)
+      const sociNums = [ (c as any).reptador_soci_numero, (c as any).reptat_soci_numero ].filter((n: any): n is number => n != null);
+      const dict = new Map<number, string>();
+      if (sociNums.length) {
+        const { data: sociRows, error: e2 } = await supabase
+          .from('socis')
+          .select('numero_soci, nom')
+          .in('numero_soci', sociNums);
+        if (e2) throw e2;
+        (sociRows ?? []).forEach((p: any) => dict.set(p.numero_soci, p.nom));
+      }
+      reptadorNom = dict.get((c as any).reptador_soci_numero) ?? '—';
+      reptatNom = dict.get((c as any).reptat_soci_numero) ?? '—';
 
       // 3) Config admin
       const { data: cfg } = await supabase

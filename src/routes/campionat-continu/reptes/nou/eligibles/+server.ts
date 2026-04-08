@@ -49,16 +49,10 @@ export const GET: RequestHandler = async ({ request }) => {
 
     console.log('🎯 Esdeveniment actiu:', { id: eventId, nom: (event as any).nom });
 
-    // Usar la mateixa consulta que rankingStore per consistència
+    // Fase 5c: llegim soci_numero directe de ranking_positions (triggers el poblen).
     const { data: rank, error: rErr } = await supabase
       .from('ranking_positions')
-      .select(`
-        posicio,
-        player_id,
-        players!inner (
-          numero_soci
-        )
-      `)
+      .select('posicio, player_id, soci_numero')
       .eq('event_id', eventId)
       .order('posicio', { ascending: true });
     
@@ -72,7 +66,7 @@ export const GET: RequestHandler = async ({ request }) => {
     // Obtenir noms dels socis en una query separada
     const numerosSoci = [...new Set(
       (rank ?? [])
-        .map((item: any) => item.players?.numero_soci)
+        .map((item: any) => item.soci_numero)
         .filter((n: any) => n != null)
     )];
 
@@ -90,7 +84,7 @@ export const GET: RequestHandler = async ({ request }) => {
       }
     }
     const allRank = (rank ?? []).map((r: any) => {
-      const numeroSoci = r.players?.numero_soci;
+      const numeroSoci = r.soci_numero;
       const nom = numeroSoci ? socisMap.get(numeroSoci) : null;
       return {
         posicio: r.posicio,

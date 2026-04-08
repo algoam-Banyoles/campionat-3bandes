@@ -52,19 +52,20 @@ let loading = true;
 
       // Jugador posició 20 (per reptar)
       if (eventId) {
+        // Fase 5c: llegim player_id i soci_numero directes de ranking_positions.
+        // player_id (UUID) és necessari per a la URL de /reptes/nou que accepta opponent=<uuid>.
         const { data: p20 } = await supabase
           .from('ranking_positions')
-          .select('players!inner(id, socis!inner(nom, cognoms))')
+          .select('player_id, soci_numero, socis!ranking_positions_soci_numero_fkey(nom, cognoms)')
           .eq('event_id', eventId)
           .eq('posicio', 20)
           .maybeSingle();
         if (p20) {
-          const players = (p20 as any).players;
-          const soci = Array.isArray(players?.socis) ? players.socis[0] : players?.socis;
+          const soci: any = Array.isArray((p20 as any).socis) ? (p20 as any).socis[0] : (p20 as any).socis;
           const fullName = soci
             ? `${soci.nom ?? ''} ${soci.cognoms ?? ''}`.trim()
             : '';
-          player20 = { id: players.id, nom: fullName };
+          player20 = { id: (p20 as any).player_id, nom: fullName };
         }
       }
 

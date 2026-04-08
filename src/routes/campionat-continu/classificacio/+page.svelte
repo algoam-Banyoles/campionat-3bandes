@@ -96,24 +96,10 @@
 
   
   async function loadHistoricalAverages(supabase: any, rows: Row[]): Promise<void> {
-    // Jugadors sense mitjana actual que necessiten mitjana històrica
-    const playersNeedingHistory = rows
-      .filter(r => r.mitjana === null)
-      .map(r => r.player_id);
-
-    if (playersNeedingHistory.length === 0) return;
-
-    // Obtenir numero_soci per cada player_id
-    const { data: playerSocis } = await supabase
-      .from('players')
-      .select('id, numero_soci')
-      .in('id', playersNeedingHistory);
-
-    if (!playerSocis) return;
-
-    const sociIds = playerSocis
-      .filter(p => p.numero_soci)
-      .map(p => p.numero_soci);
+    // Fase 5c: usem soci_numero directament del RankingRow (ja ve poblat per rankingStore).
+    const sociIds = rows
+      .filter(r => r.mitjana === null && r.soci_numero != null)
+      .map(r => r.soci_numero as number);
 
     if (sociIds.length === 0) return;
 
@@ -138,19 +124,10 @@
       }
     });
 
-    // Crear mapa de player_id -> numero_soci
-    const playerToSoci = new Map<string, number>();
-    playerSocis.forEach(p => {
-      if (p.numero_soci) playerToSoci.set(p.id, p.numero_soci);
-    });
-
-    // Assignar mitjanes històriques als jugadors
+    // Assignar mitjanes històriques als jugadors (clau: soci_numero)
     rows.forEach(r => {
-      if (r.mitjana === null) {
-        const sociId = playerToSoci.get(r.player_id);
-        if (sociId) {
-          r.mitjanaHistorica = millorsMyitjanes.get(sociId) || null;
-        }
+      if (r.mitjana === null && r.soci_numero != null) {
+        r.mitjanaHistorica = millorsMyitjanes.get(r.soci_numero) || null;
       }
     });
   }

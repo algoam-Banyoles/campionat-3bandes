@@ -83,9 +83,10 @@
       if (isAccess) {
         let oppId = params.get('opponent');
         if (!oppId) {
+          // Fase 5c: llegim player_id i soci_numero directes; JOIN a socis via FK.
           const { data: pos20, error: p20Err } = await supabase
             .from('ranking_positions')
-            .select('player_id, players!inner(socis!inner(nom, cognoms))')
+            .select('player_id, soci_numero, socis!ranking_positions_soci_numero_fkey(nom, cognoms)')
             .eq('event_id', eventId)
             .eq('posicio', 20)
             .maybeSingle();
@@ -95,13 +96,13 @@
           }
           if (pos20) {
             oppId = (pos20 as any).player_id;
-            const soci = (pos20 as any).players?.socis;
-            const sociObj = Array.isArray(soci) ? soci[0] : soci;
+            const sociObj: any = Array.isArray((pos20 as any).socis) ? (pos20 as any).socis[0] : (pos20 as any).socis;
             opponentName = sociObj
               ? `${sociObj.nom ?? ''} ${sociObj.cognoms ?? ''}`.trim()
               : '';
           }
         } else {
+          // oppId és UUID (URL param) — cal anar via players per obtenir el nom.
           const { data: opp } = await supabase
             .from('players')
             .select('numero_soci, socis!inner(nom)')

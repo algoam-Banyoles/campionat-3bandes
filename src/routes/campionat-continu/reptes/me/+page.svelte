@@ -82,28 +82,32 @@ async function load() {
 
     const { data: ch, error: e2 } = await supabase
       .from('challenges')
-      .select('id,event_id,tipus,reptador_id,reptat_id,estat,dates_proposades,data_proposta,data_programada,reprogram_count,pos_reptador,pos_reptat')
+      .select('id,event_id,tipus,reptador_id,reptat_id,reptador_soci_numero,reptat_soci_numero,estat,dates_proposades,data_proposta,data_programada,reprogram_count,pos_reptador,pos_reptat')
       .or(`reptador_id.eq.${myPlayerId},reptat_id.eq.${myPlayerId}`)
       .order('data_proposta', { ascending: false });
     if (e2) throw e2;
 
-    const ids = Array.from(
-      new Set([...(ch?.map((c) => c.reptador_id) ?? []), ...(ch?.map((c) => c.reptat_id) ?? [])])
+    const sociIds = Array.from(
+      new Set<number>(
+        (ch ?? [])
+          .flatMap((c: any) => [c.reptador_soci_numero, c.reptat_soci_numero])
+          .filter((n: any): n is number => n != null)
+      )
     );
-    let nameById = new Map<string, string>();
-    if (ids.length) {
-      const { data: players, error: e3 } = await supabase
-        .from('players')
-        .select('id, socis!inner(nom)')
-        .in('id', ids);
+    let nameBySoci = new Map<number, string>();
+    if (sociIds.length) {
+      const { data: sociRows, error: e3 } = await supabase
+        .from('socis')
+        .select('numero_soci, nom')
+        .in('numero_soci', sociIds);
       if (e3) throw e3;
-      nameById = new Map(players?.map((p) => [p.id, (p.socis as any)?.nom]) ?? []);
+      nameBySoci = new Map((sociRows ?? []).map((p: any) => [p.numero_soci, p.nom]));
     }
 
-    rows = (ch ?? []).map((c) => ({
+    rows = (ch ?? []).map((c: any) => ({
       ...c,
-      reptador_nom: nameById.get(c.reptador_id) ?? '—',
-      reptat_nom: nameById.get(c.reptat_id) ?? '—'
+      reptador_nom: nameBySoci.get(c.reptador_soci_numero) ?? '—',
+      reptat_nom: nameBySoci.get(c.reptat_soci_numero) ?? '—'
     }));
 
     scheduleLocal = new Map();

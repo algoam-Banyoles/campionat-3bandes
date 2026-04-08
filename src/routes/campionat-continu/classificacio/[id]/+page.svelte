@@ -36,9 +36,10 @@
   onMount(async () => {
     const id = $page.params.id;
     try {
+      // id és UUID (URL param). Obtenim el numero_soci via players i llegim nom de socis.
       const { data: player, error: pErr } = await supabase
         .from('players')
-        .select('socis!inner(nom)')
+        .select('numero_soci, socis!inner(nom)')
         .eq('id', id)
         .maybeSingle();
       if (pErr) throw pErr;
