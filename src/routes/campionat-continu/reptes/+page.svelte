@@ -8,8 +8,8 @@
 
   type Challenge = {
     id: string;
-    reptador_id: string;
-    reptat_id: string;
+    reptador_soci_numero: number;
+    reptat_soci_numero: number;
     estat: string;
     data_proposta: string;
     data_acceptacio: string | null;
@@ -32,7 +32,7 @@
   let error: string | null = null;
   let actius: Challenge[] = [];
   let recents: Resultat[] = [];
-  let myPlayerId: string | null = null;
+  let mySociNumero: number | null = null;
   let supabase: SupabaseClient;
   let dateDrafts: Record<string, string> = {};
   let resultDrafts: Record<string, {
@@ -136,42 +136,43 @@
 
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {
-        const { data: player } = await supabase
-          .from('players')
-          .select('id')
+        const { data: soci } = await supabase
+          .from('socis')
+          .select('numero_soci')
           .eq('email', auth.user.email)
           .maybeSingle();
-        myPlayerId = (player as any)?.id ?? null;
+        mySociNumero = soci?.numero_soci ?? null;
       }
 
       // Reptes actius
       const { data: ch, error: cErr } = await supabase
         .from('challenges')
-        .select('id,reptador_id,reptat_id,estat,data_proposta,data_acceptacio,data_programada,reprogramacions')
+        .select('id,reptador_soci_numero,reptat_soci_numero,estat,data_proposta,data_acceptacio,data_programada,reprogramacions')
         .in('estat', ['proposat', 'acceptat', 'programat', 'refusat'])
         .order('data_proposta', { ascending: true });
       if (cErr) throw cErr;
-      actius = ch ?? [];
+      actius = (ch ?? []) as any[];
 
-      const idsPendents = Array.from(
-        new Set([
-          ...actius.map((c) => c.reptador_id),
-          ...actius.map((c) => c.reptat_id)
-        ])
+      const sociNumerosPendents = Array.from(
+        new Set<number>(
+          actius
+            .flatMap((c: any) => [c.reptador_soci_numero, c.reptat_soci_numero])
+            .filter((n): n is number => n != null)
+        )
       );
-      let nameById = new Map<string, string>();
-      if (idsPendents.length) {
-        const { data: players, error: pErr } = await supabase
-          .from('players')
-          .select('id, socis!inner(nom)')
-          .in('id', idsPendents);
+      let nameBySoci = new Map<number, string>();
+      if (sociNumerosPendents.length) {
+        const { data: sociRows, error: pErr } = await supabase
+          .from('socis')
+          .select('numero_soci, nom')
+          .in('numero_soci', sociNumerosPendents);
         if (pErr) throw pErr;
-        nameById = new Map(players?.map((p: any) => [p.id, p.socis?.nom]) ?? []);
+        nameBySoci = new Map((sociRows ?? []).map((p: any) => [p.numero_soci, p.nom]));
       }
-      actius = actius.map((c) => ({
+      actius = actius.map((c: any) => ({
         ...c,
-        reptador_nom: nameById.get(c.reptador_id) ?? '—',
-        reptat_nom: nameById.get(c.reptat_id) ?? '—'
+        reptador_nom: nameBySoci.get(c.reptador_soci_numero) ?? '—',
+        reptat_nom: nameBySoci.get(c.reptat_soci_numero) ?? '—'
       }));
 
       // Darrers resultats
@@ -183,29 +184,31 @@
       if (mErr) throw mErr;
       const matches = m ?? [];
       const chalIds = matches.map((mm: any) => mm.challenge_id);
-      let chalMap = new Map<string, { reptador_id: string; reptat_id: string }>();
+      let chalMap = new Map<string, { reptador_soci_numero: number; reptat_soci_numero: number }>();
       if (chalIds.length) {
         const { data: challs, error: chErr } = await supabase
           .from('challenges')
-          .select('id,reptador_id,reptat_id')
+          .select('id,reptador_soci_numero,reptat_soci_numero')
           .in('id', chalIds);
         if (chErr) throw chErr;
         chalMap = new Map(
-          challs?.map((cc: any) => [cc.id, { reptador_id: cc.reptador_id, reptat_id: cc.reptat_id }]) ?? []
+          challs?.map((cc: any) => [cc.id, { reptador_soci_numero: cc.reptador_soci_numero, reptat_soci_numero: cc.reptat_soci_numero }]) ?? []
         );
-        const idsRes = Array.from(
-          new Set(
-            challs?.flatMap((cc: any) => [cc.reptador_id, cc.reptat_id]) ?? []
+        const sociIdsRes = Array.from(
+          new Set<number>(
+            (challs ?? [])
+              .flatMap((cc: any) => [cc.reptador_soci_numero, cc.reptat_soci_numero])
+              .filter((n: any): n is number => n != null)
           )
         );
-        let namesRes = new Map<string, string>();
-        if (idsRes.length) {
+        let namesRes = new Map<number, string>();
+        if (sociIdsRes.length) {
           const { data: pls, error: pErr2 } = await supabase
-            .from('players')
-            .select('id, socis!inner(nom)')
-            .in('id', idsRes);
+            .from('socis')
+            .select('numero_soci, nom')
+            .in('numero_soci', sociIdsRes);
           if (pErr2) throw pErr2;
-          namesRes = new Map(pls?.map((p: any) => [p.id, p.socis?.nom]) ?? []);
+          namesRes = new Map((pls ?? []).map((p: any) => [p.numero_soci, p.nom]));
         }
         recents = matches.map((mm: any) => {
           const chInfo = chalMap.get(mm.challenge_id);
@@ -214,8 +217,8 @@
             data_joc: mm.data_joc,
             caramboles_reptador: mm.caramboles_reptador,
             caramboles_reptat: mm.caramboles_reptat,
-            reptador_nom: chInfo ? namesRes.get(chInfo.reptador_id) ?? '—' : '—',
-            reptat_nom: chInfo ? namesRes.get(chInfo.reptat_id) ?? '—' : '—'
+            reptador_nom: chInfo ? namesRes.get(chInfo.reptador_soci_numero) ?? '—' : '—',
+            reptat_nom: chInfo ? namesRes.get(chInfo.reptat_soci_numero) ?? '—' : '—'
           } as Resultat;
         });
       }
@@ -301,7 +304,7 @@
               {#if isExpiredPlay(r)}
                 <div class="text-xs text-red-600 font-bold">ATENCIÓ: Repte caducat per no jugar a temps. Penalització automàtica aplicada.</div>
               {/if}
-            {#if myPlayerId === r.reptat_id && r.estat === 'proposat'}
+            {#if mySociNumero === r.reptat_soci_numero && r.estat === 'proposat'}
               <div class="mt-2 flex gap-2">
                 <button
                   class="rounded bg-green-600 text-white px-3 py-1"
@@ -317,7 +320,7 @@
                 </button>
               </div>
             {/if}
-            {#if r.estat !== 'refusat' && myPlayerId && (myPlayerId === r.reptador_id || myPlayerId === r.reptat_id)}
+            {#if r.estat !== 'refusat' && mySociNumero && (mySociNumero === r.reptador_soci_numero || mySociNumero === r.reptat_soci_numero)}
               {#if !(r.reprogramacions != null && r.reprogramacions >= reproLimit)}
                 <div class="mt-2 flex gap-2 items-center">
                   <input

@@ -64,7 +64,7 @@
           classificationsByCategory[cl.categoria_id].push({
             id: cl.id,
             posicio: cl.posicio,
-            player_id: cl.player_id,
+            soci_numero: cl.soci_numero ?? cl.player_id,
             player_nom: cl.soci_nom || '',
             player_cognom: cl.soci_cognoms || '',
             partides_jugades: cl.partides_jugades,

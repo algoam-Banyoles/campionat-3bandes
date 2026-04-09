@@ -15,8 +15,8 @@
     id: string;
     event_id: string;
     tipus: 'normal' | 'access';
-    reptador_id: string;
-    reptat_id: string;
+    reptador_soci_numero: number;
+    reptat_soci_numero: number;
     estat: 'proposat' | 'acceptat' | 'programat' | 'refusat' | 'caducat' | 'jugat' | 'anullat';
     dates_proposades: string[];
     data_proposta: string;
@@ -64,29 +64,29 @@
       const { data: ch, error: e1 } = await supabase
         .from('challenges')
         .select(
-          `id,event_id,tipus,reptador_id,reptat_id,estat,dates_proposades,data_proposta,data_programada,reprogram_count,pos_reptador,pos_reptat`
+          `id,event_id,tipus,reptador_soci_numero,reptat_soci_numero,estat,dates_proposades,data_proposta,data_programada,reprogram_count,pos_reptador,pos_reptat`
         )
         .order('data_proposta', { ascending: false })
         .limit(100); // Limitar per rendiment
-        
+
       if (e1) throw e1;
 
-      const ids = Array.from(
-        new Set([...(ch?.map((c) => c.reptador_id) ?? []), ...(ch?.map((c) => c.reptat_id) ?? [])])
+      const nums = Array.from(
+        new Set([...(ch?.map((c: any) => c.reptador_soci_numero) ?? []), ...(ch?.map((c: any) => c.reptat_soci_numero) ?? [])])
       );
 
-      const { data: players, error: e2 } = await supabase
+      const { data: socisData, error: e2 } = await supabase
         .from('socis')
-        .select('id,nom')
-        .in('id', ids);
+        .select('numero_soci,nom')
+        .in('numero_soci', nums);
       if (e2) throw e2;
 
-      const nameById = new Map(players?.map((p) => [p.id, p.nom]) ?? []);
+      const nameByNum = new Map(socisData?.map((p) => [p.numero_soci, p.nom]) ?? []);
 
-      rows = (ch ?? []).map((c) => ({
+      rows = ((ch ?? []) as unknown as ChallengeRow[]).map((c) => ({
         ...c,
-        reptador_nom: nameById.get(c.reptador_id) ?? '—',
-        reptat_nom: nameById.get(c.reptat_id) ?? '—'
+        reptador_nom: nameByNum.get(c.reptador_soci_numero) ?? '—',
+        reptat_nom: nameByNum.get(c.reptat_soci_numero) ?? '—'
       }));
       } catch (e) {
         error = formatSupabaseError(e);

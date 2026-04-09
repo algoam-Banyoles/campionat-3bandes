@@ -12,8 +12,8 @@ type Challenge = {
   id: string;
   event_id: string;
   tipus: 'normal' | 'access';
-  reptador_id: string;
-  reptat_id: string;
+  reptador_soci_numero: number;
+  reptat_soci_numero: number;
   estat: 'proposat' | 'acceptat' | 'programat' | 'refusat' | 'caducat' | 'jugat' | 'anullat';
   dates_proposades: string[];
   data_proposta: string;
@@ -29,7 +29,7 @@ let loading = true;
 let error: string | null = null;
 let okMsg: string | null = null;
 let rows: Challenge[] = [];
-let myPlayerId: string | null = null;
+let mySociNumero: number | null = null;
 let busy: string | null = null;
 let scheduleLocal: Map<string, string> = new Map();
 let acceptDate: Map<string, string> = new Map();
@@ -68,42 +68,46 @@ async function load() {
 
     const { supabase } = await import('$lib/supabaseClient');
 
-    const { data: p, error: e1 } = await supabase
-      .from('players')
-      .select('id')
+    const { data: soci, error: e1 } = await supabase
+      .from('socis')
+      .select('numero_soci')
       .eq('email', u.email)
       .maybeSingle();
     if (e1) throw e1;
-    if (!p) {
-      error = 'El teu email no est\u00e0 vinculat a cap jugador.';
+    if (!soci) {
+      error = 'El teu email no est\u00e0 vinculat a cap soci.';
       return;
     }
-    myPlayerId = p.id;
+    mySociNumero = soci.numero_soci;
 
     const { data: ch, error: e2 } = await supabase
       .from('challenges')
-      .select('id,event_id,tipus,reptador_id,reptat_id,estat,dates_proposades,data_proposta,data_programada,reprogram_count,pos_reptador,pos_reptat')
-      .or(`reptador_id.eq.${myPlayerId},reptat_id.eq.${myPlayerId}`)
+      .select('id,event_id,tipus,reptador_soci_numero,reptat_soci_numero,estat,dates_proposades,data_proposta,data_programada,reprogram_count,pos_reptador,pos_reptat')
+      .or(`reptador_soci_numero.eq.${mySociNumero},reptat_soci_numero.eq.${mySociNumero}`)
       .order('data_proposta', { ascending: false });
     if (e2) throw e2;
 
-    const ids = Array.from(
-      new Set([...(ch?.map((c) => c.reptador_id) ?? []), ...(ch?.map((c) => c.reptat_id) ?? [])])
+    const sociIds = Array.from(
+      new Set<number>(
+        (ch ?? [])
+          .flatMap((c: any) => [c.reptador_soci_numero, c.reptat_soci_numero])
+          .filter((n: any): n is number => n != null)
+      )
     );
-    let nameById = new Map<string, string>();
-    if (ids.length) {
-      const { data: players, error: e3 } = await supabase
-        .from('players')
-        .select('id, socis!inner(nom)')
-        .in('id', ids);
+    let nameBySoci = new Map<number, string>();
+    if (sociIds.length) {
+      const { data: sociRows, error: e3 } = await supabase
+        .from('socis')
+        .select('numero_soci, nom')
+        .in('numero_soci', sociIds);
       if (e3) throw e3;
-      nameById = new Map(players?.map((p) => [p.id, (p.socis as any)?.nom]) ?? []);
+      nameBySoci = new Map((sociRows ?? []).map((p: any) => [p.numero_soci, p.nom]));
     }
 
-    rows = (ch ?? []).map((c) => ({
+    rows = (ch ?? []).map((c: any) => ({
       ...c,
-      reptador_nom: nameById.get(c.reptador_id) ?? '—',
-      reptat_nom: nameById.get(c.reptat_id) ?? '—'
+      reptador_nom: nameBySoci.get(c.reptador_soci_numero) ?? '—',
+      reptat_nom: nameBySoci.get(c.reptat_soci_numero) ?? '—'
     }));
 
     scheduleLocal = new Map();
@@ -167,11 +171,11 @@ let maxScheduleLocal = '';
 $: maxScheduleLocal = toLocalInput(addDays(new Date(), settings.dies_jugar_despres_acceptar).toISOString());
 
 function isMeReptat(r: Challenge) {
-  return myPlayerId === r.reptat_id;
+  return mySociNumero === r.reptat_soci_numero;
 }
 
 function isMeReptador(r: Challenge) {
-  return myPlayerId === r.reptador_id;
+  return mySociNumero === r.reptador_soci_numero;
 }
 
 $: enviats = rows.filter((r) => r.estat === 'proposat' && isMeReptador(r));

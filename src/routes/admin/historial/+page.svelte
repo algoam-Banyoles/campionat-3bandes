@@ -9,7 +9,7 @@
 
   type Change = {
     creat_el: string;
-    player_id: string;
+    soci_numero: number;
     posicio_anterior: number | null;
     posicio_nova: number | null;
     motiu: string | null;
@@ -19,7 +19,7 @@
   let loading = true;
   let error: string | null = null;
   let changes: Change[] = [];
-  let players: Record<string, string> = {};
+  let players: Record<number, string> = {};
 
   // filters
   let filterPlayer = '';
@@ -53,7 +53,7 @@
       }
       let query = supabase
         .from('history_position_changes')
-        .select('creat_el, player_id, posicio_anterior, posicio_nova, motiu, ref_challenge')
+        .select('creat_el, soci_numero, posicio_anterior, posicio_nova, motiu, ref_challenge')
         .eq('event_id', eventId)
         .order('creat_el', { ascending: false })
         .limit(50);
@@ -62,20 +62,20 @@
       }
       const { data, error: e } = await query;
       if (e) throw e;
-      const rows: Change[] = data ?? [];
+      const rows = (data ?? []) as unknown as Change[];
       if (rows.length > 0) {
         changes = [...changes, ...rows];
         lastDate = rows[rows.length - 1].creat_el;
-        const ids = Array.from(new Set(rows.map((r) => r.player_id)));
-        const missing = ids.filter((id) => !players[id]);
+        const nums = Array.from(new Set(rows.map((r) => r.soci_numero)));
+        const missing = nums.filter((n) => !players[n]);
         if (missing.length > 0) {
           const { data: pl, error: e2 } = await supabase
             .from('socis')
-            .select('id, nom')
-            .in('id', missing);
+            .select('numero_soci, nom')
+            .in('numero_soci', missing);
           if (e2) throw e2;
           for (const p of pl ?? []) {
-            players[p.id] = p.nom;
+            players[p.numero_soci] = p.nom;
           }
         }
       }
@@ -95,7 +95,7 @@
   }
 
   $: filtered = changes.filter((c) => {
-    if (filterPlayer && c.player_id !== filterPlayer) return false;
+    if (filterPlayer && String(c.soci_numero) !== filterPlayer) return false;
     if (filterMotiu && !(c.motiu ?? '').toLowerCase().includes(filterMotiu.toLowerCase()))
       return false;
     const date = new Date(c.creat_el);
@@ -160,7 +160,7 @@
           {#each filtered as r}
             <tr class="border-t">
               <td class="p-2 whitespace-nowrap">{new Date(r.creat_el).toLocaleString()}</td>
-              <td class="p-2">{players[r.player_id] ?? 'Jugador desconegut'}</td>
+              <td class="p-2">{players[r.soci_numero] ?? 'Jugador desconegut'}</td>
               <td class="p-2">
                 {r.posicio_anterior ?? '—'} → {r.posicio_nova ?? '—'}
               </td>

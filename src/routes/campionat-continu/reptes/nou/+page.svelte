@@ -11,7 +11,7 @@
   import { canCreateAccessChallenge } from '$lib/canCreateAccessChallenge';
   import { authFetch } from '$lib/utils/http';
 
-  type RankedPlayer = { posicio: number; player_id: string; nom: string };
+  type RankedPlayer = { posicio: number; soci_numero: number; nom: string };
   type NotReptable = RankedPlayer & { motiu: string };
 
   let loading = true;
@@ -19,14 +19,14 @@
   let ok: string | null = null;
   let info: string | null = null;
 
-  let myPlayerId: string | null = null;
+  let mySociNumero: number | null = null;
   let myPos: number | null = null;
   let eventId: string | null = null;
 
   let reptables: RankedPlayer[] = [];
   let noReptables: NotReptable[] = [];
 
-  let selectedOpponent: string | null = null;
+  let selectedOpponent: number | null = null;
   let opponentName: string | null = null;
   let notes = '';
 
@@ -56,16 +56,14 @@
         return;
       }
 
-      const { data: player, error: pErr } = await supabase
-        .from('players')
-        .select('id')
+      const { data: soci } = await supabase
+        .from('socis')
+        .select('numero_soci')
         .eq('email', auth.user.email)
         .maybeSingle();
-      if (pErr) {
-        err = errMsg(pErr.message);
-        return;
+      if (soci) {
+        mySociNumero = soci.numero_soci;
       }
-      myPlayerId = (player as any)?.id ?? null;
 
       const { data: ev, error: eErr } = await supabase
         .from('events')
@@ -81,11 +79,11 @@
       eventId = (ev as any).id;
 
       if (isAccess) {
-        let oppId = params.get('opponent');
-        if (!oppId) {
+        let oppSoci = params.get('opponent_soci');
+        if (!oppSoci) {
           const { data: pos20, error: p20Err } = await supabase
             .from('ranking_positions')
-            .select('player_id, players!inner(socis!inner(nom, cognoms))')
+            .select('soci_numero, socis!ranking_positions_soci_numero_fkey(nom, cognoms)')
             .eq('event_id', eventId)
             .eq('posicio', 20)
             .maybeSingle();
@@ -94,22 +92,21 @@
             return;
           }
           if (pos20) {
-            oppId = (pos20 as any).player_id;
-            const soci = (pos20 as any).players?.socis;
-            const sociObj = Array.isArray(soci) ? soci[0] : soci;
+            oppSoci = String((pos20 as any).soci_numero);
+            const sociObj: any = Array.isArray((pos20 as any).socis) ? (pos20 as any).socis[0] : (pos20 as any).socis;
             opponentName = sociObj
               ? `${sociObj.nom ?? ''} ${sociObj.cognoms ?? ''}`.trim()
               : '';
           }
         } else {
           const { data: opp } = await supabase
-            .from('players')
-            .select('numero_soci, socis!inner(nom)')
-            .eq('id', oppId)
+            .from('socis')
+            .select('nom')
+            .eq('numero_soci', Number(oppSoci))
             .maybeSingle();
-          opponentName = (opp as any)?.socis?.nom ?? '';
+          opponentName = opp?.nom ?? '';
         }
-        selectedOpponent = oppId;
+        selectedOpponent = oppSoci ? Number(oppSoci) : null;
       } else {
         // >>>>>>>>>> CANVI IMPORTANT: injectem Authorization al fetch
         const res = await authFetch('/campionat-continu/reptes/nou/eligibles');
@@ -119,21 +116,21 @@
           return;
         }
 
-        myPlayerId = data.my_player_id;
+        mySociNumero = data.my_soci_numero;
         myPos = data.my_pos;
         eventId = data.event_id;
         reptables = data.reptables ?? [];
         noReptables = data.no_reptables ?? [];
         if (reptables.length === 0) {
           if (myPos === 1) {
-            info = '🏆 No pots reptar a ningú perquè ets el primer del rànquing. Només pots ser reptat.';
+            info = 'No pots reptar a ningu perque ets el primer del ranquing. Nomes pots ser reptat.';
           } else {
-            info = 'Ara mateix no pots reptar cap jugador. Revisa els reptes actius o espera que passi el temps mínim entre reptes.';
+            info = 'Ara mateix no pots reptar cap jugador. Revisa els reptes actius o espera que passi el temps minim entre reptes.';
           }
         }
-        const preSel = params.get('opponent');
-        if (preSel && reptables.some((r) => r.player_id === preSel)) {
-          selectedOpponent = preSel;
+        const preSel = params.get('opponent_soci');
+        if (preSel && reptables.some((r) => r.soci_numero === Number(preSel))) {
+          selectedOpponent = Number(preSel);
         }
       }
     } catch (e: any) {
@@ -184,10 +181,9 @@
     // No validar mentre s'està carregant
     if (loading) return null;
     
-    if (!eventId || !myPlayerId) {
-      // Millor diagnòstic del problema
+    if (!eventId || !mySociNumero) {
       if (!eventId) return 'No s\'ha pogut carregar l\'esdeveniment actiu.';
-      if (!myPlayerId) return 'No s\'ha pogut identificar el teu jugador.';
+      if (!mySociNumero) return 'No s\'ha pogut identificar el teu jugador.';
       return 'Error d\'estat intern: falta event o jugador.';
     }
     if (!selectedOpponent) return 'Cal triar oponent.';
@@ -213,10 +209,10 @@
   $: valMsg = validate();
 
   $: (async () => {
-    if (selectedOpponent && eventId && myPlayerId) {
+    if (selectedOpponent && eventId && mySociNumero) {
       canChk = isAccess
-        ? await canCreateAccessChallenge(supabase, eventId, myPlayerId, selectedOpponent)
-        : await canCreateChallengeDetail(supabase, eventId, myPlayerId, selectedOpponent);
+        ? await canCreateAccessChallenge(supabase, eventId, mySociNumero, selectedOpponent)
+        : await canCreateChallengeDetail(supabase, eventId, mySociNumero, selectedOpponent);
     } else {
       canChk = null;
     }
@@ -236,12 +232,12 @@
         .filter(Boolean) as string[];
 
       // >>>>>>>>>> CANVI IMPORTANT: injectem Authorization al POST
-      const res = await authFetch('/reptes/nou', {
+      const res = await authFetch('/campionat-continu/reptes/nou', {
         method: 'POST',
         body: JSON.stringify({
           event_id: eventId,
-          reptador_id: myPlayerId,
-          reptat_id: selectedOpponent,
+          reptador_soci_numero: mySociNumero,
+          reptat_soci_numero: selectedOpponent,
           dates_proposades: datesIso,
           observacions: notes || null,
           tipus: isAccess ? 'access' : 'normal'
@@ -287,7 +283,7 @@
           <select id="opponent" class="rounded-xl border px-3 py-2" bind:value={selectedOpponent} disabled={reptables.length === 0}>
             <option value="" disabled selected>— Selecciona jugador —</option>
             {#each reptables as r}
-              <option value={r.player_id}>#{r.posicio} — {r.nom}</option>
+              <option value={r.soci_numero}>#{r.posicio} — {r.nom}</option>
             {/each}
           </select>
         </div>

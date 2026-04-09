@@ -32,7 +32,7 @@
   let loading = true;
   let error: string | null = null;
   let rows: Row[] = [];
-  let myPlayerId: string | null = null;
+  let mySociNumero: number | null = null;
 
   onMount(async () => {
     try {
@@ -40,12 +40,14 @@
 
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {
-        const { data: player } = await supabase
-          .from('players')
-          .select('id')
+        const { data: soci } = await supabase
+          .from('socis')
+          .select('numero_soci')
           .eq('email', auth.user.email)
           .maybeSingle();
-        myPlayerId = (player as any)?.id ?? null;
+        if (soci) {
+          mySociNumero = soci.numero_soci;
+        }
       }
 
       // Usar el mateix sistema que /ranking per consistència
@@ -57,7 +59,7 @@
       } else {
         rows = (rankingData as RankingRow[]).map((r) => ({
           ...r,
-          isMe: myPlayerId === r.player_id,
+          isMe: mySociNumero === r.soci_numero,
           hasActiveChallenge: false,
           cooldownToChallenge: false,
           cooldownToBeChallenged: false,
@@ -82,7 +84,7 @@
         // Carregar mitjanes històriques per jugadors sense mitjana actual
         await loadHistoricalAverages(supabase, rows);
 
-        await evaluateBadges(supabase, rows, eventId, myPlayerId);
+        await evaluateBadges(supabase, rows, eventId, mySociNumero);
 
         // trigger reactivity after in-place badge updates
         rows = [...rows];
@@ -96,24 +98,10 @@
 
   
   async function loadHistoricalAverages(supabase: any, rows: Row[]): Promise<void> {
-    // Jugadors sense mitjana actual que necessiten mitjana històrica
-    const playersNeedingHistory = rows
-      .filter(r => r.mitjana === null)
-      .map(r => r.player_id);
-
-    if (playersNeedingHistory.length === 0) return;
-
-    // Obtenir numero_soci per cada player_id
-    const { data: playerSocis } = await supabase
-      .from('players')
-      .select('id, numero_soci')
-      .in('id', playersNeedingHistory);
-
-    if (!playerSocis) return;
-
-    const sociIds = playerSocis
-      .filter(p => p.numero_soci)
-      .map(p => p.numero_soci);
+    // Fase 5c: usem soci_numero directament del RankingRow (ja ve poblat per rankingStore).
+    const sociIds = rows
+      .filter(r => r.mitjana === null && r.soci_numero != null)
+      .map(r => r.soci_numero as number);
 
     if (sociIds.length === 0) return;
 
@@ -138,19 +126,10 @@
       }
     });
 
-    // Crear mapa de player_id -> numero_soci
-    const playerToSoci = new Map<string, number>();
-    playerSocis.forEach(p => {
-      if (p.numero_soci) playerToSoci.set(p.id, p.numero_soci);
-    });
-
-    // Assignar mitjanes històriques als jugadors
+    // Assignar mitjanes històriques als jugadors (clau: soci_numero)
     rows.forEach(r => {
-      if (r.mitjana === null) {
-        const sociId = playerToSoci.get(r.player_id);
-        if (sociId) {
-          r.mitjanaHistorica = millorsMyitjanes.get(sociId) || null;
-        }
+      if (r.mitjana === null && r.soci_numero != null) {
+        r.mitjanaHistorica = millorsMyitjanes.get(r.soci_numero) || null;
       }
     });
   }
@@ -160,29 +139,29 @@
     supabase: any,
     rows: Row[],
     eventId: string | undefined,
-    myPlayerId: string | null
+    _mySociNumero: number | null
   ): Promise<void> {
     if (!eventId) return;
 
     const MAX_UP_CHALLENGE = 2;
     const COOLDOWN_DAYS = 7;
 
-    const byId = new Map<string, Row>();
-    rows.forEach((r) => byId.set(r.player_id, r));
+    const bySoci = new Map<number, Row>();
+    rows.forEach((r) => bySoci.set(r.soci_numero, r));
 
     // Active challenges
     const { data: active } = await supabase
       .from('challenges')
-      .select('reptador_id, reptat_id')
+      .select('reptador_soci_numero, reptat_soci_numero')
       .eq('event_id', eventId)
       .in('estat', ['proposat', 'acceptat']);
-    const activeIds = new Set<string>();
-    (active as any[] ?? []).forEach((c) => {
-      activeIds.add((c as any).reptador_id);
-      activeIds.add((c as any).reptat_id);
+    const activeSociNums = new Set<number>();
+    (active as any[] ?? []).forEach((c: any) => {
+      if (c.reptador_soci_numero != null) activeSociNums.add(c.reptador_soci_numero);
+      if (c.reptat_soci_numero != null) activeSociNums.add(c.reptat_soci_numero);
     });
-    activeIds.forEach((id) => {
-      const row = byId.get(id);
+    activeSociNums.forEach((sn) => {
+      const row = bySoci.get(sn);
       if (row) row.hasActiveChallenge = true;
     });
 
@@ -190,52 +169,54 @@
     const { data: allMatches } = await supabase
       .from('matches')
       .select(`
-        challenge_id, 
+        challenge_id,
         data_partida,
         challenges!inner(
-          event_id, 
-          reptador_id, 
-          reptat_id, 
+          event_id,
+          reptador_soci_numero,
+          reptat_soci_numero,
           estat,
           data_acceptacio,
           data_proposta
         )
       `)
       .eq('challenges.event_id', eventId);
-    
-    const lastMap = new Map<string, any>();
-    
+
+    const lastMap = new Map<number, any>();
+
     // Process matches to find last challenge for each player
-    (allMatches as any[] ?? []).forEach((match) => {
+    (allMatches as any[] ?? []).forEach((match: any) => {
       const c = match.challenges;
       const matchDate = match.data_partida || c.data_acceptacio || c.data_proposta;
-      
+
       // For challenger
-      const currentChallenger = lastMap.get(c.reptador_id);
-      if (!currentChallenger || new Date(matchDate) > new Date(currentChallenger.last_challenge_date)) {
-        lastMap.set(c.reptador_id, {
-          player_id: c.reptador_id,
-          last_challenge_date: matchDate,
-          last_challenge_outcome: c.estat === 'refusat' ? 'REFUSED' : 'COMPLETED',
-          was_challenger: true
-        });
+      if (c.reptador_soci_numero != null) {
+        const current = lastMap.get(c.reptador_soci_numero);
+        if (!current || new Date(matchDate) > new Date(current.last_challenge_date)) {
+          lastMap.set(c.reptador_soci_numero, {
+            last_challenge_date: matchDate,
+            last_challenge_outcome: c.estat === 'refusat' ? 'REFUSED' : 'COMPLETED',
+            was_challenger: true
+          });
+        }
       }
-      
+
       // For challenged
-      const currentChallenged = lastMap.get(c.reptat_id);
-      if (!currentChallenged || new Date(matchDate) > new Date(currentChallenged.last_challenge_date)) {
-        lastMap.set(c.reptat_id, {
-          player_id: c.reptat_id,
-          last_challenge_date: matchDate,
-          last_challenge_outcome: c.estat === 'refusat' ? 'REFUSED' : 'COMPLETED',
-          was_challenger: false
-        });
+      if (c.reptat_soci_numero != null) {
+        const current = lastMap.get(c.reptat_soci_numero);
+        if (!current || new Date(matchDate) > new Date(current.last_challenge_date)) {
+          lastMap.set(c.reptat_soci_numero, {
+            last_challenge_date: matchDate,
+            last_challenge_outcome: c.estat === 'refusat' ? 'REFUSED' : 'COMPLETED',
+            was_challenger: false
+          });
+        }
       }
     });
 
     const now = Date.now();
     rows.forEach((r) => {
-      const lc = lastMap.get(r.player_id);
+      const lc = lastMap.get(r.soci_numero);
       r.cooldownToChallenge = false;
       r.cooldownToBeChallenged = false;
       r.cooldownDaysLeft = 0;
@@ -260,7 +241,7 @@
     ranking.forEach((r) => byPos.set(r.posicio as number, r));
     const waiting = rows.filter((r) => r.posicio == null || r.posicio > 20);
 
-    const myRow = myPlayerId ? byId.get(myPlayerId) : null;
+    const myRow = _mySociNumero ? bySoci.get(_mySociNumero) : null;
     const myPos = myRow?.posicio ?? null;
     const canIChallenge = !!(
       myRow &&
@@ -274,22 +255,17 @@
 
     // Marcar tots els jugadors amb el seu estat base
     rows.forEach((r) => {
-      if (r.player_id === myPlayerId) return;
+      if (r.soci_numero === _mySociNumero) return;
       r.reptable = false;
       r.canChallenge = false;
-      
-      // Marcar jugadors com a generalment reptables (per badges)
-      // Tots els jugadors del rànquing són reptables excepte:
-      // - Els que tenen repte actiu
-      // - Els que estan en cooldown
-      r.generallyChallengeable = r.posicio != null && r.posicio <= 20 && 
+
+      r.generallyChallengeable = r.posicio != null && r.posicio <= 20 &&
                                 !r.hasActiveChallenge && !r.cooldownToBeChallenged;
     });
 
     if (myRow && myPos != null && myPos <= 20 && canIChallenge) {
-      // current player inside ranking
       for (const r of ranking) {
-        if (r.player_id === myPlayerId) continue;
+        if (r.soci_numero === _mySociNumero) continue;
         if (r.hasActiveChallenge || r.cooldownToBeChallenged) continue;
         if (r.posicio != null && myPos - (r.posicio as number) > 0 && myPos - (r.posicio as number) <= MAX_UP_CHALLENGE) {
           r.reptable = true;
@@ -298,11 +274,10 @@
     }
 
     if (myRow && (myPos == null || myPos > 20) && canIChallenge) {
-      // waiting list first vs position 20
       const firstWaiting = waiting[0];
       const pos20 = byPos.get(20);
       if (
-        firstWaiting?.player_id === myPlayerId &&
+        firstWaiting?.soci_numero === _mySociNumero &&
         pos20 &&
         !pos20.hasActiveChallenge &&
         !pos20.cooldownToBeChallenged
@@ -311,14 +286,14 @@
       }
     }
 
-    if (myPlayerId && eventId && canIChallenge) {
+    if (mySociNumero && eventId && canIChallenge) {
       for (const r of rows) {
         if (r.reptable) {
           const chk = await canCreateChallenge(
             supabase,
             eventId,
-            myPlayerId,
-            r.player_id
+            mySociNumero,
+            r.soci_numero
           );
           r.canChallenge = chk.ok;
           r.reason = chk.ok ? chk.warning : chk.reason;
@@ -327,8 +302,8 @@
     }
   }
 
-  function reptar(id: string) {
-    goto(`/reptes/nou?opponent=${id}`);
+  function reptar(sociNumero: number) {
+    goto(`/campionat-continu/reptes/nou?opponent_soci=${sociNumero}`);
   }
 </script>
 
@@ -425,7 +400,7 @@
                   {/if}
 
                   <!-- Botó reptar modernitzat -->
-                  {#if myPlayerId && r.reptable}
+                  {#if mySociNumero && r.reptable}
                     <button
                       class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105
                         {r.canChallenge
@@ -433,7 +408,7 @@
                           : 'bg-slate-200 text-slate-500 cursor-not-allowed'}"
                       disabled={!r.canChallenge}
                       title={r.canChallenge ? (r.reason ?? 'Reptar aquest jugador') : (r.reason ?? 'No pots reptar aquest jugador')}
-                      on:click={() => reptar(r.player_id)}
+                      on:click={() => reptar(r.soci_numero)}
                     >
                       ⚡ Reptar
                     </button>

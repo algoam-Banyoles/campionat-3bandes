@@ -26,7 +26,7 @@ export interface SchedulingExecutionResult {
  *
  * @param supabase      Client de Supabase
  * @param eventId       UUID de l'event hàndicap
- * @param matchesInput  Llista de partides amb player_ids (per a l'insert a calendari_partides)
+ * @param matchesInput  Llista de partides amb soci_numeros (per a l'insert a calendari_partides)
  * @param results       Resultats de scheduleMatches()
  */
 export async function executeScheduling(
@@ -58,8 +58,8 @@ export async function executeScheduling(
 				.insert({
 					event_id: eventId,
 					categoria_id: null,
-					jugador1_id: match.player1_player_id,
-					jugador2_id: match.player2_player_id,
+					jugador1_soci_numero: match.player1_soci_numero,
+					jugador2_soci_numero: match.player2_soci_numero,
 					data_programada: `${result.data}T${result.hora}:00`,
 					hora_inici: result.hora,
 					taula_assignada: result.taula,

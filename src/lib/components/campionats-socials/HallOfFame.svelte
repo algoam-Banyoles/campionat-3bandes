@@ -100,7 +100,7 @@
       .select(`
         id,
         event_id,
-        player_id,
+        soci_numero,
         posicio,
         partides_jugades,
         partides_guanyades,

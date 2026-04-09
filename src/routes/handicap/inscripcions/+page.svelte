@@ -35,7 +35,6 @@
 	let playerSearch = '';
 	let playerResults: any[] = [];
 	let selectedSoci: any = null;   // { numero_soci, nom, cognoms, email }
-	let selectedPlayerId: string | null = null;
 
 	let distanciaMode: 'grup' | 'custom' = 'grup';
 	let distanciaGrupIdx = 0;       // índex a distanciaGrups
@@ -51,7 +50,6 @@
 	// Modal importació massiva
 	let showImportModal = false;
 	let importPlayers: Array<{
-		player_id: string;
 		numero_soci: number;
 		nom: string;
 		cognoms: string;
@@ -127,13 +125,12 @@
 	async function loadParticipants() {
 		const { data, error: pErr } = await supabase
 			.from('handicap_participants')
-			// Fase 5c-S2b: nom via FK directe `soci_numero → socis`. Mantenim
-			// `player_id` (i el seu nested players(...)) perquè el path d'edició
-			// encara hi depèn (sortirà a Sessió 3 en eliminar la columna).
+			// Fase 5c-S3: nom via FK directe `soci_numero → socis`.
+			// La columna `player_id` ja no existeix.
 			.select(`
 				id, distancia, seed, preferencies_dies, preferencies_hores,
 				restriccions_especials, eliminat, created_at,
-				player_id, soci_numero,
+				soci_numero,
 				socis!handicap_participants_soci_numero_fkey(numero_soci, nom, cognoms, email)
 			`)
 			.eq('event_id', event.id)
@@ -162,19 +159,11 @@
 		playerSearch = `${soci.nom} ${soci.cognoms}`;
 		playerResults = [];
 
-		// Obtenir player_id
-		const { data: pl } = await supabase
-			.from('players')
-			.select('id')
-			.eq('numero_soci', soci.numero_soci)
-			.single();
-		selectedPlayerId = pl?.id || null;
-
 		// Suggeriment de distància
-		await suggestDistancia(soci.numero_soci, selectedPlayerId);
+		await suggestDistancia(soci.numero_soci);
 	}
 
-	async function suggestDistancia(numero_soci: number, _player_id: string | null) {
+	async function suggestDistancia(numero_soci: number, _unused?: string | null) {
 		if (distanciaGrups.length === 0) return;
 		suggestLoading = true;
 		suggestInfo = null;
@@ -225,7 +214,7 @@
 	function openAddModal() {
 		editingId = null;
 		selectedSoci = null;
-		selectedPlayerId = null;
+
 		playerSearch = '';
 		playerResults = [];
 		distanciaMode = 'grup';
@@ -240,11 +229,10 @@
 
 	function openEditModal(p: any) {
 		editingId = p.id;
-		// Fase 5c-S2b: socis ve directe via FK soci_numero. player_id encara
-		// es manté com a fallback per al path d'escriptura.
+		// Fase 5c-S3: socis ve directe via FK soci_numero.
 		const rawS = p.socis;
 		selectedSoci = (Array.isArray(rawS) ? rawS[0] : rawS) || null;
-		selectedPlayerId = p.player_id || null;
+
 		playerSearch = selectedSoci ? `${selectedSoci.nom} ${selectedSoci.cognoms}` : '';
 		playerResults = [];
 
@@ -273,7 +261,7 @@
 
 	// ─── Desar ────────────────────────────────────────────────
 	async function handleSave() {
-		if (!selectedPlayerId) { error = 'Selecciona un jugador.'; return; }
+		if (!selectedSoci) { error = 'Selecciona un jugador.'; return; }
 
 		const distancia = distanciaMode === 'grup'
 			? distanciaGrups[distanciaGrupIdx]?.distancia
@@ -286,9 +274,9 @@
 		success = null;
 
 		try {
-			const payload = {
+			const payload: any = {
 				event_id: event.id,
-				player_id: selectedPlayerId,
+				soci_numero: selectedSoci.numero_soci,
 				distancia,
 				preferencies_dies,
 				preferencies_hores,
@@ -364,23 +352,8 @@
 
 			if (!inscripcions) { importLoading = false; return; }
 
-			// Obtenir player_ids
-			const socisNums = [...new Set(inscripcions.map((i: any) => i.soci_numero))];
-			const { data: players } = await supabase
-				.from('players')
-				.select('id, numero_soci')
-				.in('numero_soci', socisNums);
-
-			const playerMap = new Map((players || []).map((p: any) => [p.numero_soci, p.id]));
-
-			// Ja inscrits al hàndicap (Fase 5c-S2b: matching via soci_numero)
+			// Fase 5c-S3: ja no cal la taula `players`. Matching directe via soci_numero.
 			const inscritsSocis = new Set(participants.map((p: any) => p.soci_numero));
-			const inscritIds = new Set(
-				inscripcions
-					.filter((i: any) => inscritsSocis.has(i.soci_numero))
-					.map((i: any) => playerMap.get(i.soci_numero))
-					.filter(Boolean)
-			);
 
 			// Deduplicar per jugador (un jugador pot tenir ≤1 inscripció per event, però per seguretat)
 			const seen = new Map<number, any>();
@@ -391,7 +364,6 @@
 			const grups = distanciaGrups;
 
 			importPlayers = [...seen.values()].map((ins: any) => {
-				const player_id = playerMap.get(ins.soci_numero) || null;
 				const cat = ins.categories as any;
 				const ordreCategoria: number = cat?.ordre_categoria ?? grups.length;
 				const categoriaNom: string = cat?.nom ?? 'Sense categoria';
@@ -399,17 +371,18 @@
 				// Mapping: ordre 1 → grup[0], ordre 2 → grup[1], ordre >= N → grup[N-1]
 				const gIdx = Math.min(ordreCategoria - 1, grups.length - 1);
 
+				const isInscrit = inscritsSocis.has(ins.soci_numero);
+
 				return {
-					player_id,
 					numero_soci: ins.soci_numero,
 					nom: ins.socis?.nom || '',
 					cognoms: ins.socis?.cognoms || '',
 					distanciaGrupIdx: gIdx,
 					categoriaNom,
-					selected: !inscritIds.has(player_id),
-					alreadyInscrit: inscritIds.has(player_id)
+					selected: !isInscrit,
+					alreadyInscrit: isInscrit
 				};
-			}).filter((p: any) => p.player_id);
+			});
 		} catch (e) {
 			error = formatSupabaseError(e);
 		} finally {
@@ -425,7 +398,7 @@
 		try {
 			const rows = toInsert.map(p => ({
 				event_id: event.id,
-				player_id: p.player_id,
+				soci_numero: p.numero_soci,
 				distancia: distanciaGrups[p.distanciaGrupIdx]?.distancia || distanciaGrups[distanciaGrups.length - 1]?.distancia || 10,
 				preferencies_dies: [],
 				preferencies_hores: []
@@ -939,10 +912,7 @@
 						{/if}
 						{#if selectedSoci}
 							<p class="mt-1 text-xs text-purple-700">
-								Seleccionat: {selectedSoci.nom} {selectedSoci.cognoms}
-								{#if !selectedPlayerId}
-									<span class="text-red-600"> (sense player_id — no es pot inscriure)</span>
-								{/if}
+								Seleccionat: {selectedSoci.nom} {selectedSoci.cognoms} (#{selectedSoci.numero_soci})
 							</p>
 						{/if}
 					</div>
@@ -1033,7 +1003,7 @@
 				</button>
 				<button
 					on:click={handleSave}
-					disabled={saving || (!editingId && !selectedPlayerId)}
+					disabled={saving || (!editingId && !selectedSoci)}
 					class="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
 				>
 					{saving ? 'Desant...' : (editingId ? 'Actualitzar' : 'Inscriure')}

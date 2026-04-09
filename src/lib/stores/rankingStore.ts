@@ -36,19 +36,23 @@ export async function refreshRanking(force = false): Promise<void> {
       return;
     }
 
-    // Consulta amb JOIN a través de players (esquema real de producció)
+    // Fase 5c-S3: llegim soci_numero directe i fem JOIN a socis + socis_jugador.
+    // player_id eliminat del SELECT.
     const { data: finalRankingData, error: rankingError } = await supabase
       .from('ranking_positions')
       .select(`
         event_id,
         posicio,
-        player_id,
-        players!inner (
-          id,
-          mitjana,
-          estat,
-          data_ultim_repte,
-          numero_soci
+        soci_numero,
+        socis!ranking_positions_soci_numero_fkey (
+          numero_soci,
+          nom,
+          cognoms,
+          socis_jugador (
+            mitjana,
+            estat,
+            data_ultim_repte
+          )
         )
       `)
       .eq('event_id', activeEvent.id)
@@ -63,45 +67,23 @@ export async function refreshRanking(force = false): Promise<void> {
       return;
     }
 
-    // Obtenir tots els numero_soci únics
-    const numerosSoci = [...new Set(
-      finalRankingData
-        .map((item: any) => item.players?.numero_soci)
-        .filter((n: any) => n != null)
-    )];
-
-    // Carregar dades de socis en una query separada
-    let socisMap = new Map<number, any>();
-    if (numerosSoci.length > 0) {
-      const { data: socisData, error: socisError } = await supabase
-        .from('socis')
-        .select('numero_soci, nom, cognoms')
-        .in('numero_soci', numerosSoci);
-
-      if (!socisError && socisData) {
-        socisData.forEach((soci: any) => {
-          socisMap.set(soci.numero_soci, soci);
-        });
-      }
-    }
-
     // Transformar les dades al format correcte
-    const transformedData: RankingRow[] = finalRankingData.map((item: any, index: number) => {
-      const player = item.players;
-      const soci = player?.numero_soci ? socisMap.get(player.numero_soci) : null;
+    const transformedData: RankingRow[] = finalRankingData.map((item: any) => {
+      const soci = Array.isArray(item.socis) ? item.socis[0] : item.socis;
+      const sj = soci ? (Array.isArray(soci.socis_jugador) ? soci.socis_jugador[0] : soci.socis_jugador) : null;
 
       return {
-        id: `${item.event_id}-${item.player_id}`, // Generate ID from event_id and player_id
+        id: `${item.event_id}-${item.soci_numero}`,
         event_id: item.event_id,
         posicio: item.posicio,
-        player_id: item.player_id,
-        created_at: new Date().toISOString(), // Use current date as created_at is not in DB
+        soci_numero: item.soci_numero,
+        created_at: new Date().toISOString(),
         nom: soci?.nom || null,
         cognoms: soci?.cognoms || null,
-        mitjana: player?.mitjana || null,
-        estat: player?.estat || 'actiu',
-        data_ultim_repte: player?.data_ultim_repte || null,
-        numero_soci: player?.numero_soci || 0
+        mitjana: sj?.mitjana ?? null,
+        estat: sj?.estat || 'actiu',
+        data_ultim_repte: sj?.data_ultim_repte || null,
+        numero_soci: item.soci_numero || 0
       };
     });
 

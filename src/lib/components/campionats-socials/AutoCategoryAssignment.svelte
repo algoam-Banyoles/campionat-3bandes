@@ -380,29 +380,26 @@
             continue;
           }
 
-          // Obtenir informació del jugador des de players
-          const { data: playerData, error: playerError } = await supabase
-            .from('players')
-            .select('numero_soci, socis(nom, cognoms)')
-            .eq('id', player.jugador_id)
+          // Obtenir informació del jugador des de socis
+          const sociNumero = (player as any).soci_numero;
+          if (!sociNumero) {
+            console.warn(`Classificació sense soci_numero`);
+            continue;
+          }
+          const { data: sociData, error: sociError } = await supabase
+            .from('socis')
+            .select('numero_soci, nom, cognoms')
+            .eq('numero_soci', sociNumero)
             .single();
 
-          if (playerError) {
-            console.warn(`Error obtenint dades del jugador ${player.jugador_id}:`, playerError);
+          if (sociError || !sociData) {
+            console.warn(`Error obtenint dades del soci ${sociNumero}:`, sociError);
             continue;
           }
 
-          if (playerData && playerData.socis) {
-            // Convertir socis a objecte si és un array (degut al tipus de Supabase)
-            const sociData = Array.isArray(playerData.socis) ? playerData.socis[0] : playerData.socis;
-
-            if (!sociData) {
-              console.warn(`No s'han trobat dades del soci per al jugador ${player.jugador_id}`);
-              continue;
-            }
-
+          {
             // Verificar que el jugador està inscrit a l'event actual
-            const isInscribed = inscriptions.some(i => i.soci_numero === playerData.numero_soci);
+            const isInscribed = inscriptions.some(i => i.soci_numero === sociData.numero_soci);
             if (!isInscribed) {
               console.log(`Jugador ${sociData.nom} ${sociData.cognoms} no està inscrit a l'event actual`);
               continue;
@@ -412,7 +409,7 @@
               player: {
                 nom: sociData.nom,
                 cognoms: sociData.cognoms,
-                numero_soci: playerData.numero_soci
+                numero_soci: sociData.numero_soci
               },
               currentCategory: category.nom,
               proposedCategory: targetCategory.nom,

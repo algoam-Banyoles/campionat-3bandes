@@ -94,11 +94,7 @@
       // Load calendar matches for selected category that are not yet played
       const { data: matchesData, error: matchesError } = await supabase
         .from('calendari_partides')
-        .select(`
-          *,
-          jugador1:players!calendari_partides_jugador1_id_fkey(id, numero_soci),
-          jugador2:players!calendari_partides_jugador2_id_fkey(id, numero_soci)
-        `)
+        .select('*, jugador1_soci_numero, jugador2_soci_numero')
         .eq('event_id', selectedEvent.id)
         .eq('categoria_id', selectedCategory.id)
         .is('match_id', null)
@@ -109,16 +105,14 @@
 
       const filteredMatchesData = (matchesData || []).filter((match: any) => {
         if (withdrawnNumbers.size === 0) return true;
-        const jugador1Numero = match.jugador1?.numero_soci;
-        const jugador2Numero = match.jugador2?.numero_soci;
-        return !withdrawnNumbers.has(jugador1Numero) && !withdrawnNumbers.has(jugador2Numero);
+        return !withdrawnNumbers.has(match.jugador1_soci_numero) && !withdrawnNumbers.has(match.jugador2_soci_numero);
       });
 
       // Get all unique numero_soci values from matches
       const allNumerosSoci = new Set<number>();
-      filteredMatchesData.forEach(match => {
-        if (match.jugador1?.numero_soci) allNumerosSoci.add(match.jugador1.numero_soci);
-        if (match.jugador2?.numero_soci) allNumerosSoci.add(match.jugador2.numero_soci);
+      filteredMatchesData.forEach((match: any) => {
+        if (match.jugador1_soci_numero) allNumerosSoci.add(match.jugador1_soci_numero);
+        if (match.jugador2_soci_numero) allNumerosSoci.add(match.jugador2_soci_numero);
       });
 
       // Fetch all socis in ONE query instead of N queries
@@ -138,10 +132,10 @@
       });
 
       // Map matches with soci data using the lookup map (no async needed)
-      const matchesWithSocis = filteredMatchesData.map(match => ({
+      const matchesWithSocis = filteredMatchesData.map((match: any) => ({
         ...match,
-        soci1: socisMap.get(match.jugador1?.numero_soci) || null,
-        soci2: socisMap.get(match.jugador2?.numero_soci) || null
+        soci1: socisMap.get(match.jugador1_soci_numero) || null,
+        soci2: socisMap.get(match.jugador2_soci_numero) || null
       }));
 
       calendarMatches = matchesWithSocis;

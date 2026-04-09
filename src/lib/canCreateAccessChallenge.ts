@@ -8,13 +8,13 @@ export type CanCreateAccessResult = {
 export async function canCreateAccessChallenge(
   supabase: SupabaseClient,
   eventId: string,
-  reptadorId: string,
-  reptatId: string
+  reptadorSoci: number,
+  reptatSoci: number
 ): Promise<CanCreateAccessResult> {
-  const { data, error } = await supabase.rpc('can_create_access_challenge', {
+  const { data, error } = await supabase.rpc('can_create_access_challenge_v2', {
     p_event: eventId,
-    p_reptador: reptadorId,
-    p_reptat: reptatId
+    p_reptador_soci: reptadorSoci,
+    p_reptat_soci: reptatSoci
   });
   if (error) return { ok: false, reason: error.message };
   const result = data as CanCreateAccessResult[] | null;

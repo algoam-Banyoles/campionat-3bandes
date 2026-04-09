@@ -9,8 +9,8 @@
 
   type Row = {
     id: string;
-    reptador_id: string;
-    reptat_id: string;
+    reptador_soci_numero: number;
+    reptat_soci_numero: number;
     reptador_nom: string;
     reptat_nom: string;
   };
@@ -32,25 +32,25 @@
       const { supabase } = await import('$lib/supabaseClient');
       const { data: ch, error: e1 } = await supabase
         .from('challenges')
-        .select('id,reptador_id,reptat_id')
+        .select('id,reptador_soci_numero,reptat_soci_numero')
         .eq('tipus', 'access')
         .in('estat', ['proposat', 'acceptat', 'programat'])
         .order('data_proposta', { ascending: true });
       if (e1) throw e1;
 
-      const ids = Array.from(
-        new Set([...(ch?.map((c) => c.reptador_id) ?? []), ...(ch?.map((c) => c.reptat_id) ?? [])])
+      const nums = Array.from(
+        new Set([...(ch?.map((c: any) => c.reptador_soci_numero) ?? []), ...(ch?.map((c: any) => c.reptat_soci_numero) ?? [])])
       );
-      const { data: players, error: e2 } = await supabase
+      const { data: socisData, error: e2 } = await supabase
         .from('socis')
-        .select('id,nom')
-        .in('id', ids);
+        .select('numero_soci,nom')
+        .in('numero_soci', nums);
       if (e2) throw e2;
-      const nameById = new Map(players?.map((p) => [p.id, p.nom]) ?? []);
-      rows = (ch ?? []).map((c) => ({
+      const nameByNum = new Map(socisData?.map((p) => [p.numero_soci, p.nom]) ?? []);
+      rows = ((ch ?? []) as unknown as Row[]).map((c) => ({
         ...c,
-        reptador_nom: nameById.get(c.reptador_id) ?? '—',
-        reptat_nom: nameById.get(c.reptat_id) ?? '—'
+        reptador_nom: nameByNum.get(c.reptador_soci_numero) ?? '—',
+        reptat_nom: nameByNum.get(c.reptat_soci_numero) ?? '—'
       }));
     } catch (e: any) {
       error = e?.message ?? 'Error carregant reptes d\'accés';

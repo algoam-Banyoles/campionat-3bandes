@@ -40,8 +40,8 @@ function makeMatch(
 		matchPos,
 		player1_participant_id: p1,
 		player2_participant_id: p2,
-		player1_player_id: `pl_${p1}`,
-		player2_player_id: `pl_${p2}`
+		player1_soci_numero: parseInt(p1.replace(/\D/g, '')) || 1,
+		player2_soci_numero: parseInt(p2.replace(/\D/g, '')) || 2
 	};
 }
 

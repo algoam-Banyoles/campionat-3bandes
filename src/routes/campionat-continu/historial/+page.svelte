@@ -8,7 +8,7 @@
 
   type Change = {
     creat_el: string;
-    player_id: string;
+    soci_numero: number;
     posicio_anterior: number | null;
     posicio_nova: number | null;
     motiu: string | null;
@@ -17,8 +17,8 @@
 
   type ChallengeRow = {
     id: string;
-    reptador_id: string;
-    reptat_id: string;
+    reptador_soci_numero: number;
+    reptat_soci_numero: number;
     estat: string;
     data_proposta: string;
     matches: { caramboles_reptador: number; caramboles_reptat: number }[];
@@ -32,16 +32,16 @@
   let errorChallenges: string | null = null;
   let challenges: ChallengeRow[] = [];
 
-  let players: Record<string, string> = {};
+  let players: Record<number, string> = {};
 
   // filters for changes
-  let filterPlayer = '';
+  let filterPlayer: number | '' = '';
   let filterMotiu = '';
   let filterFrom = '';
   let filterTo = '';
 
   // filters for challenges
-  let filterChallengePlayer = '';
+  let filterChallengePlayer: number | '' = '';
   let filterEstat = '';
 
   let hasMore = false;
@@ -72,7 +72,7 @@
       }
       let query = supabase
         .from('history_position_changes')
-        .select('creat_el, player_id, posicio_anterior, posicio_nova, motiu, ref_challenge')
+        .select('creat_el, soci_numero, posicio_anterior, posicio_nova, motiu, ref_challenge')
         .eq('event_id', eventId)
         .order('creat_el', { ascending: false })
         .limit(50);
@@ -81,20 +81,20 @@
       }
       const { data, error } = await query;
       if (error) throw error;
-      const rows: Change[] = data ?? [];
+      const rows: Change[] = (data ?? []) as Change[];
       if (rows.length > 0) {
         changes = [...changes, ...rows];
         lastDate = rows[rows.length - 1].creat_el;
-        const ids = Array.from(new Set(rows.map((r) => r.player_id)));
+        const ids = Array.from(new Set(rows.map((r) => r.soci_numero).filter((n): n is number => n != null)));
         const missing = ids.filter((id) => !players[id]);
         if (missing.length > 0) {
           const { data: pl, error: e2 } = await supabase
-            .from('players')
-            .select('id, socis!inner(nom)')
-            .in('id', missing);
+            .from('socis')
+            .select('numero_soci, nom')
+            .in('numero_soci', missing);
           if (e2) throw e2;
           for (const p of pl ?? []) {
-            players[p.id] = (p.socis as any)?.nom;
+            players[(p as any).numero_soci] = (p as any).nom;
           }
         }
       }
@@ -117,24 +117,28 @@
       const { data, error } = await supabase
         .from('challenges')
         .select(
-          'id,reptador_id,reptat_id,estat,data_proposta,matches(id,caramboles_reptador,caramboles_reptat)'
+          'id,reptador_soci_numero,reptat_soci_numero,estat,data_proposta,matches(id,caramboles_reptador,caramboles_reptat)'
         )
         .eq('event_id', eventId)
         .order('data_proposta', { ascending: false });
       if (error) throw error;
-      challenges = data ?? [];
+      challenges = (data ?? []) as ChallengeRow[];
       const ids = Array.from(
-        new Set(challenges.flatMap((c) => [c.reptador_id, c.reptat_id]))
+        new Set(
+          challenges
+            .flatMap((c) => [c.reptador_soci_numero, c.reptat_soci_numero])
+            .filter((n): n is number => n != null)
+        )
       );
       const missing = ids.filter((id) => !players[id]);
       if (missing.length > 0) {
         const { data: pl, error: e2 } = await supabase
-          .from('players')
-          .select('id, socis!inner(nom)')
-          .in('id', missing);
+          .from('socis')
+          .select('numero_soci, nom')
+          .in('numero_soci', missing);
         if (e2) throw e2;
         for (const p of pl ?? []) {
-          players[p.id] = (p.socis as any)?.nom;
+          players[(p as any).numero_soci] = (p as any).nom;
         }
       }
     } catch (e) {
@@ -157,7 +161,7 @@
   }
 
   $: filteredChanges = changes.filter((c) => {
-    if (filterPlayer && c.player_id !== filterPlayer) return false;
+    if (filterPlayer !== '' && c.soci_numero !== filterPlayer) return false;
     if (filterMotiu && !(c.motiu ?? '').toLowerCase().includes(filterMotiu.toLowerCase()))
       return false;
     const date = new Date(c.creat_el);
@@ -168,9 +172,9 @@
 
   $: filteredChallenges = challenges.filter((c) => {
     if (
-      filterChallengePlayer &&
-      c.reptador_id !== filterChallengePlayer &&
-      c.reptat_id !== filterChallengePlayer
+      filterChallengePlayer !== '' &&
+      c.reptador_soci_numero !== filterChallengePlayer &&
+      c.reptat_soci_numero !== filterChallengePlayer
     )
       return false;
     if (filterEstat && c.estat !== filterEstat) return false;
@@ -200,7 +204,7 @@
       <select class="rounded-xl border px-3 py-2" bind:value={filterPlayer}>
         <option value="">Tots els jugadors</option>
         {#each Object.entries(players).sort((a, b) => a[1].localeCompare(b[1])) as [id, name]}
-          <option value={id}>{name}</option>
+          <option value={Number(id)}>{name}</option>
         {/each}
       </select>
       <input
@@ -235,7 +239,7 @@
           {#each filteredChanges as r}
             <tr class="border-t">
               <td class="p-2 whitespace-nowrap">{new Date(r.creat_el).toLocaleString()}</td>
-              <td class="p-2">{players[r.player_id] ?? 'Jugador desconegut'}</td>
+              <td class="p-2">{players[r.soci_numero] ?? 'Jugador desconegut'}</td>
               <td class="p-2">{r.posicio_anterior ?? '—'} → {r.posicio_nova ?? '—'}</td>
               <td class="p-2">{r.motiu ?? '—'}</td>
               <td class="p-2">
@@ -280,7 +284,7 @@
       <select class="rounded-xl border px-3 py-2" bind:value={filterChallengePlayer}>
         <option value="">Tots els jugadors</option>
         {#each Object.entries(players).sort((a, b) => a[1].localeCompare(b[1])) as [id, name]}
-          <option value={id}>{name}</option>
+          <option value={Number(id)}>{name}</option>
         {/each}
       </select>
       <select class="rounded-xl border px-3 py-2" bind:value={filterEstat}>
@@ -317,8 +321,8 @@
           {#each filteredChallenges as c}
             <tr class="border-t">
               <td class="p-2 whitespace-nowrap">{new Date(c.data_proposta).toLocaleString()}</td>
-              <td class="p-2">{players[c.reptador_id] ?? 'Jugador desconegut'}</td>
-              <td class="p-2">{players[c.reptat_id] ?? 'Jugador desconegut'}</td>
+              <td class="p-2">{players[c.reptador_soci_numero] ?? 'Jugador desconegut'}</td>
+              <td class="p-2">{players[c.reptat_soci_numero] ?? 'Jugador desconegut'}</td>
               <td class="p-2">{challengeStateLabel(c.estat)}</td>
               <td class="p-2">
                 {#if c.matches && c.matches.length > 0}

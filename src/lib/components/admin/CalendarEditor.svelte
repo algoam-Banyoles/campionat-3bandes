@@ -72,21 +72,15 @@
             nom,
             ordre_categoria
           ),
-          jugador1:players!calendari_partides_jugador1_id_fkey (
+          jugador1:socis!calendari_partides_jugador1_soci_numero_fkey (
             nom,
-            numero_soci,
-            socis!players_numero_soci_fkey (
-              nom,
-              cognoms
-            )
+            cognoms,
+            numero_soci
           ),
-          jugador2:players!calendari_partides_jugador2_id_fkey (
+          jugador2:socis!calendari_partides_jugador2_soci_numero_fkey (
             nom,
-            numero_soci,
-            socis!players_numero_soci_fkey (
-              nom,
-              cognoms
-            )
+            cognoms,
+            numero_soci
           )
         `)
         .eq('event_id', eventId)

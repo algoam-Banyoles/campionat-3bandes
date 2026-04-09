@@ -31,10 +31,10 @@ export interface MatchToSchedule {
 	player1_participant_id: string;
 	/** handicap_participants.id del jugador 2 */
 	player2_participant_id: string;
-	/** players.id del jugador 1 (per a calendari_partides.jugador1_id) */
-	player1_player_id: string;
-	/** players.id del jugador 2 */
-	player2_player_id: string;
+	/** socis.numero_soci del jugador 1 (per a calendari_partides.jugador1_soci_numero) */
+	player1_soci_numero: number;
+	/** socis.numero_soci del jugador 2 */
+	player2_soci_numero: number;
 }
 
 /** Disponibilitat declarada d'un participant. */

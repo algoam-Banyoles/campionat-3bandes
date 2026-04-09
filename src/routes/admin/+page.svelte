@@ -41,14 +41,14 @@
 
   type Change = {
     creat_el: string;
-    player_id: string;
+    soci_numero: number;
     posicio_anterior: number | null;
     posicio_nova: number | null;
     motiu: string | null;
   };
 
   let recent: Change[] = [];
-  let recentPlayers: Record<string, string> = {};
+  let recentPlayers: Record<number, string> = {};
   let histLoading = false;
   let histErr: string | null = null;
 
@@ -229,21 +229,21 @@
       if (!eventId) return;
       const { data: rows, error: eHist } = await supabase
         .from('history_position_changes')
-        .select('creat_el, player_id, posicio_anterior, posicio_nova, motiu')
+        .select('creat_el, soci_numero, posicio_anterior, posicio_nova, motiu')
         .eq('event_id', eventId)
         .order('creat_el', { ascending: false })
         .limit(10);
       if (eHist) throw eHist;
-      recent = rows ?? [];
-      const ids = Array.from(new Set(recent.map((r) => r.player_id)));
-      if (ids.length > 0) {
+      recent = (rows ?? []) as unknown as Change[];
+      const nums = Array.from(new Set(recent.map((r) => r.soci_numero)));
+      if (nums.length > 0) {
         const { data: pl, error: ePl } = await supabase
           .from('socis')
-          .select('id, nom')
-          .in('id', ids);
+          .select('numero_soci, nom')
+          .in('numero_soci', nums);
         if (ePl) throw ePl;
         for (const p of pl ?? []) {
-          recentPlayers[p.id] = p.nom;
+          recentPlayers[p.numero_soci] = p.nom;
         }
       }
     } catch (e) {
@@ -385,7 +385,7 @@
               <li>
                 {new Date(r.creat_el).toLocaleDateString()} ·
                 {r.posicio_anterior ?? '—'}→{r.posicio_nova ?? '—'} ·
-                {recentPlayers[r.player_id] ?? 'Jugador desconegut'} ·
+                {recentPlayers[r.soci_numero] ?? 'Jugador desconegut'} ·
                 {(r.motiu ?? '').slice(0, 30)}
               </li>
             {/each}

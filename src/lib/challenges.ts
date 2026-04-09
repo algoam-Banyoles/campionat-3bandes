@@ -2,16 +2,16 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { authFetch } from '$lib/utils/http';
 
 export type ChallengeParticipants = {
-  reptador_id: string | null;
-  reptat_id: string | null;
+  reptador_soci_numero: number | null;
+  reptat_soci_numero: number | null;
 };
 
 export function isParticipant(
-  mePlayerId: string | null,
+  meSociNumero: number | null,
   repte: ChallengeParticipants | null | undefined
 ): boolean {
-  if (!mePlayerId || !repte) return false;
-  return mePlayerId === repte.reptador_id || mePlayerId === repte.reptat_id;
+  if (!meSociNumero || !repte) return false;
+  return meSociNumero === repte.reptador_soci_numero || meSociNumero === repte.reptat_soci_numero;
 }
 
 export async function acceptChallenge(supabase: SupabaseClient, id: string): Promise<void> {
@@ -57,7 +57,7 @@ export async function resolveAccessChallenge(
   });
   if (error) throw new Error(error.message);
   const res = (data as any) ?? { ok: false };
-  if (!res.ok) throw new Error(res.error || 'Error resolent repte d\'accés');
+  if (!res.ok) throw new Error(res.error || 'Error resolent repte d\'acces');
   return res;
 }
 

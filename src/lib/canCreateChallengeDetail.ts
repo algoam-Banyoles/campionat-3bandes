@@ -8,13 +8,13 @@ export type CanCreateChallengeDetailResult = {
 export async function canCreateChallengeDetail(
   supabase: SupabaseClient,
   eventId: string,
-  reptadorId: string,
-  reptatId: string
+  reptadorSoci: number,
+  reptatSoci: number
 ): Promise<CanCreateChallengeDetailResult> {
-  const { data, error } = await supabase.rpc('can_create_challenge_detail', {
-    event_id: eventId,
-    reptador_id: reptadorId,
-    reptat_id: reptatId
+  const { data, error } = await supabase.rpc('can_create_challenge_detail_v2', {
+    p_event: eventId,
+    p_reptador_soci: reptadorSoci,
+    p_reptat_soci: reptatSoci
   });
   if (error) {
     return { ok: false, reason: error.message };

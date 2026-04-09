@@ -35,8 +35,8 @@
 		player2_distancia: number | null;
 		player1_participant_id: string | null;
 		player2_participant_id: string | null;
-		player1_player_id: string | null;
-		player2_player_id: string | null;
+		player1_soci_numero: number | null;
+		player2_soci_numero: number | null;
 		calendari_partida_id: string | null;
 		data_programada: string | null; // 'YYYY-MM-DD'
 		hora_inici: string | null; // 'HH:MM'
@@ -54,7 +54,7 @@
 	let sistemaPuntuacio: string = 'distancia';
 	let limitEntrades: number | null = null;
 	let matches: MatchDisplay[] = [];
-	let participantMap = new Map<string, ParticipantAvailability & { player_id: string }>();
+	let participantMap = new Map<string, ParticipantAvailability>();
 	let allOccupiedSlots: OccupiedSlot[] = []; // tots els slots ocupats del torneig
 
 	// ── Estat del torneig ─────────────────────────────────────────────────────
@@ -247,13 +247,12 @@
 
 		let partMap = new Map<string, any>();
 		if (participantIds.length > 0) {
-			// Fase 5c-S2b: nom via FK directe `soci_numero → socis`. Mantenim
-			// `player_id` al SELECT perquè altres parts del codi hi depenen
-			// (es netejarà a Sessió 3 quan eliminem la columna).
+			// Fase 5c-S3: nom via FK directe `soci_numero → socis`.
+			// La columna `player_id` ja no existeix.
 			const { data: parts } = await supabase
 				.from('handicap_participants')
 				.select(
-					'id, distancia, seed, player_id, soci_numero, preferencies_dies, preferencies_hores, socis!handicap_participants_soci_numero_fkey(nom, cognoms)'
+					'id, distancia, seed, soci_numero, preferencies_dies, preferencies_hores, socis!handicap_participants_soci_numero_fkey(nom, cognoms)'
 				)
 				.in('id', participantIds);
 
@@ -266,8 +265,7 @@
 					{
 						participant_id: p.id,
 						preferencies_dies: p.preferencies_dies ?? [],
-						preferencies_hores: p.preferencies_hores ?? [],
-						player_id: p.player_id
+						preferencies_hores: p.preferencies_hores ?? []
 					}
 				])
 			);
@@ -338,8 +336,8 @@
 				player2_distancia: p2?.distancia ?? m.distancia_jugador2 ?? null,
 				player1_participant_id: slot1?.participant_id ?? null,
 				player2_participant_id: slot2?.participant_id ?? null,
-				player1_player_id: p1?.player_id ?? null,
-				player2_player_id: p2?.player_id ?? null,
+				player1_soci_numero: p1?.soci_numero ?? null,
+				player2_soci_numero: p2?.soci_numero ?? null,
 				calendari_partida_id: m.calendari_partida_id ?? null,
 				data_programada: partida
 					? (partida.data_programada as string).substring(0, 10)
@@ -358,16 +356,13 @@
 			return a.matchPos - b.matchPos;
 		});
 
-		// Detectar si l'usuari és participant
+		// Detectar si l'usuari es participant
 		const userEmail = $user?.email;
 		if (userEmail && !myParticipantId && eventId) {
 			const { data: soci } = await supabase.from('socis').select('numero_soci').eq('email', userEmail).maybeSingle();
 			if (soci) {
-				const { data: player } = await supabase.from('players').select('id').eq('numero_soci', soci.numero_soci).maybeSingle();
-				if (player) {
-					const { data: part } = await supabase.from('handicap_participants').select('id').eq('event_id', eventId).eq('player_id', player.id).maybeSingle();
-					myParticipantId = part?.id ?? null;
-				}
+				const { data: part } = await supabase.from('handicap_participants').select('id').eq('event_id', eventId).eq('soci_numero', soci.numero_soci).maybeSingle();
+				myParticipantId = part?.id ?? null;
 			}
 		}
 	}
@@ -396,8 +391,8 @@
 				.insert({
 					event_id: eventId,
 					categoria_id: null,
-					jugador1_id: match.player1_player_id,
-					jugador2_id: match.player2_player_id,
+					jugador1_soci_numero: match.player1_soci_numero,
+					jugador2_soci_numero: match.player2_soci_numero,
 					data_programada: `${slot.data}T${slot.hora}:00`,
 					hora_inici: slot.hora,
 					taula_assignada: slot.taula,
@@ -459,7 +454,7 @@
 	function runAutoSchedule() {
 		if (!config) return;
 
-		const pending = schedulableNow.filter((m) => m.player1_player_id && m.player2_player_id);
+		const pending = schedulableNow.filter((m) => m.player1_soci_numero && m.player2_soci_numero);
 
 		if (pending.length === 0) {
 			error = 'No hi ha partides pendents amb tots dos jugadors assignats.';
@@ -473,8 +468,8 @@
 			matchPos: m.matchPos,
 			player1_participant_id: m.player1_participant_id!,
 			player2_participant_id: m.player2_participant_id!,
-			player1_player_id: m.player1_player_id!,
-			player2_player_id: m.player2_player_id!
+			player1_soci_numero: m.player1_soci_numero!,
+			player2_soci_numero: m.player2_soci_numero!
 		}));
 
 		const participants: ParticipantAvailability[] = pending

@@ -16,19 +16,19 @@ export const GET: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'Sessió invàlida' }, { status: 400 });
     }
 
-    const { data: player, error: pErr } = await supabase
-      .from('players')
-      .select('id')
+    const { data: soci, error: sErr } = await supabase
+      .from('socis')
+      .select('numero_soci')
       .eq('email', auth.user.email)
       .maybeSingle();
-    if (pErr) {
-      if (isRlsError(pErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
-      return json({ ok: false, error: pErr.message }, { status: 400 });
+    if (sErr) {
+      if (isRlsError(sErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
+      return json({ ok: false, error: sErr.message }, { status: 400 });
     }
-    if (!player) {
-      return json({ ok: false, error: 'Usuari sense jugador associat' }, { status: 400 });
+    if (!soci) {
+      return json({ ok: false, error: 'Usuari sense soci associat' }, { status: 400 });
     }
-    const myPlayerId = player.id as string;
+    const mySociNumero = soci.numero_soci as number;
 
     const { data: event, error: eErr } = await supabase
       .from('events')
@@ -49,16 +49,9 @@ export const GET: RequestHandler = async ({ request }) => {
 
     console.log('🎯 Esdeveniment actiu:', { id: eventId, nom: (event as any).nom });
 
-    // Usar la mateixa consulta que rankingStore per consistència
     const { data: rank, error: rErr } = await supabase
       .from('ranking_positions')
-      .select(`
-        posicio,
-        player_id,
-        players!inner (
-          numero_soci
-        )
-      `)
+      .select('posicio, soci_numero')
       .eq('event_id', eventId)
       .order('posicio', { ascending: true });
     
@@ -72,7 +65,7 @@ export const GET: RequestHandler = async ({ request }) => {
     // Obtenir noms dels socis en una query separada
     const numerosSoci = [...new Set(
       (rank ?? [])
-        .map((item: any) => item.players?.numero_soci)
+        .map((item: any) => item.soci_numero)
         .filter((n: any) => n != null)
     )];
 
@@ -90,48 +83,33 @@ export const GET: RequestHandler = async ({ request }) => {
       }
     }
     const allRank = (rank ?? []).map((r: any) => {
-      const numeroSoci = r.players?.numero_soci;
+      const numeroSoci = r.soci_numero;
       const nom = numeroSoci ? socisMap.get(numeroSoci) : null;
       return {
         posicio: r.posicio,
-        player_id: r.player_id,
+        soci_numero: numeroSoci,
         nom: nom ?? '—'
       };
     });
 
-    // Debug: mostrar informació
-    console.log('🔍 Debug rànquing:');
-    console.log('  - myPlayerId:', myPlayerId);
-    console.log('  - Total jugadors al rànquing:', allRank.length);
-    console.log('  - IDs al rànquing:', allRank.map(r => r.player_id));
-
-    const mine = allRank.find((r) => r.player_id === myPlayerId) ?? null;
+    const mine = allRank.find((r) => r.soci_numero === mySociNumero) ?? null;
     if (!mine) {
-      console.error('❌ No trobat al rànquing!');
-      console.error('  - Buscant:', myPlayerId, '(tipus:', typeof myPlayerId, ')');
-      console.error('  - Primer ID del rànquing:', allRank[0]?.player_id, '(tipus:', typeof allRank[0]?.player_id, ')');
-      return json({ 
-        ok: false, 
-        error: `No formes part del rànquing actual. (ID: ${myPlayerId})`,
-        debug: {
-          myPlayerId,
-          rankingIds: allRank.map(r => r.player_id),
-          totalInRanking: allRank.length
-        }
+      return json({
+        ok: false,
+        error: `No formes part del ranquing actual. (soci_numero: ${mySociNumero})`
       }, { status: 400 });
     }
-    console.log('✅ Trobat al rànquing! Posició:', mine.posicio);
     const myPos = mine.posicio as number;
 
-    const reptables: { posicio: number; player_id: string; nom: string }[] = [];
-    const noReptables: { posicio: number; player_id: string; nom: string; motiu: string }[] = [];
+    const reptables: { posicio: number; soci_numero: number; nom: string }[] = [];
+    const noReptables: { posicio: number; soci_numero: number; nom: string; motiu: string }[] = [];
 
     for (const r of allRank) {
-      if (r.player_id === myPlayerId) continue;
-      const { data: chk, error: eChk } = await supabase.rpc('can_create_challenge', {
+      if (r.soci_numero === mySociNumero) continue;
+      const { data: chk, error: eChk } = await supabase.rpc('can_create_challenge_v2', {
         p_event: eventId,
-        p_reptador: myPlayerId,
-        p_reptat: r.player_id
+        p_reptador_soci: mySociNumero,
+        p_reptat_soci: r.soci_numero
       });
       if (eChk) {
         noReptables.push({ ...r, motiu: 'no disponible' });
@@ -153,7 +131,7 @@ export const GET: RequestHandler = async ({ request }) => {
     return json(
       {
         ok: true,
-        my_player_id: myPlayerId,
+        my_soci_numero: mySociNumero,
         my_pos: myPos,
         event_id: eventId,
         reptables,

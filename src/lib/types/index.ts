@@ -113,7 +113,6 @@ export interface Classification {
   // Camps calculats/joins
   player_nom: string;
   player_cognom: string | null;
-  player_id?: UUID;
 }
 
 // ========================================
@@ -177,8 +176,8 @@ export interface CalendariPartida {
   id: UUID;
   event_id: UUID;
   categoria_id: UUID;
-  jugador1_id: UUID;
-  jugador2_id: UUID;
+  jugador1_soci_numero: number;
+  jugador2_soci_numero: number;
   data_programada: string;
   hora_inici: string;
   taula_assignada: number;
@@ -198,7 +197,7 @@ export interface CalendariPartida {
   // Resultat
   resultat_jugador1: number | null;
   resultat_jugador2: number | null;
-  guanyador_id: UUID | null;
+  guanyador_soci_numero: number | null;
   match_id: UUID | null;
   observacions: string | null;
 
@@ -218,11 +217,11 @@ export interface CalendariPartida {
 export interface RankingPosition {
   id: UUID;
   event_id: UUID;
-  player_id: UUID;
+  soci_numero: number;
   posicio: number;
   created_at: string;
 
-  // Camps calculats/joins via players
+  // Camps calculats/joins via socis + socis_jugador
   nom: string | null;
   cognoms: string | null;
   mitjana: number | null;
@@ -234,8 +233,8 @@ export interface RankingPosition {
 export interface Challenge {
   id: UUID;
   event_id: UUID;
-  reptador_id: UUID;
-  reptat_id: UUID;
+  reptador_soci_numero: number;
+  reptat_soci_numero: number;
   tipus: 'normal' | 'acces';
   posicio_reptador: number;
   posicio_reptat: number;
@@ -260,22 +259,22 @@ export interface Challenge {
 export interface Match {
   id: UUID;
   event_id: UUID;
-  player1_id: UUID;
-  player2_id: UUID;
+  player1_soci_numero: number;
+  player2_soci_numero: number;
   player1_score: number;
   player2_score: number;
   player1_innings: number;
   player2_innings: number;
-  winner_id: UUID;
+  winner_soci_numero: number;
   match_date: string;
   observacions: string | null;
   validated: boolean;
   created_at: string;
 
   // Camps calculats/joins
-  player1: Player;
-  player2: Player;
-  winner: Player;
+  player1: Soci;
+  player2: Soci;
+  winner: Soci;
 }
 
 // ========================================
@@ -288,7 +287,7 @@ export interface HandicapBracket {
   tipus: 'winners' | 'losers';
   ronda: number;
   posicio_bracket: number;
-  jugador_id: UUID | null;
+  soci_numero: number | null;
   estat: 'pendent' | 'actiu' | 'eliminat' | 'classificat';
   created_at: string;
 
@@ -332,7 +331,7 @@ export interface UserRole {
 
 export interface MitjanaHistorica {
   id: UUID;
-  player_id: UUID;
+  soci_numero: number;
   temporada: string;
   modalitat: Modalitat;
   mitjana: number;
@@ -343,7 +342,7 @@ export interface MitjanaHistorica {
 export interface HistoryPositionChange {
   id: UUID;
   event_id: UUID;
-  player_id: UUID;
+  soci_numero: number;
   posicio_anterior: number;
   posicio_nova: number;
   motiu: string;
@@ -452,7 +451,7 @@ export interface HeadToHeadCell {
 }
 
 export interface HeadToHeadPlayer {
-  id: UUID;
+  id: string;
   nom: string;
   cognoms: string | null;
   numero_soci: number;

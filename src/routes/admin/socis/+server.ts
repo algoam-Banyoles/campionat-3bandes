@@ -246,8 +246,8 @@ export const PUT: RequestHandler = async (event) => {
       { table: 'players', column: 'numero_soci' },
       { table: 'inscripcions', column: 'soci_numero' },
       { table: 'mitjanes_historiques', column: 'soci_id' },
-      { table: 'calendari_partides', column: 'jugador1_id' },
-      { table: 'calendari_partides', column: 'jugador2_id' },
+      { table: 'calendari_partides', column: 'jugador1_soci_numero' },
+      { table: 'calendari_partides', column: 'jugador2_soci_numero' },
       { table: 'calendari_partides', column: 'validat_per' },
       { table: 'calendari_partides', column: 'aprovat_canvi_per' }
     ];

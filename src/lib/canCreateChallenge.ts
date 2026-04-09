@@ -9,13 +9,13 @@ export type CanCreateChallengeResult = {
 export async function canCreateChallenge(
   supabase: SupabaseClient,
   eventId: string,
-  reptadorId: string,
-  reptatId: string
+  reptadorSoci: number,
+  reptatSoci: number
 ): Promise<CanCreateChallengeResult> {
-  const { data, error } = await supabase.rpc('can_create_challenge', {
+  const { data, error } = await supabase.rpc('can_create_challenge_v2', {
     p_event: eventId,
-    p_reptador: reptadorId,
-    p_reptat: reptatId
+    p_reptador_soci: reptadorSoci,
+    p_reptat_soci: reptatSoci
   });
   if (error) return { ok: false, reason: error.message, warning: null };
   const result = data as CanCreateChallengeResult[] | null;

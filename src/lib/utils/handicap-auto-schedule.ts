@@ -78,7 +78,7 @@ export async function autoScheduleReadyMatches(
 
 	if (ready.length === 0) return null;
 
-	// ── 5. Obtenir participants (disponibilitat + player_id) ──────────────────
+	// ── 5. Obtenir participants (disponibilitat + soci_numero) ──────────────────
 
 	const participantIds = [
 		...new Set(
@@ -92,7 +92,7 @@ export async function autoScheduleReadyMatches(
 
 	const { data: parts } = await supabase
 		.from('handicap_participants')
-		.select('id, player_id, preferencies_dies, preferencies_hores')
+		.select('id, soci_numero, preferencies_dies, preferencies_hores')
 		.in('id', participantIds);
 
 	const partMap = new Map((parts ?? []).map((p: any) => [p.id as string, p]));
@@ -131,8 +131,8 @@ export async function autoScheduleReadyMatches(
 				matchPos: Math.ceil((s1.posicio as number) / 2),
 				player1_participant_id: pid1,
 				player2_participant_id: pid2,
-				player1_player_id: p1.player_id as string,
-				player2_player_id: p2.player_id as string
+				player1_soci_numero: p1.soci_numero as number,
+				player2_soci_numero: p2.soci_numero as number
 			} satisfies MatchToSchedule;
 		})
 		.filter(Boolean) as MatchToSchedule[];

@@ -1,0 +1,28 @@
+-- Fase 5c Sessio 3 / Fase C — RPCs reescrites sense dependre de players
+-- Aplicades a produccio via MCP (16 migracions individuals consolidades aqui).
+--
+-- 12 funcions reescrites in-place (sense canvi de signatura):
+--   get_match_results_public, get_calendar_matches_public, get_head_to_head_results,
+--   get_classifications_public, get_social_league_classifications,
+--   get_eligible_promotions, get_waiting_list, get_ranking, get_retired_players,
+--   admin_reset_championship, reset_full_competition, registrar_incompareixenca
+--
+-- 2 funcions _v2 creades (nova signatura amb integer soci_numero):
+--   can_create_challenge_v2(uuid, integer, integer)
+--   can_create_challenge_detail_v2(uuid, integer, integer)
+--
+-- Bugs pre-existents corregits:
+--   - get_classifications_public: m.resultat = 'empat' -> m.resultat::text LIKE 'empat%' (enum no tenia valor 'empat')
+--   - get_retired_players: i.retired_at -> i.data_retirada (columna correcta)
+--
+-- Patrons aplicats a totes:
+--   - LEFT JOIN players p ON cp.jugador*_id = p.id LEFT JOIN socis s ON p.numero_soci = s.numero_soci
+--     => JOIN socis s ON s.numero_soci = cp.jugador*_soci_numero
+--   - LEFT JOIN players p ON rp.player_id = p.id LEFT JOIN socis s ON ...
+--     => LEFT JOIN socis s ON s.numero_soci = rp.soci_numero
+--   - UPDATE players SET estat = ... => UPDATE socis_jugador SET estat = ...
+--   - SELECT count(*) FROM players => SELECT count(*) FROM socis_jugador
+--
+-- Les definicions SQL reals viuen a la BD (via MCP apply_migration).
+-- Aquest fitxer serveix de registre per al repo git.
+SELECT 1; -- placeholder per evitar error de migració buida
