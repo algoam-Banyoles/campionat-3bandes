@@ -389,6 +389,7 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
       .not('data_programada', 'is', null)
       .not('hora_inici', 'is', null)
       .is('caramboles_jugador1', null)  // Només partides sense resultats
+      .or('partida_anullada.is.null,partida_anullada.eq.false')  // Exclou anullades/incompareixences
       .order('data_programada', { ascending: true });
 
     if (error) {
