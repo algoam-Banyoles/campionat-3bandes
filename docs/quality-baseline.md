@@ -71,6 +71,36 @@ Després de cada fase del pla:
 
 ## Historial
 
+### 2026-04-09 — Fase 5c · Sessió 3: DROP TABLE players COMPLETADA
+
+**La taula `players` ja no existeix.** Tot el codebase usa `socis.numero_soci` com a clau de jugador.
+
+Resum de la sessió:
+
+- **Fase B**: migrat mòdul continu (~20 fitxers) + rankingStore a soci_numero
+- **Fase C**: 14 RPCs reescrites (12 in-place + 2 _v2 amb signatura integer)
+- **Fase D**: 4 vistes recreades sense dependre de players
+- **Migració massiva**: 60 fitxers addicionals migrats (tot el codebase net de UUID)
+- **Fase E**: DROP 10 triggers, 12 FKs, 12 columnes UUID, 8 funcions mortes, 2 RLS policies
+- **Fase F**: DROP TABLE players
+- **Fase G**: 10 funcions trigger reescrites, 4 vistes recreades, 2 RLS recreades
+
+Estat post-migració:
+
+- svelte-check: 0 errors / 99 warnings (baseline mantinguda)
+- vitest: 13 fitxers / 133 tests passant
+- E2E: 7/7 passant
+- Build: OK
+- `from('players')` al codebase: **0 ocurrències**
+- Columnes UUID (`player_id`, `jugador*_id`, `reptador_id`, `reptat_id`): **eliminades**
+- Taula `socis_jugador` (1-a-1 amb socis): camps de joc (`mitjana`, `estat`, `club`, `avatar_url`, `data_ultim_repte`)
+
+Fitxers eliminats (codi mort): `queries.ts`, `queries_old.ts`, `indexes.sql`.
+
+Bugs pre-existents corregits durant la migració:
+- `get_classifications_public`: `m.resultat = 'empat'` (valor inexistent a l'enum)
+- `get_retired_players`: `i.retired_at` (columna correcta és `i.data_retirada`)
+
 ### 2026-04-07 — Línia base inicial
 
 - 12 test files / 129 tests passant

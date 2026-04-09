@@ -1,0 +1,23 @@
+-- Fase 5c Sessio 3 / Fases E + F — DROP atomic
+-- Aplicat a produccio via MCP (migracio 20260409085918).
+--
+-- Accions:
+-- - DROP 2 RLS policies de challenges
+-- - DROP 17 triggers (10 sync + 7 funcionals que referencien UUID)
+-- - DROP 3 funcions sync
+-- - DROP 4 vistes
+-- - DROP 8 funcions mortes UUID
+-- - DROP 5 unique constraints + 16 indexes amb columnes UUID
+-- - DROP PK player_weekly_positions (contenia player_id)
+-- - DROP 12 FKs cap a players(id)
+-- - DROP 12 columnes UUID de 10 taules
+-- - DROP TABLE players
+-- - Recreat PK player_weekly_positions com (event_id, soci_numero, setmana)
+-- - Reescrites 10 funcions (trigger + helpers) per usar soci_numero
+-- - Recreats 7 triggers amb noves columnes
+-- - Recreades 4 vistes sense UUID
+-- - Recreades 2 RLS policies amb soci_numero
+--
+-- La taula players ja NO existeix.
+-- Totes les entitats usen socis.numero_soci com a clau de jugador.
+SELECT 1; -- placeholder: definicions reals a la BD via MCP
