@@ -33,6 +33,7 @@
   let error: string | null = null;
   let rows: Row[] = [];
   let myPlayerId: string | null = null;
+  let mySociNumero: number | null = null;
 
   onMount(async () => {
     try {
@@ -40,12 +41,20 @@
 
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {
-        const { data: player } = await supabase
-          .from('players')
-          .select('id')
+        const { data: soci } = await supabase
+          .from('socis')
+          .select('numero_soci')
           .eq('email', auth.user.email)
           .maybeSingle();
-        myPlayerId = (player as any)?.id ?? null;
+        if (soci) {
+          mySociNumero = soci.numero_soci;
+          const { data: player } = await supabase
+            .from('players')
+            .select('id')
+            .eq('numero_soci', soci.numero_soci)
+            .maybeSingle();
+          myPlayerId = (player as any)?.id ?? null;
+        }
       }
 
       // Usar el mateix sistema que /ranking per consistència
@@ -288,14 +297,14 @@
       }
     }
 
-    if (myPlayerId && eventId && canIChallenge) {
+    if (mySociNumero && eventId && canIChallenge) {
       for (const r of rows) {
         if (r.reptable) {
           const chk = await canCreateChallenge(
             supabase,
             eventId,
-            myPlayerId,
-            r.player_id
+            mySociNumero,
+            r.soci_numero
           );
           r.canChallenge = chk.ok;
           r.reason = chk.ok ? chk.warning : chk.reason;

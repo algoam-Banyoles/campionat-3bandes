@@ -11,7 +11,7 @@
   import { canCreateAccessChallenge } from '$lib/canCreateAccessChallenge';
   import { authFetch } from '$lib/utils/http';
 
-  type RankedPlayer = { posicio: number; player_id: string; nom: string };
+  type RankedPlayer = { posicio: number; player_id: string; soci_numero: number; nom: string };
   type NotReptable = RankedPlayer & { motiu: string };
 
   let loading = true;
@@ -20,6 +20,7 @@
   let info: string | null = null;
 
   let myPlayerId: string | null = null;
+  let mySociNumero: number | null = null;
   let myPos: number | null = null;
   let eventId: string | null = null;
 
@@ -56,16 +57,20 @@
         return;
       }
 
-      const { data: player, error: pErr } = await supabase
-        .from('players')
-        .select('id')
+      const { data: soci } = await supabase
+        .from('socis')
+        .select('numero_soci')
         .eq('email', auth.user.email)
         .maybeSingle();
-      if (pErr) {
-        err = errMsg(pErr.message);
-        return;
+      if (soci) {
+        mySociNumero = soci.numero_soci;
+        const { data: player } = await supabase
+          .from('players')
+          .select('id')
+          .eq('numero_soci', soci.numero_soci)
+          .maybeSingle();
+        myPlayerId = (player as any)?.id ?? null;
       }
-      myPlayerId = (player as any)?.id ?? null;
 
       const { data: ev, error: eErr } = await supabase
         .from('events')
@@ -121,6 +126,7 @@
         }
 
         myPlayerId = data.my_player_id;
+        mySociNumero = data.my_soci_numero;
         myPos = data.my_pos;
         eventId = data.event_id;
         reptables = data.reptables ?? [];
@@ -214,10 +220,15 @@
   $: valMsg = validate();
 
   $: (async () => {
-    if (selectedOpponent && eventId && myPlayerId) {
-      canChk = isAccess
-        ? await canCreateAccessChallenge(supabase, eventId, myPlayerId, selectedOpponent)
-        : await canCreateChallengeDetail(supabase, eventId, myPlayerId, selectedOpponent);
+    if (selectedOpponent && eventId && mySociNumero) {
+      const oppSoci = reptables.find(r => r.player_id === selectedOpponent)?.soci_numero;
+      if (oppSoci) {
+        canChk = isAccess
+          ? await canCreateAccessChallenge(supabase, eventId, myPlayerId!, selectedOpponent)
+          : await canCreateChallengeDetail(supabase, eventId, mySociNumero, oppSoci);
+      } else {
+        canChk = null;
+      }
     } else {
       canChk = null;
     }

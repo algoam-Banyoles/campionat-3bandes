@@ -29,6 +29,7 @@
   let error: string | null = null;
   let rows: RowState[] = [];
   let myPlayerId: string | null = null;
+  let mySociNumero: number | null = null;
   let myPos: number | null = null;
   let eventId: string | null = null;
   let unsub: (() => void) | null = null;
@@ -86,17 +87,21 @@
       // Auth & player (optimal amb cache)
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {
-        const { data: player, error: pErr } = await supabase
-          .from('players')
-          .select('id')
+        // Obtenir soci_numero per RPCs _v2 + player_id per interop UUID (badges, history, etc.)
+        const { data: soci } = await supabase
+          .from('socis')
+          .select('numero_soci')
           .eq('email', auth.user.email)
           .maybeSingle();
-        if (pErr) {
-          error = pErr.message;
-          return;
-        }
-        if (player) {
-          myPlayerId = player.id as string;
+        if (soci) {
+          mySociNumero = soci.numero_soci;
+          // player_id encara necessari per fetchBadgeMap, applyDisagreementDrop, etc.
+          const { data: player } = await supabase
+            .from('players')
+            .select('id')
+            .eq('numero_soci', soci.numero_soci)
+            .maybeSingle();
+          if (player) myPlayerId = player.id as string;
         }
       }
 
@@ -159,7 +164,7 @@
 
   async function evaluateChallenges(supabase: any) {
     myPos = rows.find((r) => r.player_id === myPlayerId)?.posicio ?? null;
-    if (!(myPlayerId && myPos && eventId)) return;
+    if (!(mySociNumero && myPos && eventId)) return;
     
     for (const r of rows) {
       if (r.player_id === myPlayerId) continue;
@@ -178,7 +183,7 @@
       }
       
       // Verificar altres restriccions (cooldown, etc.)
-      const chk = await canCreateChallenge(supabase, eventId, myPlayerId, r.player_id);
+      const chk = await canCreateChallenge(supabase, eventId, mySociNumero, r.soci_numero);
       r.canChallenge = chk.ok;
       r.reason = chk.ok ? chk.warning : chk.reason;
     }

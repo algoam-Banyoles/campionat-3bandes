@@ -16,19 +16,26 @@ export const GET: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'Sessió invàlida' }, { status: 400 });
     }
 
-    const { data: player, error: pErr } = await supabase
-      .from('players')
-      .select('id')
+    const { data: soci, error: sErr } = await supabase
+      .from('socis')
+      .select('numero_soci')
       .eq('email', auth.user.email)
       .maybeSingle();
-    if (pErr) {
-      if (isRlsError(pErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
-      return json({ ok: false, error: pErr.message }, { status: 400 });
+    if (sErr) {
+      if (isRlsError(sErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
+      return json({ ok: false, error: sErr.message }, { status: 400 });
     }
-    if (!player) {
-      return json({ ok: false, error: 'Usuari sense jugador associat' }, { status: 400 });
+    if (!soci) {
+      return json({ ok: false, error: 'Usuari sense soci associat' }, { status: 400 });
     }
-    const myPlayerId = player.id as string;
+    const mySociNumero = soci.numero_soci as number;
+    // player_id encara necessari per comparar amb ranking_positions.player_id
+    const { data: player } = await supabase
+      .from('players')
+      .select('id')
+      .eq('numero_soci', mySociNumero)
+      .maybeSingle();
+    const myPlayerId = (player as any)?.id as string;
 
     const { data: event, error: eErr } = await supabase
       .from('events')
@@ -89,6 +96,7 @@ export const GET: RequestHandler = async ({ request }) => {
       return {
         posicio: r.posicio,
         player_id: r.player_id,
+        soci_numero: numeroSoci,
         nom: nom ?? '—'
       };
     });
@@ -122,10 +130,10 @@ export const GET: RequestHandler = async ({ request }) => {
 
     for (const r of allRank) {
       if (r.player_id === myPlayerId) continue;
-      const { data: chk, error: eChk } = await supabase.rpc('can_create_challenge', {
+      const { data: chk, error: eChk } = await supabase.rpc('can_create_challenge_v2', {
         p_event: eventId,
-        p_reptador: myPlayerId,
-        p_reptat: r.player_id
+        p_reptador_soci: mySociNumero,
+        p_reptat_soci: r.soci_numero
       });
       if (eChk) {
         noReptables.push({ ...r, motiu: 'no disponible' });
@@ -148,6 +156,7 @@ export const GET: RequestHandler = async ({ request }) => {
       {
         ok: true,
         my_player_id: myPlayerId,
+        my_soci_numero: mySociNumero,
         my_pos: myPos,
         event_id: eventId,
         reptables,
