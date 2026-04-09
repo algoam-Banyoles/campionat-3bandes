@@ -1,0 +1,14 @@
+-- Fix: 10 RPCs tenien player_id/jugador*_id al RETURNS TABLE.
+-- PostgREST intentava fer JOINs amb columnes inexistents.
+-- Aplicat a produccio via MCP (2 migracions).
+--
+-- Corregides (DROP + CREATE sense player_id al return):
+--   get_calendar_matches_public, get_match_results_public, get_head_to_head_results,
+--   get_social_league_classifications, get_eligible_promotions,
+--   get_waiting_list, get_classifications_public
+--
+-- Dropades (sense consumidors):
+--   get_retired_players, get_ranking, apply_automatic_promotions
+--
+-- Verificacio: 0 funcions amb player_id al return type.
+SELECT 1;
