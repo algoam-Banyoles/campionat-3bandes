@@ -6,8 +6,8 @@
 
 
   export let challengeId: string;
-  export let reptadorId: string | null = null;
-  export let reptatId: string | null = null;
+  export let reptadorSociNumero: number | null = null;
+  export let reptatSociNumero: number | null = null;
   export let reprogramacions = 0;
 
   let dataLocal = '';
@@ -19,12 +19,12 @@
 
   async function ensureChallengeParties() {
     // Si no han arribat per props, els busquem
-    if (reptadorId && reptatId) return;
-    const res = await authFetch(`/reptes/detall/${challengeId}`); // adapta si tens un altre endpoint
+    if (reptadorSociNumero && reptatSociNumero) return;
+    const res = await authFetch(`/reptes/detall/${challengeId}`);
     const j = await res.json();
     if (res.ok) {
-      reptadorId = j.reptador_id;
-      reptatId  = j.reptat_id;
+      reptadorSociNumero = j.reptador_soci_numero;
+      reptatSociNumero  = j.reptat_soci_numero;
     }
   }
 
@@ -43,18 +43,18 @@
     const email = auth?.user?.email ?? null;
     if (!email) { canShow = false; return; }
 
-    // trobem el player_id d'aquest email
+    // trobem el soci_numero d'aquest email
     const { data: me, error } = await supabase
-      .from('players')
-      .select('id')
+      .from('socis')
+      .select('numero_soci')
       .eq('email', email)
       .maybeSingle();
-    if (error || !me?.id) { canShow = false; return; }
+    if (error || !me?.numero_soci) { canShow = false; return; }
 
     await ensureChallengeParties();
-    canShow = isParticipant(me.id ?? null, {
-      reptador_id: reptadorId,
-      reptat_id: reptatId
+    canShow = isParticipant(me.numero_soci ?? null, {
+      reptador_soci_numero: reptadorSociNumero,
+      reptat_soci_numero: reptatSociNumero
     });
   }
 

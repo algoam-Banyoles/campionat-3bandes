@@ -65,34 +65,34 @@
         return;
       }
       
-      // Buscar jugador via players (estructura actual)
-      const { data: pl, error: ePl } = await supabase
-        .from('players')
-        .select('id')
+      // Buscar soci per email
+      const { data: soci, error: eSoci } = await supabase
+        .from('socis')
+        .select('numero_soci')
         .eq('email', u.email)
         .maybeSingle();
-      
-      if (ePl) {
-        if (ePl.code === 'PGRST301' || ePl.message?.includes('JWT')) {
-          console.warn('Auth error fetching player:', ePl.message);
+
+      if (eSoci) {
+        if (eSoci.code === 'PGRST301' || eSoci.message?.includes('JWT')) {
+          console.warn('Auth error fetching soci:', eSoci.message);
           showInscripcio = false;
           return;
         }
-        throw ePl;
+        throw eSoci;
       }
-      
-      if (!pl) {
+
+      if (!soci) {
         showInscripcio = false;
         return;
       }
-      
+
       const { data: rp, error: eRp } = await supabase
         .from('ranking_positions')
         .select('posicio')
         .eq('event_id', eventId)
-        .eq('player_id', pl.id)
+        .eq('soci_numero', soci.numero_soci)
         .maybeSingle();
-      
+
       if (eRp) {
         if (eRp.code === 'PGRST301' || eRp.message?.includes('JWT')) {
           console.warn('Auth error fetching ranking:', eRp.message);
@@ -101,19 +101,19 @@
         }
         throw eRp;
       }
-      
+
       if (rp) {
         showInscripcio = false;
         return;
       }
-      
+
       const { data: wl, error: eWl } = await supabase
         .from('waiting_list')
         .select('id')
         .eq('event_id', eventId)
-        .eq('player_id', pl.id)
+        .eq('soci_numero', soci.numero_soci)
         .maybeSingle();
-      
+
       if (eWl) {
         if (eWl.code === 'PGRST301' || eWl.message?.includes('JWT')) {
           console.warn('Auth error fetching waiting list:', eWl.message);
@@ -122,7 +122,7 @@
         }
         throw eWl;
       }
-      
+
       showInscripcio = !wl;
       
     } catch (e) {

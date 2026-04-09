@@ -4,13 +4,13 @@ import { supabase } from '$lib/supabaseClient';
 export type ChallengeResult = 'W' | 'L'; // Win or Loss
 
 export interface PlayerChallengeHistory {
-  playerId: string;
+  sociNumero: number;
   recentResults: ChallengeResult[];
 }
 
-export async function getPlayerChallengeHistory(playerId: string, eventId: string, limit = 6): Promise<ChallengeResult[]> {
+export async function getPlayerChallengeHistory(sociNumero: number, eventId: string, limit = 6): Promise<ChallengeResult[]> {
   try {
-    // Obtenir els últims reptes completats del jugador
+    // Obtenir els últims reptes completats del jugador via soci_numero
     const { data: matches, error } = await supabase
       .from('matches')
       .select(`
@@ -19,17 +19,14 @@ export async function getPlayerChallengeHistory(playerId: string, eventId: strin
         resultat,
         challenge_id,
         challenges!inner (
-          reptador_id,
-          reptat_id,
+          reptador_soci_numero,
+          reptat_soci_numero,
           event_id
         )
       `)
       .eq('challenges.event_id', eventId)
-      // PostgREST: per filtrar amb OR sobre una taula referenciada cal
-      // passar `referencedTable` en lloc de prefixar amb el nom de la taula
-      // dins la cadena. La sintaxi anterior generava PGRST100 (400).
       .or(
-        `reptador_id.eq.${playerId},reptat_id.eq.${playerId}`,
+        `reptador_soci_numero.eq.${sociNumero},reptat_soci_numero.eq.${sociNumero}`,
         { referencedTable: 'challenges' }
       )
       .order('data_joc', { ascending: false })
@@ -47,21 +44,21 @@ export async function getPlayerChallengeHistory(playerId: string, eventId: strin
     // Convertir els resultats a W/L des de la perspectiva del jugador
     const results: ChallengeResult[] = matches.map(match => {
       const challenge = match.challenges as any;
-      const isChallenger = challenge.reptador_id === playerId;
+      const isChallenger = challenge.reptador_soci_numero === sociNumero;
       const result = match.resultat;
 
       // Determinar si el jugador va guanyar
       let playerWon = false;
-      
+
       if (isChallenger) {
         // El jugador era el reptador
-        playerWon = result === 'guanya_reptador' || 
-                   result === 'empat_tiebreak_reptador' || 
+        playerWon = result === 'guanya_reptador' ||
+                   result === 'empat_tiebreak_reptador' ||
                    result === 'walkover_reptador';
       } else {
         // El jugador era el reptat
-        playerWon = result === 'guanya_reptat' || 
-                   result === 'empat_tiebreak_reptat' || 
+        playerWon = result === 'guanya_reptat' ||
+                   result === 'empat_tiebreak_reptat' ||
                    result === 'walkover_reptat';
       }
 

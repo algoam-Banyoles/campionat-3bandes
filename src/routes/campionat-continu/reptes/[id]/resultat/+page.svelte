@@ -12,8 +12,8 @@
   type Challenge = {
     id: string;
     event_id: string;
-    reptador_id: string;
-    reptat_id: string;
+    reptador_soci_numero: number;
+    reptat_soci_numero: number;
     pos_reptador: number | null;
     pos_reptat: number | null;
     data_programada: string | null;
@@ -69,7 +69,7 @@
       // 1) Carrega repte
       const { data: c, error: e1 } = await supabase
         .from('challenges')
-        .select('id,event_id,reptador_id,reptat_id,reptador_soci_numero,reptat_soci_numero,pos_reptador,pos_reptat,data_programada')
+        .select('id,event_id,reptador_soci_numero,reptat_soci_numero,pos_reptador,pos_reptat,data_programada')
         .eq('id', id)
         .maybeSingle();
       if (e1) throw e1;

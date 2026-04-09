@@ -5,18 +5,16 @@
 
   type Row = {
     ordre: number;
-    player_id: string;
+    soci_numero: number;
     nom: string;
-    data_inscripcio: string; // ✅ Afegit per al countdown
+    data_inscripcio: string;
   };
-
-  // Eliminat fmtDate perquè data_inscripcio ja no es mostra
 
 let loading = true;
   let error: string | null = null;
   let rows: Row[] = [];
-  let myPlayerId: string | null = null;
-  let player20: { id: string; nom: string } | null = null;
+  let mySociNumero: number | null = null;
+  let player20: { soci_numero: number; nom: string } | null = null;
   let countdown = '';
   let timer: ReturnType<typeof setInterval> | null = null;
 
@@ -27,12 +25,12 @@ let loading = true;
       // Usuari actual
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {
-        const { data: p } = await supabase
-          .from('players')
-          .select('id')
+        const { data: soci } = await supabase
+          .from('socis')
+          .select('numero_soci')
           .eq('email', auth.user.email)
           .maybeSingle();
-        myPlayerId = (p as any)?.id ?? null;
+        mySociNumero = soci?.numero_soci ?? null;
       }
 
       // Event actiu
@@ -50,13 +48,11 @@ let loading = true;
       if (err) error = err.message;
       else rows = data ?? [];
 
-      // Jugador posició 20 (per reptar)
+      // Jugador posicio 20 (per reptar)
       if (eventId) {
-        // Fase 5c: llegim player_id i soci_numero directes de ranking_positions.
-        // player_id (UUID) és necessari per a la URL de /reptes/nou que accepta opponent=<uuid>.
         const { data: p20 } = await supabase
           .from('ranking_positions')
-          .select('player_id, soci_numero, socis!ranking_positions_soci_numero_fkey(nom, cognoms)')
+          .select('soci_numero, socis!ranking_positions_soci_numero_fkey(nom, cognoms)')
           .eq('event_id', eventId)
           .eq('posicio', 20)
           .maybeSingle();
@@ -65,12 +61,12 @@ let loading = true;
           const fullName = soci
             ? `${soci.nom ?? ''} ${soci.cognoms ?? ''}`.trim()
             : '';
-          player20 = { id: (p20 as any).player_id, nom: fullName };
+          player20 = { soci_numero: (p20 as any).soci_numero, nom: fullName };
         }
       }
 
-      // Configurar countdown si sóc el primer de la llista
-      if (rows.length > 0 && myPlayerId === rows[0].player_id) {
+      // Configurar countdown si soc el primer de la llista
+      if (rows.length > 0 && mySociNumero === rows[0].soci_numero) {
         setupCountdown(rows[0].data_inscripcio);
       }
     } catch (e: any) {
@@ -109,7 +105,7 @@ let loading = true;
   }
 
   function reptar() {
-    if (player20) goto(`/reptes/nou?access=1&opponent=${player20.id}`);
+    if (player20) goto(`/campionat-continu/reptes/nou?access=1&opponent_soci=${player20.soci_numero}`);
   }
 </script>
 
@@ -119,7 +115,7 @@ let loading = true;
 
 <h1 class="text-2xl font-semibold mb-4">Llista d’espera</h1>
 
-{#if rows.length && myPlayerId === rows[0].player_id}
+{#if rows.length && mySociNumero === rows[0].soci_numero}
   <Banner
     type="info"
     message={`Tens ${countdown} per reptar la posició 20${player20 ? ` — ${player20.nom}` : ''}`}

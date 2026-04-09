@@ -36,14 +36,13 @@ export async function refreshRanking(force = false): Promise<void> {
       return;
     }
 
-    // Fase 5c: llegim soci_numero directe i fem JOIN a socis + socis_jugador.
-    // Mantenim el SELECT de players.id només per emplenar player_id durant la transició.
+    // Fase 5c-S3: llegim soci_numero directe i fem JOIN a socis + socis_jugador.
+    // player_id eliminat del SELECT.
     const { data: finalRankingData, error: rankingError } = await supabase
       .from('ranking_positions')
       .select(`
         event_id,
         posicio,
-        player_id,
         soci_numero,
         socis!ranking_positions_soci_numero_fkey (
           numero_soci,
@@ -77,7 +76,6 @@ export async function refreshRanking(force = false): Promise<void> {
         id: `${item.event_id}-${item.soci_numero}`,
         event_id: item.event_id,
         posicio: item.posicio,
-        player_id: item.player_id, // deprecat — eliminar quan tots els consumidors usin soci_numero
         soci_numero: item.soci_numero,
         created_at: new Date().toISOString(),
         nom: soci?.nom || null,

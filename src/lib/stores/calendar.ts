@@ -276,8 +276,8 @@ export async function loadReptesProgramats(setLoading: boolean = true): Promise<
         pos_reptador,
         pos_reptat,
         observacions,
-        reptador:reptador_id(nom),
-        reptat:reptat_id(nom)
+        reptador_soci_numero,
+        reptat_soci_numero
       `)
       .not('data_programada', 'is', null)
       .order('data_programada', { ascending: true });
@@ -286,10 +286,24 @@ export async function loadReptesProgramats(setLoading: boolean = true): Promise<
       throw new Error(error.message);
     }
 
-    const reptes: RepteCalendari[] = (data || []).map(item => ({
+    // Obtenir noms dels socis per als reptes
+    const sociNums = Array.from(new Set(
+      (data || []).flatMap((item: any) => [item.reptador_soci_numero, item.reptat_soci_numero])
+        .filter((n: any): n is number => n != null)
+    ));
+    let sociNameMap = new Map<number, string>();
+    if (sociNums.length > 0) {
+      const { data: socisData } = await supabase
+        .from('socis')
+        .select('numero_soci, nom')
+        .in('numero_soci', sociNums);
+      (socisData || []).forEach((s: any) => sociNameMap.set(s.numero_soci, s.nom));
+    }
+
+    const reptes: RepteCalendari[] = (data || []).map((item: any) => ({
       id: item.id,
-      reptador_nom: (item.reptador as any)?.nom || 'Desconegut',
-      reptat_nom: (item.reptat as any)?.nom || 'Desconegut',
+      reptador_nom: sociNameMap.get(item.reptador_soci_numero) || 'Desconegut',
+      reptat_nom: sociNameMap.get(item.reptat_soci_numero) || 'Desconegut',
       data_programada: item.data_programada,
       estat: item.estat,
       pos_reptador: item.pos_reptador,
@@ -363,8 +377,6 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
         observacions_junta,
         event_id,
         categoria_id,
-        jugador1_id,
-        jugador2_id,
         jugador1_soci_numero,
         jugador2_soci_numero,
         jugador1_soci:socis!calendari_partides_jugador1_soci_numero_fkey(numero_soci, nom, cognoms),
@@ -431,8 +443,8 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
         jugador2_nom: j2Name,
         // Estructura compatible amb `formatPlayerName` del derived store:
         // espera `jugador.socis.nom` i `jugador.socis.cognoms`.
-        jugador1: { id: item.jugador1_id, nom: j1Name, socis: j1Soci },
-        jugador2: { id: item.jugador2_id, nom: j2Name, socis: j2Soci },
+        jugador1: { soci_numero: item.jugador1_soci_numero, nom: j1Name, socis: j1Soci },
+        jugador2: { soci_numero: item.jugador2_soci_numero, nom: j2Name, socis: j2Soci },
         data_programada: item.data_programada,
         hora_inici: item.hora_inici,
         taula_assignada: item.taula_assignada,

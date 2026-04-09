@@ -8,8 +8,8 @@
 
   type Challenge = {
     id: string;
-    reptador_id: string;
-    reptat_id: string;
+    reptador_soci_numero: number;
+    reptat_soci_numero: number;
     estat: string;
     data_proposta: string;
     data_acceptacio: string | null;
@@ -32,7 +32,7 @@
   let error: string | null = null;
   let actius: Challenge[] = [];
   let recents: Resultat[] = [];
-  let myPlayerId: string | null = null;
+  let mySociNumero: number | null = null;
   let supabase: SupabaseClient;
   let dateDrafts: Record<string, string> = {};
   let resultDrafts: Record<string, {
@@ -136,18 +136,18 @@
 
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {
-        const { data: player } = await supabase
-          .from('players')
-          .select('id')
+        const { data: soci } = await supabase
+          .from('socis')
+          .select('numero_soci')
           .eq('email', auth.user.email)
           .maybeSingle();
-        myPlayerId = (player as any)?.id ?? null;
+        mySociNumero = soci?.numero_soci ?? null;
       }
 
       // Reptes actius
       const { data: ch, error: cErr } = await supabase
         .from('challenges')
-        .select('id,reptador_id,reptat_id,reptador_soci_numero,reptat_soci_numero,estat,data_proposta,data_acceptacio,data_programada,reprogramacions')
+        .select('id,reptador_soci_numero,reptat_soci_numero,estat,data_proposta,data_acceptacio,data_programada,reprogramacions')
         .in('estat', ['proposat', 'acceptat', 'programat', 'refusat'])
         .order('data_proposta', { ascending: true });
       if (cErr) throw cErr;
@@ -304,7 +304,7 @@
               {#if isExpiredPlay(r)}
                 <div class="text-xs text-red-600 font-bold">ATENCIÓ: Repte caducat per no jugar a temps. Penalització automàtica aplicada.</div>
               {/if}
-            {#if myPlayerId === r.reptat_id && r.estat === 'proposat'}
+            {#if mySociNumero === r.reptat_soci_numero && r.estat === 'proposat'}
               <div class="mt-2 flex gap-2">
                 <button
                   class="rounded bg-green-600 text-white px-3 py-1"
@@ -320,7 +320,7 @@
                 </button>
               </div>
             {/if}
-            {#if r.estat !== 'refusat' && myPlayerId && (myPlayerId === r.reptador_id || myPlayerId === r.reptat_id)}
+            {#if r.estat !== 'refusat' && mySociNumero && (mySociNumero === r.reptador_soci_numero || mySociNumero === r.reptat_soci_numero)}
               {#if !(r.reprogramacions != null && r.reprogramacions >= reproLimit)}
                 <div class="mt-2 flex gap-2 items-center">
                   <input

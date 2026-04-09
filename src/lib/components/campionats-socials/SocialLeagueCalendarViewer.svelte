@@ -940,12 +940,12 @@
               }
             }
 
-            // Afegir noms reals a les partides
+            // Afegir noms reals a les partides (lookup per soci_numero)
             unprogrammedRaw = unprogrammedRaw.map(match => ({
               ...match,
               categoria_nom: categoriesMap.get(match.categoria_id) || '',
-              jugador1: playersMap.get(match.jugador1_id) || { nom: 'J.', cognoms: '(No programat)' },
-              jugador2: playersMap.get(match.jugador2_id) || { nom: 'J.', cognoms: '(No programat)' }
+              jugador1: playersMap.get(match.jugador1_soci_numero) || { nom: 'J.', cognoms: '(No programat)' },
+              jugador2: playersMap.get(match.jugador2_soci_numero) || { nom: 'J.', cognoms: '(No programat)' }
             }));
           }
         } catch (err) {
@@ -974,13 +974,12 @@
         categoria_id: match.categoria_id,
         data_programada: match.data_programada,
         hora_inici: match.hora_inici,
-        jugador1_id: match.jugador1_id,
-        jugador2_id: match.jugador2_id,
+        jugador1_soci_numero: match.jugador1_numero_soci,
+        jugador2_soci_numero: match.jugador2_numero_soci,
         estat: match.estat,
         taula_assignada: match.taula_assignada,
         observacions_junta: match.observacions_junta,
         jugador1: {
-          id: match.jugador1_id,
           numero_soci: match.jugador1_numero_soci,
           socis: {
             nom: match.jugador1_nom,
@@ -988,7 +987,6 @@
           }
         },
         jugador2: {
-          id: match.jugador2_id,
           numero_soci: match.jugador2_numero_soci,
           socis: {
             nom: match.jugador2_nom,
@@ -1005,8 +1003,6 @@
         categoria_nom: categoriesMap.get(match.categoria_id) || '',
         data_programada: match.data_programada,
         hora_inici: match.hora_inici,
-        jugador1_id: match.jugador1_id,
-        jugador2_id: match.jugador2_id,
         jugador1_soci_numero: match.jugador1_soci_numero,
         jugador2_soci_numero: match.jugador2_soci_numero,
         estat: match.estat,
@@ -1459,13 +1455,10 @@
   }
 
   function matchPlayerById(match: any, playerId: string | number): boolean {
-    // Fase 5c-S2c-2: `myPlayerData.id === numero_soci`. Comparem per
-    // soci_numero amb fallback al UUID antic per partides amb forma RPC.
+    // Fase 5c-S3: comparem només per soci_numero (les columnes UUID ja no existeixen).
     return (
       match.jugador1_soci_numero === playerId ||
-      match.jugador2_soci_numero === playerId ||
-      match.jugador1_id === playerId ||
-      match.jugador2_id === playerId
+      match.jugador2_soci_numero === playerId
     );
   }
 
@@ -1521,16 +1514,16 @@
     // Recollir tots els jugadors únics dels partits
     matches.forEach(match => {
       const sides = [
-        { jugador: match.jugador1, playerId: match.jugador1_id },
-        { jugador: match.jugador2, playerId: match.jugador2_id }
+        { jugador: match.jugador1, sociNumero: match.jugador1_soci_numero },
+        { jugador: match.jugador2, sociNumero: match.jugador2_soci_numero }
       ];
-      sides.forEach(({ jugador, playerId }) => {
-        if (!jugador || !playerId) return;
-        if (uniquePlayers.has(playerId)) return;
+      sides.forEach(({ jugador, sociNumero }) => {
+        if (!jugador || !sociNumero) return;
+        if (uniquePlayers.has(sociNumero)) return;
 
         if (matchPlayerSearchText(jugador, searchLower)) {
-          uniquePlayers.set(playerId, {
-            id: playerId,
+          uniquePlayers.set(sociNumero, {
+            id: sociNumero,
             jugador,
             displayName: formatPlayerName(jugador),
           });

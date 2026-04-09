@@ -29,13 +29,6 @@ export const GET: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'Usuari sense soci associat' }, { status: 400 });
     }
     const mySociNumero = soci.numero_soci as number;
-    // player_id encara necessari per comparar amb ranking_positions.player_id
-    const { data: player } = await supabase
-      .from('players')
-      .select('id')
-      .eq('numero_soci', mySociNumero)
-      .maybeSingle();
-    const myPlayerId = (player as any)?.id as string;
 
     const { data: event, error: eErr } = await supabase
       .from('events')
@@ -56,10 +49,9 @@ export const GET: RequestHandler = async ({ request }) => {
 
     console.log('🎯 Esdeveniment actiu:', { id: eventId, nom: (event as any).nom });
 
-    // Fase 5c: llegim soci_numero directe de ranking_positions (triggers el poblen).
     const { data: rank, error: rErr } = await supabase
       .from('ranking_positions')
-      .select('posicio, player_id, soci_numero')
+      .select('posicio, soci_numero')
       .eq('event_id', eventId)
       .order('posicio', { ascending: true });
     
@@ -95,41 +87,25 @@ export const GET: RequestHandler = async ({ request }) => {
       const nom = numeroSoci ? socisMap.get(numeroSoci) : null;
       return {
         posicio: r.posicio,
-        player_id: r.player_id,
         soci_numero: numeroSoci,
         nom: nom ?? '—'
       };
     });
 
-    // Debug: mostrar informació
-    console.log('🔍 Debug rànquing:');
-    console.log('  - myPlayerId:', myPlayerId);
-    console.log('  - Total jugadors al rànquing:', allRank.length);
-    console.log('  - IDs al rànquing:', allRank.map(r => r.player_id));
-
-    const mine = allRank.find((r) => r.player_id === myPlayerId) ?? null;
+    const mine = allRank.find((r) => r.soci_numero === mySociNumero) ?? null;
     if (!mine) {
-      console.error('❌ No trobat al rànquing!');
-      console.error('  - Buscant:', myPlayerId, '(tipus:', typeof myPlayerId, ')');
-      console.error('  - Primer ID del rànquing:', allRank[0]?.player_id, '(tipus:', typeof allRank[0]?.player_id, ')');
-      return json({ 
-        ok: false, 
-        error: `No formes part del rànquing actual. (ID: ${myPlayerId})`,
-        debug: {
-          myPlayerId,
-          rankingIds: allRank.map(r => r.player_id),
-          totalInRanking: allRank.length
-        }
+      return json({
+        ok: false,
+        error: `No formes part del ranquing actual. (soci_numero: ${mySociNumero})`
       }, { status: 400 });
     }
-    console.log('✅ Trobat al rànquing! Posició:', mine.posicio);
     const myPos = mine.posicio as number;
 
-    const reptables: { posicio: number; player_id: string; nom: string }[] = [];
-    const noReptables: { posicio: number; player_id: string; nom: string; motiu: string }[] = [];
+    const reptables: { posicio: number; soci_numero: number; nom: string }[] = [];
+    const noReptables: { posicio: number; soci_numero: number; nom: string; motiu: string }[] = [];
 
     for (const r of allRank) {
-      if (r.player_id === myPlayerId) continue;
+      if (r.soci_numero === mySociNumero) continue;
       const { data: chk, error: eChk } = await supabase.rpc('can_create_challenge_v2', {
         p_event: eventId,
         p_reptador_soci: mySociNumero,
@@ -155,7 +131,6 @@ export const GET: RequestHandler = async ({ request }) => {
     return json(
       {
         ok: true,
-        my_player_id: myPlayerId,
         my_soci_numero: mySociNumero,
         my_pos: myPos,
         event_id: eventId,

@@ -18,8 +18,8 @@ export type Challenge = {
   id: string;
   event_id: string;
   tipus: 'normal' | 'access';
-  reptador_id: string;
-  reptat_id: string;
+  reptador_soci_numero: number;
+  reptat_soci_numero: number;
   estat: 'proposat' | 'acceptat' | 'programat' | 'refusat' | 'caducat' | 'jugat' | 'anullat';
   dates_proposades: string[];
   data_proposta: string;
@@ -64,12 +64,12 @@ export async function refreshActiveChallenges(): Promise<void> {
 
       const processedData: ChallengeWithPlayers[] = offlineChallenges.map(challenge => ({
         id: challenge.id.toString(),
-        event_id: '', // Would need to be stored
+        event_id: '',
         tipus: 'normal' as const,
-        reptador_id: challenge.soci_retador_id.toString(),
-        reptat_id: challenge.soci_retat_id.toString(),
+        reptador_soci_numero: challenge.soci_retador_id,
+        reptat_soci_numero: challenge.soci_retat_id,
         estat: challenge.estat as any,
-        dates_proposades: [], // Would need to be stored
+        dates_proposades: [],
         data_proposta: challenge.data_creacio,
         data_acceptacio: challenge.data_acceptacio,
         data_programada: null,
@@ -108,8 +108,8 @@ export async function refreshActiveChallenges(): Promise<void> {
                     id,
                     event_id,
                     tipus,
-                    reptador_id,
-                    reptat_id,
+                    reptador_soci_numero,
+                    reptat_soci_numero,
                     estat,
                     dates_proposades,
                     data_proposta,
@@ -137,41 +137,41 @@ export async function refreshActiveChallenges(): Promise<void> {
                   return [] as ChallengeWithPlayers[];
                 }
 
-                // Obtenir noms dels jugadors per separat per evitar duplicació
-                const playerIds = Array.from(new Set([
-                  ...challenges.map(c => c.reptador_id),
-                  ...challenges.map(c => c.reptat_id)
-                ]));
+                // Obtenir noms dels jugadors per soci_numero
+                const sociNums = Array.from(new Set([
+                  ...challenges.map(c => c.reptador_soci_numero),
+                  ...challenges.map(c => c.reptat_soci_numero)
+                ].filter((n): n is number => n != null)));
 
-                const { data: players, error: playersError } = await supabase
+                const { data: socisData, error: socisError } = await supabase
                   .from('socis')
-                  .select('id, nom, cognoms')
-                  .in('id', playerIds);
+                  .select('numero_soci, nom, cognoms')
+                  .in('numero_soci', sociNums);
 
-                if (playersError) {
-                  console.warn('[challengeStore] players query error:', playersError.message);
+                if (socisError) {
+                  console.warn('[challengeStore] socis query error:', socisError.message);
                 }
 
-                // Crear un mapa de jugadors per ID
-                const playerMap = new Map<string, string>();
-                (players || []).forEach(player => {
-                  const fullName = player.cognoms ? `${player.nom} ${player.cognoms}` : player.nom;
-                  playerMap.set(player.id, fullName);
+                // Crear un mapa de jugadors per soci_numero
+                const sociMap = new Map<number, string>();
+                (socisData || []).forEach(soci => {
+                  const fullName = soci.cognoms ? `${soci.nom} ${soci.cognoms}` : soci.nom;
+                  sociMap.set(soci.numero_soci, fullName);
                 });
 
                 // Processar dades per afegir noms dels jugadors
                 const processedData = challenges.map(challenge => ({
                   ...challenge,
-                  reptador_nom: playerMap.get(challenge.reptador_id) || 'Desconegut',
-                  reptat_nom: playerMap.get(challenge.reptat_id) || 'Desconegut'
+                  reptador_nom: sociMap.get(challenge.reptador_soci_numero) || 'Desconegut',
+                  reptat_nom: sociMap.get(challenge.reptat_soci_numero) || 'Desconegut'
                 }));
 
                 // Guardar en storage offline per ús futur
                 if (processedData.length > 0) {
                   const offlineFormat = processedData.map(challenge => ({
                     id: parseInt(challenge.id),
-                    soci_retador_id: parseInt(challenge.reptador_id),
-                    soci_retat_id: parseInt(challenge.reptat_id),
+                    soci_retador_id: challenge.reptador_soci_numero,
+                    soci_retat_id: challenge.reptat_soci_numero,
                     estat: challenge.estat as any,
                     data_creacio: challenge.data_proposta,
                     data_acceptacio: challenge.data_acceptacio,
@@ -206,8 +206,8 @@ export async function refreshActiveChallenges(): Promise<void> {
           id: challenge.id.toString(),
           event_id: '',
           tipus: 'normal' as const,
-          reptador_id: challenge.soci_retador_id.toString(),
-          reptat_id: challenge.soci_retat_id.toString(),
+          reptador_soci_numero: challenge.soci_retador_id,
+          reptat_soci_numero: challenge.soci_retat_id,
           estat: challenge.estat as any,
           dates_proposades: [],
           data_proposta: challenge.data_creacio,
@@ -233,7 +233,7 @@ export async function refreshActiveChallenges(): Promise<void> {
 /**
  * Obtenir reptes d'un jugador específic
  */
-export async function refreshUserChallenges(playerId: string): Promise<void> {
+export async function refreshUserChallenges(sociNumero: number): Promise<void> {
   try {
     const data = await performanceMonitor.measure(
       'user_challenges_query',
@@ -242,15 +242,15 @@ export async function refreshUserChallenges(playerId: string): Promise<void> {
         return await cacheManager.get(
           'userChallenges',
           async () => {
-            // Primer obtenir els challenges de l'usuari
+            // Primer obtenir els challenges de l'usuari per soci_numero
             const { data: challenges, error } = await supabase
               .from('challenges')
               .select(`
                 id,
                 event_id,
                 tipus,
-                reptador_id,
-                reptat_id,
+                reptador_soci_numero,
+                reptat_soci_numero,
                 estat,
                 dates_proposades,
                 data_proposta,
@@ -260,7 +260,7 @@ export async function refreshUserChallenges(playerId: string): Promise<void> {
                 pos_reptador,
                 pos_reptat
               `)
-              .or(`reptador_id.eq.${playerId},reptat_id.eq.${playerId}`)
+              .or(`reptador_soci_numero.eq.${sociNumero},reptat_soci_numero.eq.${sociNumero}`)
               .order('data_proposta', { ascending: false })
               .limit(50); // Limitar per rendiment
 
@@ -270,7 +270,7 @@ export async function refreshUserChallenges(playerId: string): Promise<void> {
                 console.warn('[challengeStore] Auth error in refreshUserChallenges - user might need to login');
                 throw new Error('AUTHENTICATION_REQUIRED');
               }
-              
+
               console.warn('[challengeStore] refreshUserChallenges error:', error.message);
               throw new Error(error.message);
             }
@@ -279,40 +279,40 @@ export async function refreshUserChallenges(playerId: string): Promise<void> {
               return [] as ChallengeWithPlayers[];
             }
 
-            // Obtenir noms dels jugadors per separat
-            const playerIds = Array.from(new Set([
-              ...challenges.map(c => c.reptador_id),
-              ...challenges.map(c => c.reptat_id)
-            ]));
+            // Obtenir noms dels jugadors per soci_numero
+            const sociNums = Array.from(new Set([
+              ...challenges.map(c => c.reptador_soci_numero),
+              ...challenges.map(c => c.reptat_soci_numero)
+            ].filter((n): n is number => n != null)));
 
-            const { data: players, error: playersError } = await supabase
+            const { data: socisData, error: socisError } = await supabase
               .from('socis')
-              .select('id, nom')
-              .in('id', playerIds);
+              .select('numero_soci, nom')
+              .in('numero_soci', sociNums);
 
-            if (playersError) {
-              console.warn('[challengeStore] players query error:', playersError.message);
+            if (socisError) {
+              console.warn('[challengeStore] socis query error:', socisError.message);
             }
 
-            // Crear un mapa de jugadors per ID
-            const playerMap = new Map<string, string>();
-            (players || []).forEach(player => {
-              playerMap.set(player.id, player.nom);
+            // Crear un mapa de jugadors per soci_numero
+            const sociMap = new Map<number, string>();
+            (socisData || []).forEach(soci => {
+              sociMap.set(soci.numero_soci, soci.nom);
             });
 
             // Processar dades per afegir noms dels jugadors
             const processedData = challenges.map(challenge => ({
               ...challenge,
-              reptador_nom: playerMap.get(challenge.reptador_id) || 'Desconegut',
-              reptat_nom: playerMap.get(challenge.reptat_id) || 'Desconegut'
+              reptador_nom: sociMap.get(challenge.reptador_soci_numero) || 'Desconegut',
+              reptat_nom: sociMap.get(challenge.reptat_soci_numero) || 'Desconegut'
             }));
 
             return processedData as ChallengeWithPlayers[];
           },
-          `user_${playerId}` // Usar modificador de clau per cache per usuari
+          `user_${sociNumero}` // Usar modificador de clau per cache per usuari
         );
       },
-      { playerId }
+      { sociNumero }
     );
 
     userChallenges.set(data);
@@ -326,11 +326,11 @@ export async function refreshUserChallenges(playerId: string): Promise<void> {
 /**
  * Invalidar cache dels challenges després d'actualitzacions
  */
-export function invalidateChallengeCaches(playerId?: string): void {
+export function invalidateChallengeCaches(sociNumero?: number): void {
   cacheManager.invalidate('activeChallenges');
-  
-  if (playerId) {
-    cacheManager.invalidate('userChallenges', `user_${playerId}`);
+
+  if (sociNumero) {
+    cacheManager.invalidate('userChallenges', `user_${sociNumero}`);
   }
   
   // També invalidar rankings ja que poden haver canviat
@@ -340,7 +340,7 @@ export function invalidateChallengeCaches(playerId?: string): void {
 /**
  * Acceptar un repte amb suport offline
  */
-export async function acceptChallenge(challengeId: string, playerId?: string): Promise<void> {
+export async function acceptChallenge(challengeId: string, sociNumero?: number): Promise<void> {
   const connected = get(isConnected);
   
   const updateData = { 
@@ -365,9 +365,9 @@ export async function acceptChallenge(challengeId: string, playerId?: string): P
         }
       },
       { challengeId, updateData },
-      { 
+      {
         priority: 'critical',
-        userId: playerId,
+        userId: sociNumero != null ? String(sociNumero) : undefined,
         maxRetries: 5
       }
     );
@@ -411,11 +411,11 @@ export async function acceptChallenge(challengeId: string, playerId?: string): P
     );
 
     // Invalidar caches i actualitzar dades
-    invalidateChallengeCaches(playerId);
+    invalidateChallengeCaches(sociNumero);
     await refreshActiveChallenges();
-    
-    if (playerId) {
-      await refreshUserChallenges(playerId);
+
+    if (sociNumero) {
+      await refreshUserChallenges(sociNumero);
     }
 
   } catch (error: any) {
@@ -427,7 +427,7 @@ export async function acceptChallenge(challengeId: string, playerId?: string): P
 /**
  * Refusar un repte amb suport offline
  */
-export async function refuseChallenge(challengeId: string, playerId?: string): Promise<void> {
+export async function refuseChallenge(challengeId: string, sociNumero?: number): Promise<void> {
   const connected = get(isConnected);
   
   const updateData = { estat: 'refusat' };
@@ -449,9 +449,9 @@ export async function refuseChallenge(challengeId: string, playerId?: string): P
         }
       },
       { challengeId, updateData },
-      { 
+      {
         priority: 'high',
-        userId: playerId,
+        userId: sociNumero != null ? String(sociNumero) : undefined,
         maxRetries: 3
       }
     );
@@ -494,11 +494,11 @@ export async function refuseChallenge(challengeId: string, playerId?: string): P
     );
 
     // Invalidar caches i actualitzar dades
-    invalidateChallengeCaches(playerId);
+    invalidateChallengeCaches(sociNumero);
     await refreshActiveChallenges();
-    
-    if (playerId) {
-      await refreshUserChallenges(playerId);
+
+    if (sociNumero) {
+      await refreshUserChallenges(sociNumero);
     }
 
   } catch (error: any) {

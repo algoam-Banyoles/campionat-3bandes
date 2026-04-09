@@ -12,8 +12,8 @@ import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
   // Configurable al gust: quins estats considerem “actius”
   const ACTIVE_STATES = ['proposat', 'acceptat', 'programat'] as const;
 
-  type Ranked = { player_id: string; posicio: number; nom: string; email: string | null };
-  type PlayerRow = { id: string; nom: string; email: string | null };
+  type Ranked = { soci_numero: number; posicio: number; nom: string; email: string | null };
+  type PlayerRow = { soci_numero: number; nom: string; email: string | null };
 
   let loading = true;
   let error: string | null = null;
@@ -23,8 +23,8 @@ import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
   let isAdmin = false;
 
   // selecció
-  let reptador_id: string | null = null;
-  let reptat_id: string | null = null;
+  let reptador_id: number | null = null;
+  let reptat_id: number | null = null;
   let tipus: 'normal' | 'access' = 'normal';
   let estat: 'proposat' | 'acceptat' | 'programat' | 'refusat' | 'caducat' | 'jugat' | 'anullat' = 'proposat';
 
@@ -36,10 +36,10 @@ import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
   // si admin vol “programar” directament (si estat = acceptat)
   let data_programada = '';
 
-  // permisos extra d’admin
+  // permisos extra d'admin
   let forceCreate = false; // permet saltar bloquejos (actius, rang, etc.)
-  let playersById = new Map<string, PlayerRow>();
-  let ranked: Ranked[] = []; // rànquing de l’event actiu
+  let playersById = new Map<number, PlayerRow>();
+  let ranked: Ranked[] = []; // rànquing de l'event actiu
   let waitFirst: PlayerRow | null = null; // primer de la llista d'espera
 
   let busy = false;
@@ -48,9 +48,9 @@ import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
 
   // Assigna reptador/reptat automàticament en reptes d'accés
   $: if (tipus === 'access') {
-    reptador_id = waitFirst?.id ?? null;
+    reptador_id = waitFirst?.soci_numero ?? null;
     const p20 = ranked.find(r => r.posicio === 20);
-    reptat_id = p20?.player_id ?? null;
+    reptat_id = p20?.soci_numero ?? null;
   }
 
   function toISO(dtLocal: string): string | null {
@@ -73,30 +73,27 @@ import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
         .limit(1)
         .maybeSingle();
       if (eEvent) throw eEvent;
-        if (!ev) { error = errText('No s’ha trobat cap event actiu.'); return; }
+        if (!ev) { error = errText("No s'ha trobat cap event actiu."); return; }
       eventActiuId = ev.id;
 
-      // 3) Rànquing de l’event actiu (ranking_positions + players)
-      // Fase 5a: nom/email es llegeixen sempre des de `socis`.
+      // 3) Rànquing de l'event actiu (ranking_positions → socis)
       const { data: rp, error: eRank } = await supabase
         .from('ranking_positions')
-        .select('player_id, posicio, players(id, socis(nom, cognoms, email))')
+        .select('soci_numero, posicio, socis!ranking_positions_soci_numero_fkey(nom, cognoms, email)')
         .eq('event_id', eventActiuId)
         .order('posicio', { ascending: true });
       if (eRank) throw eRank;
 
-      const extractSoci = (players: any) => {
-        const p = Array.isArray(players) ? players[0] : players;
-        const s = p && (Array.isArray(p.socis) ? p.socis[0] : p.socis);
-        return s ?? null;
+      const extractSoci = (socis: any) => {
+        return Array.isArray(socis) ? socis[0] : socis ?? null;
       };
       const sociFullName = (s: any) =>
         s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() || '—' : '—';
 
-      ranked = (rp ?? []).map(row => {
-        const soci = extractSoci((row as any).players);
+      ranked = (rp ?? []).map((row: any) => {
+        const soci = extractSoci(row.socis);
         return {
-          player_id: row.player_id,
+          soci_numero: row.soci_numero,
           posicio: row.posicio,
           nom: sociFullName(soci),
           email: soci?.email ?? null
@@ -104,25 +101,25 @@ import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
       });
 
       // diccionari auxiliar
-      playersById = new Map(ranked.map(r => [r.player_id, { id: r.player_id, nom: r.nom, email: r.email }]));
+      playersById = new Map(ranked.map(r => [r.soci_numero, { soci_numero: r.soci_numero, nom: r.nom, email: r.email }]));
 
       // 4) Primer jugador de la llista d'espera
       const { data: wl, error: eWl } = await supabase
         .from('waiting_list')
-        .select('player_id, players(id, socis(nom, cognoms, email))')
+        .select('soci_numero, socis!waiting_list_soci_numero_fkey(nom, cognoms, email)')
         .eq('event_id', eventActiuId)
         .order('ordre', { ascending: true })
         .limit(1)
         .maybeSingle();
       if (eWl) throw eWl;
       if (wl) {
-        const soci = extractSoci((wl as any).players);
+        const soci = extractSoci((wl as any).socis);
         waitFirst = {
-          id: wl.player_id,
+          soci_numero: (wl as any).soci_numero,
           nom: sociFullName(soci),
           email: soci?.email ?? null
         };
-        playersById.set(waitFirst.id, waitFirst);
+        playersById.set(waitFirst.soci_numero, waitFirst);
       }
       } catch (e) {
         error = formatSupabaseError(e);
@@ -131,12 +128,12 @@ import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
     }
   }
 
-async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
+async function hasActiveChallenge(supabase: SupabaseClient, sociNumero: number) {
     const { data: act, error: eAct } = await supabase
       .from('challenges')
       .select('id, estat')
       .eq('event_id', eventActiuId)
-      .or(`reptador_id.eq.${playerId},reptat_id.eq.${playerId}`)
+      .or(`reptador_soci_numero.eq.${sociNumero},reptat_soci_numero.eq.${sociNumero}`)
       .in('estat', ACTIVE_STATES as any);
     if (eAct) throw eAct;
     return (act ?? []).length > 0;
@@ -153,16 +150,16 @@ async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
       if (reptador_id === reptat_id) throw new Error('Reptador i reptat no poden ser la mateixa persona.');
 
       // posicions actuals al rànquing (per coherència)
-      const r1 = ranked.find(r => r.player_id === reptador_id);
-      const r2 = ranked.find(r => r.player_id === reptat_id);
+      const r1 = ranked.find(r => r.soci_numero === reptador_id);
+      const r2 = ranked.find(r => r.soci_numero === reptat_id);
       if (tipus === 'access') {
-        if (!waitFirst || reptador_id !== waitFirst.id)
-          throw new Error('El reptador ha de ser el primer de la llista d’espera.');
+        if (!waitFirst || reptador_id !== waitFirst.soci_numero)
+          throw new Error('El reptador ha de ser el primer de la llista d\'espera.');
         if (!r2 || r2.posicio !== 20)
           throw new Error('El reptat ha de ser el jugador #20 del rànquing.');
       } else {
         if (!r1 || !r2)
-          throw new Error('Jugadors no presents al rànquing de l’event actiu.');
+          throw new Error('Jugadors no presents al rànquing de l\'event actiu.');
       }
 
       // Validacions per defecte (es poden “forçar” si forceCreate = true)
@@ -171,10 +168,10 @@ async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
           const chk = await canCreateAccessChallenge(
             supabase,
             eventActiuId,
-            reptador_id,
-            reptat_id
+            Number(reptador_id),
+            Number(reptat_id)
           );
-          if (!chk.ok) throw new Error(chk.reason || 'Repte d’accés no permès');
+          if (!chk.ok) throw new Error(chk.reason || "Repte d'acces no permes");
         } else {
           // rang: reptador només pot reptar -1 o -2
           const allowed = [r1!.posicio - 1, r1!.posicio - 2].includes(r2!.posicio);
@@ -217,8 +214,8 @@ async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
       const payload: any = {
         event_id: eventActiuId,
         tipus,
-        reptador_id,
-        reptat_id,
+        reptador_soci_numero: reptador_id,
+        reptat_soci_numero: reptat_id,
         estat: finalEstat,
         dates_proposades: dates,           // pot estar buit si admin ho vol forçar
         data_proposta: new Date().toISOString(),
@@ -292,7 +289,7 @@ async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
             <select id="reptador" class="w-full rounded border px-3 py-2" bind:value={reptador_id} required>
               <option value="" disabled selected>— Selecciona —</option>
               {#each ranked as r}
-                <option value={r.player_id}>#{r.posicio} — {r.nom}</option>
+                <option value={r.soci_numero}>#{r.posicio} — {r.nom}</option>
               {/each}
             </select>
           {/if}
@@ -310,7 +307,7 @@ async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
             <select id="reptat" class="w-full rounded border px-3 py-2" bind:value={reptat_id} required>
               <option value="" disabled selected>— Selecciona —</option>
               {#each ranked as r}
-                <option value={r.player_id}>#{r.posicio} — {r.nom}</option>
+                <option value={r.soci_numero}>#{r.posicio} — {r.nom}</option>
               {/each}
             </select>
           {/if}
@@ -335,7 +332,7 @@ async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
             <label for="prog" class="block text-sm mb-1">Data programada (opcional)</label>
             <input id="prog" type="datetime-local" class="w-full rounded border px-2 py-1" bind:value={data_programada} />
             <p class="text-xs text-slate-500 mt-1">
-              Si s’omple, l’estat passa a «{CHALLENGE_STATE_LABEL.programat.toLowerCase()}» i es desa com a
+              Si s'omple, l'estat passa a «{CHALLENGE_STATE_LABEL.programat.toLowerCase()}» i es desa com a
               <em>data_programada</em>.
             </p>
           </div>
@@ -358,7 +355,7 @@ async function hasActiveChallenge(supabase: SupabaseClient, playerId: string) {
             <input id="d3" type="datetime-local" class="w-full rounded border px-2 py-1" bind:value={d3} />
           </div>
         </div>
-        <p class="text-xs text-slate-500 mt-2">L’admin pot forçar la creació encara que hi hagi bloquejos.</p>
+        <p class="text-xs text-slate-500 mt-2">L'admin pot forçar la creació encara que hi hagi bloquejos.</p>
       </fieldset>
 
       <div class="flex items-center gap-2">

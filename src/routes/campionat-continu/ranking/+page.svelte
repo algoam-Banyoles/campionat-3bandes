@@ -28,27 +28,26 @@
   let loading = true;
   let error: string | null = null;
   let rows: RowState[] = [];
-  let myPlayerId: string | null = null;
   let mySociNumero: number | null = null;
   let myPos: number | null = null;
   let eventId: string | null = null;
   let unsub: (() => void) | null = null;
-  let modalPlayer: { id: string; name: string } | null = null;
+  let modalPlayer: { sociNumero: number; name: string } | null = null;
   let supabaseClient: any;
   let penalModal = false;
   let selA: number | null = null;
   let selB: number | null = null;
   let penaltyError: string | null = null;
   let penaltyBusy = false;
-  let highlightIds = new Set<string>();
+  let highlightSociNums = new Set<number>();
   let shouldFetchBadges = !badgesLoaded;
-  let badgeMap = new Map<string, VPlayerBadges>();
-  let playerHistoryMap = new Map<string, ChallengeResult[]>();
+  let badgeMap = new Map<number, VPlayerBadges>();
+  let playerHistoryMap = new Map<number, ChallengeResult[]>();
   let intervalRef: NodeJS.Timeout;
   let cancelled = false;
 
   $: if (badgesLoaded) {
-    badgeMap = new Map(badges.map((b) => [b.player_id, b]));
+    badgeMap = new Map(badges.map((b) => [b.soci_numero, b]));
     shouldFetchBadges = false;
   }
 
@@ -67,27 +66,26 @@
           ...r,
           canChallenge: false,
           reason: null,
-          moved: highlightIds.has(r.player_id),
+          moved: highlightSociNums.has(r.soci_numero),
         }));
-        
+
         // Si tenim dades, ja no estem carregant
         if (base.length > 0) {
           loading = false;
         }
-        
+
         void loadBadges();
         void loadPlayerHistories();
-        
-        // Si ja tenim myPlayerId, evaluar challenges
-        if (myPlayerId && supabaseClient) {
+
+        // Si ja tenim mySociNumero, evaluar challenges
+        if (mySociNumero && supabaseClient) {
           void evaluateChallenges(supabaseClient);
         }
       });
 
-      // Auth & player (optimal amb cache)
+      // Auth & soci_numero
       const { data: auth } = await supabase.auth.getUser();
       if (auth?.user?.email) {
-        // Obtenir soci_numero per RPCs _v2 + player_id per interop UUID (badges, history, etc.)
         const { data: soci } = await supabase
           .from('socis')
           .select('numero_soci')
@@ -95,13 +93,6 @@
           .maybeSingle();
         if (soci) {
           mySociNumero = soci.numero_soci;
-          // player_id encara necessari per fetchBadgeMap, applyDisagreementDrop, etc.
-          const { data: player } = await supabase
-            .from('players')
-            .select('id')
-            .eq('numero_soci', soci.numero_soci)
-            .maybeSingle();
-          if (player) myPlayerId = player.id as string;
         }
       }
 
@@ -130,10 +121,10 @@
       ]);
       
       void loadBadges();
-      myPos = (get(ranking) as any).find((r: any) => r.player_id === myPlayerId)?.posicio ?? null;
-      
-      // Ara que tenim myPlayerId, podem evaluar els challenges
-      if (myPlayerId) {
+      myPos = (get(ranking) as any).find((r: any) => r.soci_numero === mySociNumero)?.posicio ?? null;
+
+      // Ara que tenim mySociNumero, podem evaluar els challenges
+      if (mySociNumero) {
         void evaluateChallenges(supabaseClient);
       }
 
@@ -163,11 +154,11 @@
   });
 
   async function evaluateChallenges(supabase: any) {
-    myPos = rows.find((r) => r.player_id === myPlayerId)?.posicio ?? null;
+    myPos = rows.find((r) => r.soci_numero === mySociNumero)?.posicio ?? null;
     if (!(mySociNumero && myPos && eventId)) return;
-    
+
     for (const r of rows) {
-      if (r.player_id === myPlayerId) continue;
+      if (r.soci_numero === mySociNumero) continue;
       
       // Verificar restriccions de posició
       if (r.posicio >= myPos) {
@@ -205,20 +196,20 @@
 
   async function loadPlayerHistories(): Promise<void> {
     if (!eventId || rows.length === 0) return;
-    
+
     try {
       const historyPromises = rows.map(async (row) => {
-        const history = await getPlayerChallengeHistory(row.player_id, eventId!, 6);
-        return { playerId: row.player_id, history };
+        const history = await getPlayerChallengeHistory(row.soci_numero, eventId!, 6);
+        return { sociNumero: row.soci_numero, history };
       });
-      
+
       const results = await Promise.all(historyPromises);
-      const newHistoryMap = new Map<string, ChallengeResult[]>();
-      
-      results.forEach(({ playerId, history }) => {
-        newHistoryMap.set(playerId, history);
+      const newHistoryMap = new Map<number, ChallengeResult[]>();
+
+      results.forEach(({ sociNumero, history }) => {
+        newHistoryMap.set(sociNumero, history);
       });
-      
+
       playerHistoryMap = newHistoryMap;
     } catch (error) {
       console.error('Error loading player histories:', error);
@@ -257,8 +248,8 @@
     return `Últim repte: fa ${badge.days_since_last} dies`;
   };
 
-  function reptar(id: string) {
-    goto(`/reptes/nou?opponent=${id}`);
+  function reptar(sociNumero: number) {
+    goto(`/campionat-continu/reptes/nou?opponent_soci=${sociNumero}`);
   }
 
   async function handleRefresh() {
@@ -270,8 +261,8 @@
     await loadPlayerHistories();
   }
 
-  function openEvolution(id: string, name: string) {
-    modalPlayer = { id, name };
+  function openEvolution(sociNumero: number, name: string) {
+    modalPlayer = { sociNumero, name };
   }
 
   const fmtMitjana = (m: number | null) => (m == null ? '-' : String(m));
@@ -283,30 +274,30 @@
     penaltyError = null;
     try {
       const before = get(ranking);
-      const playerA = (before as any).find((r: any) => r.posicio === selA)?.player_id;
-      const playerB = (before as any).find((r: any) => r.posicio === selB)?.player_id;
-      if (!(playerA && playerB)) throw new Error('Selecció invàlida');
-      await applyDisagreementDrop(supabaseClient, eventId, playerA, playerB);
+      const sociA = (before as any).find((r: any) => r.posicio === selA)?.soci_numero;
+      const sociB = (before as any).find((r: any) => r.posicio === selB)?.soci_numero;
+      if (!(sociA && sociB)) throw new Error('Selecció invàlida');
+      await applyDisagreementDrop(supabaseClient, eventId, sociA, sociB);
       await refreshRanking();
       await loadBadges(true);
       await loadPlayerHistories();
       const after = get(ranking);
-      const beforeMap = new Map((before as any).map((r: any) => [r.player_id, r.posicio]));
-      highlightIds = new Set(
+      const beforeMap = new Map((before as any).map((r: any) => [r.soci_numero, r.posicio]));
+      highlightSociNums = new Set(
         (after as any)
-          .filter((r: any) => beforeMap.get(r.player_id) !== r.posicio)
-          .map((r) => r.player_id)
+          .filter((r: any) => beforeMap.get(r.soci_numero) !== r.posicio)
+          .map((r: any) => r.soci_numero)
       );
       rows = (after as any).slice(0, 20).map((r: any) => ({
         ...r,
         canChallenge: false,
         reason: null,
-        moved: highlightIds.has(r.player_id),
+        moved: highlightSociNums.has(r.soci_numero),
       }));
       await evaluateChallenges(supabaseClient);
       penalModal = false;
       setTimeout(() => {
-        highlightIds = new Set();
+        highlightSociNums = new Set<number>();
         rows = rows.map((r) => ({ ...r, moved: false }));
       }, 3000);
     } catch (e: any) {
@@ -348,19 +339,19 @@
           <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Pos.</th>
           <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Jugador</th>
           <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Evolució</th>
-          {#if myPlayerId}
+          {#if mySociNumero}
             <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Accions</th>
           {/if}
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-100">
         {#each rows as r, index}
-          {@const badge = badgeMap.get(r.player_id)}
+          {@const badge = badgeMap.get(r.soci_numero)}
           {@const badgeView = getBadgeView(badge)}
           {@const displayName = r.nom ? formatPlayerDisplayName(r.nom, r.cognoms) : 'Desconegut'}
           {@const fullName = r.nom && r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom || 'Desconegut'}
           {@const isTopThree = r.posicio <= 3}
-          {@const isCurrentUser = r.player_id === myPlayerId}
+          {@const isCurrentUser = r.soci_numero === mySociNumero}
           <tr class="hover:bg-slate-50 transition-colors duration-150" 
               class:bg-yellow-50={r.moved} 
               class:bg-blue-50={isCurrentUser}
@@ -377,8 +368,8 @@
               <div class="flex items-center gap-2 sm:gap-3">
                 <button
                   class="text-blue-700 hover:text-blue-900 hover:underline text-base sm:text-lg lg:text-xl xl:text-2xl font-semibold transition-colors"
-                  on:click={() => openEvolution(r.player_id, fullName)}
-                  class:font-bold={r.player_id === myPlayerId}
+                  on:click={() => openEvolution(r.soci_numero, fullName)}
+                  class:font-bold={isCurrentUser}
                   class:text-blue-900={isCurrentUser}
                   title={fullName}
                 >
@@ -386,7 +377,7 @@
                 </button>
 
                 <!-- Badge només per identificar el jugador logat -->
-                {#if r.player_id === myPlayerId}
+                {#if isCurrentUser}
                   <span
                     class="px-2 py-1 text-sm sm:text-base rounded-full bg-blue-100 text-blue-900 font-bold border-2 border-blue-300"
                     title="Aquest ets tu"
@@ -399,12 +390,12 @@
             </td>
             <!-- Columna d'evolució: SEMPRE visible -->
             <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-              <PlayerEvolutionBadges results={playerHistoryMap.get(r.player_id) || []} />
+              <PlayerEvolutionBadges results={playerHistoryMap.get(r.soci_numero) || []} />
             </td>
             <!-- Columna d'accions: només si està logged in -->
-            {#if myPlayerId}
+            {#if mySociNumero}
               <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-                {#if r.player_id !== myPlayerId}
+                {#if r.soci_numero !== mySociNumero}
                   <button
                     class="rounded-lg border-2 px-3 sm:px-4 py-2 text-sm sm:text-base lg:text-lg xl:text-xl font-bold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     class:border-green-500={r.canChallenge}
@@ -416,7 +407,7 @@
                     class:text-slate-500={!r.canChallenge}
                     disabled={!r.canChallenge}
                     title={r.canChallenge ? 'Clic per reptar aquest jugador' : r.reason || 'No pots reptar aquest jugador'}
-                    on:click={() => reptar(r.player_id)}
+                    on:click={() => reptar(r.soci_numero)}
                   >
                     <span class="hidden sm:inline">⚔️ Reptar</span>
                     <span class="sm:hidden">⚔️</span>
@@ -431,7 +422,7 @@
   </div>
   {#if modalPlayer}
     <PlayerEvolutionModal
-      playerId={modalPlayer.id}
+      sociNumero={modalPlayer.sociNumero}
       playerName={modalPlayer.name}
       on:close={() => (modalPlayer = null)}
     />

@@ -22,7 +22,7 @@ describe('getPlayerBadges', () => {
     const sample: VPlayerBadges[] = [
       {
         event_id: 'event-1',
-        player_id: 'player-1',
+        soci_numero: 101,
         posicio: 1,
         last_play_date: '2024-01-01',
         days_since_last: 2,
@@ -37,7 +37,7 @@ describe('getPlayerBadges', () => {
     const result = await getPlayerBadges();
 
     expect(fromMock).toHaveBeenCalledWith('v_player_badges');
-    expect(selectMock).toHaveBeenCalledWith('event_id, player_id, posicio, last_play_date, days_since_last, has_active_challenge, in_cooldown, can_be_challenged, cooldown_days_left');
+    expect(selectMock).toHaveBeenCalledWith('event_id, soci_numero, posicio, last_play_date, days_since_last, has_active_challenge, in_cooldown, can_be_challenged, cooldown_days_left');
     expect(result).toEqual(sample);
   });
 

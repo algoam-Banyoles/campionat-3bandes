@@ -10,8 +10,8 @@
   type Challenge = {
     id: string;
     event_id: string;
-    reptador_id: string;
-    reptat_id: string;
+    reptador_soci_numero: number;
+    reptat_soci_numero: number;
     pos_reptador: number | null;
     pos_reptat: number | null;
     data_programada: string | null;
@@ -69,7 +69,7 @@
 
       const { data: c, error: e1 } = await supabase
         .from('challenges')
-        .select('id,event_id,reptador_id,reptat_id,pos_reptador,pos_reptat,data_programada,estat')
+        .select('id,event_id,reptador_soci_numero,reptat_soci_numero,pos_reptador,pos_reptat,data_programada,estat')
         .eq('id', id)
         .maybeSingle();
       if (e1) throw e1;
@@ -78,16 +78,16 @@
         error = 'Estat no permet posar resultat.';
         return;
       }
-      chal = c;
+      chal = c as unknown as Challenge;
 
-      const { data: players, error: e2 } = await supabase
+      const { data: socisData, error: e2 } = await supabase
         .from('socis')
-        .select('id,nom')
-        .in('id', [c.reptador_id, c.reptat_id]);
+        .select('numero_soci,nom')
+        .in('numero_soci', [c.reptador_soci_numero, c.reptat_soci_numero]);
       if (e2) throw e2;
-      const dict = new Map((players ?? []).map((p:any)=>[p.id, p.nom]));
-      reptadorNom = dict.get(c.reptador_id) ?? '—';
-      reptatNom = dict.get(c.reptat_id) ?? '—';
+      const dict = new Map((socisData ?? []).map((p:any)=>[p.numero_soci, p.nom]));
+      reptadorNom = dict.get((c as any).reptador_soci_numero) ?? '—';
+      reptatNom = dict.get((c as any).reptat_soci_numero) ?? '—';
 
       data_joc_local = toLocalInput(c.data_programada || new Date().toISOString());
     } catch (e:any) {

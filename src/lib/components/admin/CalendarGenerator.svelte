@@ -141,7 +141,8 @@
 
     console.log('Carregant restriccions de', inscriptions.length, 'inscripcions');
 
-    // Obtenir player_ids per als socis de les inscripcions
+    // Fase 5c-S3: ja no cal la taula `players`. Usem `soci_numero` directament
+    // com a clau per a tots els mapes interns.
     const sociNumbers = inscriptions.map(i => i.soci_numero).filter(Boolean);
     console.log('Números de soci:', sociNumbers.slice(0, 5));
 
@@ -151,59 +152,13 @@
     }
 
     try {
-      const { data: playersData, error } = await supabase
-        .from('players')
-        .select('id, numero_soci')
-        .in('numero_soci', sociNumbers);
-
-      if (error) {
-        console.error('Error carregant players:', error);
-        return;
-      }
-
-      console.log('Players trobats:', playersData?.length || 0);
-
-      // Crear mapa soci_numero -> player_id
-      const sociToPlayerMap = new Map();
-      (playersData || []).forEach(player => {
-        sociToPlayerMap.set(player.numero_soci, player.id);
-      });
-
-      // Detectar socis inscrits que no tenen registre a players i crear-los
-      const missingSociNumbers = sociNumbers.filter(sn => !sociToPlayerMap.has(sn));
-      if (missingSociNumbers.length > 0) {
-        console.log(`Creant ${missingSociNumbers.length} jugadors nous per socis sense registre a players:`, missingSociNumbers);
-
-        // Fase 5b: ja no escrivim nom/email aquí — les columnes són nullable
-        // i la font de veritat és `socis` via JOIN.
-        const missingInscriptions = inscriptions.filter(i => missingSociNumbers.includes(i.soci_numero));
-        const newPlayers = missingInscriptions.map(ins => ({
-          numero_soci: ins.soci_numero,
-          estat: 'actiu'
-        }));
-
-        const { data: createdPlayers, error: createError } = await supabase
-          .from('players')
-          .insert(newPlayers)
-          .select('id, numero_soci');
-
-        if (createError) {
-          console.error('Error creant players:', createError);
-        } else if (createdPlayers) {
-          console.log(`✅ ${createdPlayers.length} jugadors creats a players`);
-          createdPlayers.forEach(p => {
-            sociToPlayerMap.set(p.numero_soci, p.id);
-          });
-        }
-      }
-
       let validPlayers = 0;
 
       inscriptions.forEach((inscription, index) => {
-        const playerId = sociToPlayerMap.get(inscription.soci_numero);
+        const sociNumero = inscription.soci_numero;
 
-        if (!playerId) {
-          console.warn(`Skip inscripció ${index}: soci ${inscription.soci_numero} no s'ha pogut crear a players`);
+        if (!sociNumero) {
+          console.warn(`Skip inscripció ${index}: soci_numero buit`);
           return;
         }
 
@@ -224,7 +179,7 @@
           if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) edat--;
         }
 
-        playerRestrictions.set(playerId, {
+        playerRestrictions.set(sociNumero, {
           preferencies_dies: inscription.preferencies_dies || [],
           preferencies_hores: inscription.preferencies_hores || [],
           restriccions_especials: inscription.restriccions_especials || null,
@@ -240,9 +195,8 @@
           playersByCategory.set(inscription.categoria_assignada_id, []);
         }
         playersByCategory.get(inscription.categoria_assignada_id).push({
-          player_id: playerId,
+          soci_numero: sociNumero,
           inscription_id: inscription.id,
-          soci_numero: inscription.soci_numero,
           soci: inscription.socis || {
             nom: `Soci ${inscription.soci_numero}`,
             cognoms: '',
@@ -281,7 +235,7 @@
       // Actualitzar mapa local
       const fromPlayers = playersByCategory.get(fromCategoryId);
       if (fromPlayers) {
-        playersByCategory.set(fromCategoryId, fromPlayers.filter(p => p.player_id !== player.player_id));
+        playersByCategory.set(fromCategoryId, fromPlayers.filter(p => p.soci_numero !== player.soci_numero));
       }
 
       if (!playersByCategory.has(toCategoryId)) {
@@ -328,9 +282,9 @@
     }
   }
 
-  // Funció per obtenir el nom d'un jugador a partir d'un match i playerId
-  function getPlayerName(match: any, playerId: string): string {
-    if (match.jugador1?.player_id === playerId) {
+  // Funció per obtenir el nom d'un jugador a partir d'un match i sociNumero
+  function getPlayerName(match: any, sociNumero: number): string {
+    if (match.jugador1?.soci_numero === sociNumero) {
       return `${match.jugador1.soci?.nom || ''} ${match.jugador1.soci?.cognoms || ''}`.trim();
     }
     return `${match.jugador2.soci?.nom || ''} ${match.jugador2.soci?.cognoms || ''}`.trim();
@@ -341,24 +295,24 @@
     const scheduled = matches.filter(m => m.data_programada);
     const pending = matches.filter(m => !m.data_programada);
 
-    // Construir mapa de partides per jugador
-    const playerMatches = new Map<string, any[]>(); // playerId -> matches[]
-    const playerNames = new Map<string, string>();
+    // Construir mapa de partides per jugador (clau = soci_numero)
+    const playerMatches = new Map<number, any[]>();
+    const playerNames = new Map<number, string>();
 
     scheduled.forEach(match => {
       [match.jugador1, match.jugador2].forEach(j => {
-        const pid = j.player_id;
-        if (!playerMatches.has(pid)) playerMatches.set(pid, []);
-        playerMatches.get(pid).push(match);
-        if (!playerNames.has(pid)) {
-          playerNames.set(pid, `${j.soci?.nom || ''} ${j.soci?.cognoms || ''}`.trim());
+        const sn = j.soci_numero;
+        if (!playerMatches.has(sn)) playerMatches.set(sn, []);
+        playerMatches.get(sn).push(match);
+        if (!playerNames.has(sn)) {
+          playerNames.set(sn, `${j.soci?.nom || ''} ${j.soci?.cognoms || ''}`.trim());
         }
       });
     });
 
     // KPI 1: Dues partides el mateix dia
     const sameDayViolations: any[] = [];
-    playerMatches.forEach((pMatches, playerId) => {
+    playerMatches.forEach((pMatches, sociNumero) => {
       const byDate = new Map<string, any[]>();
       pMatches.forEach(m => {
         const d = new Date(m.data_programada);
@@ -369,10 +323,10 @@
       byDate.forEach((ms, dateStr) => {
         if (ms.length > 1) {
           sameDayViolations.push({
-            player: playerNames.get(playerId),
+            player: playerNames.get(sociNumero),
             date: dateStr,
             count: ms.length,
-            matches: ms.map(m => `${getPlayerName(m, m.jugador1.player_id)} vs ${getPlayerName(m, m.jugador2.player_id)} ${m.hora_inici}`)
+            matches: ms.map(m => `${getPlayerName(m, m.jugador1.soci_numero)} vs ${getPlayerName(m, m.jugador2.soci_numero)} ${m.hora_inici}`)
           });
         }
       });
@@ -381,7 +335,7 @@
     // KPI 2: Superen max partides per setmana
     const weeklyViolations: any[] = [];
     const maxWeekly = calendarConfig.max_partides_per_setmana;
-    playerMatches.forEach((pMatches, playerId) => {
+    playerMatches.forEach((pMatches, sociNumero) => {
       const byWeek = new Map<string, any[]>();
       pMatches.forEach(m => {
         const wk = getISOWeekKey(new Date(m.data_programada));
@@ -391,7 +345,7 @@
       byWeek.forEach((ms, weekKey) => {
         if (ms.length > maxWeekly) {
           weeklyViolations.push({
-            player: playerNames.get(playerId),
+            player: playerNames.get(sociNumero),
             week: weekKey,
             count: ms.length,
             max: maxWeekly
@@ -402,9 +356,9 @@
 
     // KPI 2b: Jugadors +75 amb dies consecutius
     const seniorConsecutiveViolations: any[] = [];
-    playerMatches.forEach((pMatches, playerId) => {
-      if (!isPlayerOver75(playerId)) return;
-      if (hasOnly2ConsecutiveDayPrefs(playerId)) return;
+    playerMatches.forEach((pMatches, sociNumero) => {
+      if (!isPlayerOver75(sociNumero)) return;
+      if (hasOnly2ConsecutiveDayPrefs(sociNumero)) return;
       const dates = pMatches.map(m => {
         const d = new Date(m.data_programada);
         return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -413,9 +367,9 @@
       for (let i = 0; i < uniqueDates.length - 1; i++) {
         if ((uniqueDates[i + 1] - uniqueDates[i]) / 86400000 === 1) {
           const fmt = (t: number) => { const d = new Date(t); return `${d.getDate()}/${d.getMonth()+1}`; };
-          const r = playerRestrictions.get(playerId);
+          const r = playerRestrictions.get(sociNumero);
           seniorConsecutiveViolations.push({
-            player: playerNames.get(playerId),
+            player: playerNames.get(sociNumero),
             edat: r?.edat,
             dates: `${fmt(uniqueDates[i])} i ${fmt(uniqueDates[i+1])}`
           });
@@ -425,7 +379,7 @@
 
     // KPI 3: Dies consecutius
     const consecutiveViolations: any[] = [];
-    playerMatches.forEach((pMatches, playerId) => {
+    playerMatches.forEach((pMatches, sociNumero) => {
       const dates = pMatches.map(m => {
         const d = new Date(m.data_programada);
         return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -438,7 +392,7 @@
           const d2 = new Date(uniqueDates[i + 1]);
           const fmt = (d: Date) => `${d.getDate()}/${d.getMonth()+1}`;
           consecutiveViolations.push({
-            player: playerNames.get(playerId),
+            player: playerNames.get(sociNumero),
             dates: `${fmt(d1)} i ${fmt(d2)}`
           });
         }
@@ -447,7 +401,7 @@
 
     // KPI 3b: 3 partides en dies consecutius
     const threeConsecutiveViolations: any[] = [];
-    playerMatches.forEach((pMatches, playerId) => {
+    playerMatches.forEach((pMatches, sociNumero) => {
       const dates = pMatches.map(m => {
         const d = new Date(m.data_programada);
         return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -459,7 +413,7 @@
         if (diff1 === 1 && diff2 === 1) {
           const fmt = (t: number) => { const d = new Date(t); return `${d.getDate()}/${d.getMonth()+1}`; };
           threeConsecutiveViolations.push({
-            player: playerNames.get(playerId),
+            player: playerNames.get(sociNumero),
             dates: `${fmt(uniqueDates[i])}, ${fmt(uniqueDates[i+1])} i ${fmt(uniqueDates[i+2])}`
           });
         }
@@ -468,8 +422,8 @@
 
     // KPI 3c: Més de 2 parells de dies consecutius
     const excessConsecutivePairs: any[] = [];
-    playerMatches.forEach((pMatches, playerId) => {
-      if (hasOnly2ConsecutiveDayPrefs(playerId)) return; // Exceptuats
+    playerMatches.forEach((pMatches, sociNumero) => {
+      if (hasOnly2ConsecutiveDayPrefs(sociNumero)) return; // Exceptuats
       const dates = pMatches.map(m => {
         const d = new Date(m.data_programada);
         return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -481,7 +435,7 @@
       }
       if (pairs > 2) {
         excessConsecutivePairs.push({
-          player: playerNames.get(playerId),
+          player: playerNames.get(sociNumero),
           pairs
         });
       }
@@ -495,10 +449,10 @@
       const matchDate = new Date(match.data_programada);
       const dayCode = dayNames[matchDate.getDay()];
       [match.jugador1, match.jugador2].forEach(j => {
-        const r = playerRestrictions.get(j.player_id);
+        const r = playerRestrictions.get(j.soci_numero);
         if (r?.preferencies_dies?.length > 0 && !r.preferencies_dies.includes(dayCode)) {
           dayPrefViolations.push({
-            player: playerNames.get(j.player_id),
+            player: playerNames.get(j.soci_numero),
             date: `${matchDate.getDate()}/${matchDate.getMonth()+1}`,
             day: dayLabels[dayCode] || dayCode,
             prefereix: r.preferencies_dies.map(d => dayLabels[d] || d).join(', ')
@@ -512,10 +466,10 @@
     scheduled.forEach(match => {
       const matchHour = match.hora_inici;
       [match.jugador1, match.jugador2].forEach(j => {
-        const r = playerRestrictions.get(j.player_id);
+        const r = playerRestrictions.get(j.soci_numero);
         if (r?.preferencies_hores?.length > 0 && !r.preferencies_hores.includes(matchHour)) {
           hourPrefViolations.push({
-            player: playerNames.get(j.player_id),
+            player: playerNames.get(j.soci_numero),
             date: (() => { const d = new Date(match.data_programada); return `${d.getDate()}/${d.getMonth()+1}`; })(),
             hora: matchHour,
             prefereix: r.preferencies_hores.join(', ')
@@ -529,10 +483,10 @@
     scheduled.forEach(match => {
       const matchDate = new Date(match.data_programada);
       [match.jugador1, match.jugador2].forEach(j => {
-        const r = playerRestrictions.get(j.player_id);
+        const r = playerRestrictions.get(j.soci_numero);
         if (r?.restriccions_especials && isDateRestricted(matchDate, r.restriccions_especials)) {
           specialRestrViolations.push({
-            player: playerNames.get(j.player_id),
+            player: playerNames.get(j.soci_numero),
             date: `${matchDate.getDate()}/${matchDate.getMonth()+1}`,
             restriccio: r.restriccions_especials.substring(0, 60)
           });
@@ -725,7 +679,7 @@
 
     // Pre-cachejar totes les restriccions especials
     let playersWithRestrictions = 0;
-    playerRestrictions.forEach((restrictions, playerId) => {
+    playerRestrictions.forEach((restrictions, _sociNumero) => {
       if (restrictions.restriccions_especials) {
         playersWithRestrictions++;
         const cached = parseSpecialRestrictions(restrictions.restriccions_especials);
@@ -739,16 +693,16 @@
     const playerAvailability = new Map();
     const playerWeeklyMatches = new Map(); // playerId -> Map<weekKey, count>
 
-    // Inicialitzar stats dels jugadors
+    // Inicialitzar stats dels jugadors (clau = soci_numero)
     playersByCategory.forEach(players => {
       players.forEach(player => {
-        playerStats.set(player.player_id, {
+        playerStats.set(player.soci_numero, {
           matchesScheduled: 0,
           lastMatchDate: null,
           tableUsage: new Map()
         });
-        playerAvailability.set(player.player_id, []);
-        playerWeeklyMatches.set(player.player_id, new Map());
+        playerAvailability.set(player.soci_numero, []);
+        playerWeeklyMatches.set(player.soci_numero, new Map());
       });
     });
 
@@ -825,16 +779,16 @@
           const matchDate = new Date(bestSlot.date);
           const weekKey = getISOWeekKey(matchDate);
 
-          [matchup.jugador1.player_id, matchup.jugador2.player_id].forEach(playerId => {
-            const stats = playerStats.get(playerId);
+          [matchup.jugador1.soci_numero, matchup.jugador2.soci_numero].forEach(sociNumero => {
+            const stats = playerStats.get(sociNumero);
             stats.matchesScheduled++;
             stats.lastMatchDate = matchDate;
-            playerAvailability.get(playerId).push({ date: matchDate, time: bestSlot.time });
+            playerAvailability.get(sociNumero).push({ date: matchDate, time: bestSlot.time });
 
             const currentTableUsage = stats.tableUsage.get(bestSlot.table) || 0;
             stats.tableUsage.set(bestSlot.table, currentTableUsage + 1);
 
-            const weekMap = playerWeeklyMatches.get(playerId);
+            const weekMap = playerWeeklyMatches.get(sociNumero);
             weekMap.set(weekKey, (weekMap.get(weekKey) || 0) + 1);
           });
 
@@ -921,14 +875,14 @@
   }
 
   // Helper: comprovar si un jugador té +75 anys
-  function isPlayerOver75(playerId: string): boolean {
-    const r = playerRestrictions.get(playerId);
+  function isPlayerOver75(sociNumero: number): boolean {
+    const r = playerRestrictions.get(sociNumero);
     return r?.edat != null && r.edat > 75;
   }
 
   // Helper: comprovar si un jugador té dies preferits que són exactament 2 i consecutius
-  function hasOnly2ConsecutiveDayPrefs(playerId: string): boolean {
-    const r = playerRestrictions.get(playerId);
+  function hasOnly2ConsecutiveDayPrefs(sociNumero: number): boolean {
+    const r = playerRestrictions.get(sociNumero);
     const prefs = r?.preferencies_dies;
     if (!prefs || prefs.length !== 2) return false;
     const dayOrder = ['dl', 'dt', 'dc', 'dj', 'dv', 'ds', 'dg'];
@@ -983,8 +937,8 @@
   }
 
   // Comprovar si un jugador té restriccions de dies o hores
-  function isFlexiblePlayer(playerId) {
-    const r = playerRestrictions.get(playerId);
+  function isFlexiblePlayer(sociNumero) {
+    const r = playerRestrictions.get(sociNumero);
     if (!r) return true;
     const hasDayPrefs = r.preferencies_dies?.length > 0;
     const hasTimePrefs = r.preferencies_hores?.length > 0;
@@ -994,8 +948,8 @@
   // Comprovar si un slot compleix TOTES les restriccions dures per un matchup
   // (excloent slot.isUsed, que es gestiona externament)
   function slotPassesHardConstraints(slot, matchup, playerAvailability, playerWeeklyMatches, excludeMatchId = null) {
-    const p1Id = matchup.jugador1.player_id;
-    const p2Id = matchup.jugador2.player_id;
+    const p1Id = matchup.jugador1.soci_numero;
+    const p2Id = matchup.jugador2.soci_numero;
     const p1Restrictions = playerRestrictions.get(p1Id);
     const p2Restrictions = playerRestrictions.get(p2Id);
     const dateStr = slot.date.toISOString().split('T')[0];
@@ -1015,7 +969,7 @@
     // Jugadors +75 anys: no dies consecutius (excepte si dies preferits són 2 consecutius)
     const slotTime75h = new Date(slot.date.getFullYear(), slot.date.getMonth(), slot.date.getDate()).getTime();
     const DAY75h = 86400000;
-    for (const [pid, busy] of [[p1Id, p1Busy], [p2Id, p2Busy]] as [string, any[]][]) {
+    for (const [pid, busy] of [[p1Id, p1Busy], [p2Id, p2Busy]] as [number, any[]][]) {
       if (isPlayerOver75(pid) && !hasOnly2ConsecutiveDayPrefs(pid)) {
         const hasAdjacent = busy.some(b => {
           const bTime = new Date(b.date.getFullYear(), b.date.getMonth(), b.date.getDate()).getTime();
@@ -1043,7 +997,7 @@
     }
 
     // Max 2 parells de dies consecutius per jugador
-    for (const [pid, busy] of [[p1Id, p1Busy], [p2Id, p2Busy]] as [string, any[]][]) {
+    for (const [pid, busy] of [[p1Id, p1Busy], [p2Id, p2Busy]] as [number, any[]][]) {
       if (!hasOnly2ConsecutiveDayPrefs(pid) && wouldExceedConsecutivePairs(busy, slot.date)) {
         return false;
       }
@@ -1089,7 +1043,7 @@
 
     // Identificar partides flexibles (ambdós jugadors sense restriccions de dies/hores)
     const flexibleScheduled = scheduled.filter(m =>
-      isFlexiblePlayer(m.jugador1.player_id) && isFlexiblePlayer(m.jugador2.player_id)
+      isFlexiblePlayer(m.jugador1.soci_numero) && isFlexiblePlayer(m.jugador2.soci_numero)
     );
 
     console.log(`\n🔄 Fase d'intercanvi:`);
@@ -1112,15 +1066,15 @@
       // Saltar partides incompatibles
       if (checkScheduleIncompatibility(pendingMatch)) continue;
 
-      const p1Id = pendingMatch.jugador1.player_id;
-      const p2Id = pendingMatch.jugador2.player_id;
+      const p1Id = pendingMatch.jugador1.soci_numero;
+      const p2Id = pendingMatch.jugador2.soci_numero;
 
       // Buscar una partida flexible el slot de la qual serveixi per la partida pendent
       for (let si = 0; si < newScheduled.length; si++) {
         const flexMatch = newScheduled[si];
         // Només considerar partides flexibles
-        if (!isFlexiblePlayer(flexMatch.jugador1.player_id) ||
-            !isFlexiblePlayer(flexMatch.jugador2.player_id)) continue;
+        if (!isFlexiblePlayer(flexMatch.jugador1.soci_numero) ||
+            !isFlexiblePlayer(flexMatch.jugador2.soci_numero)) continue;
 
         const candidateSlot = {
           date: flexMatch.data_programada,
@@ -1130,8 +1084,8 @@
 
         // 1. El slot de la partida flexible serveix per la partida pendent?
         // Primer: treure temporalment la partida flexible de les estructures
-        const flexP1Id = flexMatch.jugador1.player_id;
-        const flexP2Id = flexMatch.jugador2.player_id;
+        const flexP1Id = flexMatch.jugador1.soci_numero;
+        const flexP2Id = flexMatch.jugador2.soci_numero;
         const flexDateStr = candidateSlot.date.toISOString().split('T')[0];
         const flexWeekKey = getISOWeekKey(candidateSlot.date);
 
@@ -1272,9 +1226,9 @@
       const dateStr = new Date(match.data_programada).toISOString().split('T')[0];
 
       [match.jugador1, match.jugador2].forEach(jugador => {
-        const pid = jugador.player_id;
-        if (!playerDays.has(pid)) playerDays.set(pid, new Set());
-        const days = playerDays.get(pid);
+        const sn = jugador.soci_numero;
+        if (!playerDays.has(sn)) playerDays.set(sn, new Set());
+        const days = playerDays.get(sn);
         if (days.has(dateStr)) {
           conflicts.push(`${jugador.soci.nom} ${jugador.soci.cognoms} té 2 partides el ${dateStr}`);
         }
@@ -1297,9 +1251,9 @@
       const weekKey = getISOWeekKey(new Date(match.data_programada));
 
       [match.jugador1, match.jugador2].forEach(jugador => {
-        const pid = jugador.player_id;
-        if (!playerWeeks.has(pid)) playerWeeks.set(pid, new Map());
-        const weeks = playerWeeks.get(pid);
+        const sn = jugador.soci_numero;
+        if (!playerWeeks.has(sn)) playerWeeks.set(sn, new Map());
+        const weeks = playerWeeks.get(sn);
         const count = (weeks.get(weekKey) || 0) + 1;
         weeks.set(weekKey, count);
         if (count > hardLimit) {
@@ -1322,27 +1276,27 @@
     
     matches.forEach(match => {
       // Jugador 1
-      if (!playerTableStats.has(match.jugador1.player_id)) {
-        playerTableStats.set(match.jugador1.player_id, {
+      if (!playerTableStats.has(match.jugador1.soci_numero)) {
+        playerTableStats.set(match.jugador1.soci_numero, {
           total: 0,
           tables: new Map(),
           matches: []
         });
       }
-      const stats1 = playerTableStats.get(match.jugador1.player_id);
+      const stats1 = playerTableStats.get(match.jugador1.soci_numero);
       stats1.total++;
       stats1.tables.set(match.taula_assignada, (stats1.tables.get(match.taula_assignada) || 0) + 1);
       stats1.matches.push({ match, playerRole: 1 });
-      
+
       // Jugador 2
-      if (!playerTableStats.has(match.jugador2.player_id)) {
-        playerTableStats.set(match.jugador2.player_id, {
+      if (!playerTableStats.has(match.jugador2.soci_numero)) {
+        playerTableStats.set(match.jugador2.soci_numero, {
           total: 0,
           tables: new Map(),
           matches: []
         });
       }
-      const stats2 = playerTableStats.get(match.jugador2.player_id);
+      const stats2 = playerTableStats.get(match.jugador2.soci_numero);
       stats2.total++;
       stats2.tables.set(match.taula_assignada, (stats2.tables.get(match.taula_assignada) || 0) + 1);
       stats2.matches.push({ match, playerRole: 2 });
@@ -1523,7 +1477,7 @@
   }
   
   // Verificar si un intercanvi milloraria per aconseguir el mínim
-  function wouldSwapImproveMinimum(sourceMatch: any, targetMatch: any, playerId: string, stats: Map<any, any>) {
+  function wouldSwapImproveMinimum(sourceMatch: any, targetMatch: any, playerId: number, stats: Map<any, any>) {
     const playerStats = stats.get(playerId);
     if (!playerStats) return false;
     
@@ -1550,7 +1504,7 @@
   }
   
   // Verificar si un intercanvi milloraria la distribució (per màxims)
-  function wouldSwapImprove(match1: any, match2: any, playerId: string, stats: Map<any, any>, maxPercentage: number) {
+  function wouldSwapImprove(match1: any, match2: any, playerId: number, stats: Map<any, any>, maxPercentage: number) {
     // Comprovar si l'intercanvi millora la distribució per al jugador problemàtic
     const playerStats = stats.get(playerId);
     if (!playerStats) return false;
@@ -1582,14 +1536,14 @@
   function updateStatsAfterSwap(match1: any, match2: any, originalTable1: number, stats: Map<any, any>) {
     // Actualitzar per tots els jugadors involucrats
     const players = [
-      match1.jugador1.player_id,
-      match1.jugador2.player_id,
-      match2.jugador1.player_id,
-      match2.jugador2.player_id
+      match1.jugador1.soci_numero,
+      match1.jugador2.soci_numero,
+      match2.jugador1.soci_numero,
+      match2.jugador2.soci_numero
     ];
-    
-    players.forEach(playerId => {
-      const playerStats = stats.get(playerId);
+
+    players.forEach(sociNumero => {
+      const playerStats = stats.get(sociNumero);
       if (!playerStats) return;
       
       // Recalcular comptadors de taules
@@ -1606,8 +1560,8 @@
   // Més restriccions = menys slots possibles = més difícil = prioritat més alta
   function getMatchupDifficulty(matchup) {
     let difficulty = 0;
-    const p1 = playerRestrictions.get(matchup.jugador1.player_id);
-    const p2 = playerRestrictions.get(matchup.jugador2.player_id);
+    const p1 = playerRestrictions.get(matchup.jugador1.soci_numero);
+    const p2 = playerRestrictions.get(matchup.jugador2.soci_numero);
 
     const totalConfigDays = calendarConfig.dies_setmana.length;
     const totalConfigHours = calendarConfig.hores_disponibles.length;
@@ -1657,10 +1611,10 @@
       }
 
       // Segon criteri: equilibri (jugadors amb menys partits primer)
-      const aPlayer1Stats = playerStats.get(a.jugador1.player_id);
-      const aPlayer2Stats = playerStats.get(a.jugador2.player_id);
-      const bPlayer1Stats = playerStats.get(b.jugador1.player_id);
-      const bPlayer2Stats = playerStats.get(b.jugador2.player_id);
+      const aPlayer1Stats = playerStats.get(a.jugador1.soci_numero);
+      const aPlayer2Stats = playerStats.get(a.jugador2.soci_numero);
+      const bPlayer1Stats = playerStats.get(b.jugador1.soci_numero);
+      const bPlayer2Stats = playerStats.get(b.jugador2.soci_numero);
 
       const aTotalMatches = aPlayer1Stats.matchesScheduled + aPlayer2Stats.matchesScheduled;
       const bTotalMatches = bPlayer1Stats.matchesScheduled + bPlayer2Stats.matchesScheduled;
@@ -1675,8 +1629,8 @@
 
   // Detectar si dos jugadors tenen preferències completament incompatibles
   function checkScheduleIncompatibility(matchup) {
-    const p1 = playerRestrictions.get(matchup.jugador1.player_id);
-    const p2 = playerRestrictions.get(matchup.jugador2.player_id);
+    const p1 = playerRestrictions.get(matchup.jugador1.soci_numero);
+    const p2 = playerRestrictions.get(matchup.jugador2.soci_numero);
     const p1Name = `${matchup.jugador1.soci.nom} ${matchup.jugador1.soci.cognoms}`.trim();
     const p2Name = `${matchup.jugador2.soci.nom} ${matchup.jugador2.soci.cognoms}`.trim();
 
@@ -1736,8 +1690,8 @@
 
   // Trobar el millor slot per un enfrontament, amb restriccions dures i toves
   function findBestBalancedSlot(matchup, availableDates, playerAvailability, playerStats, consecutiveDaysCounter, playerWeeklyMatches) {
-    const player1Id = matchup.jugador1.player_id;
-    const player2Id = matchup.jugador2.player_id;
+    const player1Id = matchup.jugador1.soci_numero;
+    const player2Id = matchup.jugador2.soci_numero;
 
     const player1Restrictions = playerRestrictions.get(player1Id);
     const player2Restrictions = playerRestrictions.get(player2Id);
@@ -1784,7 +1738,7 @@
       // (excepte si els seus dies preferits són exactament 2 i consecutius)
       const slotTime75 = new Date(slot.date.getFullYear(), slot.date.getMonth(), slot.date.getDate()).getTime();
       const DAY75 = 86400000;
-      for (const [pid, busy] of [[player1Id, player1Busy], [player2Id, player2Busy]] as [string, any[]][]) {
+      for (const [pid, busy] of [[player1Id, player1Busy], [player2Id, player2Busy]] as [number, any[]][]) {
         if (isPlayerOver75(pid) && !hasOnly2ConsecutiveDayPrefs(pid)) {
           const hasAdjacent = busy.some(b => {
             const bTime = new Date(b.date.getFullYear(), b.date.getMonth(), b.date.getDate()).getTime();
@@ -2057,9 +2011,9 @@
     proposedCalendar.forEach(match => {
       if (match.estat === 'generat') {
         // Jugador 1
-        if (!playerMap.has(match.jugador1.player_id)) {
-          playerMap.set(match.jugador1.player_id, {
-            player_id: match.jugador1.player_id,
+        if (!playerMap.has(match.jugador1.soci_numero)) {
+          playerMap.set(match.jugador1.soci_numero, {
+            soci_numero: match.jugador1.soci_numero,
             nom: match.jugador1.soci.nom,
             cognoms: match.jugador1.soci.cognoms || '',
             taula1: 0,
@@ -2068,14 +2022,14 @@
             total: 0
           });
         }
-        const player1Stats = playerMap.get(match.jugador1.player_id);
+        const player1Stats = playerMap.get(match.jugador1.soci_numero);
         player1Stats[`taula${match.taula_assignada}`]++;
         player1Stats.total++;
-        
+
         // Jugador 2
-        if (!playerMap.has(match.jugador2.player_id)) {
-          playerMap.set(match.jugador2.player_id, {
-            player_id: match.jugador2.player_id,
+        if (!playerMap.has(match.jugador2.soci_numero)) {
+          playerMap.set(match.jugador2.soci_numero, {
+            soci_numero: match.jugador2.soci_numero,
             nom: match.jugador2.soci.nom,
             cognoms: match.jugador2.soci.cognoms || '',
             taula1: 0,
@@ -2084,7 +2038,7 @@
             total: 0
           });
         }
-        const player2Stats = playerMap.get(match.jugador2.player_id);
+        const player2Stats = playerMap.get(match.jugador2.soci_numero);
         player2Stats[`taula${match.taula_assignada}`]++;
         player2Stats.total++;
       }
@@ -2535,8 +2489,8 @@
       const partidesToInsert = proposedCalendar.map(match => ({
         event_id: eventId,
         categoria_id: match.categoria_id,
-        jugador1_id: match.jugador1.player_id, // Usar player_id (UUID)
-        jugador2_id: match.jugador2.player_id,
+        jugador1_soci_numero: match.jugador1.soci_numero,
+        jugador2_soci_numero: match.jugador2.soci_numero,
         data_programada: match.data_programada?.toISOString() || null,
         hora_inici: match.hora_inici,
         taula_assignada: match.taula_assignada,
@@ -2901,7 +2855,7 @@
                 </h5>
                 <div class="space-y-1">
                   {#each players as player}
-                    {@const restrictions = playerRestrictions.get(player.player_id)}
+                    {@const restrictions = playerRestrictions.get(player.soci_numero)}
                     <div class="flex items-center justify-between bg-white rounded px-2 py-1.5 text-sm border border-gray-100">
                       <div class="flex-1 min-w-0">
                         <span class="font-medium text-gray-800 truncate block">{player.soci.nom} {player.soci.cognoms || ''}</span>
@@ -3024,11 +2978,11 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                   {#each players as player}
-                    {@const restrictions = playerRestrictions.get(player.player_id)}
+                    {@const restrictions = playerRestrictions.get(player.soci_numero)}
                     <tr>
                       <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                         {restrictions?.soci?.nom || 'Nom no disponible'} {restrictions?.soci?.cognoms || ''}
-                        <div class="text-xs text-gray-500">ID: {player.player_id.substring(0, 8)}...</div>
+                        <div class="text-xs text-gray-500">#{player.soci_numero}</div>
                       </td>
                       <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                         {#if restrictions?.preferencies_dies?.length > 0}

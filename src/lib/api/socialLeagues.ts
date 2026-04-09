@@ -5,7 +5,6 @@ import type {
   SocialLeagueCategory,
   Classification,
   SearchResult,
-  Player,
   Soci,
   Inscripcio,
   CalendariPartida,
@@ -116,7 +115,7 @@ export async function getSocialLeagueEventById(eventId: string): Promise<SocialL
           categoria_id,
           soci_id,
           posicio,
-          player_id,
+          soci_numero,
           partides_jugades,
           partides_guanyades,
           partides_perdudes,
@@ -157,7 +156,7 @@ export async function getSocialLeagueEventById(eventId: string): Promise<SocialL
         categoria_id: cl.categoria_id,
         soci_id: cl.soci_id,
         posicio: cl.posicio,
-        player_id: cl.player_id,
+        soci_numero: cl.soci_numero,
         player_nom: sObj?.nom || '',
         player_cognom: sObj?.cognoms || '',
         partides_jugades: cl.partides_jugades,
@@ -267,7 +266,7 @@ export async function getCategoryClassifications(categoryId: string): Promise<Cl
       categoria_id,
       soci_id,
       posicio,
-      player_id,
+      soci_numero,
       partides_jugades,
       partides_guanyades,
       partides_perdudes,
@@ -295,7 +294,7 @@ export async function getCategoryClassifications(categoryId: string): Promise<Cl
     categoria_id: cl.categoria_id,
     soci_id: cl.soci_id,
     posicio: cl.posicio,
-    player_id: cl.player_id,
+    soci_numero: cl.soci_numero,
     player_nom: Array.isArray(cl.socis) ? (cl.socis[0] as any)?.nom || '' : (cl.socis as any)?.nom || '',
     player_cognom: Array.isArray(cl.socis) ? (cl.socis[0] as any)?.cognoms || '' : (cl.socis as any)?.cognoms || '',
     partides_jugades: cl.partides_jugades,
@@ -323,20 +322,18 @@ export async function searchPlayerInClassifications(playerName: string): Promise
     partides_jugades: number;
   }[];
 }[]> {
-  // Fase 5a: el nom/cognom es llegeixen sempre des de `socis` (font de
-  // veritat). La query original llegia `players(nom, cognoms)` però `cognoms`
-  // no existeix a `players` — silenciosament tornava null.
+  // Fase 5c-S3: accedim directament a `socis` via FK `soci_numero`
+  // (la taula `players` ja no existeix).
   const { data: results, error } = await supabase
     .from('classificacions')
     .select(`
       posicio,
       punts,
       partides_jugades,
-      players!inner (
-        socis!inner (
-          nom,
-          cognoms
-        )
+      soci_numero,
+      socis:socis!classificacions_soci_numero_fkey (
+        nom,
+        cognoms
       ),
       categories (
         nom,
@@ -345,20 +342,19 @@ export async function searchPlayerInClassifications(playerName: string): Promise
           modalitat
         )
       )
-    `)
-    .ilike('players.socis.nom', `%${playerName}%`);
+    `);
 
   if (error) {
     console.error('Error searching player classifications:', error);
     throw error;
   }
 
-  // Agrupar per jugador
+  // Agrupar per jugador (filtrar per nom al client per permetre cerca insensible a accents)
   const playersMap = new Map();
 
   results?.forEach(result => {
-    const players = Array.isArray(result.players) ? result.players[0] : result.players;
-    const soci = players && (Array.isArray((players as any).socis) ? (players as any).socis[0] : (players as any).socis);
+    const rawS = (result as any).socis;
+    const soci = Array.isArray(rawS) ? rawS[0] : rawS;
     const categories = Array.isArray(result.categories) ? result.categories[0] : result.categories;
     const events = Array.isArray(categories?.events) ? categories.events[0] : categories?.events;
 
@@ -366,6 +362,11 @@ export async function searchPlayerInClassifications(playerName: string): Promise
 
     const nom = soci.nom ?? '';
     const cognoms = soci.cognoms ?? '';
+
+    // Filtre al client (el .ilike de PostgREST no pot filtrar a través de FK fàcilment)
+    if (!nom.toLowerCase().includes(playerName.toLowerCase()) &&
+        !cognoms.toLowerCase().includes(playerName.toLowerCase())) return;
+
     const playerKey = `${nom} ${cognoms}`.trim();
 
     if (!playersMap.has(playerKey)) {
@@ -590,40 +591,16 @@ export async function getHeadToHeadResults(eventId: string, categoriaId: string)
       i.estat_jugador !== 'retirat' && !i.eliminat_per_incompareixences
     );
 
-    // Obtenir els players IDs dels socis inscrits actius
+    // Obtenir els soci_numeros dels inscrits actius
     const sociNumbers = activeInscriptions.map((i: any) => i.soci_numero) || [];
 
-    // Utilitzar RPC per obtenir players (accés públic)
-    const { data: playersData, error: playersError } = await supabase
-      .rpc('get_players_by_soci_numbers', { p_soci_numbers: sociNumbers });
-
-    // Fallback a consulta directa si la RPC no existeix
-    let playersList: any[] = [];
-    if (playersError) {
-      console.warn('RPC get_players_by_soci_numbers not available, trying direct query:', playersError.message);
-      const { data: directPlayers, error: directError } = await supabase
-        .from('players')
-        .select('id, numero_soci')
-        .in('numero_soci', sociNumbers);
-      if (directError) {
-        console.error('Error fetching players:', directError);
-      }
-      playersList = directPlayers || [];
-    } else {
-      playersList = playersData || [];
-    }
-
-    // Crear mapa de numero_soci -> player_id
-    const sociToPlayerMap = new Map<number, string>();
-    playersList.forEach((p: any) => sociToPlayerMap.set(p.numero_soci, p.id));
-
-    // Crear llista de jugadors des de les inscripcions
+    // Crear llista de jugadors des de les inscripcions (clau = soci_numero)
     const playersMap = new Map<string, any>();
     activeInscriptions.forEach((inscription: any) => {
-      const playerId = sociToPlayerMap.get(inscription.soci_numero);
-      if (playerId) {
-        playersMap.set(playerId, {
-          id: playerId,
+      const key = String(inscription.soci_numero);
+      if (!playersMap.has(key)) {
+        playersMap.set(key, {
+          id: key,
           nom: inscription.nom,
           cognoms: inscription.cognoms,
           numero_soci: inscription.soci_numero
@@ -650,19 +627,22 @@ export async function getHeadToHeadResults(eventId: string, categoriaId: string)
       console.log(`Received ${data.length} match records from database`);
 
       data.forEach((row: any) => {
+        const j1Key = String(row.jugador1_numero_soci);
+        const j2Key = String(row.jugador2_numero_soci);
+
         // Afegir jugadors de les partides al mapa (per si de cas)
-        if (!playersMap.has(row.jugador1_id)) {
-          playersMap.set(row.jugador1_id, {
-            id: row.jugador1_id,
+        if (!playersMap.has(j1Key)) {
+          playersMap.set(j1Key, {
+            id: j1Key,
             nom: row.jugador1_nom,
             cognoms: row.jugador1_cognoms,
             numero_soci: row.jugador1_numero_soci
           });
         }
 
-        if (!playersMap.has(row.jugador2_id)) {
-          playersMap.set(row.jugador2_id, {
-            id: row.jugador2_id,
+        if (!playersMap.has(j2Key)) {
+          playersMap.set(j2Key, {
+            id: j2Key,
             nom: row.jugador2_nom,
             cognoms: row.jugador2_cognoms,
             numero_soci: row.jugador2_numero_soci
@@ -670,7 +650,7 @@ export async function getHeadToHeadResults(eventId: string, categoriaId: string)
         }
 
         // Add match data for player1 vs player2
-        const matchKey = `${row.jugador1_id}_${row.jugador2_id}`;
+        const matchKey = `${j1Key}_${j2Key}`;
         matches.set(matchKey, {
           caramboles: row.caramboles_jugador1,
           entrades: row.entrades_jugador1,
@@ -679,7 +659,7 @@ export async function getHeadToHeadResults(eventId: string, categoriaId: string)
         });
 
         // Add reverse match data for player2 vs player1
-        const reverseMatchKey = `${row.jugador2_id}_${row.jugador1_id}`;
+        const reverseMatchKey = `${j2Key}_${j1Key}`;
 
         // Calculate punts_jugador2 from database if available, otherwise calculate
         const punts_jugador2 = row.punts_jugador2 ?? (

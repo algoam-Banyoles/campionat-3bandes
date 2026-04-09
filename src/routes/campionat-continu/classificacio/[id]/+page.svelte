@@ -36,14 +36,15 @@
   onMount(async () => {
     const id = $page.params.id;
     try {
-      // id és UUID (URL param). Obtenim el numero_soci via players i llegim nom de socis.
-      const { data: player, error: pErr } = await supabase
-        .from('players')
-        .select('numero_soci, socis!inner(nom)')
-        .eq('id', id)
+      // id is soci_numero (URL param).
+      const sociNumero = Number(id);
+      const { data: sociData, error: sErr } = await supabase
+        .from('socis')
+        .select('nom')
+        .eq('numero_soci', sociNumero)
         .maybeSingle();
-      if (pErr) throw pErr;
-      playerName = (player?.socis as any)?.nom ?? '';
+      if (sErr) throw sErr;
+      playerName = sociData?.nom ?? '';
 
       const { data: event, error: eErr } = await supabase
         .from('events')
@@ -59,7 +60,7 @@
       const { data: changes, error: cErr } = await supabase
         .from('history_position_changes')
         .select('creat_el,posicio_nova')
-        .eq('player_id', id)
+        .eq('soci_numero', sociNumero)
         .eq('event_id', eventId)
         .order('creat_el', { ascending: true });
       if (cErr) throw cErr;

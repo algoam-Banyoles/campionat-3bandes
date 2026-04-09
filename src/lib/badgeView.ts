@@ -34,7 +34,7 @@ export function getBadgeView(badge: VPlayerBadges | undefined | null): BadgeView
 
 export async function fetchBadgeMap(
   getBadges: () => Promise<VPlayerBadges[]> = getPlayerBadges
-): Promise<Map<string, VPlayerBadges>> {
+): Promise<Map<number, VPlayerBadges>> {
   const list = await getBadges();
-  return new Map(list.map((badge) => [badge.player_id, badge]));
+  return new Map(list.map((badge) => [badge.soci_numero, badge]));
 }

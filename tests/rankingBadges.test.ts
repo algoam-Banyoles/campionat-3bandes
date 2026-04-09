@@ -6,7 +6,7 @@ describe('badge rendering', () => {
   const badgeFixtures: VPlayerBadges[] = [
     {
       event_id: 'event-1',
-      player_id: 'p1',
+      soci_numero: 101,
       posicio: 1,
       last_play_date: '2024-01-01',
       days_since_last: 0,
@@ -17,7 +17,7 @@ describe('badge rendering', () => {
     },
     {
       event_id: 'event-1',
-      player_id: 'p2',
+      soci_numero: 102,
       posicio: 2,
       last_play_date: '2024-01-02',
       days_since_last: 1,
@@ -28,7 +28,7 @@ describe('badge rendering', () => {
     },
     {
       event_id: 'event-1',
-      player_id: 'p3',
+      soci_numero: 103,
       posicio: 3,
       last_play_date: '2024-01-03',
       days_since_last: 2,
@@ -46,9 +46,9 @@ describe('badge rendering', () => {
 
     expect(mockGetBadges).toHaveBeenCalledTimes(1);
 
-    const activeView = getBadgeView(map.get('p1'));
-    const cooldown = map.get('p2');
-    const challengeableView = getBadgeView(map.get('p3'));
+    const activeView = getBadgeView(map.get(101));
+    const cooldown = map.get(102);
+    const challengeableView = getBadgeView(map.get(103));
 
     expect(activeView).not.toBeNull();
     expect(activeView?.text).toBe('Repte actiu');
@@ -74,7 +74,7 @@ describe('badge rendering', () => {
           const unit = days === 1 ? 'dia' : 'dies';
           return `<span class="px-2 py-0.5 text-xs rounded bg-orange-100 text-orange-700">No es pot reptar (falt${article} ${days} ${unit})</span>`;
         }
-        const view = getBadgeView(map.get(badge.player_id));
+        const view = getBadgeView(map.get(badge.soci_numero));
         if (!view) return '';
         return `<span class="${view.className}" aria-label="${view.label}">${view.text}</span>`;
       })

@@ -9,14 +9,14 @@ export type VChallengePending = {
   event_id: string;
   /** Estat actual del repte (proposat, acceptat, programat, ...). */
   estat: string;
-  /** Identificador del jugador reptador. */
-  reptador_id: string;
+  /** Numero de soci del jugador reptador. */
+  reptador_soci_numero: number;
   /** Nom del jugador reptador. */
   reptador_nom: string;
-  /** Posició al rànquing del reptador (pot ser nul·la si no existeix). */
+  /** Posicio al ranquing del reptador (pot ser nul·la si no existeix). */
   reptador_posicio: number | null;
-  /** Identificador del jugador reptat. */
-  reptat_id: string;
+  /** Numero de soci del jugador reptat. */
+  reptat_soci_numero: number;
   /** Nom del jugador reptat. */
   reptat_nom: string;
   /** Posició al rànquing del reptat (pot ser nul·la si no existeix). */
@@ -44,8 +44,8 @@ export type VChallengePending = {
 export type VPlayerTimeline = {
   /** Identificador del registre al timeline. */
   id: string;
-  /** Identificador del jugador al qual pertany el registre. */
-  player_id: string;
+  /** Numero de soci del jugador al qual pertany el registre. */
+  soci_numero: number;
   /** Data de creació del registre. */
   creat_el: string;
   /** Tipus d'entrada (repte, manteniment, penalització, ...). */
@@ -102,7 +102,7 @@ export async function getPlayerBadges(): Promise<VPlayerBadges[]> {
   const supabase = serverSupabase();
   const { data, error } = await supabase
     .from('v_player_badges')
-    .select('event_id, player_id, posicio, last_play_date, days_since_last, has_active_challenge, in_cooldown, can_be_challenged, cooldown_days_left');
+    .select('event_id, soci_numero, posicio, last_play_date, days_since_last, has_active_challenge, in_cooldown, can_be_challenged, cooldown_days_left');
   if (error) throw new Error(error.message);
   return (data ?? []) as VPlayerBadges[];
 }
@@ -158,7 +158,7 @@ export async function getPlayerTimeline(
   const { data, error } = await supabase
     .from('v_player_timeline')
     .select('*')
-    .eq('player_id', playerId)
+    .eq('soci_numero', playerId)
     .order('creat_el', { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as VPlayerTimeline[];

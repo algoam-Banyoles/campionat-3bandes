@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { createEventDispatcher } from 'svelte';
 
-  export let playerId: string;
+  export let sociNumero: number;
   export let playerName: string;
 
   const dispatch = createEventDispatcher();
@@ -31,7 +31,7 @@
       const { data, error: err } = await supabase
         .from('player_weekly_positions')
         .select('setmana, posicio')
-        .eq('player_id', playerId)
+        .eq('soci_numero', sociNumero)
         .order('setmana', { ascending: true });
       if (err) throw err;
       const rows = (data ?? []) as { setmana: number; posicio: number }[];

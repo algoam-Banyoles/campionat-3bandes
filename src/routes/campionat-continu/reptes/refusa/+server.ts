@@ -40,26 +40,26 @@ export const POST: RequestHandler = async ({ request }) => {
     }
     const isAdmin = !!adm;
 
-    let playerId: string | null = null;
+    let mySociNumero: number | null = null;
     if (!isAdmin) {
-      const { data: player, error: pErr } = await supabase
-        .from('players')
-        .select('id')
+      const { data: soci, error: sErr } = await supabase
+        .from('socis')
+        .select('numero_soci')
         .eq('email', auth.user.email)
         .maybeSingle();
-      if (pErr) {
-        if (isRlsError(pErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
-        return json({ ok: false, error: pErr.message }, { status: 400 });
+      if (sErr) {
+        if (isRlsError(sErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
+        return json({ ok: false, error: sErr.message }, { status: 400 });
       }
-      if (!player) {
-        return json({ ok: false, error: 'Usuari sense jugador associat' }, { status: 400 });
+      if (!soci) {
+        return json({ ok: false, error: 'Usuari sense soci associat' }, { status: 400 });
       }
-      playerId = player.id;
+      mySociNumero = soci.numero_soci;
     }
 
     const { data: challenge, error: cErr } = await supabase
       .from('challenges')
-      .select('id,reptat_id,estat')
+      .select('id,reptat_soci_numero,estat')
       .eq('id', id)
       .maybeSingle();
     if (cErr) {
@@ -70,8 +70,8 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'Repte no trobat' }, { status: 404 });
     }
 
-    if (!isAdmin && challenge.reptat_id !== playerId) {
-      return json({ ok: false, error: 'Només el reptat pot refusar el repte' }, { status: 400 });
+    if (!isAdmin && challenge.reptat_soci_numero !== mySociNumero) {
+      return json({ ok: false, error: 'Nomes el reptat pot refusar el repte' }, { status: 400 });
     }
     if (challenge.estat !== 'proposat') {
       return json({ ok: false, error: 'El repte no està en estat proposat' }, { status: 400 });

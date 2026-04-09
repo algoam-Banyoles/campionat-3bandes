@@ -49,22 +49,22 @@ export const POST: RequestHandler = async ({ request }) => {
     }
     const email = auth.user.email;
 
-    const { data: player, error: pErr } = await supabase
-      .from('players')
-      .select('id')
+    const { data: soci, error: sErr } = await supabase
+      .from('socis')
+      .select('numero_soci')
       .eq('email', email)
       .maybeSingle();
-    if (pErr) {
-      if (isRlsError(pErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
-      return json({ ok: false, error: pErr.message }, { status: 400 });
+    if (sErr) {
+      if (isRlsError(sErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
+      return json({ ok: false, error: sErr.message }, { status: 400 });
     }
-    if (!player) {
-      return json({ ok: false, error: 'Usuari sense jugador associat' }, { status: 400 });
+    if (!soci) {
+      return json({ ok: false, error: 'Usuari sense soci associat' }, { status: 400 });
     }
 
     const { data: challenge, error: cErr } = await supabase
       .from('challenges')
-      .select('reptador_id,reptat_id,estat')
+      .select('reptador_soci_numero,reptat_soci_numero,estat')
       .eq('id', challenge_id)
       .maybeSingle();
     if (cErr) {
@@ -75,7 +75,7 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'Repte no trobat' }, { status: 404 });
     }
 
-    if (![challenge.reptador_id, challenge.reptat_id].includes(player.id)) {
+    if (![challenge.reptador_soci_numero, challenge.reptat_soci_numero].includes(soci.numero_soci)) {
       return json({ ok: false, error: 'Nom\u00e9s participants del repte' }, { status: 403 });
     }
 
