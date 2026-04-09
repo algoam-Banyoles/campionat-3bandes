@@ -2479,6 +2479,44 @@
     processing = true;
 
     try {
+      // Comprovar conflictes de billar amb partides d'ALTRES events
+      const slotsToCheck = proposedCalendar
+        .filter(m => m.data_programada && m.hora_inici && m.taula_assignada)
+        .map(m => ({
+          dia: m.data_programada!.toISOString().split('T')[0],
+          hora: m.hora_inici!,
+          billar: m.taula_assignada!
+        }));
+
+      if (slotsToCheck.length > 0) {
+        const dates = [...new Set(slotsToCheck.map(s => s.dia))];
+        const { data: existing } = await supabase
+          .from('calendari_partides')
+          .select('data_programada, hora_inici, taula_assignada')
+          .neq('event_id', eventId)
+          .in('data_programada::date', dates)
+          .not('data_programada', 'is', null)
+          .not('hora_inici', 'is', null)
+          .not('taula_assignada', 'is', null)
+          .or('partida_anullada.is.null,partida_anullada.eq.false');
+
+        if (existing && existing.length > 0) {
+          const occupiedSet = new Set(
+            existing.map((e: any) => `${String(e.data_programada).split('T')[0]}|${e.hora_inici}|${e.taula_assignada}`)
+          );
+          const conflicts = slotsToCheck.filter(s => occupiedSet.has(`${s.dia}|${s.hora}|${s.billar}`));
+          if (conflicts.length > 0) {
+            const msg = conflicts.slice(0, 5).map(c =>
+              `  - ${c.dia} a les ${c.hora}, billar ${c.billar}`
+            ).join('\n');
+            throw new Error(
+              `Hi ha ${conflicts.length} partides que coincideixen amb partides d'altres campionats al mateix billar:\n${msg}` +
+              (conflicts.length > 5 ? `\n  ... i ${conflicts.length - 5} més` : '')
+            );
+          }
+        }
+      }
+
       // Eliminar calendari existent
       await supabase
         .from('calendari_partides')
@@ -2501,7 +2539,12 @@
         .from('calendari_partides')
         .insert(partidesToInsert);
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('idx_unique_billar_slot')) {
+          throw new Error('No es pot desar: hi ha partides duplicades al mateix billar/hora/dia. Revisa el calendari generat.');
+        }
+        throw error;
+      }
 
       dispatch('calendarCreated', { matches: partidesToInsert.length });
       showPreview = false;
