@@ -1846,12 +1846,34 @@
         updates.hora_inici = editForm.hora_inici;
       }
 
+      // Comprovar conflicte de billar abans de desar
+      if (updates.data_programada && updates.hora_inici && updates.taula_assignada) {
+        const dia = updates.data_programada.split('T')[0];
+        const { data: conflict } = await supabase
+          .from('calendari_partides')
+          .select('id, jugador1_soci_numero, jugador2_soci_numero, socis!calendari_partides_jugador1_soci_numero_fkey(nom)')
+          .eq('data_programada::date', dia)
+          .eq('hora_inici', updates.hora_inici)
+          .eq('taula_assignada', updates.taula_assignada)
+          .neq('id', editingMatch.id)
+          .or('partida_anullada.is.null,partida_anullada.eq.false')
+          .maybeSingle();
+        if (conflict) {
+          throw new Error(`El billar ${updates.taula_assignada} ja té una partida programada el ${dia} a les ${updates.hora_inici}. Tria un altre billar o una altra hora.`);
+        }
+      }
+
       const { error: updateError } = await supabase
         .from('calendari_partides')
         .update(updates)
         .eq('id', editingMatch.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        if (updateError.message?.includes('idx_unique_billar_slot')) {
+          throw new Error(`El billar ${updates.taula_assignada} ja té una partida a aquesta hora. Tria un altre billar o una altra hora.`);
+        }
+        throw updateError;
+      }
 
       // Tancar edició abans de recarregar
       cancelEditing();
