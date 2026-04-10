@@ -1851,12 +1851,13 @@
         const dia = updates.data_programada.split('T')[0];
         const { data: conflict } = await supabase
           .from('calendari_partides')
-          .select('id, jugador1_soci_numero, jugador2_soci_numero, socis!calendari_partides_jugador1_soci_numero_fkey(nom)')
-          .eq('data_programada::date', dia)
+          .select('id')
           .eq('hora_inici', updates.hora_inici)
           .eq('taula_assignada', updates.taula_assignada)
           .neq('id', editingMatch.id)
           .or('partida_anullada.is.null,partida_anullada.eq.false')
+          .not('estat', 'in', '("jugada","cancel·lada_per_retirada","pendent_programar","postposada","reprogramada")')
+          .filter('data_programada::date', 'eq', dia)
           .maybeSingle();
         if (conflict) {
           throw new Error(`El billar ${updates.taula_assignada} ja té una partida programada el ${dia} a les ${updates.hora_inici}. Tria un altre billar o una altra hora.`);

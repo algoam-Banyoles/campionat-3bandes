@@ -2498,7 +2498,8 @@
           .not('data_programada', 'is', null)
           .not('hora_inici', 'is', null)
           .not('taula_assignada', 'is', null)
-          .or('partida_anullada.is.null,partida_anullada.eq.false');
+          .or('partida_anullada.is.null,partida_anullada.eq.false')
+          .not('estat', 'in', '("jugada","cancel·lada_per_retirada","pendent_programar","postposada","reprogramada")');
 
         if (existing && existing.length > 0) {
           const occupiedSet = new Set(
