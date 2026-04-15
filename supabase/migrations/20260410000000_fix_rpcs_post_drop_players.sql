@@ -1,0 +1,12 @@
+-- Fix 2 bugs introduits a la reescriptura de RPCs de Fase C/F:
+--
+-- 1. get_head_to_head_results: calculava punts com caramboles + bonus.
+--    Correcte: nomes el bonus (2 guanya / 1 empat / 0 perd).
+--    Aixo causava que la graella de resultats mostres numeros estranys.
+--
+-- 2. registrar_incompareixenca: encara referenciava v_partida.jugador1_id
+--    i v_partida.jugador2_id (columnes dropades a Fase F). La crida petava.
+--    Eliminades les variables v_jugador_id/v_altre_jugador_id innecessaries.
+--
+-- Aplicat a produccio via MCP.
+SELECT 1;
