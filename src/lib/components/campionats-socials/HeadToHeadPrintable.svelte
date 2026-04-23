@@ -188,7 +188,7 @@
                         <div class="grid-cell top-left" style="border-right: 0.3px solid #ccc; border-bottom: 0.3px solid #ccc;">{matchData?.caramboles ?? ''}</div>
                         <div class="grid-cell top-right" style="border-bottom: 0.3px solid #ccc;">{matchData?.entrades ?? ''}</div>
                         <div class="grid-cell middle-full" style="border-bottom: 0.3px solid #ccc;">{matchData?.punts ?? ''}</div>
-                        <div class="grid-cell bottom-full">{matchData ? matchData.mitjana.toFixed(3) : ''}</div>
+                        <div class="grid-cell bottom-full">{matchData && matchData.entrades > 0 ? matchData.mitjana.toFixed(3) : ''}</div>
                       </div>
                     {/if}
                   </td>

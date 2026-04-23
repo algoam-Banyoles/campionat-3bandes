@@ -2,6 +2,7 @@
   import { supabase } from '$lib/supabaseClient';
   import { onMount } from 'svelte';
   import PlayerResultsModal from './PlayerResultsModal.svelte';
+  import SociFoto from '$lib/components/admin/SociFoto.svelte';
 
   export let event: any = null;
   export let showDetails: boolean = false;
@@ -347,6 +348,11 @@
                     </td>
                     <td class="px-3 py-4 text-sm">
                       <div class="flex items-center gap-2">
+                        <SociFoto
+                          numeroSoci={classification.soci_numero}
+                          size="xs"
+                          alt="{classification.soci_nom ?? ''} {classification.soci_cognoms ?? ''}"
+                        />
                         <button
                           on:click={() => openPlayerModal(classification)}
                           class="font-medium hover:text-blue-600 transition-colors cursor-pointer underline decoration-transparent hover:decoration-blue-600"

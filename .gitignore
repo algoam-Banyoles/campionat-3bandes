@@ -45,3 +45,8 @@ coverage/
 test-results/
 playwright-report/
 pixel-agents/
+
+# Socis photos (private — pujades a Supabase Storage, mai al repo públic)
+docs/fotossocis/*
+!docs/fotossocis/.gitkeep
+!docs/fotossocis/README.md

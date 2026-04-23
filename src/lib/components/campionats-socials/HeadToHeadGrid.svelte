@@ -143,7 +143,7 @@
                         <!-- Tercera fila: 1 columna (M) -->
                         <div class="cell bottom">
                           <span class="label">M:</span>
-                          <span class="value">{matchData ? matchData.mitjana.toFixed(3) : ''}</span>
+                          <span class="value">{matchData && matchData.entrades > 0 ? matchData.mitjana.toFixed(3) : ''}</span>
                         </div>
                       </div>
                     {/if}

@@ -517,28 +517,19 @@
     try {
       processingWithdrawal = true;
 
-      // Update inscription to mark as withdrawn
-      const { error: updateError } = await supabase
-        .from('inscripcions')
-        .update({
-          estat_jugador: 'retirat',
-          data_retirada: new Date().toISOString(),
-          motiu_retirada: withdrawalReason.trim()
-        })
-        .eq('id', selectedInscriptionForWithdrawal.id);
+      // Ús de la RPC centralitzada: marca la inscripció com a retirada
+      // i anul·la (partida_anullada=true) les partides pendents no jugades.
+      const { data: rpcData, error: rpcError } = await supabase.rpc('retire_player_from_league', {
+        p_event_id: selectedInscriptionForWithdrawal.event_id,
+        p_soci_numero: selectedInscriptionForWithdrawal.soci_numero,
+        p_motiu_retirada: withdrawalReason.trim(),
+        p_per_incompareixences: false
+      });
 
-      if (updateError) throw updateError;
-
-      // Fase 5c-S2c-2: cancel·lar partides directament filtrant per soci_numero
-      const sociNum = selectedInscriptionForWithdrawal.soci_numero;
-      const { error: cancelError } = await supabase
-        .from('calendari_partides')
-        .update({ estat: 'cancel·lada_per_retirada' })
-        .eq('event_id', selectedInscriptionForWithdrawal.event_id)
-        .or(`jugador1_soci_numero.eq.${sociNum},jugador2_soci_numero.eq.${sociNum}`)
-        .not('estat', 'eq', 'jugada');
-
-      if (cancelError) throw cancelError;
+      if (rpcError) throw rpcError;
+      if (rpcData && rpcData.success === false) {
+        throw new Error(rpcData.error || 'Error retirant el jugador');
+      }
 
       // Close dialog and reload
       withdrawalDialogOpen = false;
@@ -547,7 +538,8 @@
 
       await loadInscriptions();
 
-      successMessage = `Jugador retirat correctament. Les seves partides programades han estat cancel·lades.`;
+      const cancelled = rpcData?.pending_matches_cancelled ?? 0;
+      successMessage = `Jugador retirat correctament. ${cancelled} partida${cancelled === 1 ? '' : 'es'} pendent${cancelled === 1 ? '' : 's'} anul·lada${cancelled === 1 ? '' : 'es'}.`;
       setTimeout(() => successMessage = null, 5000);
 
     } catch (e) {

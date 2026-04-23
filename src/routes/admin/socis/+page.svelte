@@ -3,6 +3,7 @@
   import { supabase } from '$lib/supabaseClient';
   import { formatSupabaseError } from '$lib/ui/alerts';
   import { authFetch } from '$lib/utils/http';
+  import SociFoto from '$lib/components/admin/SociFoto.svelte';
 
   let loading = false;
   let error: string | null = null;
@@ -1074,8 +1075,19 @@
                   #{soci.numero_soci}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm font-medium text-gray-900">{soci.nom} {soci.cognoms}</div>
-                  <div class="text-sm text-gray-500">{formatPlayerName(soci.nom, soci.cognoms)}</div>
+                  <div class="flex items-center gap-3">
+                    <SociFoto
+                      numeroSoci={soci.numero_soci}
+                      fotoPath={soci.foto_path}
+                      size="sm"
+                      initials={(soci.nom?.[0] ?? '') + (soci.cognoms?.[0] ?? '')}
+                      alt="{soci.nom} {soci.cognoms}"
+                    />
+                    <div>
+                      <div class="text-sm font-medium text-gray-900">{soci.nom} {soci.cognoms}</div>
+                      <div class="text-sm text-gray-500">{formatPlayerName(soci.nom, soci.cognoms)}</div>
+                    </div>
+                  </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   <div>

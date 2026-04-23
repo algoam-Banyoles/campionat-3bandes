@@ -3,6 +3,7 @@
   import { user } from '$lib/stores/auth';
   import { effectiveIsAdmin } from '$lib/stores/viewMode';
   import { onMount } from 'svelte';
+  import SociFoto from '$lib/components/admin/SociFoto.svelte';
 
   export let eventId: string = '';
   export let categories: any[] = [];
@@ -222,6 +223,10 @@
     if (!isMatchCompleted(match)) {
       return null;
     }
+
+    // Incompareixença: el que es presenta guanya, l'altre perd
+    if (match.incompareixenca_jugador1 && !match.incompareixenca_jugador2) return 2;
+    if (match.incompareixenca_jugador2 && !match.incompareixenca_jugador1) return 1;
 
     if (match.caramboles_reptador > match.caramboles_reptat) return 1;
     if (match.caramboles_reptat > match.caramboles_reptador) return 2;
@@ -539,21 +544,23 @@
                 </td>
                 <td class="px-3 py-4 text-sm">
                   <div class="space-y-1">
-                    <div class="flex items-center {winner === 1 ? 'font-semibold text-green-600' : 'text-gray-900'}">
-                      <span class="mr-2">{winner === 1 ? '🏆' : ''}</span>
-                      {formatPlayerName(match.jugador1_nom, match.jugador1_cognoms, match.jugador1_numero_soci)}
+                    <div class="flex items-center gap-2 {winner === 1 ? 'font-semibold text-green-600' : 'text-gray-900'}">
+                      <span>{winner === 1 ? '🏆' : ''}</span>
+                      <SociFoto numeroSoci={match.jugador1_numero_soci} size="xs" alt="{match.jugador1_nom} {match.jugador1_cognoms}" />
+                      <span>{formatPlayerName(match.jugador1_nom, match.jugador1_cognoms, match.jugador1_numero_soci)}</span>
                       {#if match.incompareixenca_jugador1}
-                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
                           No presentat
                         </span>
                       {/if}
                     </div>
                     <div class="text-gray-400 text-xs">vs</div>
-                    <div class="flex items-center {winner === 2 ? 'font-semibold text-green-600' : 'text-gray-900'}">
-                      <span class="mr-2">{winner === 2 ? '🏆' : ''}</span>
-                      {formatPlayerName(match.jugador2_nom, match.jugador2_cognoms, match.jugador2_numero_soci)}
+                    <div class="flex items-center gap-2 {winner === 2 ? 'font-semibold text-green-600' : 'text-gray-900'}">
+                      <span>{winner === 2 ? '🏆' : ''}</span>
+                      <SociFoto numeroSoci={match.jugador2_numero_soci} size="xs" alt="{match.jugador2_nom} {match.jugador2_cognoms}" />
+                      <span>{formatPlayerName(match.jugador2_nom, match.jugador2_cognoms, match.jugador2_numero_soci)}</span>
                       {#if match.incompareixenca_jugador2}
-                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
                           No presentat
                         </span>
                       {/if}

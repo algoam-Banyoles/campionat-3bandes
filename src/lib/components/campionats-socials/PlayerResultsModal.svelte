@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
+  import SociFoto from '$lib/components/admin/SociFoto.svelte';
 
   export let isOpen = false;
   export let playerName = '';
@@ -269,6 +270,12 @@
       : match.jugador1_nom;
   }
 
+  function getOpponentNumeroSoci(match: any, playerSoci: number): number {
+    return match.jugador1_numero_soci === playerSoci
+      ? match.jugador2_numero_soci
+      : match.jugador1_numero_soci;
+  }
+
   function getOpponentIncompareixenca(match: any, playerSoci: number): boolean {
     return match.jugador1_numero_soci === playerSoci
       ? (match.incompareixenca_jugador2 || false)
@@ -382,9 +389,12 @@
       tabindex="-1"
     >
       <div class="modal-header">
-        <h2 id="player-results-modal-title" class="modal-title">
-          Resultats de {playerName}
-        </h2>
+        <div class="flex items-center gap-3">
+          <SociFoto numeroSoci={playerNumeroSoci} size="lg" alt={playerName} />
+          <h2 id="player-results-modal-title" class="modal-title">
+            Resultats de {playerName}
+          </h2>
+        </div>
         <button
           type="button"
           class="close-button"
@@ -456,6 +466,7 @@
               {#each matches as match (match.id)}
                 {@const result = playerNumeroSoci ? getMatchResult(match, playerNumeroSoci) : 'draw'}
                 {@const opponentName = playerNumeroSoci ? getOpponentName(match, playerNumeroSoci) : ''}
+                {@const opponentNumeroSoci = playerNumeroSoci ? getOpponentNumeroSoci(match, playerNumeroSoci) : null}
                 {@const playerCaramboles = playerNumeroSoci ? getPlayerCaramboles(match, playerNumeroSoci) : 0}
                 {@const opponentCaramboles = playerNumeroSoci ? getOpponentCaramboles(match, playerNumeroSoci) : 0}
                 {@const opponentIncompareixenca = playerNumeroSoci ? getOpponentIncompareixenca(match, playerNumeroSoci) : false}
@@ -464,8 +475,10 @@
                 <div class="match-card-compact {result === 'win' ? 'match-win' : result === 'loss' ? 'match-loss' : 'match-draw'}">
                   <div class="match-left">
                     <div class="match-date-compact">{formatDate(match.data_programada)}</div>
-                    <div class="match-opponent-compact">
-                      vs {opponentName}
+                    <div class="match-opponent-compact flex items-center gap-2">
+                      <span>vs</span>
+                      <SociFoto numeroSoci={opponentNumeroSoci} size="xs" alt={opponentName} />
+                      <span>{opponentName}</span>
                       {#if opponentIncompareixenca}
                         <span class="incompareixenca-badge">No presentat</span>
                       {/if}
