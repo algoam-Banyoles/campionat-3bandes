@@ -5,7 +5,7 @@ import type { RequestHandler } from './$types';
 
 const { url, key } = getSupabaseEnv(true);
 
-export const GET: RequestHandler = async ({ params, request }) => {
+export const GET: RequestHandler = async ({ params }) => {
   const { eventId } = params;
 
   if (!eventId) {
@@ -13,16 +13,11 @@ export const GET: RequestHandler = async ({ params, request }) => {
   }
 
   try {
-    // Create Supabase client with service role for historical events access
-    const supabaseAdmin = createClient(
-      url,
-      key,
-      {
-        auth: { persistSession: false, autoRefreshToken: false }
-      }
-    );
+    const supabaseAdmin = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
 
-    // First get the event to verify it exists and is a social league
+    // Carreguem l'event i les categories
     const { data: event, error: eventError } = await supabaseAdmin
       .from('events')
       .select(`
@@ -48,21 +43,85 @@ export const GET: RequestHandler = async ({ params, request }) => {
     }
 
     if (!['lliga_social', 'eliminatories'].includes(event.tipus_competicio)) {
-      return json({ error: 'Aquest event no és un campionat social o eliminatòria' }, { status: 400 });
+      return json(
+        { error: 'Aquest event no és un campionat social o eliminatòria' },
+        { status: 400 }
+      );
     }
 
-    // Get classifications with proper joins using service role
-    const { data: classificacionsData, error: classificacionsError } = await supabaseAdmin
-      .from('classificacions')
+    // Usem la RPC actualitzada (post-Fase 5c) que llegeix directament de
+    // calendari_partides, sense dependre de la taula `players` (eliminada).
+    const { data: rows, error: rpcError } = await supabaseAdmin.rpc(
+      'get_social_league_classifications',
+      { p_event_id: eventId }
+    );
+
+    if (rpcError) {
+      console.error('❌ API: Error loading classifications:', rpcError);
+      return json({ error: 'Error loading classifications' }, { status: 500 });
+    }
+
+    // Format compatible amb el client: cada fila incorpora els camps de
+    // categoria i soci niats (com si vinguessin de PostgREST amb joins).
+    const categoriesMap = new Map<string, any>(
+      (event.categories ?? []).map((c: any) => [c.id, c])
+    );
+
+    const classifications = (rows ?? []).map((r: any) => ({
+      id: `${r.categoria_id}-${r.soci_numero}`,
+      event_id: eventId,
+      categoria_id: r.categoria_id,
+      posicio: r.posicio,
+      partides_jugades: r.partides_jugades,
+      partides_guanyades: r.partides_guanyades,
+      partides_perdudes: r.partides_perdudes,
+      partides_empat: r.partides_empat,
+      punts: r.punts,
+      caramboles_favor: r.caramboles_totals,
+      caramboles_contra: null,
+      caramboles_totals: r.caramboles_totals,
+      entrades_totals: r.entrades_totals,
+      mitjana_particular: r.mitjana_general,
+      mitjana_general: r.mitjana_general,
+      millor_mitjana: r.millor_mitjana,
+      estat_jugador: r.estat_jugador,
+      eliminat_per_incompareixences: r.eliminat_per_incompareixences,
+      soci_numero: r.soci_numero,
+      player: {
+        id: null,
+        nom: r.soci_nom ?? '',
+        cognoms: r.soci_cognoms ?? '',
+        numero_soci: r.soci_numero
+      },
+      categoria: categoriesMap.get(r.categoria_id) ?? {
+        id: r.categoria_id,
+        nom: r.categoria_nom,
+        ordre_categoria: r.categoria_ordre
+      }
+    }));
+
+    if (classifications.length > 0) {
+      return json({
+        event,
+        classifications,
+        inscriptions: [],
+        hasClassifications: true
+      });
+    }
+
+    // Fallback: no hi ha dades de classificacions (ex: event en preparació).
+    // Retornem les inscripcions perquè el client pugui mostrar almenys els
+    // jugadors apuntats.
+    const { data: inscriptionsData, error: inscriptionsError } = await supabaseAdmin
+      .from('inscripcions')
       .select(`
         *,
-        player:players (
-          id,
+        socis (
+          numero_soci,
           nom,
-          email,
-          numero_soci
+          cognoms
         ),
-        categoria:categories (
+        categoria_assignada:categories (
           id,
           nom,
           ordre_categoria,
@@ -70,103 +129,19 @@ export const GET: RequestHandler = async ({ params, request }) => {
         )
       `)
       .eq('event_id', eventId)
-      .order('posicio', { ascending: true });
+      .order('data_inscripcio', { ascending: true });
 
-    if (classificacionsError) {
-      console.error('❌ API: Error loading classifications:', classificacionsError);
-      return json({ error: 'Error loading classifications' }, { status: 500 });
+    if (inscriptionsError) {
+      console.error('❌ API: Error loading inscriptions:', inscriptionsError);
+      return json({ error: 'Error loading inscriptions' }, { status: 500 });
     }
 
-    // If no classifications found, try to generate them on-the-fly for finalized events
-    if (!classificacionsData || classificacionsData.length === 0) {
-
-      // Try to generate classifications if the event is finalized
-      if (event.estat_competicio === 'finalitzat') {
-        console.log('📊 API: No classifications found for finalized event, generating...');
-        try {
-          const { data: genResult, error: genError } = await supabaseAdmin
-            .rpc('generate_final_classifications', { p_event_id: eventId });
-
-          if (!genError && genResult && genResult.length > 0 && genResult[0].success) {
-            console.log('✅ API: Classifications generated:', genResult[0].message);
-
-            // Re-fetch the newly generated classifications
-            const { data: newClassifications, error: newClassError } = await supabaseAdmin
-              .from('classificacions')
-              .select(`
-                *,
-                player:players (
-                  id,
-                  nom,
-                  email,
-                  numero_soci
-                ),
-                categoria:categories (
-                  id,
-                  nom,
-                  ordre_categoria,
-                  distancia_caramboles
-                )
-              `)
-              .eq('event_id', eventId)
-              .order('posicio', { ascending: true });
-
-            if (!newClassError && newClassifications && newClassifications.length > 0) {
-              return json({
-                event,
-                classifications: newClassifications,
-                inscriptions: [],
-                hasClassifications: true
-              });
-            }
-          }
-        } catch (genErr) {
-          console.error('⚠️ API: Could not generate classifications:', genErr);
-        }
-      }
-
-      // Fallback to inscriptions if no classifications could be generated
-      const { data: inscriptionsData, error: inscriptionsError } = await supabaseAdmin
-        .from('inscripcions')
-        .select(`
-          *,
-          socis (
-            numero_soci,
-            nom,
-            cognoms
-          ),
-          categoria_assignada:categories (
-            id,
-            nom,
-            ordre_categoria,
-            distancia_caramboles
-          )
-        `)
-        .eq('event_id', eventId)
-        .eq('confirmat', true)
-        .order('data_inscripcio', { ascending: true });
-
-      if (inscriptionsError) {
-        console.error('❌ API: Error loading inscriptions:', inscriptionsError);
-        return json({ error: 'Error loading inscriptions' }, { status: 500 });
-      }
-
-      return json({
-        event,
-        classifications: [],
-        inscriptions: inscriptionsData || [],
-        hasClassifications: false
-      });
-    }
-
-    // Return classifications data
     return json({
       event,
-      classifications: classificacionsData,
-      inscriptions: [],
-      hasClassifications: true
+      classifications: [],
+      inscriptions: inscriptionsData ?? [],
+      hasClassifications: false
     });
-
   } catch (error) {
     console.error('❌ API: Unexpected error:', error);
     return json({ error: 'Internal server error' }, { status: 500 });
