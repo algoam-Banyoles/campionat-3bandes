@@ -387,22 +387,22 @@
                     </td>
                     <td class="px-3 py-4 text-sm text-center">
                       <span class="font-medium text-gray-700">
-                        {classification.caramboles_totals}
+                        {classification.caramboles_totals ?? '-'}
                       </span>
                     </td>
                     <td class="px-3 py-4 text-sm text-center">
                       <span class="font-medium text-gray-700">
-                        {classification.entrades_totals}
+                        {classification.entrades_totals ?? '-'}
                       </span>
                     </td>
                     <td class="px-3 py-4 text-sm text-center">
                       <span class="font-medium text-purple-600">
-                        {classification.mitjana_general}
+                        {classification.mitjana_general != null ? Number(classification.mitjana_general).toFixed(3) : '-'}
                       </span>
                     </td>
                     <td class="px-3 py-4 text-sm text-center">
                       <span class="font-medium text-purple-600">
-                        {classification.millor_mitjana}
+                        {classification.millor_mitjana != null ? Number(classification.millor_mitjana).toFixed(3) : '-'}
                       </span>
                     </td>
                   </tr>
@@ -453,15 +453,15 @@
                       <div class="text-[10px] text-gray-500 uppercase">Part</div>
                     </div>
                     <div>
-                      <div class="text-sm font-bold text-green-600">{classification.caramboles_totals}</div>
+                      <div class="text-sm font-bold text-green-600">{classification.caramboles_totals ?? '-'}</div>
                       <div class="text-[10px] text-gray-500 uppercase">Car</div>
                     </div>
                     <div>
-                      <div class="text-sm font-bold text-purple-600">{classification.entrades_totals}</div>
+                      <div class="text-sm font-bold text-purple-600">{classification.entrades_totals ?? '-'}</div>
                       <div class="text-[10px] text-gray-500 uppercase">Ent</div>
                     </div>
                     <div>
-                      <div class="text-sm font-bold text-indigo-600">{classification.mitjana_general}</div>
+                      <div class="text-sm font-bold text-indigo-600">{classification.mitjana_general != null ? Number(classification.mitjana_general).toFixed(3) : '-'}</div>
                       <div class="text-[10px] text-gray-500 uppercase">Mitj</div>
                     </div>
                   </div>
@@ -469,7 +469,7 @@
                   <!-- Best Average in Footer -->
                   <div class="bg-gradient-to-r from-purple-50 to-indigo-50 px-1.5 py-0.5 flex justify-between items-center border-t border-gray-200">
                     <span class="text-xs text-gray-600">Millor Mitjana</span>
-                    <span class="text-base font-bold text-purple-700">{classification.millor_mitjana}</span>
+                    <span class="text-base font-bold text-purple-700">{classification.millor_mitjana != null ? Number(classification.millor_mitjana).toFixed(3) : '-'}</span>
                   </div>
                 </div>
               {/each}
@@ -477,9 +477,9 @@
 
           {#if showDetails}
             <!-- Category statistics -->
-            {@const totalPartides = categoryClassifications.reduce((sum, c) => sum + c.partides_jugades, 0) / 2}
-            {@const totalCaramboles = categoryClassifications.reduce((sum, c) => sum + c.caramboles_totals, 0)}
-            {@const totalEntrades = categoryClassifications.reduce((sum, c) => sum + c.entrades_totals, 0)}
+            {@const totalPartides = categoryClassifications.reduce((sum, c) => sum + (c.partides_jugades ?? 0), 0) / 2}
+            {@const totalCaramboles = categoryClassifications.reduce((sum, c) => sum + (c.caramboles_totals ?? 0), 0)}
+            {@const totalEntrades = categoryClassifications.reduce((sum, c) => sum + (c.entrades_totals ?? 0), 0)}
             {@const mitjanaCategoria = totalEntrades > 0 ? (totalCaramboles / totalEntrades) : 0}
 
             <div class="bg-gradient-to-r from-gray-50 to-blue-50 px-6 py-4 border-t border-gray-200">
@@ -524,8 +524,8 @@
       <!-- Overall summary -->
       {@const totalJugadors = classifications.length}
       {@const totalPartides = classifications.reduce((sum, c) => sum + c.partides_jugades, 0) / 2}
-      {@const totalCaramboles = classifications.reduce((sum, c) => sum + c.caramboles_totals, 0)}
-      {@const totalEntrades = classifications.reduce((sum, c) => sum + c.entrades_totals, 0)}
+      {@const totalCaramboles = classifications.reduce((sum, c) => sum + (c.caramboles_totals ?? 0), 0)}
+      {@const totalEntrades = classifications.reduce((sum, c) => sum + (c.entrades_totals ?? 0), 0)}
       {@const mitjanaGeneral = totalEntrades > 0 ? (totalCaramboles / totalEntrades) : 0}
 
       <div class="bg-white border border-gray-200 rounded-lg p-6">
