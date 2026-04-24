@@ -85,20 +85,25 @@
 
       classifications = data || [];
 
-      // Load last match date
+      // Load last match date. IMPORTANT: filtrem les files amb data_joc NULL
+      // (partides sense data introduïda) i ordenem nulls al final, perquè si no
+      // PostgreSQL retorna NULL primer i `new Date(null)` dóna 1970-01-01.
       const { data: lastMatch, error: lastMatchError } = await supabase
         .from('calendari_partides')
         .select('data_joc')
         .eq('event_id', event.id)
         .not('caramboles_jugador1', 'is', null)
         .not('caramboles_jugador2', 'is', null)
-        .or('partida_anullada.is.null,partida_anullada.eq.false')
-        .order('data_joc', { ascending: false })
+        .not('data_joc', 'is', null)
+        .not('partida_anullada', 'is', true)
+        .order('data_joc', { ascending: false, nullsFirst: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (!lastMatchError && lastMatch) {
+      if (!lastMatchError && lastMatch?.data_joc) {
         lastMatchDate = new Date(lastMatch.data_joc);
+      } else {
+        lastMatchDate = null;
       }
 
     } catch (e) {
