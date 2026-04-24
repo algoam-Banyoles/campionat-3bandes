@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Props
-	export let participants: any[] = [];         // array de handicap_participants amb players.socis
+	export let participants: any[] = [];         // array de handicap_participants amb socis niat (Fase 5c+)
 	export let horesDisponibles: string[] = [];  // ex: ['17:00','18:00','19:00']
 	export let mode: 'resum' | 'individual' = 'resum';
 
@@ -67,7 +67,9 @@
 	});
 
 	function playerNom(p: any): string {
-		const s = p.players?.socis;
+		// Fase 5c+: la relació va directament a `socis`. El fallback a
+		// `players.socis` és per registres antics abans de la migració.
+		const s = p.socis ?? p.players?.socis;
 		return s ? `${s.nom} ${s.cognoms}` : '—';
 	}
 </script>
