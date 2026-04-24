@@ -306,10 +306,10 @@
                         {participant.punts || 0}
                       </td>
                       <td class="hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-500">
-                        {participant.caramboles_totals ?? participant.caramboles_favor ?? 0}
+                        {participant.caramboles_totals ?? participant.caramboles_favor ?? '-'}
                       </td>
                       <td class="hidden lg:table-cell px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-500">
-                        {participant.entrades_totals ?? 0}
+                        {participant.entrades_totals && participant.entrades_totals > 0 ? participant.entrades_totals : '-'}
                       </td>
                       <td class="px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm sm:text-base font-medium text-gray-900">
                         {participant.mitjana_general != null
@@ -321,7 +321,7 @@
                       <td class="hidden md:table-cell px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-500">
                         {participant.millor_mitjana != null
                           ? Number(participant.millor_mitjana).toFixed(3)
-                          : (participant.mitjana_particular != null ? Number(participant.mitjana_particular).toFixed(3) : '-')}
+                          : '-'}
                       </td>
                     {:else}
                       <td class="px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm sm:text-base font-medium text-gray-900">
