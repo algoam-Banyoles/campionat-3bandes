@@ -93,6 +93,9 @@
 
       // Fase 5c-S2c-2: filtrem directament per soci_numero, sense passar
       // per la taula `players`.
+      // IMPORTANT: no encadenem dos `.or()` — a supabase-js només sobreviu
+      // el darrer. En comptes d'això, el filtre de partida_anullada l'expressem
+      // amb `.not('partida_anullada', 'is', true)` (equival a: NULL o false).
       let query = supabase
         .from('calendari_partides')
         .select(`
@@ -114,7 +117,7 @@
         `)
         .eq('event_id', eventId)
         .in('estat', ['jugada', 'validat'])
-        .or('partida_anullada.is.null,partida_anullada.eq.false')
+        .not('partida_anullada', 'is', true)
         .not('caramboles_jugador1', 'is', null)
         .not('caramboles_jugador2', 'is', null)
         .or(`jugador1_soci_numero.eq.${playerNumeroSoci},jugador2_soci_numero.eq.${playerNumeroSoci}`)
