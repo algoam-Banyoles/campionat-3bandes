@@ -79,6 +79,7 @@
     on:keydown={(e) => e.key === 'Escape' && closeModal()}
   >
     <!-- Modal content -->
+    <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-noninteractive-element-interactions -->
     <div
       class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/5 lg:w-1/2 shadow-lg rounded-md bg-white"
       role="document"

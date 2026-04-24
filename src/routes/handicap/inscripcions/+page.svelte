@@ -889,8 +889,9 @@
 				<!-- Seleccionar jugador (només en mode afegir) -->
 				{#if !editingId}
 					<div>
-						<label class="mb-1 block text-sm font-medium text-gray-700">Jugador *</label>
+						<label for="hcp-jugador-search" class="mb-1 block text-sm font-medium text-gray-700">Jugador *</label>
 						<input
+							id="hcp-jugador-search"
 							type="text"
 							bind:value={playerSearch}
 							placeholder="Escriu el nom (min 3 lletres)..."
@@ -934,7 +935,7 @@
 
 				<!-- Distància -->
 				<div>
-					<label class="mb-1 block text-sm font-medium text-gray-700">Distancia *</label>
+					<span class="mb-1 block text-sm font-medium text-gray-700">Distancia *</span>
 					<div class="flex gap-3">
 						<label class="flex items-center gap-1 text-sm">
 							<input type="radio" bind:group={distanciaMode} value="grup" /> Per grup
@@ -984,8 +985,9 @@
 
 				<!-- Restriccions especials -->
 				<div>
-					<label class="mb-1 block text-sm font-medium text-gray-700">Restriccions especials</label>
+					<label for="hcp-restriccions" class="mb-1 block text-sm font-medium text-gray-700">Restriccions especials</label>
 					<textarea
+						id="hcp-restriccions"
 						bind:value={restriccions_especials}
 						rows="2"
 						placeholder="Ex: No pot jugar dimarts..."

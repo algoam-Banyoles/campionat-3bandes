@@ -660,7 +660,7 @@
         role="button"
         tabindex="-1"
       ></div>
-  <div class="bg-white rounded-lg shadow-xl max-w-md w-full relative z-10" role="dialog" aria-modal="true" on:click|stopPropagation on:keydown|stopPropagation>
+  <div class="bg-white rounded-lg shadow-xl max-w-md w-full relative z-10" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
       <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg">
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-semibold text-gray-900">Editar Resultat</h2>

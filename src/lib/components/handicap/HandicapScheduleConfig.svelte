@@ -153,7 +153,7 @@
 					/>
 				</div>
 				<div>
-					<label class="mb-1 block text-sm font-medium text-gray-700">Dies amb franja extra</label>
+					<span class="mb-1 block text-sm font-medium text-gray-700">Dies amb franja extra</span>
 					<div class="flex flex-wrap gap-2">
 						{#each diesSetmana as dia}
 							<button

@@ -665,6 +665,7 @@
 			on:click|stopPropagation
 			role="dialog"
 			aria-modal="true"
+			tabindex="-1"
 		>
 			<!-- Modal header -->
 			<div class="flex items-center justify-between border-b border-gray-200 px-5 py-4">
@@ -845,8 +846,8 @@
 		}
 
 		/* Amagar navegació i controls */
-		nav,
-		header,
+		:global(nav),
+		:global(header),
 		.print\:hidden {
 			display: none !important;
 		}

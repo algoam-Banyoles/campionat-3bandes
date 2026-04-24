@@ -144,7 +144,7 @@
 		<!-- Caramboles (i entrades si sistema percentatge) -->
 		<div class="grid gap-3 text-sm" class:grid-cols-2={!entradesRequired} class:grid-cols-3={entradesRequired}>
 			<div>
-				<label class="block text-xs font-medium text-gray-600 mb-1">
+				<label for="hcp-car-p1" class="block text-xs font-medium text-gray-600 mb-1">
 					Car. {player1Name.split(' ')[0]}
 					{#if player1Distancia}
 						<span class="font-normal text-gray-400">/ {player1Distancia}</span>
@@ -152,6 +152,7 @@
 				</label>
 				<div class="flex items-center gap-1">
 					<input
+						id="hcp-car-p1"
 						type="number"
 						min="0"
 						max={player1Distancia ?? undefined}
@@ -167,7 +168,7 @@
 				{/if}
 			</div>
 			<div>
-				<label class="block text-xs font-medium text-gray-600 mb-1">
+				<label for="hcp-car-p2" class="block text-xs font-medium text-gray-600 mb-1">
 					Car. {player2Name.split(' ')[0]}
 					{#if player2Distancia}
 						<span class="font-normal text-gray-400">/ {player2Distancia}</span>
@@ -175,6 +176,7 @@
 				</label>
 				<div class="flex items-center gap-1">
 					<input
+						id="hcp-car-p2"
 						type="number"
 						min="0"
 						max={player2Distancia ?? undefined}
@@ -191,13 +193,14 @@
 			</div>
 			{#if entradesRequired}
 				<div>
-					<label class="block text-xs font-medium text-gray-600 mb-1">
+					<label for="hcp-entrades" class="block text-xs font-medium text-gray-600 mb-1">
 						Entrades
 						{#if limitEntrades}
 							<span class="font-normal text-gray-400">/ {limitEntrades}</span>
 						{/if}
 					</label>
 					<input
+						id="hcp-entrades"
 						type="number"
 						min="1"
 						bind:value={entrades}

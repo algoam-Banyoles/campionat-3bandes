@@ -376,12 +376,6 @@
     font-weight: bold;
   }
 
-  .no-match {
-    color: #95a5a6;
-    font-size: 0.75rem;
-    font-style: italic;
-  }
-
   .legend {
     background: #f8f9fa;
     padding: 1rem;

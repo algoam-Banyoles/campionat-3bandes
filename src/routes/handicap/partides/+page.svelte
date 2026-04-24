@@ -1096,6 +1096,7 @@
 			on:click|stopPropagation
 			role="dialog"
 			aria-modal="true"
+			tabindex="-1"
 		>
 			<div class="flex items-center justify-between border-b border-gray-200 px-5 py-4">
 				<div>

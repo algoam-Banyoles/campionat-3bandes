@@ -70,25 +70,19 @@
     matches = [];
 
     try {
-      const { data: inscriptionData, error: inscriptionError } = await supabase
-        .from('inscripcions')
-        .select('estat_jugador, eliminat_per_incompareixences')
-        .eq('event_id', eventId)
-        .eq('soci_numero', playerNumeroSoci)
-        .single();
-
-      if (inscriptionError) throw inscriptionError;
-
-      if (inscriptionData?.estat_jugador === 'retirat' || inscriptionData?.eliminat_per_incompareixences) {
-        return;
-      }
-
+      // Usem la RPC pública (funciona per anònims i autenticats, evita errors de RLS).
       const { data: allInscriptions, error: allInscriptionsError } = await supabase
-        .from('inscripcions')
-        .select('soci_numero, estat_jugador, eliminat_per_incompareixences')
-        .eq('event_id', eventId);
+        .rpc('get_inscripcions_with_socis', { p_event_id: eventId });
 
       if (allInscriptionsError) throw allInscriptionsError;
+
+      const playerInscription = (allInscriptions || []).find(
+        (item: any) => item.soci_numero === playerNumeroSoci
+      );
+
+      if (playerInscription?.estat_jugador === 'retirat' || playerInscription?.eliminat_per_incompareixences) {
+        return;
+      }
 
       const withdrawnNumbers = new Set(
         (allInscriptions || [])

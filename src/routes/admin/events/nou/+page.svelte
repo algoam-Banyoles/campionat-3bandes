@@ -564,7 +564,7 @@
           <!-- Distancies per categoria -->
           <div class="mt-6">
             <div class="flex justify-between items-center mb-3">
-              <label class="block text-sm font-medium text-gray-700">Distancies per Grup de Nivell</label>
+              <span class="block text-sm font-medium text-gray-700">Distancies per Grup de Nivell</span>
               <button
                 type="button"
                 on:click={addDistanciaGrup}
@@ -631,7 +631,7 @@
                   />
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Dies de la setmana</label>
+                  <span class="block text-sm font-medium text-gray-700 mb-1">Dies de la setmana</span>
                   <div class="flex flex-wrap gap-2">
                     {#each diesSetmana as dia}
                       <button

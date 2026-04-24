@@ -259,12 +259,6 @@
     color: #000;
   }
 
-  .header-subtitle {
-    font-size: 7pt;
-    margin: 0;
-    color: #000;
-  }
-
   .header-right {
     position: absolute;
     right: 0;
@@ -323,16 +317,6 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     overflow: hidden;
-  }
-
-  .player-name-rotated {
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    white-space: nowrap;
-    font-weight: 600;
-    padding: 2px 0;
-    text-align: center;
-    width: 100%;
   }
 
   .player-name-horizontal {
