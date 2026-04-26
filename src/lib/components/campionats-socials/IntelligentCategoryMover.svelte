@@ -1,308 +1,151 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
+  import {
+    loadPreviousChampions,
+    calculateCascadeMovements,
+    applyMovements,
+    buildUndoMovements,
+    type IntelligentContext
+  } from '$lib/services/intelligentMovementService';
+  import { rememberBatch, clearBatch } from '$lib/stores/movementUndoStore';
+  import type {
+    Category,
+    CategoryMovement,
+    InscripcioWithSoci,
+    PreviousChampion,
+    SociMin,
+    UUID
+  } from '$lib/types';
 
-  const dispatch = createEventDispatcher();
+  const dispatch = createEventDispatcher<{
+    movementsCompleted: { movements: CategoryMovement[]; totalMoved: number };
+    error: { message: string };
+    /** Notifica que hi ha moviments pendents de confirmació (cascada > 1). */
+    movementsPending: { movements: CategoryMovement[] };
+  }>();
 
-  export let inscriptions: any[] = [];
-  export let categories: any[] = [];
-  export let socis: any[] = [];
+  export let inscriptions: InscripcioWithSoci[] = [];
+  export let categories: Category[] = [];
+  export let socis: SociMin[] = [];
   export let eventId: string = '';
-  export let currentEvent: any = null;
+  export let currentEvent: { modalitat?: string; temporada?: string } | null = null;
+  /**
+   * Si és true, els moviments amb cascada (>1 moviment) emeten l'esdeveniment
+   * `movementsPending` perquè el component pare mostri un preview abans
+   * d'aplicar. El moviment es confirma via `applyPendingMovements()`.
+   */
+  export let confirmCascade: boolean = true;
 
-  let previousChampions = new Map(); // numero_soci -> {posicio, categoria_nom, modalitat, temporada}
+  let previousChampions = new Map<number, PreviousChampion>();
   let processing = false;
+  let pending: CategoryMovement[] = [];
 
-  // Carregar campions de temporada anterior
-  async function loadPreviousChampions() {
-    if (!currentEvent) return;
-
-    try {
-      // Calcular temporada anterior
-      const currentYear = parseInt(currentEvent.temporada);
-      const previousYear = currentYear - 1;
-      const previousSeason = previousYear.toString();
-
-      console.log('Loading champions from previous season:', previousSeason);
-
-      // Fase 5c-S2c-2: nom des de socis directament via FK
-      const { data: champions, error } = await supabase
-        .from('classificacions')
-        .select(`
-          soci_numero,
-          posicio,
-          categories (
-            nom,
-            ordre_categoria,
-            events (
-              modalitat,
-              temporada
-            )
-          ),
-          socis:socis!classificacions_soci_numero_fkey (
-            numero_soci,
-            nom,
-            cognoms
-          )
-        `)
-        .eq('categories.events.modalitat', currentEvent.modalitat)
-        .eq('categories.events.temporada', previousSeason)
-        .in('posicio', [1, 2])
-        .order('posicio');
-
-      if (error) {
-        console.error('Error loading champions:', error);
-        return;
-      }
-
-      previousChampions.clear();
-
-      champions?.forEach((champion: any) => {
-        const sociRaw = champion.socis;
-        const sociObj = Array.isArray(sociRaw) ? sociRaw[0] : sociRaw;
-        const numeroSoci = sociObj?.numero_soci ?? champion.soci_numero;
-        if (numeroSoci) {
-          const championInfo = {
-            posicio: champion.posicio,
-            categoria_nom: champion.categories?.[0]?.nom,
-            ordre_categoria: champion.categories?.[0]?.ordre_categoria,
-            modalitat: champion.categories?.[0]?.events?.[0]?.modalitat,
-            temporada: champion.categories?.[0]?.events?.[0]?.temporada,
-            nom: sociObj ? `${sociObj.nom ?? ''} ${sociObj.cognoms ?? ''}`.trim() : ''
-          };
-
-          previousChampions.set(numeroSoci, championInfo);
-        }
-      });
-
-      console.log(`Loaded ${previousChampions.size} previous champions from season ${previousSeason}`);
-
-    } catch (error) {
-      console.error('Error loading previous champions:', error);
-    }
+  $: if (eventId && currentEvent?.modalitat && currentEvent?.temporada) {
+    void refreshChampions();
   }
 
-  // Carregar campions quan canvia l'event
-  $: if (eventId && currentEvent) {
-    loadPreviousChampions();
+  async function refreshChampions() {
+    if (!currentEvent?.modalitat || !currentEvent?.temporada) return;
+    previousChampions = await loadPreviousChampions(
+      supabase,
+      currentEvent.modalitat,
+      currentEvent.temporada
+    );
   }
 
-  // Obtenir mitjana d'un jugador
-  function getPlayerAverage(inscription) {
-    const soci = socis.find(s => s.numero_soci === inscription.soci_numero);
-
-    // Intentar different formes d'obtenir la mitjana
-    if (soci) {
-      return soci.historicalAverage || soci.mitjana || soci.average || 0;
-    }
-
-    return 0;
-  }
-
-  // Comprovar si un jugador és campió/subcampió
-  function isChampionOrRunnerUp(numeroSoci) {
-    return previousChampions.has(numeroSoci);
-  }
-
-  // Obtenir categoria objetivo per un campió/subcampió
-  function getTargetCategoryForChampion(numeroSoci) {
-    const championInfo = previousChampions.get(numeroSoci);
-    if (!championInfo) return null;
-
-    // Si era de 3a categoria, va a 2a
-    // Si era de 2a categoria, va a 1a
-    // Si era de 1a categoria, queda a 1a
-    const targetOrder = Math.max(1, championInfo.ordre_categoria - 1);
-
-    return categories.find(cat => cat.ordre_categoria === targetOrder);
-  }
-
-  // Trobar inscripcions d'una categoria ordenades per mitjana (descendant)
-  function getInscriptionsByCategory(categoryId, excludeInscriptionId = null) {
-    return inscriptions
-      .filter(ins => ins.categoria_assignada_id === categoryId && ins.id !== excludeInscriptionId)
-      .map(ins => ({
-        ...ins,
-        average: getPlayerAverage(ins),
-        isChampion: isChampionOrRunnerUp(ins.soci_numero)
-      }))
-      .sort((a, b) => {
-        // Campions/subcampions van primer
-        if (a.isChampion && !b.isChampion) return -1;
-        if (b.isChampion && !a.isChampion) return 1;
-
-        // Després per mitjana descendant
-        return (b.average || 0) - (a.average || 0);
-      });
-  }
-
-  // Moure jugador amb efecte cascada
-  export async function movePlayerIntelligently(inscriptionId, targetCategoryId) {
+  /**
+   * Calcula els moviments necessaris i, segons el flux configurat:
+   * - Si només hi ha el moviment manual (sense cascada) → aplica directament.
+   * - Si hi ha cascada i `confirmCascade` és true → emet `movementsPending`.
+   * - Si `confirmCascade` és false → aplica directament (comportament antic).
+   */
+  export async function movePlayerIntelligently(
+    inscriptionId: UUID,
+    targetCategoryId: UUID
+  ) {
     if (processing) return;
+
+    const ctx: IntelligentContext = {
+      inscriptions,
+      categories,
+      socis,
+      previousChampions
+    };
+
+    const movements = calculateCascadeMovements(ctx, inscriptionId, targetCategoryId);
+    if (movements.length === 0) {
+      dispatch('error', { message: 'Inscripció o categoria destí no vàlides' });
+      return;
+    }
+
+    // Aplicació directa: sense cascada o sense confirmació configurada.
+    if (movements.length === 1 || !confirmCascade) {
+      await runApply(movements);
+      return;
+    }
+
+    // Cascada amb confirmació: emetre l'event i recordar pending.
+    pending = movements;
+    dispatch('movementsPending', { movements });
+  }
+
+  /** Confirma i aplica els moviments pendents (cridada pel pare). */
+  export async function applyPendingMovements() {
+    if (processing || pending.length === 0) return;
+    const toApply = pending;
+    pending = [];
+    await runApply(toApply);
+  }
+
+  /** Cancel·la el lot pendent sense aplicar res. */
+  export function cancelPendingMovements() {
+    pending = [];
+  }
+
+  async function runApply(movements: CategoryMovement[]) {
     processing = true;
-
     try {
-      const inscription = inscriptions.find(ins => ins.id === inscriptionId);
-      if (!inscription) {
-        throw new Error('Inscripció no trobada');
-      }
+      const err = await applyMovements(supabase, movements);
+      if (err) throw err;
 
-      const originalCategoryId = inscription.categoria_assignada_id;
-      const targetCategory = categories.find(cat => cat.id === targetCategoryId);
-      const originalCategory = categories.find(cat => cat.id === originalCategoryId);
+      rememberBatch(movements, eventId);
 
-      if (!targetCategory) {
-        throw new Error('Categoria destí no vàlida');
-      }
-
-      console.log('Moving player intelligently:', {
-        player: inscription.soci_numero,
-        from: originalCategory?.nom,
-        to: targetCategory.nom,
-        isChampion: isChampionOrRunnerUp(inscription.soci_numero)
-      });
-
-      // Preparar moviments en cascada
-      const movements = [];
-
-      // 1. Moure el jugador principal
-      movements.push({
-        inscriptionId: inscriptionId,
-        categoryId: targetCategoryId,
-        reason: 'Moviment manual'
-      });
-
-      // 2. Calcular moviments en cascada
-      if (originalCategoryId && originalCategoryId !== targetCategoryId) {
-        await calculateCascadeMovements(
-          inscription,
-          originalCategory,
-          targetCategory,
-          movements
-        );
-      }
-
-      // 3. Executar tots els moviments
-      console.log('Executing movements:', movements);
-
-      for (const movement of movements) {
-        const { error } = await supabase
-          .from('inscripcions')
-          .update({ categoria_assignada_id: movement.categoryId })
-          .eq('id', movement.inscriptionId);
-
-        if (error) throw error;
-      }
-
-      // 4. Notificar canvis
       dispatch('movementsCompleted', {
-        movements: movements,
+        movements,
         totalMoved: movements.length
       });
-
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in intelligent movement:', error);
-      dispatch('error', { message: error.message });
+      dispatch('error', { message: error.message || 'Error desconegut' });
     } finally {
       processing = false;
     }
   }
 
-  // Calcular moviments en cascada
-  async function calculateCascadeMovements(movedInscription, fromCategory, toCategory, movements) {
-    const movedAverage = getPlayerAverage(movedInscription);
-    const isMovedPlayerChampion = isChampionOrRunnerUp(movedInscription.soci_numero);
-
-    // Determinar direcció del moviment
-    const isMovingUp = toCategory.ordre_categoria < fromCategory.ordre_categoria;
-    const isMovingDown = toCategory.ordre_categoria > fromCategory.ordre_categoria;
-
-    if (isMovingUp) {
-      // Moviment cap amunt: l'últim de la categoria superior baixa
-      await handleMoveUp(movedInscription, fromCategory, toCategory, movements);
-    } else if (isMovingDown) {
-      // Moviment cap avall: el millor de la categoria inferior puja
-      await handleMoveDown(movedInscription, fromCategory, toCategory, movements);
-    }
-
-    // Cas especial: afegir jugador sense mitjana a categoria alta
-    if (movedAverage === 0 && toCategory.ordre_categoria === 1) {
-      await handleNoAveragePlayerToTop(movedInscription, movements);
-    }
-  }
-
-  async function handleMoveUp(movedInscription, fromCategory, toCategory, movements) {
-    // Trobar l'últim jugador de la categoria superior (menys campió/subcampió)
-    const targetCategoryPlayers = getInscriptionsByCategory(toCategory.id, movedInscription.id);
-
-    // Buscar el darrer jugador que NO sigui campió/subcampió
-    let playerToDemote = null;
-    for (let i = targetCategoryPlayers.length - 1; i >= 0; i--) {
-      const player = targetCategoryPlayers[i];
-      if (!player.isChampion) {
-        playerToDemote = player;
-        break;
-      }
-    }
-
-    if (playerToDemote) {
-      movements.push({
-        inscriptionId: playerToDemote.id,
-        categoryId: fromCategory.id,
-        reason: `Baixa per fer lloc a jugador de ${fromCategory.nom}`
+  /**
+   * Desfà l'últim lot aplicat. Cridada des del pare quan l'usuari clica
+   * "Desfer". Retorna true si s'ha pogut desfer.
+   */
+  export async function undoLastBatch(batch: CategoryMovement[]): Promise<boolean> {
+    if (processing || batch.length === 0) return false;
+    processing = true;
+    try {
+      const reversal = buildUndoMovements(batch);
+      const err = await applyMovements(supabase, reversal);
+      if (err) throw err;
+      clearBatch();
+      dispatch('movementsCompleted', {
+        movements: reversal,
+        totalMoved: reversal.length
       });
-    }
-  }
-
-  async function handleMoveDown(movedInscription, fromCategory, toCategory, movements) {
-    // Trobar el millor jugador de la categoria inferior
-    const targetCategoryPlayers = getInscriptionsByCategory(toCategory.id, movedInscription.id);
-
-    if (targetCategoryPlayers.length > 0) {
-      const bestPlayer = targetCategoryPlayers[0]; // ja està ordenat
-
-      movements.push({
-        inscriptionId: bestPlayer.id,
-        categoryId: fromCategory.id,
-        reason: `Puja per ocupar lloc lliure a ${fromCategory.nom}`
-      });
-    }
-  }
-
-  async function handleNoAveragePlayerToTop(movedInscription, movements) {
-    // Quan s'afegeix un jugador sense mitjana a 1a categoria,
-    // han de baixar jugadors de totes les categories
-    const sortedCategories = categories
-      .filter(cat => cat.ordre_categoria > 1)
-      .sort((a, b) => a.ordre_categoria - b.ordre_categoria);
-
-    for (const category of sortedCategories) {
-      const players = getInscriptionsByCategory(category.id);
-
-      // Buscar el darrer jugador que NO sigui campió/subcampió
-      let playerToDemote = null;
-      for (let i = players.length - 1; i >= 0; i--) {
-        const player = players[i];
-        if (!player.isChampion) {
-          playerToDemote = player;
-          break;
-        }
-      }
-
-      if (playerToDemote) {
-        // Trobar categoria inferior
-        const lowerCategory = categories.find(cat =>
-          cat.ordre_categoria === category.ordre_categoria + 1
-        );
-
-        if (lowerCategory) {
-          movements.push({
-            inscriptionId: playerToDemote.id,
-            categoryId: lowerCategory.id,
-            reason: `Baixa per efecte cascada (jugador sense mitjana a 1a)`
-          });
-        }
-      }
+      return true;
+    } catch (error: any) {
+      console.error('Error undoing movements:', error);
+      dispatch('error', { message: error.message || 'Error desfent moviments' });
+      return false;
+    } finally {
+      processing = false;
     }
   }
 </script>

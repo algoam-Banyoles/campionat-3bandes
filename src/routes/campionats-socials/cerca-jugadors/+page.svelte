@@ -1,17 +1,30 @@
 <script lang="ts">
-  import { searchActivePlayers, getPlayerAverageHistory } from '$lib/api/socialLeagues';
+  import { searchActivePlayers, getPlayerAverageHistory, searchPlayerInClassifications } from '$lib/api/socialLeagues';
   import PlayerAverageEvolution from '$lib/components/campionats-socials/PlayerAverageEvolution.svelte';
   import { debounce } from 'lodash-es';
 
+  type SearchActivePlayer = Awaited<ReturnType<typeof searchActivePlayers>>[number];
+  type ClassificationEntry = {
+    temporada: string;
+    modalitat: string;
+    categoria: string;
+    posicio: number;
+    punts: number;
+    partides_jugades: number;
+  };
+
   let searchTerm = '';
-  let searchResults: any[] = [];
+  let searchResults: SearchActivePlayer[] = [];
   let loading = false;
   let error: string | null = null;
 
-  let selectedPlayer: any = null;
+  let selectedPlayer: SearchActivePlayer | null = null;
   let selectedModalitat: string = '';
   let playerHistory: any[] = [];
   let loadingHistory = false;
+
+  let playerClassifications: ClassificationEntry[] = [];
+  let loadingClassifications = false;
 
   const modalitats = [
     { value: '', label: 'Totes les modalitats' },
@@ -41,9 +54,9 @@
 
   $: debouncedSearch(searchTerm);
 
-  async function selectPlayer(player: any) {
+  async function selectPlayer(player: SearchActivePlayer) {
     selectedPlayer = player;
-    await loadPlayerHistory();
+    await Promise.all([loadPlayerHistory(), loadPlayerClassifications()]);
   }
 
   async function loadPlayerHistory() {
@@ -63,6 +76,27 @@
     }
   }
 
+  async function loadPlayerClassifications() {
+    if (!selectedPlayer) return;
+
+    loadingClassifications = true;
+    try {
+      // Busquem per "nom cognoms" exacte i filtrem per numero_soci si cal.
+      const fullName = `${selectedPlayer.nom} ${selectedPlayer.cognoms}`.trim();
+      const matches = await searchPlayerInClassifications(fullName);
+      // L'API agrupa per nom; agafem el primer que coincideix amb l'expected
+      const found = matches.find(
+        m => m.player.nom === selectedPlayer?.nom && m.player.cognom === selectedPlayer?.cognoms
+      ) ?? matches[0];
+      playerClassifications = found?.classifications ?? [];
+    } catch (e) {
+      console.error('Error loading player classifications:', e);
+      playerClassifications = [];
+    } finally {
+      loadingClassifications = false;
+    }
+  }
+
   $: if (selectedPlayer && selectedModalitat !== undefined) {
     loadPlayerHistory();
   }
@@ -76,7 +110,29 @@
   function clearSelection() {
     selectedPlayer = null;
     playerHistory = [];
+    playerClassifications = [];
     selectedModalitat = '';
+  }
+
+  // Filtrar classificacions per modalitat seleccionada
+  $: filteredClassifications = selectedModalitat
+    ? playerClassifications.filter(c => c.modalitat === modalitatLabel(selectedModalitat))
+    : playerClassifications;
+
+  function modalitatLabel(value: string): string {
+    const map: Record<string, string> = {
+      'tres_bandes': '3 BANDES',
+      'lliure': 'LLIURE',
+      'banda': 'BANDA'
+    };
+    return map[value] || value;
+  }
+
+  function getPositionMedal(pos: number): string {
+    if (pos === 1) return '🥇';
+    if (pos === 2) return '🥈';
+    if (pos === 3) return '🥉';
+    return '';
   }
 
   function getModalitatName(mod: string): string {
@@ -232,11 +288,65 @@
             />
           {/if}
 
+          <!-- Classifications Panel: posicions per categoria -->
+          {#if loadingClassifications}
+            <div class="bg-white border border-gray-200 rounded-lg p-6 text-center">
+              <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 inline-block"></div>
+              <p class="mt-2 text-sm text-gray-600">Carregant classificacions...</p>
+            </div>
+          {:else if filteredClassifications.length > 0}
+            <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <span>🏆</span> Classificacions per Categoria
+                </h3>
+                <p class="text-xs text-gray-500 mt-1">Posició final i punts en cada campionat disputat</p>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temporada</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modalitat</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
+                      <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Posició</th>
+                      <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Punts</th>
+                      <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">PJ</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    {#each filteredClassifications.slice().sort((a, b) => {
+                      if (a.temporada !== b.temporada) return b.temporada.localeCompare(a.temporada);
+                      if (a.modalitat !== b.modalitat) return a.modalitat.localeCompare(b.modalitat);
+                      return a.posicio - b.posicio;
+                    }) as record}
+                      <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{record.temporada}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{record.modalitat}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{record.categoria}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-center font-semibold">
+                          <span class="inline-flex items-center gap-1">
+                            {getPositionMedal(record.posicio)}
+                            <span class:text-yellow-700={record.posicio === 1} class:text-gray-700={record.posicio !== 1}>{record.posicio}</span>
+                          </span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-center">
+                          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">{record.punts}</span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-600">{record.partides_jugades}</td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {/if}
+
           <!-- History Table -->
           {#if playerHistory.length > 0}
             <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
               <div class="px-6 py-4 border-b border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-900">Històric Detallat</h3>
+                <h3 class="text-lg font-semibold text-gray-900">Històric Detallat de Mitjanes</h3>
               </div>
               <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">

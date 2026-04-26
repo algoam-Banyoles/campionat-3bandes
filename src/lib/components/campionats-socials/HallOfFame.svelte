@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
+  import { fkOne, normalizeSociFromFK } from '$lib/utils/supabaseJoins';
 
   let loading = true;
   let error: string | null = null;
@@ -139,19 +140,24 @@
 
     if (winnersError) throw winnersError;
     
-    // Ordenar manualment per temporada i data
-    winners = (data || []).sort((a: any, b: any) => {
-      // Primer per temporada (descendent)
-      const tempA = a.events.temporada || '';
-      const tempB = b.events.temporada || '';
-      if (tempA !== tempB) {
-        return tempB.localeCompare(tempA);
-      }
-      // Després per data de fi (descendent)
-      const dateA = a.events.data_fi ? new Date(a.events.data_fi).getTime() : 0;
-      const dateB = b.events.data_fi ? new Date(b.events.data_fi).getTime() : 0;
-      return dateB - dateA;
-    });
+    // Normalitzar joins (events/categories poden venir com a array o objecte)
+    // i ordenar per temporada (desc) + data fi (desc).
+    winners = (data || [])
+      .map((w: any) => ({
+        ...w,
+        events: fkOne(w.events),
+        categories: fkOne(w.categories)
+      }))
+      .sort((a: any, b: any) => {
+        const tempA = a.events?.temporada || '';
+        const tempB = b.events?.temporada || '';
+        if (tempA !== tempB) {
+          return tempB.localeCompare(tempA);
+        }
+        const dateA = a.events?.data_fi ? new Date(a.events.data_fi).getTime() : 0;
+        const dateB = b.events?.data_fi ? new Date(b.events.data_fi).getTime() : 0;
+        return dateB - dateA;
+      });
   }
 
   async function loadAllPlayers() {
@@ -189,24 +195,26 @@
     
     (data || []).forEach((inscripcio: any) => {
       const key = inscripcio.soci_numero;
+      const soci = normalizeSociFromFK(inscripcio.socis);
+      const evt = fkOne(inscripcio.events) as any;
       if (!uniquePlayers.has(key)) {
         uniquePlayers.set(key, {
           numero_soci: inscripcio.soci_numero,
-          nom: inscripcio.socis?.nom || '',
-          cognoms: inscripcio.socis?.cognoms || '',
+          nom: soci.nom || '',
+          cognoms: soci.cognoms || '',
           participations: [],
           participationKeys: new Set<string>()
         });
       }
-      
+
       // Afegir participació
-      if (inscripcio.events) {
+      if (evt) {
         const participation = {
-          temporada: inscripcio.events?.temporada || '',
-          modalitat: inscripcio.events?.modalitat || ''
+          temporada: evt?.temporada || '',
+          modalitat: evt?.modalitat || ''
         };
 
-        const eventKey = String(inscripcio.event_id || inscripcio.events?.id || `${participation.temporada}-${participation.modalitat}`);
+        const eventKey = String(inscripcio.event_id || evt?.id || `${participation.temporada}-${participation.modalitat}`);
         const player = uniquePlayers.get(key);
 
         if (!player.participationKeys.has(eventKey)) {
@@ -230,9 +238,9 @@
     void reloadFilteredData();
   }
 
-  // Agrupar guanyadors per torneig
+  // Agrupar guanyadors per torneig (events/categories ja normalitzats a loadWinners)
   $: winnersByEvent = winners.reduce((acc: any, winner: any) => {
-    const eventKey = `${winner.event_id}-${winner.categories.id}`;
+    const eventKey = `${winner.event_id}-${winner.categories?.id ?? ''}`;
     if (!acc[eventKey]) {
       acc[eventKey] = {
         event: winner.events,
@@ -324,10 +332,11 @@
 
               <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
                 {#each typedEventData.winners.sort((a: any, b: any) => a.posicio - b.posicio) as winner}
+                  {@const winnerSoci = normalizeSociFromFK(winner.socis)}
                   <div class="bg-gradient-to-br {winner.posicio === 1 ? 'from-yellow-50 to-yellow-100 border-yellow-300' : winner.posicio === 2 ? 'from-gray-50 to-gray-100 border-gray-300' : 'from-orange-50 to-orange-100 border-orange-300'} border rounded-lg p-3 text-center">
                     <div class="text-3xl mb-1">{getMedalEmoji(winner.posicio)}</div>
                     <div class="font-bold text-base text-gray-900 leading-tight">
-                      {(Array.isArray(winner.socis) ? winner.socis[0] : winner.socis)?.nom ?? ''} {(Array.isArray(winner.socis) ? winner.socis[0] : winner.socis)?.cognoms ?? ''}
+                      {winnerSoci.nom ?? ''} {winnerSoci.cognoms ?? ''}
                     </div>
                     <div class="text-xs text-gray-600 mt-1">
                       {winner.posicio === 1 ? '1r' : winner.posicio === 2 ? '2n' : '3r'} lloc

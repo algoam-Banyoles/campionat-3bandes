@@ -463,6 +463,63 @@ export interface HeadToHeadGrid {
 }
 
 // ========================================
+// TIPUS PER A CAMPIONATS SOCIALS (joins amb socis i categories)
+// ========================================
+
+/** Subset mínim de `socis` que retornen els joins habituals. */
+export interface SociMin {
+  numero_soci: number;
+  nom: string;
+  cognoms: string | null;
+  email?: string | null;
+  historicalAverage?: number | null;
+}
+
+/** Inscripció enriquida amb informació del soci (resolt FK). */
+export interface InscripcioWithSoci {
+  id: UUID;
+  event_id: UUID;
+  soci_numero: number;
+  categoria_assignada_id: UUID | null;
+  estat_jugador?: 'actiu' | 'retirat' | null;
+  eliminat_per_incompareixences?: boolean | null;
+  data_retirada?: string | null;
+  motiu_retirada?: string | null;
+  observacions?: string | null;
+  preferencies_dies?: string[] | null;
+  preferencies_hores?: string[] | null;
+  pagat?: boolean | null;
+  confirmat?: boolean | null;
+  // Soci join (forma normalitzada via fkOne)
+  socis?: SociMin | null;
+  // Camps calculats al client
+  nom?: string;
+  cognoms?: string | null;
+}
+
+/** Campió/subcampió de temporada anterior (per a moviments intel·ligents). */
+export interface PreviousChampion {
+  numero_soci: number;
+  posicio: number;
+  categoria_nom: string | null;
+  ordre_categoria: number | null;
+  modalitat: string | null;
+  temporada: string | null;
+  nom: string;
+}
+
+/** Moviment proposat per la lògica de cascada. */
+export interface CategoryMovement {
+  inscriptionId: UUID;
+  categoryId: UUID;
+  /** Categoria d'origen abans del moviment (null si no estava assignada). Necessari per a desfer. */
+  previousCategoryId: UUID | null;
+  reason: string;
+  /** Nom del jugador (si es coneix), només per UI / preview. */
+  playerName?: string;
+}
+
+// ========================================
 // TIPUS D'EXPORTACIÓ
 // ========================================
 

@@ -12,6 +12,7 @@ import type {
   Category,
   UUID
 } from '$lib/types';
+import { fkOne, normalizeSociFromFK } from '$lib/utils/supabaseJoins';
 
 // API FUNCTIONS
 
@@ -148,26 +149,25 @@ export async function getSocialLeagueEventById(eventId: string): Promise<SocialL
     categories: event.categories?.map(category => ({
       ...category,
       classificacions: category.classificacions?.map((cl: any) => {
-        const rawS = (cl as any).socis;
-        const sObj = Array.isArray(rawS) ? rawS[0] : rawS;
-        return ({
-        id: cl.id,
-        event_id: cl.event_id,
-        categoria_id: cl.categoria_id,
-        soci_id: cl.soci_id,
-        posicio: cl.posicio,
-        soci_numero: cl.soci_numero,
-        player_nom: sObj?.nom || '',
-        player_cognom: sObj?.cognoms || '',
-        partides_jugades: cl.partides_jugades,
-        partides_guanyades: cl.partides_guanyades,
-        partides_perdudes: cl.partides_perdudes,
-        partides_empat: cl.partides_empat,
-        punts: cl.punts,
-        caramboles_favor: cl.caramboles_favor,
-        caramboles_contra: cl.caramboles_contra,
-        mitjana_particular: cl.mitjana_particular
-      });
+        const soci = normalizeSociFromFK(cl.socis);
+        return {
+          id: cl.id,
+          event_id: cl.event_id,
+          categoria_id: cl.categoria_id,
+          soci_id: cl.soci_id,
+          posicio: cl.posicio,
+          soci_numero: cl.soci_numero,
+          player_nom: soci.nom || '',
+          player_cognom: soci.cognoms || '',
+          partides_jugades: cl.partides_jugades,
+          partides_guanyades: cl.partides_guanyades,
+          partides_perdudes: cl.partides_perdudes,
+          partides_empat: cl.partides_empat,
+          punts: cl.punts,
+          caramboles_favor: cl.caramboles_favor,
+          caramboles_contra: cl.caramboles_contra,
+          mitjana_particular: cl.mitjana_particular
+        };
       }).sort((a: any, b: any) => a.posicio - b.posicio) || []
     })).sort((a, b) => a.ordre_categoria - b.ordre_categoria) || []
   };
@@ -288,24 +288,27 @@ export async function getCategoryClassifications(categoryId: string): Promise<Cl
     throw error;
   }
 
-  return classifications?.map((cl: any) => ({
-    id: cl.id,
-    event_id: cl.event_id,
-    categoria_id: cl.categoria_id,
-    soci_id: cl.soci_id,
-    posicio: cl.posicio,
-    soci_numero: cl.soci_numero,
-    player_nom: Array.isArray(cl.socis) ? (cl.socis[0] as any)?.nom || '' : (cl.socis as any)?.nom || '',
-    player_cognom: Array.isArray(cl.socis) ? (cl.socis[0] as any)?.cognoms || '' : (cl.socis as any)?.cognoms || '',
-    partides_jugades: cl.partides_jugades,
-    partides_guanyades: cl.partides_guanyades,
-    partides_perdudes: cl.partides_perdudes,
-    partides_empat: cl.partides_empat,
-    punts: cl.punts,
-    caramboles_favor: cl.caramboles_favor,
-    caramboles_contra: cl.caramboles_contra,
-    mitjana_particular: cl.mitjana_particular
-  })) || [];
+  return classifications?.map((cl: any) => {
+    const soci = normalizeSociFromFK(cl.socis);
+    return {
+      id: cl.id,
+      event_id: cl.event_id,
+      categoria_id: cl.categoria_id,
+      soci_id: cl.soci_id,
+      posicio: cl.posicio,
+      soci_numero: cl.soci_numero,
+      player_nom: soci.nom || '',
+      player_cognom: soci.cognoms || '',
+      partides_jugades: cl.partides_jugades,
+      partides_guanyades: cl.partides_guanyades,
+      partides_perdudes: cl.partides_perdudes,
+      partides_empat: cl.partides_empat,
+      punts: cl.punts,
+      caramboles_favor: cl.caramboles_favor,
+      caramboles_contra: cl.caramboles_contra,
+      mitjana_particular: cl.mitjana_particular
+    };
+  }) || [];
 }
 
 /**
@@ -353,15 +356,14 @@ export async function searchPlayerInClassifications(playerName: string): Promise
   const playersMap = new Map();
 
   results?.forEach(result => {
-    const rawS = (result as any).socis;
-    const soci = Array.isArray(rawS) ? rawS[0] : rawS;
-    const categories = Array.isArray(result.categories) ? result.categories[0] : result.categories;
-    const events = Array.isArray(categories?.events) ? categories.events[0] : categories?.events;
+    const soci = fkOne((result as any).socis);
+    const categories = fkOne((result as any).categories);
+    const events = fkOne((categories as any)?.events);
 
     if (!soci || !events || !categories) return;
 
-    const nom = soci.nom ?? '';
-    const cognoms = soci.cognoms ?? '';
+    const nom = (soci as any).nom ?? '';
+    const cognoms = (soci as any).cognoms ?? '';
 
     // Filtre al client (el .ilike de PostgREST no pot filtrar a través de FK fàcilment)
     if (!nom.toLowerCase().includes(playerName.toLowerCase()) &&
@@ -377,9 +379,9 @@ export async function searchPlayerInClassifications(playerName: string): Promise
     }
 
     playersMap.get(playerKey).classifications.push({
-      temporada: events.temporada,
-      modalitat: events.modalitat,
-      categoria: categories.nom,
+      temporada: (events as any).temporada,
+      modalitat: (events as any).modalitat,
+      categoria: (categories as any).nom,
       posicio: result.posicio,
       punts: result.punts,
       partides_jugades: result.partides_jugades
