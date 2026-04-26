@@ -184,13 +184,14 @@
   });
 
   async function loadEvents() {
-    // Load only social events with inscriptions open (not continuous ranking)
+    // Load social events que admeten gestió d'inscripcions (incloent campionats en curs,
+    // on l'admin pot necessitar retirar un jugador). Exclou 'finalitzat'.
     const { data, error: eventsError } = await supabase
       .from('events')
       .select('*')
       .in('tipus_competicio', ['lliga_social', 'eliminatories'])
       .eq('actiu', true)
-      .eq('estat_competicio', 'inscripcions')
+      .in('estat_competicio', ['inscripcions', 'pendent_validacio', 'validat', 'en_curs'])
       .order('creat_el', { ascending: false });
 
     if (eventsError) throw eventsError;
@@ -704,6 +705,10 @@
   $: selectedEvent = events.find(e => e.id === selectedEventId);
   $: selectedSoci = socis.find(s => s.numero_soci === parseInt(selectedSociId));
   $: summary = getInscriptionSummary(inscriptions, selectedEventId);
+  // Quan el campionat ja està en curs (o validat), només té sentit "Retirar".
+  // "Eliminar" esborraria registres lligats a partides ja generades/jugades.
+  $: isInscriptionsPhase = selectedEvent?.estat_competicio === 'inscripcions';
+  $: isReadOnlyDeletion = !!selectedEvent && !isInscriptionsPhase;
 
 </script>
 
@@ -776,6 +781,22 @@
           </div>
         </div>
       </div>
+
+      {#if isReadOnlyDeletion}
+        <div class="bg-orange-50 border-l-4 border-orange-400 p-4 mb-6 rounded-r-lg">
+          <div class="flex items-start">
+            <svg class="w-5 h-5 text-orange-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div class="text-sm text-orange-800">
+              <strong>Campionat {statusNames[selectedEvent.estat_competicio] || selectedEvent.estat_competicio}.</strong>
+              Per donar de baixa un jugador, fes servir <strong>Retirar del campionat</strong> 🕐:
+              les partides futures s'anul·laran i les ja jugades es conservaran.
+              L'opció <em>Eliminar</em> queda desactivada per evitar inconsistències amb el calendari.
+            </div>
+          </div>
+        </div>
+      {/if}
 
       <!-- Category Setup (shown when inscriptions are open, even with existing categories) -->
       {#if inscriptions.length > 0 && selectedEvent?.estat_competicio === 'inscripcions'}
@@ -1048,7 +1069,7 @@
           {/if}
 
           <!-- Bulk actions header -->
-          {#if inscriptions.length > 0}
+          {#if inscriptions.length > 0 && !isReadOnlyDeletion}
             <div class="bg-gray-50 px-6 py-3 border-b border-gray-200">
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
@@ -1294,16 +1315,18 @@
                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6"></path>
                             </svg>
                           </button>
-                          <button
-                            on:click={() => deleteInscription(inscription.id)}
-                            class="text-red-600 hover:text-red-900"
-                            title="Eliminar inscripció"
-                            aria-label="Eliminar inscripció de {inscription.socis?.nom}"
-                          >
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                            </svg>
-                          </button>
+                          {#if !isReadOnlyDeletion}
+                            <button
+                              on:click={() => deleteInscription(inscription.id)}
+                              class="text-red-600 hover:text-red-900"
+                              title="Eliminar inscripció"
+                              aria-label="Eliminar inscripció de {inscription.socis?.nom}"
+                            >
+                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                              </svg>
+                            </button>
+                          {/if}
                         {:else}
                           <span class="text-xs text-gray-500 italic">Retirat el {new Date(inscription.data_retirada).toLocaleDateString('ca-ES')}</span>
                         {/if}

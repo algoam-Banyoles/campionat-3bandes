@@ -2,14 +2,78 @@
   import { supabase } from '$lib/supabaseClient';
   import { onMount } from 'svelte';
   import { formatarNomJugador } from '$lib/utils/playerUtils';
+  import { showSuccess, showError } from '$lib/stores/toastStore';
 
   export let eventId: string = '';
   export let categories: any[] = [];
+  export let isAdmin: boolean = false;
+  export let event: any = null;
 
   let inscriptions: any[] = [];
   let loadedCategories: any[] = [];
   let loading = false;
   let error: string | null = null;
+
+  // Estat de la modal de retirada
+  let withdrawalDialogOpen = false;
+  let selectedInscriptionForWithdrawal: any = null;
+  let withdrawalReason = '';
+  let processingWithdrawal = false;
+
+  // Quan el campionat és en curs, l'admin pot retirar jugadors (anul·la partides
+  // pendents, conserva les jugades). Per a campionats en preparació la gestió
+  // d'inscripcions es fa des del DragDrop, així que el botó queda ocult.
+  $: canWithdraw = isAdmin && (
+    event?.estat_competicio === 'en_curs' ||
+    event?.estat_competicio === 'en_progres' ||
+    event?.estat_competicio === 'actiu' ||
+    event?.estat_competicio === 'ongoing' ||
+    event?.estat_competicio === 'pendent_validacio' ||
+    event?.estat_competicio === 'validat'
+  );
+
+  function openWithdrawalDialog(inscription: any) {
+    selectedInscriptionForWithdrawal = inscription;
+    withdrawalReason = '';
+    withdrawalDialogOpen = true;
+  }
+
+  function closeWithdrawalDialog() {
+    withdrawalDialogOpen = false;
+    selectedInscriptionForWithdrawal = null;
+    withdrawalReason = '';
+  }
+
+  async function withdrawPlayer() {
+    if (!selectedInscriptionForWithdrawal || !withdrawalReason.trim()) return;
+
+    try {
+      processingWithdrawal = true;
+
+      const { data: rpcData, error: rpcError } = await supabase.rpc('retire_player_from_league', {
+        p_event_id: eventId,
+        p_soci_numero: selectedInscriptionForWithdrawal.soci_numero,
+        p_motiu_retirada: withdrawalReason.trim(),
+        p_per_incompareixences: false
+      });
+
+      if (rpcError) throw rpcError;
+      if (rpcData && rpcData.success === false) {
+        throw new Error(rpcData.error || 'Error retirant el jugador');
+      }
+
+      const cancelled = rpcData?.pending_matches_cancelled ?? 0;
+      const nom = `${selectedInscriptionForWithdrawal.socis?.nom ?? ''} ${selectedInscriptionForWithdrawal.socis?.cognoms ?? ''}`.trim();
+      showSuccess(`${nom || 'Jugador'} retirat correctament. ${cancelled} partid${cancelled === 1 ? 'a' : 'es'} pendent${cancelled === 1 ? '' : 's'} anul·lad${cancelled === 1 ? 'a' : 'es'}.`);
+
+      closeWithdrawalDialog();
+      await loadInscriptions();
+    } catch (e: any) {
+      showError(`No s'ha pogut retirar el jugador: ${e?.message ?? 'error desconegut'}`);
+    } finally {
+      processingWithdrawal = false;
+    }
+  }
 
   onMount(() => {
     if (eventId && eventId.trim() !== '') {
@@ -238,17 +302,30 @@
                 {@const isWithdrawn = inscription.estat_jugador === 'retirat'}
                 {@const isDisqualified = inscription.eliminat_per_incompareixences === true}
                 <div class="flex items-center py-1" class:opacity-60={isWithdrawn}>
-                  <div class="flex items-center gap-1 flex-1">
+                  <div class="flex items-center gap-1 flex-1 min-w-0">
                     <div class="w-6 h-6 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" class:bg-blue-500={!isWithdrawn} class:bg-gray-400={isWithdrawn}>
                       {inicialNom}
                     </div>
-                    <span class="text-xs truncate max-w-20" class:text-gray-900={!isWithdrawn} class:text-gray-500={isWithdrawn} class:line-through={isWithdrawn}>
+                    <span class="text-xs truncate" class:text-gray-900={!isWithdrawn} class:text-gray-500={isWithdrawn} class:line-through={isWithdrawn}>
                       {nomFormatat}
                     </span>
                     {#if isWithdrawn}
                       <span class="text-[10px] text-red-600 font-bold flex-shrink-0">{isDisqualified ? 'DQF' : 'R'}</span>
                     {/if}
                   </div>
+                  {#if canWithdraw && !isWithdrawn}
+                    <button
+                      type="button"
+                      on:click={() => openWithdrawalDialog(inscription)}
+                      class="ml-1 flex-shrink-0 text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded p-1 transition-colors"
+                      title="Retirar del campionat"
+                      aria-label="Retirar {nomFormatat} del campionat"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6"></path>
+                      </svg>
+                    </button>
+                  {/if}
                 </div>
               {/each}
             </div>
@@ -277,20 +354,33 @@
               {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
               {@const isWithdrawn = inscription.estat_jugador === 'retirat'}
               {@const isDisqualified = inscription.eliminat_per_incompareixences === true}
-              <div class="flex items-center py-1" class:opacity-60={isWithdrawn}>
-                <div class="flex items-center gap-2">
-                  <div class="w-8 h-8 text-white rounded-full flex items-center justify-center text-sm font-bold" class:bg-yellow-500={!isWithdrawn} class:bg-gray-400={isWithdrawn}>
+              <div class="flex items-center justify-between py-1" class:opacity-60={isWithdrawn}>
+                <div class="flex items-center gap-2 min-w-0">
+                  <div class="w-8 h-8 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" class:bg-yellow-500={!isWithdrawn} class:bg-gray-400={isWithdrawn}>
                     {inicialNom}
                   </div>
-                  <span class="text-sm font-medium" class:text-gray-900={!isWithdrawn} class:text-gray-500={isWithdrawn} class:line-through={isWithdrawn}>
+                  <span class="text-sm font-medium truncate" class:text-gray-900={!isWithdrawn} class:text-gray-500={isWithdrawn} class:line-through={isWithdrawn}>
                     {nomFormatat}
                   </span>
                   {#if isWithdrawn}
-                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 flex-shrink-0">
                       {isDisqualified ? 'DQF' : 'Retirat'}
                     </span>
                   {/if}
                 </div>
+                {#if canWithdraw && !isWithdrawn}
+                  <button
+                    type="button"
+                    on:click={() => openWithdrawalDialog(inscription)}
+                    class="ml-2 flex-shrink-0 text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded p-1 transition-colors"
+                    title="Retirar del campionat"
+                    aria-label="Retirar {nomFormatat} del campionat"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6"></path>
+                    </svg>
+                  </button>
+                {/if}
               </div>
             {/each}
           </div>
@@ -300,3 +390,56 @@
     {/if}
   {/if}
 </div>
+
+{#if withdrawalDialogOpen && selectedInscriptionForWithdrawal}
+  <div class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">
+        Retirar jugador del campionat
+      </h3>
+
+      <div class="mb-4">
+        <p class="text-sm text-gray-700 mb-2">
+          <strong>Jugador:</strong>
+          {selectedInscriptionForWithdrawal.socis?.nom ?? ''} {selectedInscriptionForWithdrawal.socis?.cognoms ?? ''}
+        </p>
+        <p class="text-sm text-gray-600">
+          El jugador es marcarà com a <strong>retirat</strong>. Les seves partides pendents s'anul·laran;
+          les ja jugades es conservaran a la classificació.
+        </p>
+      </div>
+
+      <div class="mb-4">
+        <label for="players-grid-withdrawal-reason" class="block text-sm font-medium text-gray-700 mb-2">
+          Motiu de la retirada *
+        </label>
+        <textarea
+          id="players-grid-withdrawal-reason"
+          bind:value={withdrawalReason}
+          rows="3"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
+          placeholder="Ex: Problemes de salut, manca de temps, etc."
+        ></textarea>
+      </div>
+
+      <div class="flex justify-end space-x-3">
+        <button
+          type="button"
+          on:click={closeWithdrawalDialog}
+          disabled={processingWithdrawal}
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+        >
+          Cancel·lar
+        </button>
+        <button
+          type="button"
+          on:click={withdrawPlayer}
+          disabled={processingWithdrawal || !withdrawalReason.trim()}
+          class="px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {processingWithdrawal ? 'Retirant...' : 'Confirmar retirada'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

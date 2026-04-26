@@ -1155,6 +1155,8 @@
                       <SocialLeaguePlayersGrid
                         eventId={selectedEventId}
                         categories={selectedEvent?.categories || []}
+                        isAdmin={isUserAdmin}
+                        event={selectedEvent}
                       />
                     </div>
                   {/if}
@@ -1323,6 +1325,8 @@
                   <SocialLeaguePlayersGrid
                     eventId={selectedEventId}
                     categories={selectedEvent?.categories || []}
+                    isAdmin={isUserAdmin}
+                    event={selectedEvent}
                   />
 
                 {:else if managementView === 'head-to-head'}
@@ -1506,6 +1510,8 @@
                       <SocialLeaguePlayersGrid
                         eventId={selectedEventId}
                         categories={selectedEvent.categories || []}
+                        isAdmin={isUserAdmin}
+                        event={selectedEvent}
                       />
 
                     {:else if managementView === 'head-to-head'}
