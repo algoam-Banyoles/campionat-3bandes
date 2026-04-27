@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
+	import { showError } from '$lib/stores/toastStore';
 
 	type MitjanaHistorica = {
 		id: number;
@@ -110,7 +111,7 @@
 
 		} catch (error) {
 			console.error('Error loading data:', error);
-			alert('Error carregant les dades. Comprova la consola per més detalls.');
+			showError('Error carregant les dades. Comprova la consola per més detalls.');
 		} finally {
 			loading = false;
 		}
@@ -147,7 +148,7 @@
 			await reloadData();
 		} catch (error) {
 			console.error('Error assignant soci:', error);
-			alert('Error assignant el soci. Intenta-ho de nou.');
+			showError('Error assignant el soci. Intenta-ho de nou.');
 		} finally {
 			saving = false;
 		}
@@ -168,7 +169,7 @@
 			await reloadData();
 		} catch (error) {
 			console.error('Error desassignant soci:', error);
-			alert('Error desassignant el soci. Intenta-ho de nou.');
+			showError('Error desassignant el soci. Intenta-ho de nou.');
 		} finally {
 			saving = false;
 		}

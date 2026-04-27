@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { formatSupabaseError } from '$lib/ui/alerts';
+  import { showWarning } from '$lib/stores/toastStore';
 
   const dispatch = createEventDispatcher();
 
@@ -1938,7 +1939,7 @@
   // Funcions per gestionar períodes de bloqueig
   function addBlockedPeriod() {
     if (!newBlockedStart || !newBlockedEnd) {
-      alert('Cal especificar data d\'inici i fi del període de bloqueig');
+      showWarning('Cal especificar data d\'inici i fi del període de bloqueig');
       return;
     }
 
@@ -1946,7 +1947,7 @@
     const end = new Date(newBlockedEnd);
 
     if (start > end) {
-      alert('La data d\'inici ha de ser anterior a la data de fi');
+      showWarning('La data d\'inici ha de ser anterior a la data de fi');
       return;
     }
 

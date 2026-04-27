@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { user } from '$lib/stores/auth';
+  import { showError, showWarning } from '$lib/stores/toastStore';
 
   // Estats
   let multimediaData: any[] = [];
@@ -197,7 +198,7 @@
   // Guardar enllaç (crear o actualitzar)
   async function saveLink() {
     if (!formTipus || !formClub || !formEnllac) {
-      alert('Si us plau, omple tots els camps obligatoris');
+      showWarning('Si us plau, omple tots els camps obligatoris');
       return;
     }
 
@@ -237,7 +238,7 @@
       await loadMultimediaLinks();
     } catch (err: any) {
       console.error('Error saving link:', err);
-      alert(`Error guardant enllaç: ${err.message}`);
+      showError(`Error guardant enllaç: ${err.message}`);
     } finally {
       loading = false;
     }
@@ -263,7 +264,7 @@
       await loadMultimediaLinks();
     } catch (err: any) {
       console.error('Error deleting link:', err);
-      alert(`Error eliminant enllaç: ${err.message}`);
+      showError(`Error eliminant enllaç: ${err.message}`);
     } finally {
       loading = false;
     }

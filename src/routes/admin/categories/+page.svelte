@@ -6,6 +6,7 @@
   import Loader from '$lib/components/general/Loader.svelte';
   import { formatSupabaseError } from '$lib/ui/alerts';
   import { initAdminPage } from '$lib/utils/adminPage';
+  import { showInfo } from '$lib/stores/toastStore';
 
   let loading = true;
   let error: string | null = null;
@@ -119,13 +120,14 @@
       console.log('Promocions elegibles:', promotions);
 
       if (promotions && promotions.length > 0) {
+        // El detall complet va a la consola; al toast un resum.
         const promotionsList = promotions
           .map(p => `${p.player_name} (${p.current_category_name} → ${p.target_category_name}) - Mitjana: ${p.current_average} ${p.meets_minimum ? '✅' : '❌'}`)
           .join('\n');
-
-        alert(`Promocions elegibles:\n\n${promotionsList}`);
+        console.log('Promocions elegibles:\n' + promotionsList);
+        showInfo(`${promotions.length} promocions elegibles trobades (detall a la consola)`);
       } else {
-        alert('No hi ha promocions elegibles per aquest esdeveniment');
+        showInfo('No hi ha promocions elegibles per aquest esdeveniment');
       }
     } catch (e) {
       error = formatSupabaseError(e);

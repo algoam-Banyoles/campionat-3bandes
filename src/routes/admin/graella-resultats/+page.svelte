@@ -3,6 +3,7 @@
   import { supabase } from '$lib/supabaseClient';
   import HeadToHeadGrid from '$lib/components/campionats-socials/HeadToHeadGrid.svelte';
   import HeadToHeadPrintable from '$lib/components/campionats-socials/HeadToHeadPrintable.svelte';
+  import { showError, showWarning } from '$lib/stores/toastStore';
 
   let selectedEvent: any = null;
   let categories: any[] = [];
@@ -95,7 +96,7 @@
 
   async function prepareAndPrint() {
     if (selectedCategoriesToPrint.size === 0) {
-      alert('Selecciona almenys una categoria per imprimir');
+      showWarning('Selecciona almenys una categoria per imprimir');
       return;
     }
 
@@ -113,7 +114,7 @@
     const printContent = document.querySelector('.print-only');
     if (!printContent) {
       loadingPrint = false;
-      alert('Error: no s\'ha pogut trobar el contingut per imprimir');
+      showError('No s\'ha pogut trobar el contingut per imprimir');
       return;
     }
 
@@ -132,7 +133,7 @@
     // Create a new window for printing
     const printWindow = window.open('', '_blank', 'width=1200,height=800');
     if (!printWindow) {
-      alert('Error: no s\'ha pogut obrir la finestra d\'impressió. Comprova que els pop-ups estiguin permesos.');
+      showError('No s\'ha pogut obrir la finestra d\'impressió. Comprova que els pop-ups estiguin permesos.');
       return;
     }
 
@@ -187,7 +188,7 @@
         // Don't auto-close, let user close the window
       } catch (e) {
         console.error('Error printing:', e);
-        alert('Error en la impressió. Si us plau, torna-ho a intentar.');
+        showError('Error en la impressió. Si us plau, torna-ho a intentar.');
         printWindow.close();
       }
     }, 1000);
