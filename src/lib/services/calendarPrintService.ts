@@ -7,7 +7,12 @@
  * `(input) → string`. La crida al `window.open()` queda al component.
  */
 
-import { formatDate, getDayOfWeekCode, type TimelineSlot } from './calendarTimelineService';
+import {
+  formatDate,
+  getDayOfWeekCode,
+  groupTimelineByDayAndHour,
+  type TimelineSlot
+} from './calendarTimelineService';
 import { formatPlayerName } from './calendarPlayerSearchService';
 
 const DAY_NAMES: Record<string, string> = {
@@ -28,6 +33,47 @@ export interface PrintContext {
   /** Timeline ja filtrat i agrupat per dia/hora (slots ordenats). */
   timelineGrouped: Map<string, Map<string, TimelineSlot[]>>;
   categories: any[];
+}
+
+/**
+ * Construeix un `PrintContext` a partir de l'estat actual del calendari
+ * aplicant els mateixos filtres que la vista (data + categoria).
+ *
+ * Centralitza la lògica de filtre+agrupació que abans era inline al
+ * component.
+ */
+export function buildPrintContext(input: {
+  matches: any[];
+  timelineData: TimelineSlot[];
+  selectedDate: string;
+  selectedCategory: string;
+  eventData: { nom?: string; temporada?: string } | null;
+  isAdmin: boolean;
+  categories: any[];
+}): PrintContext {
+  const filteredTimeline = input.timelineData.filter(slot => {
+    if (input.selectedDate && slot.dateStr !== input.selectedDate) return false;
+    if (input.selectedCategory && slot.match && slot.match.categoria_id !== input.selectedCategory) return false;
+    return true;
+  });
+
+  const pendingMatches = input.matches.filter((match: any) => {
+    const hasResult = match.caramboles_jugador1 != null && match.caramboles_jugador2 != null;
+    if (hasResult) return false;
+    if (!match.data_programada || !match.hora_inici || !match.taula_assignada) {
+      if (input.selectedCategory && match.categoria_id !== input.selectedCategory) return false;
+      return true;
+    }
+    return false;
+  });
+
+  return {
+    eventData: input.eventData,
+    isAdmin: input.isAdmin,
+    pendingMatches,
+    timelineGrouped: groupTimelineByDayAndHour(filteredTimeline),
+    categories: input.categories
+  };
 }
 
 /** Genera l'HTML complet per a la finestra d'impressió. */

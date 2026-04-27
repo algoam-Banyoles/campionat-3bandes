@@ -12,6 +12,9 @@
   import CalendarTimelineView from './CalendarTimelineView.svelte';
   import CalendarCategoryView from './CalendarCategoryView.svelte';
   import CalendarUnprogrammedMatches from './CalendarUnprogrammedMatches.svelte';
+  import CalendarFilterBar from './CalendarFilterBar.svelte';
+  import CalendarHeaderControls from './CalendarHeaderControls.svelte';
+  import CalendarPrintHeader from './CalendarPrintHeader.svelte';
   import {
     toLocalDateStr,
     getDayOfWeekCode,
@@ -29,8 +32,22 @@
   } from '$lib/services/calendarPlayerSearchService';
   import {
     generatePrintHTML as svcGeneratePrintHTML,
-    type PrintContext
+    buildPrintContext as svcBuildPrintContext
   } from '$lib/services/calendarPrintService';
+  import {
+    loadCalendarData as svcLoadCalendarData,
+    loadSociByEmail as svcLoadSociByEmail
+  } from '$lib/services/calendarDataService';
+  import { downloadAsFile, sanitizeFilename } from '$lib/utils/downloadFile';
+  import {
+    saveMatchResult as svcSaveMatchResult,
+    registerNoShow as svcRegisterNoShow,
+    markAsUnprogrammed as svcMarkAsUnprogrammed,
+    saveMatchEdit as svcSaveMatchEdit,
+    markCalendarPublished as svcMarkCalendarPublished,
+    swapMatchSchedule as svcSwapMatchSchedule,
+    fetchMatchScores as svcFetchMatchScores
+  } from '$lib/services/calendarMutationsService';
 
   const dispatch = createEventDispatcher();
 
@@ -43,55 +60,33 @@
 
   // Funció per imprimir només la taula cronològica
   function printCalendar() {
-    // Verificar que hi hagi dades per imprimir
     if (!matches || matches.length === 0) {
       alert('No hi ha dades de calendari per imprimir. Assegura\'t que el calendari estigui generat.');
       return;
     }
 
-    // Preguntar a l'usuari quin format d'impressió vol
     const useDoubleColumn = confirm(
       'Tria el format d\'impressió:\n\n' +
       'Acceptar: Dues columnes (més compacte, més partides per pàgina)\n' +
       'Cancel·lar: Una columna (text més gran, més fàcil de llegir)'
     );
 
-    console.log('Imprimint calendari amb', matches.length, 'partides', useDoubleColumn ? '(dues columnes)' : '(una columna)');
-    
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       alert('No s\'ha pogut obrir la finestra d\'impressió. Comprova que no estiguin bloquejades les finestres emergents.');
       return;
     }
-    
+
     try {
-      // Construir context per al servei d'impressió a partir de l'estat actual.
-      // Reutilitzem el timeline filtrat i agrupat (computat reactivament a la vista).
-      const filteredForPrint = timelineData.filter(slot => {
-        if (selectedDate && slot.dateStr !== selectedDate) return false;
-        if (selectedCategory && slot.match && slot.match.categoria_id !== selectedCategory) return false;
-        return true;
-      });
-      const timelineGroupedForPrint = svcGroupTimelineByDayAndHour(filteredForPrint);
-
-      const pendingForPrint = matches.filter(match => {
-        const hasResult = match.caramboles_jugador1 != null && match.caramboles_jugador2 != null;
-        if (hasResult) return false;
-        if (!match.data_programada || !match.hora_inici || !match.taula_assignada) {
-          if (selectedCategory && match.categoria_id !== selectedCategory) return false;
-          return true;
-        }
-        return false;
-      });
-
-      const printCtx: PrintContext = {
+      const printCtx = svcBuildPrintContext({
+        matches,
+        timelineData,
+        selectedDate,
+        selectedCategory,
         eventData,
         isAdmin,
-        pendingMatches: pendingForPrint,
-        timelineGrouped: timelineGroupedForPrint,
         categories
-      };
-
+      });
       const printHTML = svcGeneratePrintHTML(printCtx, useDoubleColumn);
 
       printWindow.document.open();
@@ -102,9 +97,9 @@
         printWindow.print();
         printWindow.close();
       };
-    } catch (error: any) {
-      console.error('Error generant la impressió:', error);
-      alert('Error generant la impressió: ' + error.message);
+    } catch (e: any) {
+      console.error('Error generant la impressió:', e);
+      alert('Error generant la impressió: ' + e.message);
       printWindow.close();
     }
   }
@@ -225,30 +220,13 @@
 
   // Load player data for logged-in user
   async function loadMyPlayerData() {
-    if (!$user) {
+    if (!$user || !$user.email) {
       myPlayerData = null;
       return;
     }
 
     try {
-      // Fase 5c-S2c-2: directe via socis.email
-      const { data: sociData, error: sociError } = await supabase
-        .from('socis')
-        .select('numero_soci, nom, cognoms, email')
-        .eq('email', $user.email)
-        .maybeSingle();
-
-      if (sociError || !sociData) {
-        console.log('No soci data found for user email:', $user.email);
-        myPlayerData = null;
-      } else {
-        myPlayerData = {
-          id: sociData.numero_soci,
-          numero_soci: sociData.numero_soci,
-          nom: `${sociData.nom ?? ''} ${sociData.cognoms ?? ''}`.trim(),
-          email: sociData.email
-        };
-      }
+      myPlayerData = await svcLoadSociByEmail(supabase, $user.email);
     } catch (e) {
       console.error('Error loading player data:', e);
       myPlayerData = null;
@@ -274,264 +252,19 @@
     loading = true;
     error = null;
 
-  let categoriesMap = new Map();
-  let playersMap = new Map();
-  try {
-      // Carregar configuració del calendari (només per admins per evitar errors RLS)
-      if (isAdmin) {
-        try {
-          const { data: config, error: configError } = await supabase
-            .from('configuracio_calendari')
-            .select('*')
-            .eq('event_id', eventId)
-            .single();
-
-          if (config) {
-            calendarConfig = config;
-            console.log('📅 Configuració del calendari carregada:', {
-              dies_setmana: config.dies_setmana,
-              hores_disponibles: config.hores_disponibles,
-              taules_per_slot: config.taules_per_slot
-            });
-          }
-          
-          if (configError && configError.code !== 'PGRST116') { // PGRST116 = no rows found
-            console.warn('Error loading calendar config:', configError);
-          }
-        } catch (configErr) {
-          console.warn('Could not load calendar config - insufficient permissions:', configErr);
-          // Continuar sense configuració del calendari
-        }
-      }
-
-      // Carregar partits amb funció RPC per accés públic
-      console.log('🔍 Loading calendar matches with RPC for event:', eventId);
-      const { data: matchDataRaw, error: matchError } = await supabase
-        .rpc('get_calendar_matches_public', {
-          p_event_id: eventId
-        });
-
-      if (matchError) {
-        console.error('❌ Error loading calendar with RPC:', matchError);
-        throw matchError;
-      }
-
-      console.log('✅ Loaded calendar matches:', matchDataRaw?.length || 0);
-
-      // Carregar també partides no programades (només si l'usuari està autenticat)
-      console.log('🔍 Loading unprogrammed matches (only for authenticated users)...');
-      let unprogrammedRaw = [];
-      let unprogrammedError = null;
-      const withdrawnSocis = new Set<number>();
-      
-      // Verificar si l'usuari està autenticat
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      console.log('🔍 User authentication status:', user ? 'Authenticated' : 'Anonymous');
-      
-      if (user) {
-        try {
-          // Carregar jugadors retirats/desqualificats per excloure les seves partides pendents
-          const { data: inscriptionsData, error: inscriptionsError } = await supabase
-            .rpc('get_inscripcions_with_socis', {
-              p_event_id: eventId
-            });
-
-          if (!inscriptionsError) {
-            (inscriptionsData || [])
-              .filter((item: any) => item.estat_jugador === 'retirat' || item.eliminat_per_incompareixences)
-              .forEach((item: any) => {
-                if (typeof item.soci_numero === 'number') {
-                  withdrawnSocis.add(item.soci_numero);
-                }
-              });
-          }
-
-          // Carregar partides no programades amb els filtres correctes
-          console.log('🔍 User authenticated, loading unprogrammed matches (estat=pendent_programar, data_programada=null)...');
-          const result = await supabase
-            .from('calendari_partides')
-            .select('*')
-            .eq('event_id', eventId)
-            .eq('estat', 'pendent_programar')
-            .is('caramboles_jugador1', null)
-            .is('caramboles_jugador2', null)
-            .is('data_programada', null);
-
-          unprogrammedRaw = result.data;
-          unprogrammedError = result.error;
-
-          // Si hi ha partides, buscar noms reals de jugadors i categories
-          // Fase 5c-S2c-2: query directa a `socis` per `*_soci_numero`
-          if (unprogrammedRaw && unprogrammedRaw.length > 0) {
-            const sociNumbers = Array.from(new Set([
-              ...unprogrammedRaw.map((m: any) => m.jugador1_soci_numero),
-              ...unprogrammedRaw.map((m: any) => m.jugador2_soci_numero)
-            ].filter((n: any) => typeof n === 'number'))) as number[];
-
-            if (sociNumbers.length > 0) {
-              // Excloure partides pendents amb jugadors retirats
-              if (withdrawnSocis.size > 0) {
-                unprogrammedRaw = unprogrammedRaw.filter((match: any) => {
-                  return !withdrawnSocis.has(match.jugador1_soci_numero ?? -1)
-                      && !withdrawnSocis.has(match.jugador2_soci_numero ?? -1);
-                });
-              }
-
-              const { data: socisData } = await supabase
-                .from('socis')
-                .select('numero_soci, nom, cognoms')
-                .in('numero_soci', sociNumbers);
-              if (socisData) {
-                socisData.forEach((soci: any) => {
-                  const inicialNom = soci.nom ? soci.nom.trim().charAt(0).toUpperCase() : '';
-                  const primerCognom = soci.cognoms ? soci.cognoms.trim().split(' ')[0] : '';
-                  // playersMap aquí es composa per soci_numero (no UUID).
-                  playersMap.set(soci.numero_soci, { nom: inicialNom, cognoms: primerCognom });
-                });
-              }
-            }
-            const categoriaIds = [...new Set(unprogrammedRaw.map((m: any) => m.categoria_id).filter(Boolean))];
-
-            // Carregar categories
-            if (categoriaIds.length > 0) {
-              const { data: categoriesData } = await supabase
-                .from('categories')
-                .select('id, nom')
-                .in('id', categoriaIds);
-              if (categoriesData) {
-                categoriesData.forEach(c => {
-                  categoriesMap.set(c.id, c.nom);
-                });
-              }
-            }
-
-            // Afegir noms reals a les partides (lookup per soci_numero)
-            unprogrammedRaw = unprogrammedRaw.map(match => ({
-              ...match,
-              categoria_nom: categoriesMap.get(match.categoria_id) || '',
-              jugador1: playersMap.get(match.jugador1_soci_numero) || { nom: 'J.', cognoms: '(No programat)' },
-              jugador2: playersMap.get(match.jugador2_soci_numero) || { nom: 'J.', cognoms: '(No programat)' }
-            }));
-          }
-        } catch (err) {
-          console.warn('⚠️ Error loading unprogrammed matches for authenticated user:', err);
-          unprogrammedError = err;
-        }
-      } else {
-        console.log('ℹ️ Anonymous user - unprogrammed matches not available due to RLS policies');
-      }
-
-      console.log('🔍 Unprogrammed query result:', { 
-        data: unprogrammedRaw?.length || 0, 
-        error: unprogrammedError 
+    try {
+      const result = await svcLoadCalendarData(supabase, {
+        eventId,
+        isAdmin,
+        categories
       });
 
-      if (unprogrammedError) {
-        console.warn('⚠️ Could not load unprogrammed matches:', unprogrammedError);
-        // Continuar sense partides no programades si hi ha error de permisos
+      if (result.config) {
+        calendarConfig = result.config;
       }
-
-      console.log('✅ Loaded unprogrammed matches:', unprogrammedRaw?.length || 0);
-
-      // Transformar les dades RPC al format esperat pel component
-      const matchData = matchDataRaw?.map(match => ({
-        id: match.id,
-        categoria_id: match.categoria_id,
-        data_programada: match.data_programada,
-        hora_inici: match.hora_inici,
-        jugador1_soci_numero: match.jugador1_numero_soci,
-        jugador2_soci_numero: match.jugador2_numero_soci,
-        estat: match.estat,
-        taula_assignada: match.taula_assignada,
-        observacions_junta: match.observacions_junta,
-        jugador1: {
-          numero_soci: match.jugador1_numero_soci,
-          socis: {
-            nom: match.jugador1_nom,
-            cognoms: match.jugador1_cognoms
-          }
-        },
-        jugador2: {
-          numero_soci: match.jugador2_numero_soci,
-          socis: {
-            nom: match.jugador2_nom,
-            cognoms: match.jugador2_cognoms
-          }
-        }
-      })) || [];
-
-      // Transformar les partides no programades al mateix format
-      // (Fase 5c-S2c-2: lookup per soci_numero)
-      const unprogrammedData = unprogrammedRaw?.map((match: any) => ({
-        id: match.id,
-        categoria_id: match.categoria_id,
-        categoria_nom: categoriesMap.get(match.categoria_id) || '',
-        data_programada: match.data_programada,
-        hora_inici: match.hora_inici,
-        jugador1_soci_numero: match.jugador1_soci_numero,
-        jugador2_soci_numero: match.jugador2_soci_numero,
-        estat: match.estat,
-        taula_assignada: match.taula_assignada,
-        observacions_junta: match.observacions_junta,
-        jugador1: playersMap.get(match.jugador1_soci_numero) || { nom: 'J.', cognoms: '(No programat)' },
-        jugador2: playersMap.get(match.jugador2_soci_numero) || { nom: 'J.', cognoms: '(No programat)' }
-      })) || [];
-
-      console.log('🔍 Unprogrammed data processed:', unprogrammedData.length);
-
-      // Combinar les dades programades i no programades
-      const allMatchData = [...matchData, ...unprogrammedData];
-      console.log('📊 Total matches (programmed + unprogrammed):', allMatchData.length);
-
-      // Debug: comprovar taules assignades
-      // const withTables = matchData.filter(m => m.taula_assignada).length;
-      // const withoutTables = matchData.filter(m => !m.taula_assignada).length;
-      // console.log('🔍 Matches with taula_assignada:', withTables, 'without:', withoutTables);
-      // if (matchData.length > 0) {
-      //   console.log('🔍 Sample match taula_assignada:', matchData[0].taula_assignada, typeof matchData[0].taula_assignada);
-      // }
-
-      // Carregar categories si no es passen per prop
-      let finalCategories = categories;
-      if (categories.length === 0) {
-        console.log('🔍 Loading categories for calendar with RPC:', eventId);
-        const { data: categoriesData, error: categoriesError } = await supabase
-          .rpc('get_categories_for_event', {
-            p_event_id: eventId
-          });
-        
-        if (!categoriesError && categoriesData) {
-          finalCategories = categoriesData;
-          console.log('✅ Loaded categories for calendar:', finalCategories.length);
-        } else {
-          console.error('❌ Error loading categories for calendar:', categoriesError);
-        }
-      }
-
-      // Combinar dades de partits amb categories
-      const matchesWithCategories = (allMatchData || []).map(match => {
-        const category = finalCategories.find(c => c.id === match.categoria_id);
-        return {
-          ...match,
-          categoria: category || null
-        };
-      });
-
-      matches = matchesWithCategories;
-      
-      console.log('✅ Final matches processed:', matches.length);
-      console.log('🔍 Sample match structure:', matches[0] ? {
-        id: matches[0].id,
-        data_programada: matches[0].data_programada,
-        hora_inici: matches[0].hora_inici,
-        jugador1: matches[0].jugador1?.socis?.nom,
-        jugador2: matches[0].jugador2?.socis?.nom,
-        categoria: matches[0].categoria?.nom,
-        taula_assignada: matches[0].taula_assignada
-      } : 'No matches');
-
+      matches = result.matches;
     } catch (e) {
-      console.error('❌ Error in loadCalendarData:', e);
+      console.error('Error in loadCalendarData:', e);
       error = formatSupabaseError(e);
     } finally {
       loading = false;
@@ -737,31 +470,19 @@
   async function openResultModal(match: any) {
     if (!isAdmin) return;
 
-    // Fetch full match data to get existing scores
-    const { data: fullMatchData, error: fetchError } = await supabase
-      .from('calendari_partides')
-      .select('caramboles_jugador1, caramboles_jugador2, entrades, observacions_junta')
-      .eq('id', match.id)
-      .single();
-
-    if (fetchError) {
-        alert('Error carregant les dades de la partida: ' + formatSupabaseError(fetchError));
-        return;
+    try {
+      const scores = await svcFetchMatchScores(supabase, match.id);
+      resultMatch = { ...match, ...scores };
+      resultForm = {
+        caramboles_jugador1: scores.caramboles_jugador1 ?? 0,
+        caramboles_jugador2: scores.caramboles_jugador2 ?? 0,
+        entrades: scores.entrades ?? 0,
+        observacions: scores.observacions_junta ?? ''
+      };
+      showResultModal = true;
+    } catch (e) {
+      alert('Error carregant les dades de la partida: ' + formatSupabaseError(e));
     }
-
-    // Combine original match data (with player names) with fresh score data
-    resultMatch = {
-        ...match,
-        ...fullMatchData
-    };
-
-    resultForm = {
-      caramboles_jugador1: resultMatch.caramboles_jugador1 || 0,
-      caramboles_jugador2: resultMatch.caramboles_jugador2 || 0,
-      entrades: resultMatch.entrades || 0,
-      observacions: resultMatch.observacions_junta || ''
-    };
-    showResultModal = true;
   }
 
   function closeResultModal() {
@@ -777,57 +498,25 @@
 
   async function saveResult() {
     if (!resultMatch || !isAdmin) return;
-    if (loading) return; // evita submissions concurrents (doble click)
+    if (loading) return;
 
-    // Empats permesos: 1 punt per cada jugador
     if (resultForm.caramboles_jugador1 === 0 && resultForm.caramboles_jugador2 === 0) {
       alert('Introdueix les caramboles per ambdós jugadors');
       return;
     }
 
     loading = true;
-
     try {
-      // Calcular punts segons el resultat
-      let punts_j1 = 0;
-      let punts_j2 = 0;
+      await svcSaveMatchResult(supabase, resultMatch.id, {
+        caramboles_jugador1: resultForm.caramboles_jugador1,
+        caramboles_jugador2: resultForm.caramboles_jugador2,
+        entrades: resultForm.entrades,
+        observacions: resultForm.observacions
+      });
 
-      if (resultForm.caramboles_jugador1 > resultForm.caramboles_jugador2) {
-        punts_j1 = 2;  // Jugador 1 guanya
-        punts_j2 = 0;
-      } else if (resultForm.caramboles_jugador2 > resultForm.caramboles_jugador1) {
-        punts_j1 = 0;
-        punts_j2 = 2;  // Jugador 2 guanya
-      } else {
-        punts_j1 = 1;  // Empat
-        punts_j2 = 1;
-      }
-
-      const { data: updateData, error: updateError } = await supabase
-        .from('calendari_partides')
-        .update({
-          caramboles_jugador1: resultForm.caramboles_jugador1,
-          caramboles_jugador2: resultForm.caramboles_jugador2,
-          entrades: resultForm.entrades,
-          punts_jugador1: punts_j1,
-          punts_jugador2: punts_j2,
-          data_joc: new Date().toISOString(),
-          estat: 'jugada',
-          validat_per: (await supabase.auth.getUser()).data.user?.id,
-          data_validacio: new Date().toISOString(),
-          observacions_junta: resultForm.observacions
-        })
-        .eq('id', resultMatch.id);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      // Tancar modal i recarregar dades
       closeResultModal();
       await loadCalendarData();
       dispatch('matchUpdated');
-
       alert('✅ Resultat guardat correctament!');
     } catch (err) {
       console.error('Error guardant resultat:', err);
@@ -851,7 +540,7 @@
 
   async function marcarIncompareixenca(jugadorQueFalta: 1 | 2) {
     if (!incompareixencaMatch || !isAdmin) return;
-    if (loading) return; // evita RPC concurrents
+    if (loading) return;
 
     const jugadorNom = jugadorQueFalta === 1
       ? formatPlayerName(incompareixencaMatch.jugador1)
@@ -864,38 +553,27 @@
       `- Jugador absent: 0 punts, 50 entrades\n\n` +
       `Si el jugador té 2 incompareixences, serà eliminat del campionat.`
     );
-
     if (!confirmation) return;
 
     try {
       loading = true;
-
-      const { data, error: rpcError } = await supabase
-        .rpc('registrar_incompareixenca', {
-          p_partida_id: incompareixencaMatch.id,
-          p_jugador_que_falta: jugadorQueFalta
-        });
-
-      if (rpcError) throw rpcError;
+      const result = await svcRegisterNoShow(supabase, incompareixencaMatch.id, jugadorQueFalta);
 
       closeIncompareixencaModal();
-
-      // Recarregar dades
       await loadCalendarData();
       dispatch('matchUpdated');
 
-      // Mostrar missatge segons el resultat
-      if (data.jugador_eliminat) {
+      if (result.jugador_eliminat) {
         alert(
           `⚠️ INCOMPAREIXENÇA REGISTRADA\n\n` +
-          `El jugador ${jugadorNom} té ${data.incompareixences} incompareixences.\n` +
+          `El jugador ${jugadorNom} té ${result.incompareixences} incompareixences.\n` +
           `HA ESTAT ELIMINAT DEL CAMPIONAT.\n\n` +
           `Totes les seves partides pendents han estat anul·lades.`
         );
       } else {
         alert(
           `✅ INCOMPAREIXENÇA REGISTRADA\n\n` +
-          `El jugador ${jugadorNom} té ${data.incompareixences} incompareixença(es).\n` +
+          `El jugador ${jugadorNom} té ${result.incompareixences} incompareixença(es).\n` +
           `Partida registrada amb els punts corresponents.`
         );
       }
@@ -916,33 +594,14 @@
       `Data: ${formatDate(new Date(match.data_programada))} a les ${match.hora_inici}\n\n` +
       `Aquesta acció eliminarà la data i hora programades.`
     );
-
     if (!confirmation) return;
 
     try {
       loading = true;
-
-      const { error: updateError } = await supabase
-        .from('calendari_partides')
-        .update({
-          data_programada: null,
-          hora_inici: null,
-          taula_assignada: null,
-          estat: 'pendent_programar',
-          observacions_junta: match.observacions_junta ?
-            `${match.observacions_junta}\n[${new Date().toLocaleDateString('ca-ES')}] Convertida a no programada per indisponibilitat de jugador.` :
-            `[${new Date().toLocaleDateString('ca-ES')}] Convertida a no programada per indisponibilitat de jugador.`
-        })
-        .eq('id', match.id);
-
-      if (updateError) throw updateError;
-
-      // Recarregar dades
+      await svcMarkAsUnprogrammed(supabase, match);
       await loadCalendarData();
       dispatch('matchUpdated');
-
       alert('Partida convertida a no programada correctament.');
-
     } catch (e) {
       console.error('Error converting match to unprogrammed:', e);
       error = formatSupabaseError(e);
@@ -992,55 +651,17 @@
 
     try {
       loading = true;
-
-      const updates: any = {
-        estat: editForm.estat,
+      await svcSaveMatchEdit(supabase, editingMatch.id, {
+        data_programada: editForm.data_programada,
+        hora_inici: editForm.hora_inici,
         taula_assignada: editForm.taula_assignada,
-        observacions_junta: editForm.observacions_junta || null
-      };
+        estat: editForm.estat,
+        observacions_junta: editForm.observacions_junta
+      });
 
-      if (editForm.data_programada && editForm.hora_inici) {
-        updates.data_programada = editForm.data_programada + 'T' + editForm.hora_inici + ':00';
-        updates.hora_inici = editForm.hora_inici;
-      }
-
-      // Comprovar conflicte de billar abans de desar
-      if (updates.data_programada && updates.hora_inici && updates.taula_assignada) {
-        const dia = updates.data_programada.split('T')[0];
-        const { data: conflict } = await supabase
-          .from('calendari_partides')
-          .select('id')
-          .eq('hora_inici', updates.hora_inici)
-          .eq('taula_assignada', updates.taula_assignada)
-          .neq('id', editingMatch.id)
-          .or('partida_anullada.is.null,partida_anullada.eq.false')
-          .not('estat', 'in', '("jugada","cancel·lada_per_retirada","pendent_programar","postposada","reprogramada")')
-          .filter('data_programada::date', 'eq', dia)
-          .maybeSingle();
-        if (conflict) {
-          throw new Error(`El billar ${updates.taula_assignada} ja té una partida programada el ${dia} a les ${updates.hora_inici}. Tria un altre billar o una altra hora.`);
-        }
-      }
-
-      const { error: updateError } = await supabase
-        .from('calendari_partides')
-        .update(updates)
-        .eq('id', editingMatch.id);
-
-      if (updateError) {
-        if (updateError.message?.includes('idx_unique_billar_slot')) {
-          throw new Error(`El billar ${updates.taula_assignada} ja té una partida a aquesta hora. Tria un altre billar o una altra hora.`);
-        }
-        throw updateError;
-      }
-
-      // Tancar edició abans de recarregar
       cancelEditing();
-
-      // Recarregar dades
       await loadCalendarData();
       dispatch('matchUpdated');
-
     } catch (e) {
       error = formatSupabaseError(e);
       alert('Error guardant els canvis: ' + error);
@@ -1049,56 +670,32 @@
     }
   }
 
-  // Funció per publicar el calendari al calendari general
   async function publishCalendar() {
     if (!isAdmin || publishing) return;
-    
+
     const validatedMatches = matches.filter(match => match.estat === 'validat');
-    
     if (validatedMatches.length === 0) {
       error = 'No hi ha partits validats per publicar';
       return;
     }
 
-    // Confirmar la publicació
-    const confirmPublish = confirm(`Estàs segur que vols publicar ${validatedMatches.length} partits validats al calendari general?\n\nAixò farà que les partides apareguin al calendari de la PWA i seran visibles per tots els usuaris.`);
-    
+    const confirmPublish = confirm(
+      `Estàs segur que vols publicar ${validatedMatches.length} partits validats al calendari general?\n\n` +
+      `Això farà que les partides apareguin al calendari de la PWA i seran visibles per tots els usuaris.`
+    );
     if (!confirmPublish) return;
 
     publishing = true;
     error = null;
 
     try {
-      // Actualitzar l'esdeveniment per marcar-lo com a publicat
-      const { error: updateEventError } = await supabase
-        .from('events')
-        .update({ calendari_publicat: true })
-        .eq('id', eventId);
-
-      if (updateEventError) {
-        console.error('Error actualitzant esdeveniment:', updateEventError);
-        error = 'Error al marcar l\'esdeveniment com a publicat: ' + updateEventError.message;
-        return;
-      }
-
-      // Recarregar les dades per actualitzar la vista
+      await svcMarkCalendarPublished(supabase, eventId);
       await loadCalendarData();
-      
-      // Emetre esdeveniment per notificar que s'ha publicat
-      dispatch('calendarPublished', { 
+      dispatch('calendarPublished', {
         eventId,
-        publishedMatches: validatedMatches.length 
+        publishedMatches: validatedMatches.length
       });
-
-      // Mostrar missatge d'èxit
-      console.log(`✅ Calendari publicat! ${validatedMatches.length} partits ara són visibles al calendari general.`);
-      
-      // Opcional: mostrar una notificació toast
-      if (typeof window !== 'undefined') {
-        // Si tens un sistema de notificacions, pots usar-lo aquí
-        alert(`✅ Calendari publicat correctament!\n\n${validatedMatches.length} partits ara són visibles al calendari general de la PWA.`);
-      }
-
+      alert(`✅ Calendari publicat correctament!\n\n${validatedMatches.length} partits ara són visibles al calendari general de la PWA.`);
     } catch (e) {
       console.error('Error publicant calendari:', e);
       error = formatSupabaseError(e);
@@ -1144,14 +741,11 @@
       error = 'No s\'han pogut trobar les partides seleccionades.';
       return;
     }
-
-    // Validar que les partides tinguin dates i hores assignades
     if (!match1.data_programada || !match1.hora_inici || !match2.data_programada || !match2.hora_inici) {
       error = 'Les partides han de tenir data i hora assignades per poder-les intercanviar.';
       return;
     }
 
-    // Confirmar l'intercanvi
     const confirmSwap = confirm(
       `Estàs segur que vols intercanviar aquestes partides?\n\n` +
       `Partida 1: ${formatPlayerName(match1.jugador1)} vs ${formatPlayerName(match1.jugador2)}\n` +
@@ -1160,45 +754,18 @@
       `Data actual: ${formatDate(new Date(match2.data_programada))} a les ${match2.hora_inici}\n\n` +
       `Després de l'intercanvi, les dates i hores s'intercanviaran.`
     );
-
     if (!confirmSwap) return;
 
     try {
-      // Intercanviar les dates i hores
-      const { error: error1 } = await supabase
-        .from('calendari_partides')
-        .update({
-          data_programada: match2.data_programada,
-          hora_inici: match2.hora_inici,
-          taula_assignada: match2.taula_assignada
-        })
-        .eq('id', match1.id);
-
-      if (error1) throw error1;
-
-      const { error: error2 } = await supabase
-        .from('calendari_partides')
-        .update({
-          data_programada: match1.data_programada,
-          hora_inici: match1.hora_inici,
-          taula_assignada: match1.taula_assignada
-        })
-        .eq('id', match2.id);
-
-      if (error2) throw error2;
-
-      // Recarregar les dades
+      await svcSwapMatchSchedule(supabase, match1, match2);
       await loadCalendarData();
 
-      // Resetear la selecció
       selectedMatches.clear();
       selectedMatches = selectedMatches;
       swapMode = false;
 
       dispatch('matchesSwapped', { match1Id: match1.id, match2Id: match2.id });
-
       alert('✅ Partides intercanviades correctament!');
-
     } catch (e) {
       console.error('Error intercanviant partides:', e);
       error = formatSupabaseError(e);
@@ -1211,22 +778,14 @@
 
     try {
       const csvContent = await exportCalendariToCSV(eventId);
-
-      // Crear i descarregar el fitxer
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      if (link.download !== undefined) {
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `calendari_${eventData.nom.replace(/[^a-zA-Z0-9]/g, '_')}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    } catch (error) {
-      console.error('Error exporting calendar:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Error desconegut';
+      downloadAsFile(
+        csvContent,
+        `calendari_${sanitizeFilename(eventData.nom)}.csv`,
+        'text/csv;charset=utf-8;'
+      );
+    } catch (e) {
+      console.error('Error exporting calendar:', e);
+      const errorMessage = e instanceof Error ? e.message : 'Error desconegut';
       alert(`Error exportant el calendari: ${errorMessage}`);
     }
   }
@@ -1242,10 +801,11 @@
     }
 
     /* Mostrar només l'encapçalament i la taula cronològica.
-       `.calendar-main-container` viu al component fill CalendarTimelineView,
-       per això usem `:global()`. */
-    .print-title-show,
-    .print-title-show *,
+       Tant `.print-title-show` (a CalendarPrintHeader) com
+       `.calendar-main-container` (a CalendarTimelineView) viuen ara
+       als components fills, per això tot va amb `:global()`. */
+    :global(.print-title-show),
+    :global(.print-title-show *),
     :global(.calendar-main-container),
     :global(.calendar-main-container *) {
       visibility: visible !important;
@@ -1263,8 +823,8 @@
       display: none !important;
     }
 
-    /* Mostrar l'encapçalament en impressió */
-    .print-title-show {
+    /* Mostrar l'encapçalament en impressió (component fill) */
+    :global(.print-title-show) {
       display: block !important;
       page-break-after: avoid !important;
       position: fixed !important;
@@ -1390,81 +950,7 @@
       page-break-after: avoid !important;
     }
 
-    /* Estils per encapçalament professional */
-    .print-header-container {
-      display: flex !important;
-      align-items: center !important;
-      justify-content: space-between !important;
-      margin-bottom: 20px !important;
-      padding: 15px 20px !important;
-    }
-
-    .print-header-left {
-      flex: 0 0 auto !important;
-    }
-
-    .print-logo {
-      height: 60px !important;
-      width: auto !important;
-      object-fit: contain !important;
-    }
-
-    .print-header-center {
-      flex: 1 !important;
-      text-align: center !important;
-      margin: 0 20px !important;
-    }
-
-    .print-main-title {
-      font-size: 16px !important;
-      font-weight: bold !important;
-      margin: 0 0 8px 0 !important;
-      color: #000 !important;
-      text-transform: uppercase !important;
-      letter-spacing: 0.5px !important;
-    }
-
-    .print-event-title {
-      font-size: 14px !important;
-      font-weight: bold !important;
-      margin: 0 0 6px 0 !important;
-      color: #333 !important;
-    }
-
-    .print-season {
-      font-size: 12px !important;
-      font-weight: normal !important;
-      margin: 0 0 6px 0 !important;
-      color: #666 !important;
-    }
-
-    :global(.print-date) {
-      font-size: 10px !important;
-      font-style: italic !important;
-      margin: 0 !important;
-      color: #888 !important;
-    }
-
-    .print-header-right {
-      flex: 0 0 auto !important;
-    }
-
-    :global(.print-contact) {
-      text-align: right !important;
-      font-size: 10px !important;
-      line-height: 1.4 !important;
-    }
-
-    :global(.print-contact-line) {
-      margin-bottom: 2px !important;
-      color: #666 !important;
-    }
-
-    .print-divider {
-      border: none !important;
-      border-top: 2px solid #333 !important;
-      margin: 0 0 20px 0 !important;
-    }
+    /* Estils per encapçalament professional — moguts a CalendarPrintHeader */
 
     /* Divisions de dies */
     :global(.calendar-day-section) {
@@ -1557,263 +1043,45 @@
 
 <div class="space-y-6 main-calendar-container">
   <!-- Encapçalament professional per a impressió -->
-  <div class="print-title-show" style="display: none;">
-    <div class="print-header-container">
-      <div class="print-header-left">
-        <img src="/logo.png" alt="Foment Martinenc" class="print-logo" />
-      </div>
-      <div class="print-header-center">
-        <h1 class="print-main-title">
-          FOMENT MARTINENC - SECCIÓ BILLAR
-        </h1>
-        <h2 class="print-event-title">
-          {eventData?.nom || 'Campionat de Billar'}
-        </h2>
-        <h3 class="print-season">
-          Temporada {eventData?.temporada || new Date().getFullYear()}
-        </h3>
-      </div>
-      <div class="print-header-right">
-      </div>
-    </div>
-    <hr class="print-divider" />
-  </div>
+  <CalendarPrintHeader eventName={eventData?.nom} temporada={eventData?.temporada} />
 
   <!-- Header amb controls -->
   <div class="bg-white border border-gray-200 rounded-lg p-6 print-header-hide">
-    <div class="flex items-center justify-between mb-4">
-      <div>
-        <h3 class="text-lg font-medium text-gray-900">Calendari de Partits</h3>
-        {#if matches.length > 0}
-          <div class="mt-1 text-sm text-gray-600">
-            {#if programmedMatches.some(match => match.estat === 'publicat')}
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 mr-2">
-                📢 {programmedMatches.filter(match => match.estat === 'publicat').length} publicats
-              </span>
-            {/if}
+    <CalendarHeaderControls
+      totalMatches={matches.length}
+      publishedCount={programmedMatches.filter(m => m.estat === 'publicat').length}
+      isFilteringByPlayer={!!selectedPlayerId || playerSearch.length >= 2}
+      {playerSearch}
+      filteredMatchesCount={filteredMatches.length}
+      {playerMatchSlots}
+      {isAdmin}
+      canPublish={programmedMatches.some(m => m.estat === 'validat')}
+      {publishing}
+      {loading}
+      {swapMode}
+      selectedMatchesCount={selectedMatches.size}
+      on:publish={publishCalendar}
+      on:convertOldMatches={convertOldMatchesToPending}
+      on:toggleSwapMode={toggleSwapMode}
+      on:confirmSwap={swapMatches}
+      on:exportCSV={downloadCalendariCSV}
+      on:print={printCalendar}
+    />
 
-            {#if selectedPlayerId || playerSearch.length >= 2}
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                🔍 Filtrant per: {playerSearch} | Partits trobats: {filteredMatches.length}/{matches.length} | Slots amb partits: {playerMatchSlots}
-              </span>
-            {/if}
-          </div>
-        {/if}
-      </div>
-
-      <!-- Controls de vista - Botons d'acció admin -->
-      <div class="flex flex-wrap items-center gap-3">
-        <!-- Botó de publicar calendari (només per admins i si hi ha partits validats) -->
-        {#if isAdmin && programmedMatches.some(match => match.estat === 'validat')}
-          <button
-            on:click={publishCalendar}
-            class="no-print px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center gap-2 font-medium"
-            title="Publicar calendari al calendari general de la PWA"
-            disabled={loading}
-          >
-            {#if publishing}
-              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              Publicant...
-            {:else}
-              📢 Publicar
-            {/if}
-          </button>
-        {/if}
-
-        <!-- Botó per convertir partides antigues (només per admins) -->
-        {#if isAdmin}
-          <button
-            on:click={convertOldMatchesToPending}
-            class="no-print px-4 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 flex items-center gap-2 font-medium"
-            title="Convertir partides antigues sense resultats a pendent de programar"
-            disabled={loading}
-          >
-            🔄 Reciclar Antigues
-          </button>
-        {/if}
-
-        <!-- Controls d'intercanvi de partides (només per admins) -->
-        {#if isAdmin}
-          <div class="flex items-center gap-2">
-            <button
-              on:click={toggleSwapMode}
-              class="no-print px-4 py-2 text-sm rounded font-medium flex items-center justify-center gap-2"
-              class:bg-orange-600={swapMode}
-              class:text-white={swapMode}
-              class:hover:bg-orange-700={swapMode}
-              class:bg-orange-100={!swapMode}
-              class:text-orange-800={!swapMode}
-              class:hover:bg-orange-200={!swapMode}
-              title="Activar/desactivar mode d'intercanvi de partides"
-            >
-              🔄 <span class="hidden sm:inline">{swapMode ? 'Cancel·lar' : 'Intercanviar'}</span>
-            </button>
-
-            {#if swapMode && selectedMatches.size === 2}
-              <button
-                on:click={swapMatches}
-                class="no-print px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 font-medium flex items-center justify-center gap-1"
-                title="Confirmar intercanvi de les partides seleccionades"
-              >
-                ✅ <span class="hidden sm:inline">Confirmar</span>
-              </button>
-            {/if}
-
-            {#if swapMode}
-              <span class="text-sm text-gray-600 font-medium">
-                {selectedMatches.size}/2
-              </span>
-            {/if}
-          </div>
-        {/if}
-
-        <!-- Botó d'exportar CSV (només per admins) -->
-        {#if isAdmin}
-          <button
-            on:click={downloadCalendariCSV}
-            class="no-print px-4 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 items-center gap-2 font-medium flex"
-            title="Exportar calendari a CSV"
-          >
-            📄 Exportar
-          </button>
-        {/if}
-
-        <!-- Botó d'impressió -->
-        <button
-          on:click={printCalendar}
-          class="no-print hidden md:flex px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 items-center gap-2 font-medium"
-          title="Imprimir calendari cronològic"
-        >
-          🖨️ Imprimir
-        </button>
-      </div>
-    </div>
-
-    <!-- Filtres - Primera fila -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <div>
-        <label for="category-filter" class="block text-sm font-medium text-gray-700 mb-2">Categoria</label>
-        <select
-          id="category-filter"
-          bind:value={selectedCategory}
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">Totes les categories</option>
-          {#each categories.sort((a, b) => a.ordre_categoria - b.ordre_categoria) as category}
-            <option value={category.id}>{category.nom}</option>
-          {/each}
-        </select>
-      </div>
-
-      <div>
-        <label for="date-filter" class="block text-sm font-medium text-gray-700 mb-2">Data</label>
-        <input
-          id="date-filter"
-          type="date"
-          bind:value={selectedDate}
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      <div class="relative print-header-hide player-search-container">
-        <label for="player-search" class="block text-sm font-medium text-gray-700 mb-2">Jugador</label>
-        <div class="relative">
-          <input
-            id="player-search"
-            type="text"
-            bind:value={playerSearch}
-            on:input={() => { selectedPlayerId = null; }}
-            placeholder="Escriu nom o cognoms..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
-            disabled={showOnlyMyMatches}
-          />
-          {#if playerSearch}
-            <button
-              on:click={clearPlayerSearch}
-              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              title="Netejar cerca"
-            >
-              ✕
-            </button>
-          {/if}
-        </div>
-
-        <!-- Suggeriments de jugadors -->
-        {#if playerSuggestions.length > 0}
-          <div class="absolute top-full left-0 right-0 z-50 bg-white border border-gray-300 rounded-md shadow-lg max-h-64 overflow-y-auto mt-1">
-            {#each playerSuggestions as suggestion}
-              <button
-                on:click={() => selectPlayer(suggestion)}
-                class="w-full px-3 py-2 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:outline-none focus:bg-gray-50"
-              >
-                <div class="text-sm font-medium text-gray-900">
-                  {suggestion.displayName}
-                </div>
-              </button>
-            {/each}
-          </div>
-        {/if}
-      </div>
-
-      <div>
-        <div class="block text-sm font-medium text-gray-700 mb-2 invisible" aria-hidden="true">Accions</div>
-        <button
-          on:click={() => { selectedCategory = ''; selectedDate = ''; clearPlayerSearch(); }}
-          class="w-full px-4 py-2 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 font-medium"
-        >
-          Netejar Filtres
-        </button>
-      </div>
-    </div>
-
-    <!-- Filtres - Segona fila: Selector de vista i checkbox -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-2">
-      <div class="flex items-end">
-        <div class="flex bg-gray-100 rounded-lg p-1">
-          <button
-            on:click={() => viewMode = 'category'}
-            class="px-3 py-1.5 rounded text-sm transition-colors font-medium"
-            class:bg-white={viewMode === 'category'}
-            class:shadow-sm={viewMode === 'category'}
-            class:text-gray-900={viewMode === 'category'}
-            class:text-gray-600={viewMode !== 'category'}
-          >
-            📋 Per Categoria
-          </button>
-          <button
-            on:click={() => viewMode = 'timeline'}
-            class="px-3 py-1.5 rounded text-sm transition-colors font-medium"
-            class:bg-white={viewMode === 'timeline'}
-            class:shadow-sm={viewMode === 'timeline'}
-            class:text-gray-900={viewMode === 'timeline'}
-            class:text-gray-600={viewMode !== 'timeline'}
-          >
-            📅 Cronològica
-          </button>
-        </div>
-      </div>
-
-      <div>
-        <!-- Columna buida per mantenir el grid -->
-      </div>
-
-      <div class="flex items-start">
-        {#if myPlayerData}
-          <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-            <input
-              type="checkbox"
-              bind:checked={showOnlyMyMatches}
-              class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <span class="font-medium">🎯 Les meves partides</span>
-          </label>
-        {/if}
-      </div>
-
-      <div>
-        <!-- Columna buida per mantenir el grid -->
-      </div>
-    </div>
+    <CalendarFilterBar
+      bind:selectedCategory
+      bind:selectedDate
+      bind:playerSearch
+      bind:viewMode
+      bind:showOnlyMyMatches
+      {categories}
+      {playerSuggestions}
+      hasMyPlayerData={!!myPlayerData}
+      on:playerInput={() => { selectedPlayerId = null; }}
+      on:selectSuggestion={(e) => selectPlayer(e.detail.suggestion)}
+      on:clearPlayerSearch={clearPlayerSearch}
+      on:clearAllFilters={() => { selectedCategory = ''; selectedDate = ''; clearPlayerSearch(); }}
+    />
   </div>
 
   <!-- Missatges d'error -->
