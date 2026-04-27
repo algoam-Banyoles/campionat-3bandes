@@ -15,6 +15,7 @@
 	import { generateDoublEliminationBracket } from '$lib/utils/handicap-bracket-generator';
 	import { validateBracket } from '$lib/utils/handicap-bracket-validator';
 	import { insertBracketToDb } from '$lib/utils/handicap-bracket-db';
+	import { showConfirm } from '$lib/stores/confirmDialogStore';
 
 	// ── Estat ─────────────────────────────────────────────────────────────────
 
@@ -77,9 +78,13 @@
 
 	async function regenerateBracket() {
 		if (!event || !canRegenerate) return;
-		const confirmed = window.confirm(
-			'Estàs segur que vols regenerar el bracket?\n\nS\'esborraran tots els slots i partides actuals i es tornaran a generar a partir dels seeds actuals.'
-		);
+		const confirmed = await showConfirm({
+			title: 'Regenerar bracket',
+			message:
+				'S\'esborraran tots els slots i partides actuals i es tornaran a generar a partir dels seeds actuals.\n\nContinuar?',
+			severity: 'danger',
+			confirmLabel: 'Regenerar'
+		});
 		if (!confirmed) return;
 
 		regenerating = true;
@@ -435,9 +440,13 @@
 
 	async function handleCloseTournament() {
 		if (!event) return;
-		const confirmed = window.confirm(
-			'Tancar el torneig?\n\nAixò marcarà el torneig com a "finalitzat" i ja no es podran introduir més resultats.'
-		);
+		const confirmed = await showConfirm({
+			title: 'Tancar torneig',
+			message:
+				'Es marcarà el torneig com a "finalitzat" i ja no es podran introduir més resultats.\n\nContinuar?',
+			severity: 'warning',
+			confirmLabel: 'Tancar torneig'
+		});
 		if (!confirmed) return;
 		closingTournament = true;
 		quadreError = null;

@@ -15,6 +15,7 @@
   import PrintableAveragesList from '$lib/components/campionats-socials/PrintableAveragesList.svelte';
   import { formatSupabaseError } from '$lib/ui/alerts';
   import { loadSocisWithAverages, assignPlayersToCategories, formatAssignmentSummary } from '$lib/services/inscriptionsService';
+  import { showConfirm } from '$lib/stores/confirmDialogStore';
 
   let loading = true;
   let error: string | null = null;
@@ -300,7 +301,13 @@
   }
 
   async function deleteInscription(inscriptionId: string) {
-    if (!confirm('Estàs segur que vols eliminar aquesta inscripció?')) return;
+    const ok = await showConfirm({
+      title: 'Eliminar inscripció',
+      message: 'Estàs segur que vols eliminar aquesta inscripció?',
+      severity: 'danger',
+      confirmLabel: 'Eliminar'
+    });
+    if (!ok) return;
 
     try {
   
@@ -374,7 +381,13 @@
   async function handleRemoveInscription(event) {
     const { inscriptionId } = event.detail;
 
-    if (!confirm('Estàs segur que vols eliminar aquesta inscripció?')) return;
+    const ok = await showConfirm({
+      title: 'Eliminar inscripció',
+      message: 'Estàs segur que vols eliminar aquesta inscripció?',
+      severity: 'danger',
+      confirmLabel: 'Eliminar'
+    });
+    if (!ok) return;
 
     try {
   
@@ -577,8 +590,13 @@
   async function bulkDeleteInscriptions() {
     if (selectedInscriptions.length === 0) return;
 
-    const confirmMessage = `Estàs segur que vols eliminar ${selectedInscriptions.length} inscripcions? Aquesta acció no es pot desfer.`;
-    if (!confirm(confirmMessage)) return;
+    const ok = await showConfirm({
+      title: 'Eliminar inscripcions',
+      message: `Estàs segur que vols eliminar ${selectedInscriptions.length} inscripcions?\n\nAquesta acció no es pot desfer.`,
+      severity: 'danger',
+      confirmLabel: `Eliminar ${selectedInscriptions.length}`
+    });
+    if (!ok) return;
 
     try {
       processingAssignments = true;
@@ -618,9 +636,13 @@
       return;
     }
 
-    if (!confirm(`Vols assignar automàticament ${inscriptions.length} jugadors a ${categories.length} categories de forma equilibrada?`)) {
-      return;
-    }
+    const ok = await showConfirm({
+      title: 'Assignació automàtica de categories',
+      message: `Es repartiran ${inscriptions.length} jugadors entre ${categories.length} categories de forma equilibrada.\n\nContinuar?`,
+      severity: 'warning',
+      confirmLabel: 'Assignar'
+    });
+    if (!ok) return;
 
     processingAssignments = true;
 

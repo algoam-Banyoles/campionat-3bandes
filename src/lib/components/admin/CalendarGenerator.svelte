@@ -3,6 +3,7 @@
   import { supabase } from '$lib/supabaseClient';
   import { formatSupabaseError } from '$lib/ui/alerts';
   import { showWarning } from '$lib/stores/toastStore';
+  import { showConfirm } from '$lib/stores/confirmDialogStore';
 
   const dispatch = createEventDispatcher();
 
@@ -2561,9 +2562,13 @@
   }
 
   async function regenerateCalendar() {
-    if (!confirm('Això eliminarà el calendari actual i generarà un de nou. Continuar?')) {
-      return;
-    }
+    const ok = await showConfirm({
+      title: 'Regenerar calendari',
+      message: 'Això eliminarà el calendari actual i generarà un de nou.\n\nContinuar?',
+      severity: 'danger',
+      confirmLabel: 'Regenerar'
+    });
+    if (!ok) return;
 
     try {
       generatingCalendar = true;

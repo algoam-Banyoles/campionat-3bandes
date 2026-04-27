@@ -6,6 +6,7 @@
   import Loader from '$lib/components/general/Loader.svelte';
   import PlayerSearcher from '$lib/components/general/UnifiedPlayerSearcher.svelte';
   import { formatSupabaseError } from '$lib/ui/alerts';
+  import { showConfirm } from '$lib/stores/confirmDialogStore';
 
   let loading = true;
   let error: string | null = null;
@@ -165,7 +166,13 @@
   }
 
   async function deleteInscription(inscriptionId: string) {
-    if (!confirm('Estàs segur que vols eliminar aquesta inscripció?')) return;
+    const ok = await showConfirm({
+      title: 'Eliminar inscripció',
+      message: 'Estàs segur que vols eliminar aquesta inscripció?',
+      severity: 'danger',
+      confirmLabel: 'Eliminar'
+    });
+    if (!ok) return;
 
     try {
       const { supabase } = await import('$lib/supabaseClient');

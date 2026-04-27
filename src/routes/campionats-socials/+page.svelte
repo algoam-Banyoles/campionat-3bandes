@@ -21,6 +21,7 @@
   import { generateFinalClassifications } from '$lib/api/classifications';
   import { supabase } from '$lib/supabaseClient';
   import { showSuccess, showError, showWarning, showInfo } from '$lib/stores/toastStore';
+  import { showConfirm } from '$lib/stores/confirmDialogStore';
 
   export const data: PageData = {} as PageData; // Unused export for type compatibility
 
@@ -552,9 +553,13 @@
     try {
       const { inscriptionId } = event.detail;
 
-      if (!confirm('Estàs segur que vols eliminar aquesta inscripció?')) {
-        return;
-      }
+      const ok = await showConfirm({
+        title: 'Eliminar inscripció',
+        message: 'Estàs segur que vols eliminar aquesta inscripció?',
+        severity: 'danger',
+        confirmLabel: 'Eliminar'
+      });
+      if (!ok) return;
 
       const { data, error } = await supabase
         .from('inscripcions')
@@ -610,9 +615,13 @@
       const conflicts = matches.filter(match => match.estat === 'conflicte');
 
       if (conflicts.length > 0) {
-        if (!confirm(`Hi ha ${conflicts.length} conflictes al calendari. Vols continuar amb la validació?`)) {
-          return;
-        }
+        const ok = await showConfirm({
+          title: 'Conflictes al calendari',
+          message: `Hi ha ${conflicts.length} conflictes al calendari.\n\nVols continuar amb la validació?`,
+          severity: 'warning',
+          confirmLabel: 'Continuar'
+        });
+        if (!ok) return;
       }
 
       // Update matches to validated state

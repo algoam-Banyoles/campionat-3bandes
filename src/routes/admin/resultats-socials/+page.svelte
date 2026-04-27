@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { showSuccess, showError } from '$lib/stores/toastStore';
+  import { showConfirm } from '$lib/stores/confirmDialogStore';
 
 
   let selectedEvent: any = null;
@@ -280,13 +281,16 @@
       ? `${incompareixencaMatch.soci1?.nom} ${incompareixencaMatch.soci1?.cognoms}`
       : `${incompareixencaMatch.soci2?.nom} ${incompareixencaMatch.soci2?.cognoms}`;
 
-    const confirmation = confirm(
-      `Estàs segur que vols marcar incompareixença de ${jugadorNom}?\n\n` +
-      `Això assignarà:\n` +
-      `- Jugador present: 2 punts, 0 entrades\n` +
-      `- Jugador absent: 0 punts, 50 entrades\n\n` +
-      `Si el jugador té 2 incompareixences, serà eliminat del campionat.`
-    );
+    const confirmation = await showConfirm({
+      title: 'Marcar incompareixença',
+      message:
+        `Marcar incompareixença de ${jugadorNom}?\n\n` +
+        `Jugador present: 2 punts, 0 entrades\n` +
+        `Jugador absent: 0 punts, 50 entrades\n\n` +
+        `Amb 2 incompareixences, el jugador serà eliminat del campionat.`,
+      severity: 'warning',
+      confirmLabel: 'Marcar absent'
+    });
 
     if (!confirmation) return;
 

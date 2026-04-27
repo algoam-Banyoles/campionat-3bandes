@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { showError, showWarning } from '$lib/stores/toastStore';
+  import { showConfirm } from '$lib/stores/confirmDialogStore';
 
   const dispatch = createEventDispatcher();
 
@@ -63,18 +64,17 @@
   }
 
   async function deleteCategory(categoryId: string, categoryName: string) {
-    // Check if any players are assigned to this category
     const playersInCategory = inscriptions.filter(i => i.categoria_assignada_id === categoryId);
 
-    if (playersInCategory.length > 0) {
-      if (!confirm(`La categoria "${categoryName}" té ${playersInCategory.length} jugadors assignats. Si l'elimines, aquests jugadors quedaran sense categoria. Vols continuar?`)) {
-        return;
-      }
-    } else {
-      if (!confirm(`Estàs segur que vols eliminar la categoria "${categoryName}"?`)) {
-        return;
-      }
-    }
+    const ok = await showConfirm({
+      title: 'Eliminar categoria',
+      message: playersInCategory.length > 0
+        ? `La categoria "${categoryName}" té ${playersInCategory.length} jugadors assignats.\n\nSi l'elimines, aquests jugadors quedaran sense categoria. Vols continuar?`
+        : `Estàs segur que vols eliminar la categoria "${categoryName}"?`,
+      severity: 'danger',
+      confirmLabel: 'Eliminar'
+    });
+    if (!ok) return;
 
     try {
       // First, remove category assignments from inscriptions

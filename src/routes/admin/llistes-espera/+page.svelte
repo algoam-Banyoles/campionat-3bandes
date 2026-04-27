@@ -5,6 +5,7 @@
   import Loader from '$lib/components/general/Loader.svelte';
   import { formatSupabaseError } from '$lib/ui/alerts';
   import { initAdminPage } from '$lib/utils/adminPage';
+  import { showConfirm } from '$lib/stores/confirmDialogStore';
 
   let loading = true;
   let error: string | null = null;
@@ -119,7 +120,13 @@
   }
 
   async function removeFromWaitingList(waitingId: string, reason: string = '') {
-    if (!confirm('Estàs segur que vols eliminar aquest jugador de la llista d\'espera?')) return;
+    const ok = await showConfirm({
+      title: 'Eliminar de la llista d\'espera',
+      message: 'Estàs segur que vols eliminar aquest jugador de la llista d\'espera?',
+      severity: 'danger',
+      confirmLabel: 'Eliminar'
+    });
+    if (!ok) return;
 
     try {
       const waitingRecord = waitingList.find(w => w.id === waitingId);

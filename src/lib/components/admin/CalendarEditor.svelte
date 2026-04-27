@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { formatSupabaseError } from '$lib/ui/alerts';
+  import { showConfirm } from '$lib/stores/confirmDialogStore';
 
   const dispatch = createEventDispatcher();
 
@@ -212,7 +213,13 @@
   }
 
   async function deleteMatch(matchId: string) {
-    if (!confirm('Estàs segur que vols eliminar aquest partit?')) return;
+    const ok = await showConfirm({
+      title: 'Eliminar partit',
+      message: 'Estàs segur que vols eliminar aquest partit?',
+      severity: 'danger',
+      confirmLabel: 'Eliminar'
+    });
+    if (!ok) return;
 
     try {
       const { error: deleteError } = await supabase
@@ -233,8 +240,13 @@
   }
 
   async function regenerateCalendar() {
-    if (!confirm('Això eliminarà tots els partits existents i generarà un nou calendari. Continuar?')) return;
-
+    const ok = await showConfirm({
+      title: 'Regenerar calendari',
+      message: 'Això eliminarà tots els partits existents i generarà un nou calendari.\n\nContinuar?',
+      severity: 'danger',
+      confirmLabel: 'Regenerar'
+    });
+    if (!ok) return;
     dispatch('regenerateCalendar');
   }
 </script>

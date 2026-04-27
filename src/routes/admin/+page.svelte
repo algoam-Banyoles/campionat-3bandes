@@ -9,6 +9,7 @@
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
   import { runDeadlines, type RunDeadlinesResult } from '$lib/deadlinesService';
   import { authFetch } from '$lib/utils/http';
+  import { showConfirm } from '$lib/stores/confirmDialogStore';
 
   let loading = true;
   let error: string | null = null;
@@ -179,7 +180,13 @@
   }
 
   async function resetChampionship() {
-    if (!confirm('Segur que vols fer un reset del campionat?')) return;
+    const ok = await showConfirm({
+      title: 'Reset del campionat',
+      message: 'Aquesta acció eliminarà reptes, partides i historial del campionat actual i en crearà un de nou. No es pot desfer.\n\nEstàs segur que vols continuar?',
+      severity: 'danger',
+      confirmLabel: 'Sí, reset complet'
+    });
+    if (!ok) return;
     try {
       resetBusy = true;
       resetOk = null;

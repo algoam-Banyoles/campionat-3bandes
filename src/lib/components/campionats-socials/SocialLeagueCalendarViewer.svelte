@@ -53,6 +53,7 @@
   } from '$lib/services/calendarMutationsService';
   import CalendarIncompareixencaPreflight from './CalendarIncompareixencaPreflight.svelte';
   import { showSuccess, showError, showWarning } from '$lib/stores/toastStore';
+  import { showConfirm } from '$lib/stores/confirmDialogStore';
 
   const dispatch = createEventDispatcher();
 
@@ -64,17 +65,19 @@
   export const editMode: boolean = false;
 
   // Funció per imprimir només la taula cronològica
-  function printCalendar() {
+  async function printCalendar() {
     if (!matches || matches.length === 0) {
       showWarning('No hi ha dades de calendari per imprimir. Assegura\'t que el calendari estigui generat.');
       return;
     }
 
-    const useDoubleColumn = confirm(
-      'Tria el format d\'impressió:\n\n' +
-      'Acceptar: Dues columnes (més compacte, més partides per pàgina)\n' +
-      'Cancel·lar: Una columna (text més gran, més fàcil de llegir)'
-    );
+    const useDoubleColumn = await showConfirm({
+      title: 'Format d\'impressió',
+      message: 'Tria el format del calendari:\n\nDues columnes — més compacte, més partides per pàgina\nUna columna — text més gran, més fàcil de llegir',
+      severity: 'info',
+      confirmLabel: 'Dues columnes',
+      cancelLabel: 'Una columna'
+    });
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -632,13 +635,16 @@
   async function convertToUnprogrammed(match: any) {
     if (!isAdmin) return;
 
-    const confirmation = confirm(
-      `Estàs segur que vols convertir aquesta partida en no programada?\n\n` +
-      `${formatPlayerName(match.jugador1)} vs ${formatPlayerName(match.jugador2)}\n` +
-      `Data: ${formatDate(new Date(match.data_programada))} a les ${match.hora_inici}\n\n` +
-      `Aquesta acció eliminarà la data i hora programades.`
-    );
-    if (!confirmation) return;
+    const ok = await showConfirm({
+      title: 'Convertir a no programada',
+      message:
+        `${formatPlayerName(match.jugador1)} vs ${formatPlayerName(match.jugador2)}\n` +
+        `Data: ${formatDate(new Date(match.data_programada))} a les ${match.hora_inici}\n\n` +
+        `Aquesta acció eliminarà la data i hora programades.`,
+      severity: 'warning',
+      confirmLabel: 'Convertir'
+    });
+    if (!ok) return;
 
     try {
       loading = true;
@@ -723,10 +729,14 @@
       return;
     }
 
-    const confirmPublish = confirm(
-      `Estàs segur que vols publicar ${validatedMatches.length} partits validats al calendari general?\n\n` +
-      `Això farà que les partides apareguin al calendari de la PWA i seran visibles per tots els usuaris.`
-    );
+    const confirmPublish = await showConfirm({
+      title: 'Publicar calendari',
+      message:
+        `Es publicaran ${validatedMatches.length} partits validats al calendari general.\n\n` +
+        `Les partides apareixeran al calendari de la PWA i seran visibles per tots els usuaris.`,
+      severity: 'info',
+      confirmLabel: 'Publicar'
+    });
     if (!confirmPublish) return;
 
     publishing = true;
@@ -790,14 +800,17 @@
       return;
     }
 
-    const confirmSwap = confirm(
-      `Estàs segur que vols intercanviar aquestes partides?\n\n` +
-      `Partida 1: ${formatPlayerName(match1.jugador1)} vs ${formatPlayerName(match1.jugador2)}\n` +
-      `Data actual: ${formatDate(new Date(match1.data_programada))} a les ${match1.hora_inici}\n\n` +
-      `Partida 2: ${formatPlayerName(match2.jugador1)} vs ${formatPlayerName(match2.jugador2)}\n` +
-      `Data actual: ${formatDate(new Date(match2.data_programada))} a les ${match2.hora_inici}\n\n` +
-      `Després de l'intercanvi, les dates i hores s'intercanviaran.`
-    );
+    const confirmSwap = await showConfirm({
+      title: 'Intercanviar partides',
+      message:
+        `Partida 1: ${formatPlayerName(match1.jugador1)} vs ${formatPlayerName(match1.jugador2)}\n` +
+        `   ${formatDate(new Date(match1.data_programada))} a les ${match1.hora_inici}\n\n` +
+        `Partida 2: ${formatPlayerName(match2.jugador1)} vs ${formatPlayerName(match2.jugador2)}\n` +
+        `   ${formatDate(new Date(match2.data_programada))} a les ${match2.hora_inici}\n\n` +
+        `Les dates i hores s'intercanviaran entre les dues partides.`,
+      severity: 'warning',
+      confirmLabel: 'Intercanviar'
+    });
     if (!confirmSwap) return;
 
     try {

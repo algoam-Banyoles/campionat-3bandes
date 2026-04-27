@@ -4,6 +4,7 @@
   import { supabase } from '$lib/supabaseClient';
   import { user } from '$lib/stores/auth';
   import { showError, showWarning } from '$lib/stores/toastStore';
+  import { showConfirm } from '$lib/stores/confirmDialogStore';
 
   // Estats
   let multimediaData: any[] = [];
@@ -246,9 +247,13 @@
 
   // Eliminar enllaç
   async function deleteLink(link: any) {
-    if (!confirm(`Estàs segur que vols eliminar l'enllaç "${link.club} - ${link.billar || 'General'}"?`)) {
-      return;
-    }
+    const ok = await showConfirm({
+      title: 'Eliminar enllaç',
+      message: `Estàs segur que vols eliminar l'enllaç "${link.club} - ${link.billar || 'General'}"?`,
+      severity: 'danger',
+      confirmLabel: 'Eliminar'
+    });
+    if (!ok) return;
 
     loading = true;
 

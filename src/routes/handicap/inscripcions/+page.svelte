@@ -8,6 +8,7 @@
 	import { searchActivePlayers } from '$lib/api/socialLeagues';
 	import { debounce } from 'lodash-es';
 	import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
+	import { showConfirm } from '$lib/stores/confirmDialogStore';
 	$: if ($adminChecked && !$isAdmin) goto('/handicap');
 
 	// ─── State ────────────────────────────────────────────────
@@ -314,7 +315,13 @@
 
 	// ─── Eliminar ─────────────────────────────────────────────
 	async function handleDelete(id: string) {
-		if (!confirm('Eliminar aquesta inscripcio?')) return;
+		const ok = await showConfirm({
+			title: 'Eliminar inscripció',
+			message: 'Eliminar aquesta inscripció?',
+			severity: 'danger',
+			confirmLabel: 'Eliminar'
+		});
+		if (!ok) return;
 		try {
 			const { error: e } = await supabase
 				.from('handicap_participants')

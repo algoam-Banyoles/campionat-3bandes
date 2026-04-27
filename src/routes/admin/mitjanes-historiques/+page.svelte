@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
 	import { showError } from '$lib/stores/toastStore';
+	import { showConfirm } from '$lib/stores/confirmDialogStore';
 
 	type MitjanaHistorica = {
 		id: number;
@@ -155,7 +156,13 @@
 	}
 
 	async function removeAssignment(mitjanaId: number) {
-		if (!confirm('Estàs segur que vols desassignar aquest soci?')) return;
+		const ok = await showConfirm({
+			title: 'Desassignar soci',
+			message: 'Estàs segur que vols desassignar aquest soci?',
+			severity: 'warning',
+			confirmLabel: 'Desassignar'
+		});
+		if (!ok) return;
 
 		saving = true;
 		try {

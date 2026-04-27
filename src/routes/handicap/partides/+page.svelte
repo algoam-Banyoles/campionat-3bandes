@@ -10,6 +10,7 @@
 	import type { CalendarEntry, BranchMatchInput } from '$lib/utils/handicap-types';
 	import { buildMatchCodeMap, buildSlotSourceMap } from '$lib/utils/handicap-types';
 	import { saveMatchResult, type SaveResultError } from '$lib/utils/handicap-propagation';
+	import { showConfirm } from '$lib/stores/confirmDialogStore';
 	import {
 		scheduleMatches,
 		type MatchToSchedule,
@@ -424,7 +425,13 @@
 
 	async function unschedule(match: MatchDisplay) {
 		if (!match.calendari_partida_id || saving) return;
-		if (!confirm(`Desassignar la partida ${match.player1_name} vs ${match.player2_name}?`)) return;
+		const ok = await showConfirm({
+			title: 'Desassignar partida',
+			message: `Desassignar la partida ${match.player1_name} vs ${match.player2_name}?`,
+			severity: 'warning',
+			confirmLabel: 'Desassignar'
+		});
+		if (!ok) return;
 		saving = true;
 		error = null;
 
