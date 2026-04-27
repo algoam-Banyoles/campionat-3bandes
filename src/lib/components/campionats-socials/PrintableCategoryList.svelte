@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { showError } from '$lib/stores/toastStore';
   export let inscriptions: any[] = [];
   export let categories: any[] = [];
   export let socis: any[] = [];
@@ -86,7 +87,7 @@
     // Generar HTML per imprimir
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      alert('No es pot obrir la finestra d\'impressió. Si us plau, permet les finestres emergents.');
+      showError('No es pot obrir la finestra d\'impressió. Si us plau, permet les finestres emergents.');
       return;
     }
 

@@ -20,6 +20,7 @@
   import { getSocialLeagueEvents, exportCalendariToCSV } from '$lib/api/socialLeagues';
   import { generateFinalClassifications } from '$lib/api/classifications';
   import { supabase } from '$lib/supabaseClient';
+  import { showSuccess, showError, showWarning, showInfo } from '$lib/stores/toastStore';
 
   export const data: PageData = {} as PageData; // Unused export for type compatibility
 
@@ -326,10 +327,10 @@
         link.click();
         document.body.removeChild(link);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error exporting calendar:', error);
       const errorMessage = error.message || 'Error desconegut';
-      alert(`Error exportant el calendari: ${errorMessage}`);
+      showError(`Error exportant el calendari: ${errorMessage}`);
     }
   }
 
@@ -360,9 +361,9 @@
       if (selectedEventId === eventId) {
         selectedEvent = events.find(e => e.id === eventId);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating event status:', error);
-      alert(`Error actualitzant l'estat del campionat: ${error.message}`);
+      showError(`Error actualitzant l'estat del campionat: ${error.message}`);
     }
   }
 
@@ -512,7 +513,7 @@
 
       if (error) {
         console.error('Error inscribing soci:', error);
-        alert('Error en inscriure el soci: ' + error.message);
+        showError('Error en inscriure el soci: ' + error.message);
         return;
       }
 
@@ -520,7 +521,7 @@
       await loadInscriptionsData();
     } catch (error) {
       console.error('Error in handleInscribe:', error);
-      alert('Error en inscriure el soci');
+      showError('Error en inscriure el soci');
     }
   }
 
@@ -535,7 +536,7 @@
 
       if (error) {
         console.error('Error moving inscription:', error);
-        alert('Error en moure la inscripció: ' + error.message);
+        showError('Error en moure la inscripció: ' + error.message);
         return;
       }
 
@@ -543,7 +544,7 @@
       await loadInscriptionsData();
     } catch (error) {
       console.error('Error in handleMoveInscription:', error);
-      alert('Error en moure la inscripció');
+      showError('Error en moure la inscripció');
     }
   }
 
@@ -562,7 +563,7 @@
 
       if (error) {
         console.error('Error removing inscription:', error);
-        alert('Error en eliminar la inscripció: ' + error.message);
+        showError('Error en eliminar la inscripció: ' + error.message);
         return;
       }
 
@@ -570,7 +571,7 @@
       await loadInscriptionsData();
     } catch (error) {
       console.error('Error in handleRemoveInscription:', error);
-      alert('Error en eliminar la inscripció');
+      showError('Error en eliminar la inscripció');
     }
   }
 
@@ -578,8 +579,7 @@
     const { totalMoved, message } = event.detail;
     console.log('Intelligent movement completed:', message);
 
-    // Show success message
-    alert(`Moviment completat: ${message}`);
+    showSuccess(`Moviment completat: ${message}`);
 
     // Reload data
     loadInscriptionsData();
@@ -596,12 +596,12 @@
 
       if (matchesError) {
         console.error('Error checking calendar matches:', matchesError);
-        alert('Error al verificar el calendari: ' + matchesError.message);
+        showError('Error al verificar el calendari: ' + matchesError.message);
         return;
       }
 
       if (!matches || matches.length === 0) {
-        alert('No hi ha partides generades al calendari. Genera primer el calendari.');
+        showWarning('No hi ha partides generades al calendari. Genera primer el calendari.');
         managementView = 'generate-calendar';
         return;
       }
@@ -624,17 +624,17 @@
 
       if (updateError) {
         console.error('Error validating calendar:', updateError);
-        alert('Error al validar el calendari: ' + updateError.message);
+        showError('Error al validar el calendari: ' + updateError.message);
         return;
       }
 
-      alert('Calendari validat correctament! Ara pots publicar-lo.');
+      showSuccess('Calendari validat correctament! Ara pots publicar-lo.');
 
       // Update calendar status
       await checkCalendarStatus();
     } catch (error) {
       console.error('Error in validateCalendar:', error);
-      alert('Error al validar el calendari');
+      showError('Error al validar el calendari');
     }
   }
 
@@ -802,7 +802,7 @@
                       inscripcio.pagat = nouPagat;
                       await loadInscriptionsData();
                     } else {
-                      alert('Error actualitzant pagament: ' + error.message);
+                      showError('Error actualitzant pagament: ' + error.message);
                     }
                   }}
                   class="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 touch-manipulation"

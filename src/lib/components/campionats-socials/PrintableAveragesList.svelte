@@ -1,5 +1,6 @@
 <script lang="ts">
   import { supabase } from '$lib/supabaseClient';
+  import { showError, showWarning } from '$lib/stores/toastStore';
 
   let selectedModality = 'tres_bandes';
   let loading = false;
@@ -45,7 +46,7 @@
         throw socisError;
       }
       if (!socisData || socisData.length === 0) {
-        alert('No s\'han trobat socis actius');
+        showWarning('No s\'han trobat socis actius');
         loading = false;
         return;
       }
@@ -142,7 +143,7 @@
       console.log(`Processats ${socisData.length} socis, ${socisWithData.length} amb mitjanes per ${historialModality}`);
 
       if (socisWithData.length === 0) {
-        alert('No s\'han trobat mitjanes per a la modalitat seleccionada');
+        showWarning('No s\'han trobat mitjanes per a la modalitat seleccionada');
         loading = false;
         return;
       }
@@ -152,9 +153,9 @@
       openPrintWindow(socisWithData);
       console.log('Llistat generat correctament');
 
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error generant llistat:', e);
-      alert(`Error generant el llistat: ${e.message || 'Si us plau, torna-ho a intentar.'}`);
+      showError(`Error generant el llistat: ${e.message || 'Si us plau, torna-ho a intentar.'}`);
     } finally {
       loading = false;
     }
@@ -163,7 +164,7 @@
   function openPrintWindow(socisData: any[]) {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      alert('No es pot obrir la finestra d\'impressió. Si us plau, permet les finestres emergents.');
+      showError('No es pot obrir la finestra d\'impressió. Si us plau, permet les finestres emergents.');
       return;
     }
 

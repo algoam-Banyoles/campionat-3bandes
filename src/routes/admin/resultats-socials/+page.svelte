@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
+  import { showSuccess, showError } from '$lib/stores/toastStore';
 
 
   let selectedEvent: any = null;
@@ -312,17 +313,12 @@
 
       // Show different messages based on result
       if (data.jugador_eliminat) {
-        alert(
-          `⚠️ INCOMPAREIXENÇA REGISTRADA\n\n` +
-          `El jugador ${jugadorNom} té ${data.incompareixences} incompareixences.\n` +
-          `HA ESTAT ELIMINAT DEL CAMPIONAT.\n\n` +
-          `Totes les seves partides pendents han estat anul·lades.`
+        showError(
+          `${jugadorNom} ha estat desqualificat (${data.incompareixences} incompareixences). Les partides pendents han estat anul·lades.`
         );
       } else {
-        alert(
-          `✅ INCOMPAREIXENÇA REGISTRADA\n\n` +
-          `El jugador ${jugadorNom} té ${data.incompareixences} incompareixença(es).\n` +
-          `Partida registrada amb els punts corresponents.`
+        showSuccess(
+          `Incompareixença registrada — ${jugadorNom} té ${data.incompareixences} incompareixença(es)`
         );
       }
 

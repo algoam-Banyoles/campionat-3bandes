@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import PlayerRestrictionsEditor from '$lib/components/general/PlayerRestrictionsEditor.svelte';
+  import { showError } from '$lib/stores/toastStore';
 
   const dispatch = createEventDispatcher();
 
@@ -117,9 +118,9 @@
       if (error) throw error;
 
       dispatch('restrictionsUpdated');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating availability:', error);
-      alert('Error actualitzant disponibilitat: ' + error.message);
+      showError('Error actualitzant disponibilitat: ' + error.message);
     } finally {
       loading = false;
     }

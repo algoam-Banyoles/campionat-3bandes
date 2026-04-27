@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
+  import { showError } from '$lib/stores/toastStore';
 
   const dispatch = createEventDispatcher();
 
@@ -482,7 +483,7 @@
 
     } catch (e) {
       console.error('Error aplicant ascensos:', e);
-      alert('Error aplicant els ascensos. Si us plau, torna-ho a intentar.');
+      showError('Error aplicant els ascensos. Si us plau, torna-ho a intentar.');
     }
   }
 

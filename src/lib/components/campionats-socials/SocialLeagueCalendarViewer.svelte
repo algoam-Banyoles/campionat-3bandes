@@ -46,8 +46,13 @@
     saveMatchEdit as svcSaveMatchEdit,
     markCalendarPublished as svcMarkCalendarPublished,
     swapMatchSchedule as svcSwapMatchSchedule,
-    fetchMatchScores as svcFetchMatchScores
+    fetchMatchScores as svcFetchMatchScores,
+    getPlayerIncompareixencesCount as svcGetPlayerIncompareixencesCount,
+    listPendingMatchesForPlayer as svcListPendingMatchesForPlayer,
+    type PendingMatchSummary
   } from '$lib/services/calendarMutationsService';
+  import CalendarIncompareixencaPreflight from './CalendarIncompareixencaPreflight.svelte';
+  import { showSuccess, showError, showWarning } from '$lib/stores/toastStore';
 
   const dispatch = createEventDispatcher();
 
@@ -61,7 +66,7 @@
   // Funció per imprimir només la taula cronològica
   function printCalendar() {
     if (!matches || matches.length === 0) {
-      alert('No hi ha dades de calendari per imprimir. Assegura\'t que el calendari estigui generat.');
+      showWarning('No hi ha dades de calendari per imprimir. Assegura\'t que el calendari estigui generat.');
       return;
     }
 
@@ -73,7 +78,7 @@
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      alert('No s\'ha pogut obrir la finestra d\'impressió. Comprova que no estiguin bloquejades les finestres emergents.');
+      showError('No s\'ha pogut obrir la finestra d\'impressió. Comprova que no estiguin bloquejades les finestres emergents.');
       return;
     }
 
@@ -99,7 +104,7 @@
       };
     } catch (e: any) {
       console.error('Error generant la impressió:', e);
-      alert('Error generant la impressió: ' + e.message);
+      showError('Error generant la impressió: ' + e.message);
       printWindow.close();
     }
   }
@@ -157,6 +162,14 @@
   // Variables per al modal d'incompareixences
   let showIncompareixencaModal = false;
   let incompareixencaMatch: any = null;
+
+  // Estat del modal de preflight d'incompareixença (mostra impacte abans de confirmar)
+  let showIncompareixencaPreflight = false;
+  let preflightLoading = false;
+  let preflightAbsentPlayer: 1 | 2 | null = null;
+  let preflightPlayerName = '';
+  let preflightCurrentCount = 0;
+  let preflightPendingMatches: PendingMatchSummary[] = [];
 
   // Variables per al modal de partides pendents
   let showPendingMatchesModal = false;
@@ -481,7 +494,7 @@
       };
       showResultModal = true;
     } catch (e) {
-      alert('Error carregant les dades de la partida: ' + formatSupabaseError(e));
+      showError('Error carregant les dades de la partida: ' + formatSupabaseError(e));
     }
   }
 
@@ -501,7 +514,7 @@
     if (loading) return;
 
     if (resultForm.caramboles_jugador1 === 0 && resultForm.caramboles_jugador2 === 0) {
-      alert('Introdueix les caramboles per ambdós jugadors');
+      showWarning('Introdueix les caramboles per ambdós jugadors');
       return;
     }
 
@@ -517,10 +530,10 @@
       closeResultModal();
       await loadCalendarData();
       dispatch('matchUpdated');
-      alert('✅ Resultat guardat correctament!');
+      showSuccess('Resultat guardat correctament');
     } catch (err) {
       console.error('Error guardant resultat:', err);
-      alert('Error guardant el resultat: ' + formatSupabaseError(err));
+      showError('Error guardant el resultat: ' + formatSupabaseError(err));
     } finally {
       loading = false;
     }
@@ -538,51 +551,82 @@
     incompareixencaMatch = null;
   }
 
+  /**
+   * Pas 1: l'admin clica un jugador al modal de selecció.
+   * Aquí carreguem dades i obrim el preflight (mostra impacte real).
+   */
   async function marcarIncompareixenca(jugadorQueFalta: 1 | 2) {
     if (!incompareixencaMatch || !isAdmin) return;
     if (loading) return;
 
-    const jugadorNom = jugadorQueFalta === 1
-      ? formatPlayerName(incompareixencaMatch.jugador1)
-      : formatPlayerName(incompareixencaMatch.jugador2);
+    const jugador = jugadorQueFalta === 1
+      ? incompareixencaMatch.jugador1
+      : incompareixencaMatch.jugador2;
+    const sociNumero = jugadorQueFalta === 1
+      ? incompareixencaMatch.jugador1_soci_numero
+      : incompareixencaMatch.jugador2_soci_numero;
 
-    const confirmation = confirm(
-      `Estàs segur que vols marcar incompareixença de ${jugadorNom}?\n\n` +
-      `Això assignarà:\n` +
-      `- Jugador present: 2 punts, 0 entrades\n` +
-      `- Jugador absent: 0 punts, 50 entrades\n\n` +
-      `Si el jugador té 2 incompareixences, serà eliminat del campionat.`
-    );
-    if (!confirmation) return;
+    preflightAbsentPlayer = jugadorQueFalta;
+    preflightPlayerName = formatPlayerName(jugador);
 
     try {
       loading = true;
+      const [count, pending] = await Promise.all([
+        svcGetPlayerIncompareixencesCount(supabase, eventId, sociNumero),
+        svcListPendingMatchesForPlayer(supabase, eventId, sociNumero)
+      ]);
+      preflightCurrentCount = count;
+      // Excloure la partida actual de la llista d'afectades (ja la registrem ara)
+      preflightPendingMatches = pending.filter(m => m.id !== incompareixencaMatch.id);
+      showIncompareixencaPreflight = true;
+    } catch (err) {
+      console.error('Error preparant preflight d\'incompareixença:', err);
+      showError('Error preparant la confirmació: ' + formatSupabaseError(err));
+    } finally {
+      loading = false;
+    }
+  }
+
+  /** Pas 2: l'admin confirma al preflight. Disparem la RPC. */
+  async function confirmIncompareixencaPreflight() {
+    if (!incompareixencaMatch || !preflightAbsentPlayer) return;
+    if (preflightLoading) return;
+
+    const jugadorNom = preflightPlayerName;
+    const jugadorQueFalta = preflightAbsentPlayer;
+
+    try {
+      preflightLoading = true;
       const result = await svcRegisterNoShow(supabase, incompareixencaMatch.id, jugadorQueFalta);
 
+      cancelIncompareixencaPreflight();
       closeIncompareixencaModal();
       await loadCalendarData();
       dispatch('matchUpdated');
 
       if (result.jugador_eliminat) {
-        alert(
-          `⚠️ INCOMPAREIXENÇA REGISTRADA\n\n` +
-          `El jugador ${jugadorNom} té ${result.incompareixences} incompareixences.\n` +
-          `HA ESTAT ELIMINAT DEL CAMPIONAT.\n\n` +
-          `Totes les seves partides pendents han estat anul·lades.`
+        showError(
+          `${jugadorNom} ha estat desqualificat (${result.incompareixences} incompareixences). Les partides pendents han estat anul·lades.`
         );
       } else {
-        alert(
-          `✅ INCOMPAREIXENÇA REGISTRADA\n\n` +
-          `El jugador ${jugadorNom} té ${result.incompareixences} incompareixença(es).\n` +
-          `Partida registrada amb els punts corresponents.`
+        showSuccess(
+          `Incompareixença registrada — ${jugadorNom} té ${result.incompareixences} incompareixença(es)`
         );
       }
     } catch (err) {
       console.error('Error registrant incompareixença:', err);
-      alert('Error registrant la incompareixença: ' + formatSupabaseError(err));
+      showError('Error registrant la incompareixença: ' + formatSupabaseError(err));
     } finally {
-      loading = false;
+      preflightLoading = false;
     }
+  }
+
+  function cancelIncompareixencaPreflight() {
+    showIncompareixencaPreflight = false;
+    preflightAbsentPlayer = null;
+    preflightPlayerName = '';
+    preflightCurrentCount = 0;
+    preflightPendingMatches = [];
   }
 
   async function convertToUnprogrammed(match: any) {
@@ -601,11 +645,11 @@
       await svcMarkAsUnprogrammed(supabase, match);
       await loadCalendarData();
       dispatch('matchUpdated');
-      alert('Partida convertida a no programada correctament.');
+      showSuccess('Partida convertida a no programada');
     } catch (e) {
       console.error('Error converting match to unprogrammed:', e);
       error = formatSupabaseError(e);
-      alert('Error al convertir la partida: ' + error);
+      showError('Error al convertir la partida: ' + error);
     } finally {
       loading = false;
     }
@@ -639,7 +683,7 @@
     showOldMatchesModal = false;
     loadCalendarData();
     dispatch('matchUpdated');
-    alert(`✅ S'han convertit ${event.detail.count} partides a "Pendent de programar"`);
+    showSuccess(`S'han convertit ${event.detail.count} partides a "Pendent de programar"`);
   }
 
   function closeOldMatchesModal() {
@@ -664,7 +708,7 @@
       dispatch('matchUpdated');
     } catch (e) {
       error = formatSupabaseError(e);
-      alert('Error guardant els canvis: ' + error);
+      showError('Error guardant els canvis: ' + error);
     } finally {
       loading = false;
     }
@@ -695,7 +739,7 @@
         eventId,
         publishedMatches: validatedMatches.length
       });
-      alert(`✅ Calendari publicat correctament!\n\n${validatedMatches.length} partits ara són visibles al calendari general de la PWA.`);
+      showSuccess(`Calendari publicat: ${validatedMatches.length} partits visibles al calendari general`);
     } catch (e) {
       console.error('Error publicant calendari:', e);
       error = formatSupabaseError(e);
@@ -719,7 +763,7 @@
     } else {
       // Limit to 2 selections for swapping
       if (selectedMatches.size >= 2) {
-        alert('Només pots seleccionar 2 partides per intercanviar.');
+        showWarning('Només pots seleccionar 2 partides per intercanviar.');
         return;
       }
       selectedMatches.add(matchId);
@@ -765,7 +809,7 @@
       swapMode = false;
 
       dispatch('matchesSwapped', { match1Id: match1.id, match2Id: match2.id });
-      alert('✅ Partides intercanviades correctament!');
+      showSuccess('Partides intercanviades correctament');
     } catch (e) {
       console.error('Error intercanviant partides:', e);
       error = formatSupabaseError(e);
@@ -786,7 +830,7 @@
     } catch (e) {
       console.error('Error exporting calendar:', e);
       const errorMessage = e instanceof Error ? e.message : 'Error desconegut';
-      alert(`Error exportant el calendari: ${errorMessage}`);
+      showError(`Error exportant el calendari: ${errorMessage}`);
     }
   }
 </script>
@@ -1174,6 +1218,17 @@
     on:close={closeIncompareixencaModal}
   />
 {/if}
+
+<!-- Preflight d'incompareixença: confirma amb impacte real abans del RPC -->
+<CalendarIncompareixencaPreflight
+  open={showIncompareixencaPreflight}
+  playerName={preflightPlayerName}
+  currentCount={preflightCurrentCount}
+  pendingMatches={preflightPendingMatches}
+  loading={preflightLoading}
+  on:confirm={confirmIncompareixencaPreflight}
+  on:cancel={cancelIncompareixencaPreflight}
+/>
 
 <!-- Modal de Partides Pendents -->
 {#if showPendingMatchesModal && selectedSlot}

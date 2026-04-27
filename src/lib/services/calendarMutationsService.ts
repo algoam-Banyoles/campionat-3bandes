@@ -59,6 +59,103 @@ export async function fetchMatchScores(
 }
 
 /**
+ * Llegeix el nombre d'incompareixences acumulades d'un jugador en un
+ * event concret. Retorna 0 si no hi ha cap inscripció (cas defensiu).
+ */
+export async function getPlayerIncompareixencesCount(
+  supabase: SupabaseClient,
+  eventId: string,
+  sociNumero: number
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('inscripcions')
+    .select('incompareixences_count')
+    .eq('event_id', eventId)
+    .eq('soci_numero', sociNumero)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as any)?.incompareixences_count ?? 0;
+}
+
+export interface PendingMatchSummary {
+  id: string;
+  data_programada: string | null;
+  hora_inici: string | null;
+  taula_assignada: number | null;
+  /** "J. Cognom" del rival per a UI ràpida. */
+  rivalNom: string;
+  rivalCognoms: string;
+}
+
+/**
+ * Llista les partides pendents d'un jugador en un event que es
+ * cancel·larien si el jugador queda desqualificat. Pendent vol dir:
+ *
+ *  - encara no jugada (no té caramboles)
+ *  - no anul·lada
+ *  - amb data programada o estat `pendent_programar`
+ *
+ * Retorna el rival ja resolt (nom + cognoms) per a renderitzar la llista
+ * sense més queries al pare.
+ */
+export async function listPendingMatchesForPlayer(
+  supabase: SupabaseClient,
+  eventId: string,
+  sociNumero: number
+): Promise<PendingMatchSummary[]> {
+  const { data, error } = await supabase
+    .from('calendari_partides')
+    .select(
+      'id, data_programada, hora_inici, taula_assignada, jugador1_soci_numero, jugador2_soci_numero, estat'
+    )
+    .eq('event_id', eventId)
+    .or(`jugador1_soci_numero.eq.${sociNumero},jugador2_soci_numero.eq.${sociNumero}`)
+    .is('caramboles_jugador1', null)
+    .is('caramboles_jugador2', null)
+    .or('partida_anullada.is.null,partida_anullada.eq.false')
+    .neq('estat', 'jugada')
+    .neq('estat', 'cancel·lada_per_retirada');
+
+  if (error) throw error;
+
+  const matches = (data || []) as any[];
+  if (matches.length === 0) return [];
+
+  const rivalSociNumeros = Array.from(
+    new Set(
+      matches.map(m =>
+        m.jugador1_soci_numero === sociNumero ? m.jugador2_soci_numero : m.jugador1_soci_numero
+      )
+    )
+  );
+
+  const { data: socisData } = await supabase
+    .from('socis')
+    .select('numero_soci, nom, cognoms')
+    .in('numero_soci', rivalSociNumeros);
+
+  const rivalsMap = new Map<number, { nom: string; cognoms: string }>();
+  for (const s of (socisData || []) as any[]) {
+    rivalsMap.set(s.numero_soci, { nom: s.nom ?? '', cognoms: s.cognoms ?? '' });
+  }
+
+  return matches.map(m => {
+    const rivalNum =
+      m.jugador1_soci_numero === sociNumero ? m.jugador2_soci_numero : m.jugador1_soci_numero;
+    const rival = rivalsMap.get(rivalNum) ?? { nom: '?', cognoms: '' };
+    return {
+      id: m.id,
+      data_programada: m.data_programada,
+      hora_inici: m.hora_inici,
+      taula_assignada: m.taula_assignada,
+      rivalNom: rival.nom,
+      rivalCognoms: rival.cognoms
+    };
+  });
+}
+
+/**
  * Guarda el resultat d'una partida: calcula els punts, marca com a
  * `jugada` i deixa rastre de qui ha validat (si l'usuari és autenticat).
  */

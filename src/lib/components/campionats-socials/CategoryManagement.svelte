@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
+  import { showError, showWarning } from '$lib/stores/toastStore';
 
   const dispatch = createEventDispatcher();
 
@@ -18,7 +19,7 @@
 
   async function createCategory() {
     if (!newCategoryName.trim()) {
-      alert('El nom de la categoria és obligatori');
+      showWarning('El nom de la categoria és obligatori');
       return;
     }
 
@@ -53,9 +54,9 @@
       showCreateForm = false;
 
       dispatch('categoryCreated');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating category:', error);
-      alert('Error creant la categoria: ' + error.message);
+      showError('Error creant la categoria: ' + error.message);
     } finally {
       creating = false;
     }
@@ -95,9 +96,9 @@
       if (error) throw error;
 
       dispatch('categoryDeleted');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting category:', error);
-      alert('Error eliminant la categoria: ' + error.message);
+      showError('Error eliminant la categoria: ' + error.message);
     }
   }
 
@@ -111,9 +112,9 @@
       if (error) throw error;
 
       dispatch('categoryUpdated');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating category order:', error);
-      alert('Error actualitzant l\'ordre: ' + error.message);
+      showError('Error actualitzant l\'ordre: ' + error.message);
     }
   }
 
@@ -154,9 +155,9 @@
 
       if (error) throw error;
       dispatch('categoryUpdated');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error moving player:', error);
-      alert('Error movent el jugador: ' + error.message);
+      showError('Error movent el jugador: ' + error.message);
     } finally {
       movingPlayer = null;
     }
