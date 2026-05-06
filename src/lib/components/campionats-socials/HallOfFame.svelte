@@ -641,7 +641,6 @@
   }
   .hof-table td.col-left { text-align: left; }
   .hof-table td.col-num { text-align: right; }
-  .hof-table td.col-narrow { color: var(--ink-3); }
   .hof-table tr:last-child td { border-bottom: none; }
   .hof-table tr:hover { background: var(--paper); }
   .player-name {
@@ -669,6 +668,5 @@
     .hof-section-title { font-size: 1.25rem; }
     .hof-filters { flex-direction: column; align-items: stretch; }
     .filter-input { min-width: 0; width: 100%; }
-    .hof-table .col-narrow { display: none; }
   }
 </style>

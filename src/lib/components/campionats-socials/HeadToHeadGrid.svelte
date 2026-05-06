@@ -255,22 +255,6 @@
     text-transform: uppercase;
     color: var(--ink-3);
   }
-  .print-btn {
-    background: var(--ink);
-    color: var(--paper);
-    border: 1px solid var(--ink);
-    padding: 0.5rem 1rem;
-    font-family: var(--font-sans);
-    font-weight: 600;
-    font-size: 0.875rem;
-    letter-spacing: -0.005em;
-    cursor: pointer;
-    min-height: 44px;
-  }
-  .print-btn:hover {
-    opacity: 0.92;
-  }
-
   /* ── Estats ─────────────────────────────────────────── */
   .state-empty {
     padding: 1.5rem 1.75rem;

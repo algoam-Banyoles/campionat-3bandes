@@ -543,6 +543,7 @@
 				</button>
 			{/if}
 		</div>
+		</div>
 	</header>
 
 	<!-- Capçalera visible només a impressió -->
@@ -961,10 +962,5 @@
 		.print\:hidden { display: none !important; }
 		.print\:block { display: block !important; }
 		.quadre-root { max-width: none !important; padding: 0 !important; }
-		.overflow-x-auto {
-			overflow: visible !important;
-			max-width: none !important;
-			width: auto !important;
-		}
 	}
 </style>

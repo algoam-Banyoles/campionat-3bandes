@@ -599,17 +599,8 @@
   .schedule-table td.hours.muted {
     font-weight: 600;
   }
-  .schedule-note {
-    margin: 1.25rem 0 0;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--rule);
-    font-size: 0.8125rem;
-    color: var(--ink-2);
-    line-height: 1.55;
-  }
-  .schedule-note :global(strong) {
-    color: var(--ink);
-  }
+  /* (.schedule-note class era usada al template anterior; ara s'usa
+     .schedule-note-body que es declara més amunt) */
   /* Mòbil: horari i aclariments apilats verticalment */
   @media (max-width: 900px) {
     .schedule-cols {

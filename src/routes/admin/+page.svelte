@@ -498,11 +498,10 @@
     font-weight: 800;
     letter-spacing: -0.018em;
   }
-  .ad-section-warn {
+  .ad-section-sub {
     margin: 0.5rem 0 0;
     font-size: 0.8125rem;
-    color: var(--accent);
-    font-weight: 600;
+    color: var(--ink-3);
   }
 
   .ad-grid {
@@ -663,7 +662,5 @@
     color: var(--ink-3);
   }
   .muted { color: var(--ink-3); font-size: 0.875rem; }
-  .tabular-nums { font-variant-numeric: tabular-nums; }
-  .mb-2 { margin-bottom: 0.5rem; }
-  .mt-2 { margin-top: 0.5rem; }
+  /* (.tabular-nums, .mb-2, .mt-2 ja les proporciona Tailwind) */
 </style>

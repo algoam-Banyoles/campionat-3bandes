@@ -153,8 +153,9 @@
 </script>
 
 {#if showPrintModal}
-  <div class="modal-backdrop" on:click={closePrintModal} role="presentation">
-    <div class="modal-card" on:click|stopPropagation role="dialog" aria-labelledby="h2hp-title">
+  <div class="modal-backdrop" on:click={closePrintModal} on:keydown={(e) => e.key === 'Escape' && closePrintModal()} role="presentation">
+    <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+    <div class="modal-card" on:click|stopPropagation role="dialog" aria-labelledby="h2hp-title" tabindex="-1">
       <div class="modal-head">
         <h3 id="h2hp-title">Selecciona categories a imprimir</h3>
         <button type="button" class="modal-close" on:click={closePrintModal} aria-label="Tancar">×</button>

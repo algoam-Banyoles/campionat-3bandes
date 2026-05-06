@@ -632,43 +632,7 @@ async function gotoPage(p: number) {
 		color: var(--ink-3, #807a72);
 	}
 
-	/* Estadístiques editorials */
-	.mh-stats {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-		gap: 0.75rem;
-		margin-bottom: 1.5rem;
-	}
-	.mh-stat {
-		padding: 0.95rem 1.1rem;
-		background: var(--paper-elevated, #ffffff);
-		border: 1px solid var(--rule, #e6e3dc);
-	}
-	.mh-stat-eyebrow {
-		font-size: 0.625rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.16em;
-		color: var(--ink-3, #807a72);
-	}
-	.mh-stat-value {
-		margin: 0.25rem 0 0.15rem;
-		font-size: 1.75rem;
-		font-weight: 800;
-		letter-spacing: -0.02em;
-		line-height: 1;
-		color: var(--ink, #1a1814);
-	}
-	.mh-stat-label {
-		font-size: 0.8125rem;
-		color: var(--ink-2, #4a443e);
-	}
-	.mh-stat-ok { border-left: 3px solid var(--green, #1f7a3a); }
-	.mh-stat-ok .mh-stat-value { color: var(--green, #1f7a3a); }
-	.mh-stat-warn { border-left: 3px solid var(--amber, #b8860b); }
-	.mh-stat-warn .mh-stat-value { color: var(--amber, #b8860b); }
-
-	.tabular-nums { font-variant-numeric: tabular-nums; }
+	/* (Targes d'estadístiques mh-stat-* eliminades del template — no s'usen) */
 
 	/* Modality pills */
 	.modality-pill {
