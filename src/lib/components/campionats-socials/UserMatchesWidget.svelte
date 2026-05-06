@@ -1,10 +1,15 @@
 <script lang="ts">
   import { supabase } from '$lib/supabaseClient';
-  import { onMount } from 'svelte';
+  import { mySociNumero } from '$lib/stores/mySoci';
 
   export let eventId: string = '';
+  /** @deprecated — el widget ara resol numero_soci via el store mySociNumero. */
   export let userEmail: string = '';
   export let eventName: string = '';
+
+  // userEmail està marcat deprecated; ja no s'usa per resoldre el soci.
+  // Mantenim la prop perquè els callers existents no es trenquin.
+  void userEmail;
 
   let userMatches: any[] = [];
   let nextMatch: any = null;
@@ -20,36 +25,16 @@
   let loading = false;
   let error: string | null = null;
 
-  onMount(() => {
-    if (eventId && userEmail) {
-      loadUserMatches();
-    }
-  });
-
-  $: if (eventId && userEmail) {
-    loadUserMatches();
+  // Reactiu al canvi d'eventId o de l'usuari loggat (mySociNumero)
+  $: if (eventId && $mySociNumero != null) {
+    loadUserMatches($mySociNumero);
   }
 
-  async function loadUserMatches() {
+  async function loadUserMatches(userSociNumber: number) {
     loading = true;
     error = null;
 
     try {
-      // First, get user's soci_numero from email
-      const { data: userData, error: userError } = await supabase
-        .from('socis')
-        .select('numero_soci, nom, cognoms')
-        .eq('email', userEmail)
-        .single();
-
-      if (userError) throw userError;
-      if (!userData) {
-        error = 'No s\'ha trobat l\'usuari';
-        return;
-      }
-
-      const userSociNumber = userData.numero_soci;
-
       // Load user's matches for this event (Fase 5c-S2c-2: FK directe a socis)
       const { data: matchesData, error: matchesError } = await supabase
         .from('calendari_partides')

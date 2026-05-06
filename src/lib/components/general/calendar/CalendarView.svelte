@@ -15,7 +15,13 @@
   import CalendarControls from './CalendarControls.svelte';
   import CalendarDay from './CalendarDay.svelte';
   import EventForm from './EventForm.svelte';
-  import type { CalendarEvent } from '$lib/stores/calendar';
+  import type { CalendarEvent, RepteCalendari, PartidaCalendari } from '$lib/stores/calendar';
+  import { mySociNumero } from '$lib/stores/mySoci';
+
+  /** Si es passa, filtra events on l'usuari (numero_soci) hi participa.
+   * Quan el filtre està actiu, els esdeveniments del club (type='event')
+   * també s'amaguen, ja que no tenen jugadors associats. */
+  export let onlyMine = false;
 
   let selectedDate: Date | null = null;
   let selectedEvent: CalendarEvent | null = null;
@@ -23,6 +29,33 @@
   let editingEvent: any = null;
   let showDeleteConfirmation = false;
   let eventToDelete: CalendarEvent | null = null;
+
+  /**
+   * Versió filtrada de getEventsForDate que respecta `onlyMine`.
+   * Quan està actiu, només es mostren events on l'usuari (numero_soci) hi participa
+   * com a reptador/reptat (challenge) o jugador 1/2 (partida social).
+   * Els events del club (type='event') s'amaguen sota el filtre perquè no tenen
+   * un participant identificable per soci.
+   */
+  function getFilteredEventsForDate(date: Date): CalendarEvent[] {
+    const events = getEventsForDate(date);
+    if (!onlyMine || $mySociNumero == null) return events;
+    const me = $mySociNumero;
+    return events.filter((ev) => {
+      if (ev.type === 'event') return false; // sense jugadors
+      const data: any = ev.data;
+      if (ev.type === 'challenge') {
+        const repte = data as RepteCalendari;
+        return repte.reptador_soci_numero === me || repte.reptat_soci_numero === me;
+      }
+      // type que pot ser 'event' amb subtype social-match (futur) o partida via subtypes
+      if (data && typeof data === 'object') {
+        const partida = data as PartidaCalendari;
+        return partida.jugador1_soci_numero === me || partida.jugador2_soci_numero === me;
+      }
+      return false;
+    });
+  }
 
   // Dies de la setmana
   const weekDays = ['Dl', 'Dt', 'Dc', 'Dj', 'Dv', 'Ds', 'Dg'];

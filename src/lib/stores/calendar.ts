@@ -21,6 +21,8 @@ export type RepteCalendari = {
   id: string;
   reptador_nom: string;
   reptat_nom: string;
+  reptador_soci_numero: number | null;
+  reptat_soci_numero: number | null;
   data_programada: string;
   estat: string;
   pos_reptador: number | null;
@@ -34,6 +36,8 @@ export type PartidaCalendari = {
   jugador2_nom: string;
   jugador1?: any; // Dades originals del jugador 1
   jugador2?: any; // Dades originals del jugador 2
+  jugador1_soci_numero: number | null;
+  jugador2_soci_numero: number | null;
   data_programada: string;
   hora_inici: string;
   taula_assignada: number;
@@ -304,6 +308,8 @@ export async function loadReptesProgramats(setLoading: boolean = true): Promise<
       id: item.id,
       reptador_nom: sociNameMap.get(item.reptador_soci_numero) || 'Desconegut',
       reptat_nom: sociNameMap.get(item.reptat_soci_numero) || 'Desconegut',
+      reptador_soci_numero: item.reptador_soci_numero ?? null,
+      reptat_soci_numero: item.reptat_soci_numero ?? null,
       data_programada: item.data_programada,
       estat: item.estat,
       pos_reptador: item.pos_reptador,
@@ -446,6 +452,8 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
         // espera `jugador.socis.nom` i `jugador.socis.cognoms`.
         jugador1: { soci_numero: item.jugador1_soci_numero, nom: j1Name, socis: j1Soci },
         jugador2: { soci_numero: item.jugador2_soci_numero, nom: j2Name, socis: j2Soci },
+        jugador1_soci_numero: item.jugador1_soci_numero ?? null,
+        jugador2_soci_numero: item.jugador2_soci_numero ?? null,
         data_programada: item.data_programada,
         hora_inici: item.hora_inici,
         taula_assignada: item.taula_assignada,
