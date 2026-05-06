@@ -1820,6 +1820,7 @@
     position: relative;
     white-space: nowrap;
     min-height: 48px;
+    flex-shrink: 0;
   }
   .subtab:hover { color: var(--ink-2); }
   .subtab.active {
@@ -1846,7 +1847,18 @@
   @media (max-width: 640px) {
     .page-title { font-size: 2rem; letter-spacing: -0.03em; }
     .page-lede { font-size: 0.9375rem; }
-    .subtab { margin-right: 1.25rem; font-size: 0.875rem; }
+    .page-subtabs {
+      flex-wrap: wrap;
+      overflow-x: visible;
+      row-gap: 0.25rem;
+    }
+    .subtab {
+      margin-right: 1.25rem;
+      font-size: 0.875rem;
+      min-height: 44px;
+      padding: 0.6rem 0;
+    }
+    .subtab.active::after { right: 1.25rem; }
   }
 
   /* Subtabs interns d'un campionat (gestió o detall) */

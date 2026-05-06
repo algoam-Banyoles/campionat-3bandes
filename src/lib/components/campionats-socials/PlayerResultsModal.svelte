@@ -369,7 +369,12 @@
         <div class="flex items-center gap-3">
           <SociFoto numeroSoci={playerNumeroSoci} size="lg" alt={playerName} />
           <h2 id="player-results-modal-title" class="modal-title">
-            Resultats de {playerName}
+            Resultats de
+            {#if playerNumeroSoci}
+              <a href={`/jugador/${playerNumeroSoci}`} class="player-link">{playerName}</a>
+            {:else}
+              {playerName}
+            {/if}
           </h2>
         </div>
         <button

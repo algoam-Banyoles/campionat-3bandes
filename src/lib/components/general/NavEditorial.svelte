@@ -126,6 +126,13 @@
     mobileMenuOpen = false;
   }
 
+  // Bloqueja l'scroll del body quan el menú mòbil està obert.
+  // Així el panell es manté fix sobre la pàgina i no es perd l'usuari
+  // si havia fet scroll abans d'obrir el menú.
+  $: if (typeof document !== 'undefined') {
+    document.body.classList.toggle('nav-mobile-open', mobileMenuOpen);
+  }
+
   function handleClickOutside(e: MouseEvent) {
     if (activeDropdown && !(e.target as Element)?.closest('[data-dropdown]')) {
       activeDropdown = null;
@@ -134,6 +141,10 @@
 
   function toggleDropdown(key: string) {
     activeDropdown = activeDropdown === key ? null : key;
+  }
+
+  function closeMobileMenu() {
+    mobileMenuOpen = false;
   }
 </script>
 
@@ -286,6 +297,12 @@
 
 <!-- ────────── Panel mòbil (hamburger obert) ────────── -->
 {#if mobileMenuOpen}
+  <button
+    type="button"
+    class="mobile-backdrop"
+    on:click={() => (mobileMenuOpen = false)}
+    aria-label="Tancar menú"
+  ></button>
   <div class="mobile-panel" role="menu">
     <!-- Sessió de l'usuari (al mòbil només es veu aquí, no al topbar) -->
     <div class="mobile-user">
@@ -299,16 +316,16 @@
         </div>
         <div class="mobile-user-actions">
           {#if $isAdmin}
-            <button class="mobile-user-btn" on:click={() => viewMode.toggleMode()}>
+            <button class="mobile-user-btn" on:click={() => { viewMode.toggleMode(); closeMobileMenu(); }}>
               Canviar a {$viewMode === 'admin' ? 'Jugador' : 'Admin'}
             </button>
           {/if}
-          <button class="mobile-user-btn mobile-user-btn-danger" on:click={() => signOut()}>
+          <button class="mobile-user-btn mobile-user-btn-danger" on:click={() => { signOut(); closeMobileMenu(); }}>
             Sortir
           </button>
         </div>
       {:else}
-        <a href="/general/login" class="mobile-user-btn mobile-user-btn-primary">
+        <a href="/general/login" class="mobile-user-btn mobile-user-btn-primary" on:click={closeMobileMenu}>
           Iniciar sessió
         </a>
       {/if}
@@ -327,6 +344,7 @@
                 href={link.href}
                 class="mobile-link"
                 class:active={isActive(link.href, currentPath)}
+                on:click={closeMobileMenu}
               >
                 {link.label}
               </a>
@@ -338,6 +356,7 @@
                   href={link.href}
                   class="mobile-link"
                   class:active={isActive(link.href, currentPath)}
+                  on:click={closeMobileMenu}
                 >
                   {link.label}
                 </a>
@@ -350,6 +369,7 @@
                   href={link.href}
                   class="mobile-link"
                   class:active={isActive(link.href, currentPath)}
+                  on:click={closeMobileMenu}
                 >
                   {link.label}
                 </a>
@@ -660,13 +680,48 @@
   }
 
   /* ── Mobile panel (hamburger expandit) ────────────────── */
+  /* Fixat sota el topbar perquè sigui visible independentment de
+     l'scroll de la pàgina. El backdrop captura clics fora del panell.
+     L'scroll del body es bloqueja via `body.nav-mobile-open`. */
   .mobile-panel {
     display: none;
+    position: fixed;
+    top: 4.25rem;
+    left: 0;
+    right: 0;
     background: var(--paper-elevated);
+    border-top: 1px solid var(--rule);
     border-bottom: 1px solid var(--rule);
     padding: 0.5rem 0;
-    max-height: calc(100vh - 8rem);
+    max-height: calc(100vh - 4.25rem);
+    /* Reserva fons per safe-area en iOS */
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    z-index: 49;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+  }
+  .mobile-backdrop {
+    display: none;
+    position: fixed;
+    top: 4.25rem;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(26, 24, 20, 0.45);
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    z-index: 48;
+  }
+  /* Modern viewport units si existeixen (millor en mòbil amb URL bar) */
+  @supports (height: 100dvh) {
+    .mobile-panel { max-height: calc(100dvh - 4.25rem); }
+  }
+  :global(body.nav-mobile-open) {
+    overflow: hidden;
   }
   .mobile-section {
     border-top: 1px solid var(--rule);
@@ -813,6 +868,9 @@
       display: none;
     }
     .mobile-panel {
+      display: block;
+    }
+    .mobile-backdrop {
       display: block;
     }
     .topbar-inner {
