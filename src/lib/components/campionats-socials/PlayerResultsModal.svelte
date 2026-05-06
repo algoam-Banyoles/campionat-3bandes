@@ -391,22 +391,18 @@
 
       <div class="modal-body">
         {#if loading}
-          <div class="text-center py-12">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p class="mt-2 text-gray-600">Carregant resultats...</p>
+          <div class="state-block">
+            <p class="state-loading">Carregant resultats…</p>
           </div>
         {:else if error}
-          <div class="bg-red-50 border border-red-200 rounded-lg p-6">
-            <h3 class="text-lg font-medium text-red-800 mb-2">Error</h3>
-            <p class="text-red-600">{error}</p>
+          <div class="state-error">
+            <h3 class="state-error-title">Error</h3>
+            <p>{error}</p>
           </div>
         {:else if matches.length === 0}
-          <div class="text-center py-12">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No hi ha resultats disponibles</h3>
-            <p class="mt-1 text-sm text-gray-500">Aquest jugador encara no té partides jugades.</p>
+          <div class="state-block">
+            <h3 class="state-empty-title">No hi ha resultats disponibles</h3>
+            <p class="state-empty-sub">Aquest jugador encara no té partides jugades.</p>
           </div>
         {:else}
           <!-- Statistics Summary - Compact -->
@@ -518,13 +514,14 @@
 
   .modal-content {
     background: var(--paper-elevated);
-    border-radius: 16px;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--rule);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
     max-width: 800px;
     width: 100%;
     max-height: 90vh;
     overflow-y: auto;
     position: relative;
+    font-family: var(--font-sans);
   }
 
   .modal-header {
@@ -563,8 +560,7 @@
     border: none;
     cursor: pointer;
     color: var(--ink-3);
-    border-radius: 6px;
-    transition: all 0.2s ease;
+    transition: color 0.15s ease;
     min-height: 40px;
     min-width: 40px;
     display: flex;
@@ -573,12 +569,11 @@
   }
 
   .close-button:hover {
-    background: var(--paper);
-    color: var(--ink-2);
+    color: var(--ink);
   }
 
   .close-button:focus-visible {
-    outline: 2px solid var(--blue);
+    outline: 2px solid var(--ink);
     outline-offset: 2px;
   }
 
@@ -591,11 +586,44 @@
     padding: 0 24px 24px 24px;
   }
 
+  /* Estats: loading / error / empty */
+  .state-block {
+    text-align: center;
+    padding: 2.5rem 1rem;
+  }
+  .state-loading {
+    color: var(--ink-3);
+    font-size: 0.9375rem;
+    margin: 0;
+  }
+  .state-empty-title {
+    margin: 0 0 0.4rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .state-empty-sub {
+    margin: 0;
+    color: var(--ink-3);
+    font-size: 0.875rem;
+  }
+  .state-error {
+    border: 1px solid var(--accent);
+    background: var(--paper);
+    padding: 1.25rem 1.5rem;
+    color: var(--accent);
+  }
+  .state-error-title {
+    margin: 0 0 0.4rem;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  .state-error p { margin: 0; }
+
   /* Compact Stats */
   .stats-compact {
-    background: linear-gradient(to right, var(--paper), var(--paper));
+    background: var(--paper);
     border: 1px solid var(--rule);
-    border-radius: 12px;
     padding: 16px;
     margin-bottom: 20px;
   }
@@ -668,32 +696,27 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-left: 4px solid var(--rule);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--rule-strong);
     background: var(--paper-elevated);
-    border-radius: 8px;
     padding: 12px 16px;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: border-color 0.15s ease;
   }
 
   .match-card-compact:hover {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    transform: translateX(2px);
+    border-color: var(--ink);
   }
 
   .match-card-compact.match-win {
-    border-left-color: #22c55e;
-    background: linear-gradient(to right, #f0fdf4, #ffffff);
+    border-left-color: var(--green);
   }
 
   .match-card-compact.match-loss {
-    border-left-color: #ef4444;
-    background: linear-gradient(to right, #fef2f2, #ffffff);
+    border-left-color: var(--accent);
   }
 
   .match-card-compact.match-draw {
     border-left-color: var(--amber);
-    background: linear-gradient(to right, #fefce8, #ffffff);
   }
 
   .match-left {
@@ -722,11 +745,13 @@
     align-items: center;
     padding: 2px 6px;
     margin-left: 6px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    border-radius: 4px;
-    background-color: #fee2e2;
-    color: #991b1b;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: var(--paper);
+    color: var(--accent);
+    border: 1px solid var(--accent);
   }
 
   .match-center {
@@ -758,7 +783,7 @@
   .score-sep {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #9ca3af;
+    color: var(--ink-3);
   }
 
   .match-entrades-compact {
@@ -775,21 +800,20 @@
   .match-badge-compact {
     width: 32px;
     height: 32px;
-    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 0.875rem;
     font-weight: 700;
-    color: white;
+    color: var(--paper);
   }
 
   .match-badge-compact.badge-win {
-    background: #22c55e;
+    background: var(--green);
   }
 
   .match-badge-compact.badge-loss {
-    background: #ef4444;
+    background: var(--accent);
   }
 
   .match-badge-compact.badge-draw {
@@ -807,24 +831,24 @@
   }
 
   .done-button {
-    background: var(--blue);
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 1rem;
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--ink);
+    padding: 10px 20px;
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
-    min-height: 48px;
+    transition: opacity 0.15s ease;
+    min-height: 44px;
   }
 
   .done-button:hover {
-    background: #2563eb;
+    opacity: 0.9;
   }
 
   .done-button:focus-visible {
-    outline: 2px solid var(--blue);
+    outline: 2px solid var(--ink);
     outline-offset: 2px;
   }
 
