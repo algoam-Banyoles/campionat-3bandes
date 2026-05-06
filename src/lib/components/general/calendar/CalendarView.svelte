@@ -589,4 +589,51 @@
   .cal-grid > :global(.cal-cell:nth-child(7n)) { border-right: 0; }
   /* Eliminem el border-bottom de l'última fila */
   .cal-grid > :global(.cal-cell:nth-last-child(-n+7)) { border-bottom: 0; }
+
+  /* Mòbil portrait — vista setmanal stackeada (1 columna, agenda) */
+  @media (max-width: 639px) {
+    .cal-view.is-week .cal-weekhead { display: none; }
+    .cal-view.is-week .cal-grid {
+      grid-template-columns: 1fr;
+    }
+    /* Cel·les en stacked: tot l'amplada, sense borde dret */
+    .cal-view.is-week .cal-grid :global(.cal-cell) {
+      border-right: 0 !important;
+      border-bottom: 1px solid var(--rule);
+      min-height: 92px;
+      padding: 0.65rem 0.85rem;
+    }
+    .cal-view.is-week .cal-grid :global(.cal-cell:last-child) {
+      border-bottom: 0;
+    }
+    /* Mostrem el nom del dia (Dl, Dt, ...) al cap */
+    .cal-view.is-week .cal-grid :global(.cal-cell-weekday) {
+      display: inline;
+    }
+    /* Restablim pills amb text complet (sobreescriu el mode "barres" mòbil) */
+    .cal-view.is-week .cal-grid :global(.cal-cell-events) {
+      max-height: none;
+      overflow: visible;
+      gap: 0.25rem;
+    }
+    .cal-view.is-week .cal-grid :global(.evt-pill) {
+      height: auto;
+      min-height: 32px;
+      padding: 0.3rem 0.5rem;
+      border: 1px solid var(--rule);
+      border-left: 3px solid currentColor;
+      background: var(--paper);
+      opacity: 1;
+      font-size: 0.8125rem;
+    }
+    .cal-view.is-week .cal-grid :global(.evt-title),
+    .cal-view.is-week .cal-grid :global(.evt-meta) {
+      display: revert;
+    }
+    .cal-view.is-week .cal-grid :global(.evt-more) {
+      display: block;
+      border: 1px dashed var(--rule);
+      padding: 0.15rem 0.4rem;
+    }
+  }
 </style>

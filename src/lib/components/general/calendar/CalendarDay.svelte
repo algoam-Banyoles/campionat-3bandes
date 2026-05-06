@@ -62,6 +62,8 @@
 
   $: visibleEvents = events.slice(0, 6);
   $: moreEventsCount = events.length - visibleEvents.length;
+
+  $: weekdayLabel = date.toLocaleDateString('ca-ES', { weekday: 'short' });
 </script>
 
 <div
@@ -75,8 +77,9 @@
   on:keydown={(e) => e.key === 'Enter' && handleDayClick()}
 >
   <div class="cal-cell-head">
-    <span class="cal-cell-num">
-      {date.getDate()}
+    <span class="cal-cell-numblock">
+      <span class="cal-cell-weekday">{weekdayLabel}</span>
+      <span class="cal-cell-num">{date.getDate()}</span>
     </span>
     {#if events.length > 0}
       <span class="cal-cell-count tabular-nums" aria-label="{events.length} esdeveniments">
@@ -164,11 +167,25 @@
     align-items: center;
     gap: 0.4rem;
   }
+  .cal-cell-numblock {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
   .cal-cell-num {
     font-size: 0.875rem;
     font-weight: 700;
     color: var(--ink);
     letter-spacing: -0.01em;
+  }
+  /* Weekday label: ocult per defecte (només visible quan stacked des de CalendarView) */
+  .cal-cell-weekday {
+    display: none;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-3);
   }
   .cal-cell-count {
     font-size: 0.625rem;
