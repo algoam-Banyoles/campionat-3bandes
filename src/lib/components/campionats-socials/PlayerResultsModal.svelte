@@ -547,6 +547,15 @@
     color: var(--ink);
     margin: 0;
   }
+  .modal-title .player-link {
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+    transition: color 0.15s ease;
+  }
+  .modal-title .player-link:hover {
+    color: var(--accent, #a30b1e);
+  }
 
   .close-button {
     padding: 8px;
