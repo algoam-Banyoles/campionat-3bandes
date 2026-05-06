@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="ca">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mockup · Homepage · Direcció C · Foment Martinenc</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..900&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        --paper:           #fbfaf6;
+        --paper-elevated:  #ffffff;
+        --ink:             #1a1814;
+        --ink-2:           #5c574e;
+        --ink-3:           #8a8478;
+        --rule:            #e6e1d6;
+        --rule-strong:     #c9c2b3;
+        --accent:          #a30b1e;
+        --accent-dark:     #7a0816;
+        --green:           #2d6e3e;
+        --blue:            #1f4f8b;
+        --amber:           #a36b1c;
+
+        --sec-general:  #5c574e;
+        --sec-social:   #2d6e3e;
+        --sec-continu:  #1f4f8b;
+        --sec-handicap: #5b3a8b;
+        --sec-admin:    #a30b1e;
+
+        --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--font-sans);
+        font-size: 18px;
+        line-height: 1.6;
+        font-variation-settings: "opsz" 14;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      h1, h2, h3 {
+        font-family: var(--font-sans); color: var(--ink); margin: 0;
+        font-variation-settings: "opsz" 32;
+      }
+      h1 { font-weight: 800; font-size: 4rem; line-height: 0.98; letter-spacing: -0.04em; }
+      h2 { font-weight: 700; font-size: 1.875rem; line-height: 1.1; letter-spacing: -0.025em; }
+      h3 { font-weight: 700; font-size: 1.125rem; line-height: 1.3; letter-spacing: -0.014em; }
+
+      .eyebrow {
+        font-size: 0.75rem; font-weight: 600;
+        letter-spacing: 0.16em; text-transform: uppercase;
+        color: var(--ink-3);
+      }
+      .eyebrow.strong { color: var(--ink); }
+      .eyebrow.danger { color: var(--accent); }
+      .eyebrow.success { color: var(--green); }
+      .eyebrow.warn { color: var(--amber); }
+
+      .tnum { font-feature-settings: "tnum" 1, "lnum" 1; }
+
+      /* ── Capçalera ────────────────────────────────────── */
+      .topbar { background: var(--paper-elevated); border-bottom: 1px solid var(--rule); }
+      .topbar-inner {
+        max-width: 1180px; margin: 0 auto; padding: 1.25rem 1.5rem;
+        display: flex; align-items: center; gap: 1rem;
+      }
+      .brand { display: flex; align-items: center; gap: 0.875rem; text-decoration: none; color: var(--ink); }
+      .brand img { width: 44px; height: 44px; object-fit: contain; }
+      .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+      .brand-name { font-weight: 800; font-size: 1.0625rem; letter-spacing: -0.02em; font-variation-settings: "opsz" 24; }
+      .brand-sub { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em; color: var(--ink-3); margin-top: 3px; }
+      .topbar-spacer { flex: 1; }
+      .user-pill {
+        display: flex; align-items: center; gap: 0.5rem;
+        padding: 0.4rem 0.75rem; border: 1px solid var(--rule); border-radius: 999px;
+        font-size: 0.875rem; font-weight: 500; color: var(--ink-2);
+      }
+
+      /* ── Nav seccions ─────────────────────────────────── */
+      nav.sections { background: var(--paper-elevated); border-bottom: 1px solid var(--rule); }
+      .sections-inner { max-width: 1180px; margin: 0 auto; padding: 0 1.5rem; display: flex; gap: 0; }
+      .sections a {
+        position: relative;
+        display: inline-flex; align-items: baseline; gap: 0.5rem;
+        padding: 1.05rem 1.25rem;
+        text-decoration: none; color: var(--ink-2);
+        font-weight: 500; font-size: 0.9375rem; letter-spacing: -0.005em;
+      }
+      .sections a:hover { color: var(--ink); }
+      .sections a.active { color: var(--ink); font-weight: 600; }
+      .sections a.active::after {
+        content: ""; position: absolute;
+        left: 1.25rem; right: 1.25rem; bottom: -1px;
+        height: 3px; background: var(--section-color, var(--accent));
+      }
+      .sections .num { font-size: 0.6875rem; font-weight: 500; color: var(--ink-3); font-feature-settings: "tnum" 1; letter-spacing: 0.04em; }
+
+      main { max-width: 1180px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+      .stack-xl > * + * { margin-top: 4rem; }
+      .stack-lg > * + * { margin-top: 2.5rem; }
+      .stack > * + * { margin-top: 1rem; }
+
+      /* ── Hero ─────────────────────────────────────────── */
+      .hero {
+        padding: 4rem 0 3rem;
+        border-bottom: 2px solid var(--ink);
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 3rem;
+        align-items: end;
+      }
+      .hero h1 { max-width: 14ch; }
+      .hero .lede {
+        font-size: 1.125rem;
+        color: var(--ink-2);
+        font-weight: 500;
+        line-height: 1.5;
+        max-width: 38ch;
+      }
+
+      /* ── Stat strip ─────────────────────────────────── */
+      .stat-strip {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+        border: 1px solid var(--rule); background: var(--paper-elevated);
+      }
+      .stat-strip > div {
+        padding: 1.25rem 1.5rem;
+        border-right: 1px solid var(--rule);
+      }
+      .stat-strip > div:last-child { border-right: none; }
+      .stat-strip .num {
+        font-weight: 800; font-size: 2rem; line-height: 1;
+        letter-spacing: -0.03em;
+        font-feature-settings: "tnum" 1, "lnum" 1;
+      }
+      .stat-strip .lbl {
+        font-size: 0.6875rem; font-weight: 600;
+        letter-spacing: 0.16em; text-transform: uppercase;
+        color: var(--ink-3); margin-top: 0.5rem;
+      }
+
+      /* ── Properes activitats ─────────────────────────── */
+      .day-block {
+        display: grid;
+        grid-template-columns: 9rem 1fr;
+        gap: 2rem;
+        padding: 1.5rem 0;
+        border-top: 1px solid var(--rule);
+      }
+      .day-block:last-child { border-bottom: 1px solid var(--rule); }
+      .day-marker {
+        font-weight: 800;
+        font-size: 1.125rem;
+        letter-spacing: -0.014em;
+        line-height: 1.2;
+      }
+      .day-marker .date {
+        display: block;
+        font-weight: 500;
+        font-size: 0.8125rem;
+        color: var(--ink-3);
+        margin-top: 0.3rem;
+        font-feature-settings: "tnum" 1;
+      }
+      .events { display: flex; flex-direction: column; gap: 0.75rem; }
+      .event-row {
+        display: grid;
+        grid-template-columns: 4.5rem 1fr auto;
+        gap: 1.25rem;
+        align-items: baseline;
+      }
+      .event-time {
+        font-weight: 700;
+        font-size: 1rem;
+        letter-spacing: -0.012em;
+        font-feature-settings: "tnum" 1, "lnum" 1;
+      }
+      .event-title { font-weight: 500; font-size: 0.9375rem; color: var(--ink-2); }
+      .event-tag {
+        font-size: 0.625rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.14em;
+        color: var(--ink-3);
+        padding: 0.18rem 0.45rem;
+        border: 1px solid var(--rule-strong);
+      }
+
+      /* ── Horari d'obertura (taula editorial) ─────────── */
+      .schedule-block {
+        background: var(--paper-elevated);
+        border: 1px solid var(--rule);
+        padding: 2rem 2.25rem;
+      }
+      .schedule-table {
+        width: 100%; border-collapse: collapse;
+      }
+      .schedule-table tr { border-bottom: 1px solid var(--rule); }
+      .schedule-table tr:last-child { border-bottom: none; }
+      .schedule-table td {
+        padding: 0.75rem 0;
+        font-weight: 500; font-size: 0.9375rem;
+      }
+      .schedule-table td.day {
+        font-weight: 600; color: var(--ink);
+        width: 60%;
+      }
+      .schedule-table td.hours {
+        text-align: right;
+        font-weight: 700;
+        color: var(--ink);
+        font-feature-settings: "tnum" 1;
+        letter-spacing: -0.012em;
+      }
+      .schedule-note {
+        margin-top: 1.25rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--rule);
+        font-size: 0.8125rem;
+        color: var(--ink-2);
+        line-height: 1.55;
+      }
+
+      /* ── Bloc de norma (OBLIGATORI / PROHIBIT) ───────── */
+      .rule-callout {
+        padding: 1.75rem 2rem;
+        background: var(--paper-elevated);
+        border: 1px solid var(--rule);
+        border-top: 3px solid var(--green);
+      }
+      .rule-callout.danger {
+        border-top-color: var(--accent);
+      }
+      .rule-callout p { margin: 0; }
+      .rule-callout p + p { margin-top: 0.5rem; }
+      .rule-callout ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .rule-callout ul li {
+        position: relative;
+        padding-left: 1.25rem;
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--ink);
+      }
+      .rule-callout ul li + li { margin-top: 0.65rem; }
+      .rule-callout ul li::before {
+        content: "";
+        position: absolute;
+        left: 0; top: 0.65rem;
+        width: 6px; height: 6px;
+        background: var(--green);
+      }
+      .rule-callout.danger ul li::before { background: var(--accent); }
+      .rule-callout strong { color: var(--ink); font-weight: 700; }
+      .rule-callout-title {
+        margin-bottom: 1rem;
+      }
+
+      /* ── Grid de normes (4 sub-blocs) ─────────────────── */
+      .rules-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0;
+        border: 1px solid var(--rule);
+        background: var(--paper-elevated);
+      }
+      .rule-cell {
+        padding: 1.75rem 2rem;
+        border-right: 1px solid var(--rule);
+        border-bottom: 1px solid var(--rule);
+      }
+      .rule-cell:nth-child(2n) { border-right: none; }
+      .rule-cell:nth-last-child(-n+2) { border-bottom: none; }
+      .rule-cell h3 {
+        margin-bottom: 0.875rem;
+      }
+      .rule-cell ul {
+        list-style: none; padding: 0; margin: 0;
+        font-size: 0.9375rem; color: var(--ink-2);
+      }
+      .rule-cell ul li {
+        position: relative;
+        padding-left: 1rem;
+        line-height: 1.55;
+      }
+      .rule-cell ul li + li { margin-top: 0.6rem; }
+      .rule-cell ul li::before {
+        content: "";
+        position: absolute;
+        left: 0; top: 0.6rem;
+        width: 4px; height: 4px;
+        background: var(--ink-3);
+      }
+      .rule-cell strong { color: var(--ink); font-weight: 700; }
+
+      /* ── Accés ràpid ──────────────────────────────────── */
+      .quick-access {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0;
+        border: 1px solid var(--rule);
+        background: var(--paper-elevated);
+      }
+      .qa-card {
+        display: flex; flex-direction: column;
+        padding: 2rem;
+        border-right: 1px solid var(--rule);
+        text-decoration: none; color: var(--ink);
+        position: relative;
+        transition: background 0.15s ease;
+      }
+      .qa-card:last-child { border-right: none; }
+      .qa-card:hover { background: var(--paper); }
+      .qa-num {
+        font-size: 0.6875rem; font-weight: 600;
+        letter-spacing: 0.16em; text-transform: uppercase;
+        color: var(--ink-3);
+        font-feature-settings: "tnum" 1;
+      }
+      .qa-title {
+        font-weight: 800; font-size: 1.5rem;
+        letter-spacing: -0.025em;
+        line-height: 1.05;
+        margin-top: 0.75rem;
+      }
+      .qa-sub {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--ink-2);
+        margin-top: 0.6rem;
+      }
+      .qa-arrow {
+        margin-top: auto;
+        padding-top: 1.25rem;
+        font-weight: 600; font-size: 0.875rem;
+        color: var(--blue);
+      }
+      .qa-card[data-section="continu"] { border-top: 3px solid var(--sec-continu); }
+      .qa-card[data-section="social"]  { border-top: 3px solid var(--sec-social); }
+      .qa-card[data-section="handicap"]{ border-top: 3px solid var(--sec-handicap); }
+      .qa-card[data-section="general"] { border-top: 3px solid var(--sec-general); }
+
+      /* Section header pattern */
+      .section-head {
+        display: flex; justify-content: space-between; align-items: baseline;
+        margin-bottom: 1.25rem;
+      }
+      .section-head .link {
+        color: var(--blue); text-decoration: none; font-weight: 600;
+        font-size: 0.9375rem; border-bottom: 1px solid var(--blue);
+        padding-bottom: 2px;
+      }
+
+      .mock-note {
+        background: rgba(31, 79, 139, 0.06);
+        border-left: 3px solid var(--blue);
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem; color: var(--ink-2);
+      }
+      .mock-note strong { color: var(--blue); font-weight: 600; }
+
+      @media (max-width: 900px) {
+        .hero { grid-template-columns: 1fr; gap: 1.5rem; padding: 2.5rem 0 2rem; }
+        h1 { font-size: 2.75rem; letter-spacing: -0.035em; }
+        .stat-strip { grid-template-columns: repeat(2, 1fr); }
+        .stat-strip > div:nth-child(2) { border-right: none; }
+        .stat-strip > div:nth-child(1), .stat-strip > div:nth-child(2) {
+          border-bottom: 1px solid var(--rule);
+        }
+        .day-block { grid-template-columns: 1fr; gap: 1rem; }
+        .rules-grid { grid-template-columns: 1fr; }
+        .rule-cell { border-right: none !important; }
+        .rule-cell:not(:last-child) { border-bottom: 1px solid var(--rule); }
+        .quick-access { grid-template-columns: 1fr 1fr; }
+        .qa-card:nth-child(2n) { border-right: none; }
+        .qa-card:nth-child(1), .qa-card:nth-child(2) {
+          border-bottom: 1px solid var(--rule);
+        }
+      }
+      @media (max-width: 720px) {
+        .sections-inner { overflow-x: auto; }
+        .sections a { white-space: nowrap; }
+        h1 { font-size: 2.25rem; }
+        h2 { font-size: 1.5rem; }
+        .quick-access { grid-template-columns: 1fr; }
+        .qa-card { border-right: none !important; border-bottom: 1px solid var(--rule); }
+        .qa-card:last-child { border-bottom: none; }
+        .event-row { grid-template-columns: 4rem 1fr; }
+        .event-tag { grid-column: 1 / -1; justify-self: flex-start; }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- ────────── Capçalera ────────── -->
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="#">
+          <img src="../static/logo.png" alt="Foment Martinenc" />
+          <span class="brand-text">
+            <span class="brand-name">Foment Martinenc</span>
+            <span class="brand-sub">Secció Billar · 3 Bandes</span>
+          </span>
+        </a>
+        <span class="topbar-spacer"></span>
+        <span class="user-pill">M. Algora · Soci 1247</span>
+      </div>
+    </header>
+
+    <!-- ────────── Navegació seccions ────────── -->
+    <nav class="sections">
+      <div class="sections-inner">
+        <a href="#" class="active" style="--section-color: var(--sec-general)"><span class="num">01</span> Inici</a>
+        <a href="#" style="--section-color: var(--sec-social)"><span class="num">02</span> Socials</a>
+        <a href="#" style="--section-color: var(--sec-continu)"><span class="num">03</span> Continu</a>
+        <a href="#" style="--section-color: var(--sec-handicap)"><span class="num">04</span> Hàndicap</a>
+        <a href="#" style="--section-color: var(--sec-admin)"><span class="num">05</span> Administració</a>
+      </div>
+    </nav>
+
+    <main class="stack-xl">
+      <!-- ────────── Hero ────────── -->
+      <header class="hero">
+        <div>
+          <div class="eyebrow strong" style="margin-bottom: 1rem;">Foment Martinenc · Secció Billar</div>
+          <h1>Sala de tres bandes des de 1893</h1>
+        </div>
+        <div class="lede">
+          Inscripcions, classificacions, calendaris i normativa de la secció.
+          Tot el que necessites com a soci per jugar al billar de 3 bandes al Foment.
+        </div>
+      </header>
+
+      <!-- ────────── Stat strip ────────── -->
+      <section class="stat-strip">
+        <div>
+          <div class="num tnum">3</div>
+          <div class="lbl">Billars actius (B1, B2, B3)</div>
+        </div>
+        <div>
+          <div class="num tnum">147</div>
+          <div class="lbl">Socis a la secció</div>
+        </div>
+        <div>
+          <div class="num tnum">12 h</div>
+          <div class="lbl">Obertura diària màxima</div>
+        </div>
+        <div>
+          <div class="num tnum">3</div>
+          <div class="lbl">Competicions actives</div>
+        </div>
+      </section>
+
+      <!-- ────────── Properes activitats ────────── -->
+      <section>
+        <div class="section-head">
+          <h2>Properes activitats</h2>
+          <a class="link" href="#">Calendari complet →</a>
+        </div>
+
+        <div class="day-block">
+          <div class="day-marker">
+            Avui
+            <span class="date tnum">Dimarts, 6 maig</span>
+          </div>
+          <div class="events">
+            <div class="event-row">
+              <div class="event-time">19:00</div>
+              <div class="event-title">Lliga Social · 3 Bandes · Jornada 8</div>
+              <div class="event-tag">Social</div>
+            </div>
+            <div class="event-row">
+              <div class="event-time">19:30</div>
+              <div class="event-title">J. Vila Roca vs M. Algora</div>
+              <div class="event-tag">Continu</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="day-block">
+          <div class="day-marker">
+            Demà
+            <span class="date tnum">Dimecres, 7 maig</span>
+          </div>
+          <div class="events">
+            <div class="event-row">
+              <div class="event-time">18:00</div>
+              <div class="event-title">R. Sànchez Bertran vs P. Torrents Valls</div>
+              <div class="event-tag">Social</div>
+            </div>
+            <div class="event-row">
+              <div class="event-time">20:00</div>
+              <div class="event-title">Hàndicap · Quarts de final · Quadre alt</div>
+              <div class="event-tag">Hàndicap</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ────────── Horari d'obertura ────────── -->
+      <section>
+        <div class="section-head">
+          <h2>Horari d'obertura</h2>
+          <span class="eyebrow">Subjecte als horaris del bar</span>
+        </div>
+
+        <div class="schedule-block">
+          <table class="schedule-table">
+            <tr>
+              <td class="day">Dilluns, dimecres, dijous, dissabte i diumenge</td>
+              <td class="hours">9:00 – 21:30</td>
+            </tr>
+            <tr>
+              <td class="day">Dimarts i divendres</td>
+              <td class="hours">10:30 – 21:30</td>
+            </tr>
+            <tr>
+              <td class="day" style="color: var(--ink-3); font-weight: 500;">Agost i festius oficials</td>
+              <td class="hours" style="color: var(--ink-3); font-weight: 600;">Tancat</td>
+            </tr>
+          </table>
+
+          <p class="schedule-note">
+            L'horari d'atenció al públic del Foment és de <strong>dilluns a divendres de 9:00 a 13:00 i de 16:00 a 20:00</strong>.
+            Les seccions poden tenir activitat fora d'aquest horari si el bar està obert. La secció romandrà tancada els dies de tancament oficial del Foment.
+          </p>
+        </div>
+      </section>
+
+      <!-- ────────── OBLIGATORI ────────── -->
+      <section>
+        <div class="rule-callout">
+          <div class="rule-callout-title">
+            <div class="eyebrow success" style="margin-bottom: 0.5rem;">Obligatori</div>
+            <h2>Abans de cada partida</h2>
+          </div>
+          <ul>
+            <li>
+              Netejar el <strong>billar i les boles</strong> amb el material que la Secció posa a disposició dels socis.
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ────────── PROHIBIT ────────── -->
+      <section>
+        <div class="rule-callout danger">
+          <div class="rule-callout-title">
+            <div class="eyebrow danger" style="margin-bottom: 0.5rem;">Prohibit</div>
+            <h2>No es pot</h2>
+          </div>
+          <ul>
+            <li>Jugar a fantasia.</li>
+            <li>Menjar mentre s'està jugant.</li>
+            <li>Posar begudes sobre cap element del billar.</li>
+            <li>Posar monedes per allargar el temps, encara que hi hagi billars lliures.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ────────── Normativa de joc (4 sub-blocs) ────── -->
+      <section>
+        <div class="section-head">
+          <h2>Normativa de joc</h2>
+          <span class="eyebrow">Partides socials lliures</span>
+        </div>
+
+        <div class="rules-grid">
+          <article class="rule-cell">
+            <div class="eyebrow" style="margin-bottom: 0.5rem;">Inscripció a partides</div>
+            <h3>Pissarra única</h3>
+            <ul style="margin-top: 0.875rem;">
+              <li>Apunta't a la pissarra única de <strong>Partides Socials</strong>.</li>
+              <li>Els companys no cal que s'apuntin; si ho fan, que sigui al costat del primer jugador.</li>
+            </ul>
+          </article>
+
+          <article class="rule-cell">
+            <div class="eyebrow" style="margin-bottom: 0.5rem;">Assignació de billar</div>
+            <h3>Quan hi hagi un lliure</h3>
+            <ul style="margin-top: 0.875rem;">
+              <li>Quan hi hagi un billar lliure, ratlla el teu nom i juga.</li>
+              <li>Si vols un billar concret ocupat, passa el torn fins que s'alliberi.</li>
+            </ul>
+          </article>
+
+          <article class="rule-cell">
+            <div class="eyebrow" style="margin-bottom: 0.5rem;">Temps de joc</div>
+            <h3>Màxim una hora</h3>
+            <ul style="margin-top: 0.875rem;">
+              <li><strong>Màxim 1 hora</strong> per partida (sol o en grup).</li>
+              <li>Si hi ha algú esperant, cal alliberar el billar puntualment.</li>
+            </ul>
+          </article>
+
+          <article class="rule-cell">
+            <div class="eyebrow" style="margin-bottom: 0.5rem;">Tornar a jugar</div>
+            <h3>Només si no hi ha cua</h3>
+            <ul style="margin-top: 0.875rem;">
+              <li>Pots repetir només si no hi ha ningú apuntat i hi ha un billar lliure.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <!-- ────────── Accés ràpid ────────── -->
+      <section>
+        <h2 style="margin-bottom: 1.25rem;">Accés ràpid</h2>
+        <div class="quick-access">
+          <a class="qa-card" href="#" data-section="social">
+            <div class="qa-num">02 · Socials</div>
+            <div class="qa-title">Lligues per categories</div>
+            <div class="qa-sub">3 modalitats: 3 Bandes, Lliure i Banda</div>
+            <div class="qa-arrow">Veure classificacions →</div>
+          </a>
+          <a class="qa-card" href="#" data-section="continu">
+            <div class="qa-num">03 · Continu</div>
+            <div class="qa-title">Rànquing permanent</div>
+            <div class="qa-sub">Reptes directes, 20 posicions</div>
+            <div class="qa-arrow">Veure el rànquing →</div>
+          </a>
+          <a class="qa-card" href="#" data-section="handicap">
+            <div class="qa-num">04 · Hàndicap</div>
+            <div class="qa-title">Torneig d'eliminació</div>
+            <div class="qa-sub">1 per temporada · Quadre actual</div>
+            <div class="qa-arrow">Veure el quadre →</div>
+          </a>
+          <a class="qa-card" href="#" data-section="general">
+            <div class="qa-num">01 · Calendari</div>
+            <div class="qa-title">Totes les activitats</div>
+            <div class="qa-sub">Vista setmanal i mensual</div>
+            <div class="qa-arrow">Obrir calendari →</div>
+          </a>
+        </div>
+      </section>
+
+      <!-- Notes del mockup -->
+      <div class="mock-note">
+        <strong>Notes del mockup:</strong>
+        He substituït els 7 fons de colors actuals (blau/verd/vermell/groc/morat/taronja/indi) per
+        un tractament tipogràfic uniforme. Color només quan comunica significat: verd per
+        "Obligatori", vermell Foment per "Prohibit", colors de secció com a línies fines a
+        l'accés ràpid. La resta — fons crema i tinta càlida.
+        <br /><br />
+        He canviat <strong>"taula"</strong> per <strong>"billar"</strong> a la normativa, per coherència amb el CLAUDE.md.
+      </div>
+    </main>
+  </body>
+</html>

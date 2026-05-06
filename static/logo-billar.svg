@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1536" role="img" aria-labelledby="title desc">
+  <title id="title">Secció de billar - Foment Martinenc</title>
+  <desc id="desc">Logotip vertical de la secció de billar del Foment Martinenc sense referència a 3 bandes.</desc>
+  <rect width="1024" height="1536" fill="#000000"/>
+
+  <text x="512" y="150" text-anchor="middle" fill="#ffffff" font-family="Georgia, 'Times New Roman', serif" font-size="108" font-weight="700">Secció de</text>
+  <text x="512" y="330" text-anchor="middle" fill="#ffffff" font-family="Georgia, 'Times New Roman', serif" font-size="112" font-weight="700">billar</text>
+
+  <g transform="translate(0,0)">
+    <rect x="280" y="520" width="464" height="464" fill="#19a7e3"/>
+    <rect x="350" y="590" width="324" height="324" fill="#000000"/>
+    <path d="M 374 596 H 626 V 676 H 540 V 744 H 448 V 824 H 374 Z" fill="#000000"/>
+    <path d="M 472 744 H 560 V 824 H 512 V 780 H 472 Z" fill="#000000"/>
+    <text x="512" y="915" text-anchor="middle" fill="#000000" font-family="Georgia, 'Times New Roman', serif" font-size="120" font-weight="700">F</text>
+    <text x="512" y="1020" text-anchor="middle" fill="#000000" font-family="Georgia, 'Times New Roman', serif" font-size="86" font-weight="700">1877</text>
+  </g>
+
+  <g>
+    <rect x="185" y="560" width="12" height="520" rx="4" fill="#f6c11a"/>
+    <rect x="222" y="560" width="12" height="520" rx="4" fill="#f6c11a"/>
+    <rect x="192" y="560" width="7" height="520" fill="#1a1a1a" opacity="0.6"/>
+    <rect x="229" y="560" width="7" height="520" fill="#1a1a1a" opacity="0.6"/>
+  </g>
+
+  <g>
+    <circle cx="858" cy="632" r="68" fill="#f6c11a"/>
+    <circle cx="858" cy="632" r="68" fill="none" stroke="#e8a700" stroke-width="4"/>
+    <circle cx="836" cy="608" r="10" fill="#b1271b"/>
+    <circle cx="858" cy="822" r="68" fill="#d91f11"/>
+    <circle cx="858" cy="822" r="68" fill="none" stroke="#b8180d" stroke-width="4"/>
+    <circle cx="858" cy="1018" r="68" fill="#e7d1a4"/>
+    <circle cx="858" cy="1018" r="68" fill="none" stroke="#c7b07f" stroke-width="4"/>
+    <circle cx="836" cy="994" r="10" fill="#b1271b"/>
+    <circle cx="880" cy="1044" r="10" fill="#b1271b"/>
+  </g>
+
+  <text x="512" y="1250" text-anchor="middle" fill="#ffffff" font-family="Georgia, 'Times New Roman', serif" font-size="116" font-weight="700">Foment</text>
+  <text x="512" y="1400" text-anchor="middle" fill="#ffffff" font-family="Georgia, 'Times New Roman', serif" font-size="124" font-weight="700">Martinenc</text>
+</svg>
