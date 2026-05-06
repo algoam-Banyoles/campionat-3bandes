@@ -229,9 +229,9 @@
   {:else if history && history.matches.length === 0}
     <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
       <p class="text-base text-yellow-900">
-        <strong>{formatarNomJugador(`${player1.nom ?? ''} ${player1.cognoms ?? ''}`.trim())}</strong>
+        <a href={`/jugador/${player1.numero_soci}`} class="player-link"><strong>{formatarNomJugador(`${player1.nom ?? ''} ${player1.cognoms ?? ''}`.trim())}</strong></a>
         i
-        <strong>{formatarNomJugador(`${player2.nom ?? ''} ${player2.cognoms ?? ''}`.trim())}</strong>
+        <a href={`/jugador/${player2.numero_soci}`} class="player-link"><strong>{formatarNomJugador(`${player2.nom ?? ''} ${player2.cognoms ?? ''}`.trim())}</strong></a>
         encara no s'han enfrontat directament en cap campionat.
       </p>
     </div>
@@ -243,7 +243,7 @@
         <!-- Player 1 wins -->
         <div class="text-center p-4 rounded-lg bg-blue-50 border border-blue-200">
           <div class="text-3xl font-bold text-blue-700">{history.player1Wins}</div>
-          <div class="text-xs text-gray-600 mt-1 font-medium uppercase">{formatarNomJugador(`${player1.nom ?? ''} ${player1.cognoms ?? ''}`.trim())}</div>
+          <a href={`/jugador/${player1.numero_soci}`} class="text-xs text-gray-600 mt-1 font-medium uppercase player-link block">{formatarNomJugador(`${player1.nom ?? ''} ${player1.cognoms ?? ''}`.trim())}</a>
           <div class="text-xs text-gray-500 mt-1">victòries</div>
         </div>
         <!-- Draws -->
@@ -255,7 +255,7 @@
         <!-- Player 2 wins -->
         <div class="text-center p-4 rounded-lg bg-purple-50 border border-purple-200">
           <div class="text-3xl font-bold text-purple-700">{history.player2Wins}</div>
-          <div class="text-xs text-gray-600 mt-1 font-medium uppercase">{formatarNomJugador(`${player2.nom ?? ''} ${player2.cognoms ?? ''}`.trim())}</div>
+          <a href={`/jugador/${player2.numero_soci}`} class="text-xs text-gray-600 mt-1 font-medium uppercase player-link block">{formatarNomJugador(`${player2.nom ?? ''} ${player2.cognoms ?? ''}`.trim())}</a>
           <div class="text-xs text-gray-500 mt-1">victòries</div>
         </div>
       </div>
@@ -436,4 +436,15 @@
 
   /* Aplica formatarNomJugador inline al display de noms quan no s'usa el helper */
   .cmp-root :global(button) { font-family: var(--font-sans, sans-serif); }
+
+  /* Enllaços a perfil de jugador (clicant un nom va a /jugador/[numero_soci]) */
+  .cmp-root :global(.player-link) {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+    transition: color 0.15s ease;
+  }
+  .cmp-root :global(.player-link:hover) {
+    color: var(--accent, #a30b1e);
+  }
 </style>
