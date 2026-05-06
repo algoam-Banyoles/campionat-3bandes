@@ -5,6 +5,10 @@
   import { supabase } from '$lib/supabaseClient';
   import { formatSupabaseError } from '$lib/ui/alerts';
   import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
+  import { mySociNumero } from '$lib/stores/mySoci';
+
+  // Filtre "només meves" (canvis i reptes propis)
+  let onlyMine = false;
 
   type Change = {
     creat_el: string;
@@ -161,6 +165,7 @@
   }
 
   $: filteredChanges = changes.filter((c) => {
+    if (onlyMine && $mySociNumero != null && c.soci_numero !== $mySociNumero) return false;
     if (filterPlayer !== '' && c.soci_numero !== filterPlayer) return false;
     if (filterMotiu && !(c.motiu ?? '').toLowerCase().includes(filterMotiu.toLowerCase()))
       return false;
@@ -171,6 +176,13 @@
   });
 
   $: filteredChallenges = challenges.filter((c) => {
+    if (
+      onlyMine &&
+      $mySociNumero != null &&
+      c.reptador_soci_numero !== $mySociNumero &&
+      c.reptat_soci_numero !== $mySociNumero
+    )
+      return false;
     if (
       filterChallengePlayer !== '' &&
       c.reptador_soci_numero !== filterChallengePlayer &&
@@ -208,7 +220,13 @@
     <Banner type="error" message={errorChanges} />
   {:else}
     <div class="mb-4 flex flex-wrap gap-2 items-end">
-      <select class="rounded-xl border px-3 py-2" bind:value={filterPlayer}>
+      {#if $mySociNumero}
+        <label class="mine-toggle">
+          <input type="checkbox" bind:checked={onlyMine} />
+          <span>Només meves</span>
+        </label>
+      {/if}
+      <select class="rounded-xl border px-3 py-2" bind:value={filterPlayer} disabled={onlyMine}>
         <option value="">Tots els jugadors</option>
         {#each Object.entries(players).sort((a, b) => a[1].localeCompare(b[1])) as [id, name]}
           <option value={Number(id)}>{name}</option>
@@ -224,7 +242,7 @@
       <input type="date" class="rounded-xl border px-3 py-2" bind:value={filterTo} />
       <button
         class="rounded-xl bg-slate-200 px-3 py-2 text-sm"
-        on:click={clearChangeFilters}
+        on:click={() => { clearChangeFilters(); onlyMine = false; }}
         type="button"
       >
         Neteja filtres
@@ -288,7 +306,13 @@
     <Banner type="error" message={errorChallenges} />
   {:else}
     <div class="mb-4 flex flex-wrap gap-2 items-end">
-      <select class="rounded-xl border px-3 py-2" bind:value={filterChallengePlayer}>
+      {#if $mySociNumero}
+        <label class="mine-toggle">
+          <input type="checkbox" bind:checked={onlyMine} />
+          <span>Només meves</span>
+        </label>
+      {/if}
+      <select class="rounded-xl border px-3 py-2" bind:value={filterChallengePlayer} disabled={onlyMine}>
         <option value="">Tots els jugadors</option>
         {#each Object.entries(players).sort((a, b) => a[1].localeCompare(b[1])) as [id, name]}
           <option value={Number(id)}>{name}</option>
@@ -306,7 +330,7 @@
       </select>
       <button
         class="rounded-xl bg-slate-200 px-3 py-2 text-sm"
-        on:click={clearChallengeFilters}
+        on:click={() => { clearChallengeFilters(); onlyMine = false; }}
         type="button"
       >
         Neteja filtres
@@ -457,5 +481,27 @@
     text-decoration: none !important;
     border-bottom: 1px solid var(--blue);
     padding-bottom: 1px;
+  }
+
+  .mine-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.85rem;
+    background: var(--paper-elevated, #fff);
+    border: 1px solid var(--rule-strong, #b8b3a8);
+    cursor: pointer;
+    font-family: var(--font-sans, sans-serif);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ink, #1a1814);
+    user-select: none;
+  }
+  .mine-toggle:hover { border-color: var(--ink, #1a1814); }
+  .mine-toggle input[type='checkbox'] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--ink, #1a1814);
+    cursor: pointer;
   }
 </style>
