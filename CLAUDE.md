@@ -25,9 +25,14 @@ PWA de gestió de la secció de billar 3 bandes del Foment Martinenc.
 /campionats-socials/       → Lligues per categories
   +page.svelte             → Vista única amb views (active/history/preparation/...)
   [eventId]/               → Detall d'un campionat
-    classificacio/
+    classificacio/         → Classificació + modal "veure resultats per jugador"
   inscripcions/            → Inscripció de socis
   cerca-jugadors/
+  comparador/              → Comparador de jugadors
+  mitjanes-historiques/    → Mitjanes per temporada (admin pot editar inline)
+  mitjanes-comparatives/   → Comparativa entre dues últimes temporades disponibles
+  resultats-pendents/      → (admin) Pujar resultats pendents + incompareixences
+  gestio-inscripcions/     → (admin) Gestió completa d'inscripcions socials
 
 /campionat-continu/        → Rànquing permanent (reptes directes)
   ranking/                 → Classificació (20 posicions)
@@ -36,10 +41,19 @@ PWA de gestió de la secció de billar 3 bandes del Foment Martinenc.
     me/                    → Els meus reptes actius
     [id]/resultat/
   historial/               → Partides jugades
-  llista-espera/           → Jugadors en llista d'espera
+  llista-espera/           → Jugadors en llista d'espera (públic)
   inscripcio/              → Alta al campionat continu
   classificacio/[id]/      → Classificació d'una temporada
   configuracio/notificacions/
+  ranking-inicial/         → (admin) Wizard de rànquing inicial
+  historial-canvis-ranking/→ (admin) Historial de canvis de posició
+  gestio-inscripcions/     → (admin) Gestió d'inscripcions
+  gestio-llista-espera/    → (admin) Gestió de la llista d'espera
+  gestio-reptes/           → (admin) Gestió de reptes
+    nou/                   → (admin) Crear repte per a tercers
+    access/                → (admin) Reptes d'accés
+    [id]/programar/        → (admin) Programar repte
+    [id]/resultat/         → (admin) Posar resultat (incl. +server.ts)
 
 /handicap/                 → Torneig eliminació doble (1 per temporada)
   +layout.svelte           → Guard de 3 nivells (dev/admin/public)
@@ -47,44 +61,55 @@ PWA de gestió de la secció de billar 3 bandes del Foment Martinenc.
   configuracio/            → (admin) Configuració del torneig
   inscripcions/            → (admin) Gestió de participants
   sorteig/                 → (admin) Seeds i generació de bracket
-  quadre/                  → Visualització del bracket
+  quadre/                  → Visualització del bracket (mobile: rondes acabades col·lapsades)
   partides/                → Llistat i programació de partides
   historial/               → Resultats passats
   estadistiques/           → Classificació i trajectòries
   resum/                   → Resum d'un torneig (per event_id)
 
-/admin/                    → Gestió global (admin only)
+/admin/                    → Operacions cross-cutting (admin only)
   +layout.svelte           → Guard: $adminChecked && $isAdmin
-  socis/                   → CRUD de socis
+  +page.svelte             → Dashboard amb 2 seccions: "Gestió del club" i "Operacions del rànquing continu"
+  socis/                   → CRUD de socis (cens del club)
   events/                  → CRUD d'events
     [id]/                  → Edició d'un event
     nou/                   → Crear event
   categories/              → Gestió de categories
-  inscripcions/            → Inscripcions campionat continu
-  inscripcions-socials/    → Inscripcions campionats socials
-  reptes/                  → Gestió de reptes
-    [id]/programar/
-    [id]/resultat/
-    nou/
-    access/
-  resultats-socials/       → Introducció de resultats socials
-  graella-resultats/       → Graella de resultats
-  historial/               → Historial de partides admin
-  mitjanes-historiques/    → Mitjanes per temporada
-  mitjanes-comparatives/   → Comparativa de mitjanes
-  configuracio/            → Configuració general
-  config/                  → Configuració avançada
-  content-editor/          → Editor de contingut
-  llistes-espera/          → Gestió llistes d'espera
-  ranking-inicial/         → Configuració del rànquing inicial
-  reset-campionat/         → Eina de reset
+  configuracio/            → Paràmetres del rànquing continu
+  config/                  → Redirect a configuracio
+  content-editor/          → Editor de contingut estàtic (home, normativa, horaris)
+  audit-log/               → Registre d'auditoria
+  reset-campionat/         → Reset complet del campionat (destructiu)
   ping/                    → Health check
-  check/                   → Comprovació de BD
+  check/                   → Comprovació sessió/admin
+  -- Endpoints servidor (sense pàgina) --
+  debug/+server.ts
+  penalitzacions/+server.ts
+  reset/+server.ts
+  waiting-list/+server.ts (+ [id]/, reorder/)
+  whoami/+server.ts
 
 /api/                      → Endpoints servidor
 /dev/test-notifications/   → Pàgina de test (dev)
 /offline/                  → Pàgina sense connexió
 ```
+
+### Refactor d'agost-octubre 2026: arquitectura modular
+
+S'han mogut **12 rutes** de `/admin/` als seus mòduls naturals (cada acció admin viu dins del mòdul que gestiona). Tota la nova UI segueix el patró editorial (paper, ink, accent, sense bg-blue-50, etc.) — vegeu "Direcció de disseny" més avall.
+
+| Ruta antiga | Ruta nova | Notes |
+| --- | --- | --- |
+| `/admin/inscripcions-socials` | `/campionats-socials/gestio-inscripcions` | wrapper `gis-root` |
+| `/admin/resultats-socials` | `/campionats-socials/resultats-pendents` | wrapper `rp-root` |
+| `/admin/graella-resultats` | (fusionat) | botó "Imprimir A3" inline al sub-view head-to-head; modal extret a `HeadToHeadPrintModal` |
+| `/admin/mitjanes-historiques` | `/campionats-socials/mitjanes-historiques` | edició només admin (gated `$effectiveIsAdmin`) |
+| `/admin/mitjanes-comparatives` | `/campionats-socials/mitjanes-comparatives` | detecció dinàmica d'anys per modalitat |
+| `/admin/inscripcions` (continu) | `/campionat-continu/gestio-inscripcions` | |
+| `/admin/historial` (continu) | `/campionat-continu/historial-canvis-ranking` | el `/historial` públic ja existia, calia diferenciar |
+| `/admin/ranking-inicial` | `/campionat-continu/ranking-inicial` | |
+| `/admin/reptes` + `[id]/programar` + `[id]/resultat` + `nou` + `access` | `/campionat-continu/gestio-reptes/...` (mateixa estructura) | inclou `+server.ts` per a `requireAdmin` |
+| `/admin/llistes-espera` | `/campionat-continu/gestio-llista-espera` | només continu té llista d'espera |
 
 ## Layouts i guards
 
@@ -167,7 +192,6 @@ Gestiona events del calendari general: `currentDate`, `calendarView` ('week'|'mo
 - **`Nav.svelte`**: Navegació principal. Sidebar fixa (tablet/desktop/landscape). Navbar superior mòbil (portrait). Estructura de seccions: `navegacio` (Record<string, NavSection>). Cada secció té `links` (tots), `userLinks` (autenticats), `adminLinks` (admins), `adminOnly` (amaga als no-admins).
 - `Banner.svelte`, `Loader.svelte`, `ErrorBoundary.svelte`, `ErrorToast.svelte`
 - `ConnectionStatus.svelte`, `OfflineIndicator.svelte`
-- `OrientationBanner.svelte` — Detecta portrait/landscape
 - `MobileNavigation.svelte`, `BottomTabBar.svelte`, `HamburgerMenu.svelte`
 - `SwipeHandler.svelte`, `PullToRefresh.svelte`
 - `NotificationSettings.svelte`, `NotificationPermissions.svelte`
@@ -366,10 +390,104 @@ players.id = calendari_partides.jugador1_id / jugador2_id
 
 UI sempre en **català**. Comentaris de codi: mixt català/castellà.
 
+## Direcció de disseny (per a skills/agents de frontend)
+
+Context que les skills generatives de frontend (com `frontend-design`) NO poden inferir del codi i que cal saber abans de proposar cap direcció estètica.
+
+### Audiència i to
+- **Públic**: socis del Foment Martinenc, secció billar 3 bandes — adults i gent gran (50+).
+- **Institucional**, NO startup. Evitar estètica "tech bro": gradients neon, glassmorphism, animacions ostentoses, copy de màrqueting.
+- **Idioma UI sempre en català**.
+
+### Restriccions tècniques
+- Stack: SvelteKit 2 + **Svelte 5** (runes als components nous: `$state`, `$derived`, `$effect`) + Tailwind 3 + Supabase. Adaptador estàtic (GitHub Pages) — sense SSR runtime.
+- PWA offline-first amb Service Worker propi (NO vite-pwa, tot i que és al package.json). Bundle reduït: evitar dependències pesades (Lottie, Framer Motion, biblioteques d'icones SVG, més biblioteques de gràfics — ja hi ha ECharts).
+- Instal·lable a iOS/Android: respectar safe areas, no fixed positioning agressiu.
+
+### Sistema visual existent (no reinventar)
+- **Tipografia ja escalada per accessibilitat** (veure `tailwind.config.cjs`): `text-xs`=16px, `text-base`=20px. **Mai** baixar de `text-sm`. Hi ha un `--font-size-multiplier` CSS que els usuaris poden augmentar.
+- **Colors funcionals**: blau primari (`bg-blue-600`), verd èxit, vermell error/perill, taronja warning. Paleta accessible WCAG a `colors.accessible` per a high-contrast.
+- **Touch targets** mínim 48px (utility `touch-target`, spacing `touch`/`touch-lg`). Components interactius mai més petits.
+- **Focus visible enhanced**: outline blau 4px (`.focus-visible-enhanced`). Mai desactivar.
+- **High-contrast mode**: classe `.high-contrast` al body. Tot component nou ha de funcionar en ambdós modes — no separar seccions només per `bg-gray-50`, cal contorn.
+- **Animacions**: només `slideDown` (0.2s). Respectar `prefers-reduced-motion` amb fallback.
+
+### Decisions estètiques preses
+- **Densitat baixa / espai generós** (taules denses només amb pattern `mobile-stack`).
+- Cards = `bg-white` + `border`. NO glassmorphism, NO shadows fortes per defecte.
+- Iconografia: **emojis Unicode** al Nav (⚖️ hàndicap, etc.). NO afegir biblioteques d'icones.
+
+### Què NO fer
+- Gradients morats/blaus genèrics estil landing de SaaS.
+- `rounded-3xl` o `rounded-full` exagerats en botons grans.
+- Animacions d'entrada a cada element.
+- Dark mode toggle (no implementat, no és prioritari).
+- Substituir el sistema de colors funcional per una paleta "de marca" inventada.
+
+### Què SÍ buscar
+- Jerarquia tipogràfica clara aprofitant l'escala ja gran (jugar amb pesos i mides relatives).
+- Reaprofitament de la paleta funcional abans d'ampliar-la.
+- Compatibilitat amb high-contrast mode i `--font-size-multiplier`.
+- Layouts que funcionin tant en portrait com en landscape (la PWA es fa servir en tablet a peu de billar).
+
+### Format dels noms de jugador (regla obligatòria)
+
+**Sempre** usar `formatarNomJugador()` de `$lib/utils/playerUtils` per mostrar noms de jugadors a la UI. Format: **inicials del nom + primer cognom** (ex: "Joan Garcia Pujol" → "J. Garcia").
+
+La funció gestiona el connector català "i" entre cognoms ("Joan Garcia i Pujol" → "J. Garcia").
+
+**Mai mostrar** el `numero_soci` com a text inline (estil "Soci #1234") en pantalles d'usuari. Si cal mostrar-lo (rar, només zones d'admin de gestió de socis), fes-ho com a columna pròpia identificada, no concatenat amb el nom.
+
+**Patró d'aplicació:**
+```svelte
+import { formatarNomJugador } from '$lib/utils/playerUtils';
+…
+{formatarNomJugador(`${soci.nom ?? ''} ${soci.cognoms ?? ''}`.trim())}
+```
+
+### Congruència entre estat loggat / no loggat (regla obligatòria)
+
+Tota pantalla ha de tenir **el mateix shell visual i layout** independentment de si l'usuari està loggat o no. La personalització és una **capa addicional** que es desactiva, no que reestructura la pantalla.
+
+**Què canvia entre estats (capa de personalització):**
+- Topbar: "Iniciar sessió" (anònim) ↔ pill amb nom + número de soci (loggat).
+- Highlights de "tu" / "les meves" a taules (classificació, calendari, graella): només quan loggat.
+- Vistes "Les meves partides" / "Els meus reptes": només existeixen quan loggat. En anònim, el toggle d'aquesta vista no apareix o redirigeix a login.
+- Botons d'acció (Inscriure's, Crear repte, Programar partida): si està loggat, acció directa. Si no, mostren CTA "Iniciar sessió per a…" en el mateix lloc del botó.
+
+**Què NO ha de canviar:**
+- Layout principal (mast-head, secció nav, subtabs, columnes de taules, mides tipogràfiques).
+- Quantitat de columnes a les taules de dades. Una taula de classificació ha de tenir les mateixes columnes en ambdós estats.
+- Estructura de les pàgines: un usuari anònim ha de poder consultar tots els resultats, calendaris, classificacions i historial. Només es restringeix l'edició i la personalització.
+- Patrons d'iconografia i color funcional.
+
+**Implementació tipus:**
+```svelte
+{#if $isAuthenticated && row.soci_numero === $mySociNumero}
+  <tr class="is-mine">
+{:else}
+  <tr>
+{/if}
+```
+La classe `is-mine` aplica només els estils de personalització (background tint, badge "tu"), però la `<tr>` continua tenint la mateixa estructura.
+
+**Validació**: abans de tancar qualsevol pantalla nova, comprovar amb `signOut()` que el layout es manté i la informació no personalitzada continua sent consultable.
+
 ## Errors coneguts (ignorar)
 
 - **`connectionManager.ts`**: `handleOfflineEvent` hauria de ser `handleOnlineEvent`. Error pre-existent, no tocar.
-- `npm run check` reporta 1 error (aquest) i ~99 warnings CSS → tots pre-existents.
+- `npm run check` reporta ~80 warnings CSS i 1 warning Svelte ("element implicitly closed" a `handicap/quadre`). Tots són pre-existents o cosmètics. Errors esperats: **0**.
+
+## Migració automàtica de mitjanes
+
+A partir del 2026-05-06, quan un event social passa a `estat_competicio = 'finalitzat'`, un trigger PostgreSQL volca automàticament les mitjanes finals dels seus jugadors a `mitjanes_historiques`:
+
+- Funció: `public.migrate_social_event_to_historiques(event_id UUID) RETURNS INTEGER` (idempotent via `UNIQUE (soci_id, year, modalitat)`)
+- Trigger: `event_finalitzat_migrate_mitjanes AFTER INSERT OR UPDATE OF estat_competicio ON events`
+- Mapatge modalitats: `tres_bandes → '3 BANDES'`, `lliure → 'LLIURE'`, `banda → 'BANDA'`
+- Convenció `year`: end-year de la temporada (`2025-2026 → 2026`)
+
+La migració `20260506000002_auto_migrate_social_averages_to_historiques.sql` inclou backfill per a tots els events ja finalitzats. Els permisos `EXECUTE` estan revocats per a `anon`/`authenticated`; només el trigger i `service_role` poden invocar la funció directament.
 
 ## Comandes
 
