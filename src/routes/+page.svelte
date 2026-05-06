@@ -52,7 +52,7 @@
     try {
       const { data, error } = await supabase
         .from('page_content')
-        .select('*')
+        .select('page_key, title, content')
         .in('page_key', [
           'home_main', 'horaris', 'normes_obligatories', 'prohibicions',
           'normes_inscripcio', 'normes_assignacio', 'normes_temps',

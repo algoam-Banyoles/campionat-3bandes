@@ -14,7 +14,7 @@
     import PullToRefresh from '$lib/components/general/gestures/PullToRefresh.svelte';
     import { formatPlayerDisplayName } from '$lib/utils/playerName';
     import PlayerEvolutionBadges from '$lib/components/campionat-continu/PlayerEvolutionBadges.svelte';
-    import { getPlayerChallengeHistory, type ChallengeResult } from '$lib/stores/playerChallengeHistory';
+    import { getPlayerChallengeHistoriesBatch, type ChallengeResult } from '$lib/stores/playerChallengeHistory';
     import { mySociNumero as mySociStore } from '$lib/stores/mySoci';
 
   export let badges: VPlayerBadges[] = [];
@@ -203,19 +203,9 @@
     if (!eventId || rows.length === 0) return;
 
     try {
-      const historyPromises = rows.map(async (row) => {
-        const history = await getPlayerChallengeHistory(row.soci_numero, eventId!, 6);
-        return { sociNumero: row.soci_numero, history };
-      });
-
-      const results = await Promise.all(historyPromises);
-      const newHistoryMap = new Map<number, ChallengeResult[]>();
-
-      results.forEach(({ sociNumero, history }) => {
-        newHistoryMap.set(sociNumero, history);
-      });
-
-      playerHistoryMap = newHistoryMap;
+      // Una sola query batch per a tots els 20 jugadors del top, en lloc de 20 queries paral·leles.
+      const sociNumeros = rows.map((r) => r.soci_numero);
+      playerHistoryMap = await getPlayerChallengeHistoriesBatch(sociNumeros, eventId, 6);
     } catch (error) {
       console.error('Error loading player histories:', error);
     }

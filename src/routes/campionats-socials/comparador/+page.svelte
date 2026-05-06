@@ -239,7 +239,7 @@
     <!-- Resum -->
     <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
       <h2 class="text-lg font-semibold text-gray-900 mb-4">Resum d'enfrontaments</h2>
-      <div class="grid grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <!-- Player 1 wins -->
         <div class="text-center p-4 rounded-lg bg-blue-50 border border-blue-200">
           <div class="text-3xl font-bold text-blue-700">{history.player1Wins}</div>
