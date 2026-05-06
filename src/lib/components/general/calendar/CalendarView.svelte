@@ -241,7 +241,7 @@
           {#each monthDays as date}
             <CalendarDay
               {date}
-              events={getEventsForDate(date)}
+              events={getFilteredEventsForDate(date)}
               isCurrentMonth={isCurrentMonth(date)}
               isToday={isToday(date)}
               isSelected={selectedDate?.toDateString() === date.toDateString()}
@@ -257,7 +257,7 @@
           {#each weekDays_dates as date}
             <CalendarDay
               {date}
-              events={getEventsForDate(date)}
+              events={getFilteredEventsForDate(date)}
               isCurrentMonth={true}
               isToday={isToday(date)}
               isSelected={selectedDate?.toDateString() === date.toDateString()}
@@ -400,9 +400,9 @@
         </button>
       </div>
       
-      {#if getEventsForDate(selectedDate).length > 0}
+      {#if getFilteredEventsForDate(selectedDate).length > 0}
         <div class="space-y-2">
-          {#each getEventsForDate(selectedDate) as event}
+          {#each getFilteredEventsForDate(selectedDate) as event}
             <button
               class="w-full text-left p-2 sm:p-3 rounded border border-slate-200 hover:bg-slate-50 transition-colors"
               on:click={() => {

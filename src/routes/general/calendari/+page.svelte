@@ -1,5 +1,8 @@
 <script lang="ts">
   import CalendarView from '$lib/components/general/calendar/CalendarView.svelte';
+  import { mySociNumero } from '$lib/stores/mySoci';
+
+  let onlyMine = false;
 </script>
 
 <svelte:head>
@@ -9,15 +12,25 @@
 
 <div class="cal-root">
   <header class="cal-mast">
-    <div class="editorial-eyebrow">Foment Martinenc · Secció billar</div>
-    <h1 class="cal-title">Calendari general</h1>
-    <p class="cal-sub">
-      Tots els esdeveniments: campionats socials, reptes del rànquing continu,
-      activitats del club i partides hàndicap programades.
-    </p>
+    <div class="cal-mast-row">
+      <div>
+        <div class="editorial-eyebrow">Foment Martinenc · Secció billar</div>
+        <h1 class="cal-title">Calendari general</h1>
+        <p class="cal-sub">
+          Tots els esdeveniments: campionats socials, reptes del rànquing continu,
+          activitats del club i partides hàndicap programades.
+        </p>
+      </div>
+      {#if $mySociNumero}
+        <label class="cal-mine-toggle">
+          <input type="checkbox" bind:checked={onlyMine} />
+          <span>Només meves</span>
+        </label>
+      {/if}
+    </div>
   </header>
 
-  <CalendarView />
+  <CalendarView {onlyMine} />
 </div>
 
 <style>
@@ -52,6 +65,36 @@
     font-size: 0.9375rem;
     color: var(--ink-2, #4a443e);
     max-width: 56ch;
+  }
+  .cal-mast-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .cal-mine-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.85rem;
+    background: var(--paper-elevated, #fff);
+    border: 1px solid var(--rule-strong, #b8b3a8);
+    cursor: pointer;
+    font-family: var(--font-sans, sans-serif);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ink, #1a1814);
+    user-select: none;
+    flex-shrink: 0;
+    min-height: 40px;
+  }
+  .cal-mine-toggle:hover { border-color: var(--ink, #1a1814); }
+  .cal-mine-toggle input[type='checkbox'] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--ink, #1a1814);
+    cursor: pointer;
   }
   .cal-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
   .cal-root :global(.bg-slate-50),
