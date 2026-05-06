@@ -123,14 +123,15 @@
 </script>
 
 <svelte:head>
-  <title>Comparador de Jugadors - Campionats Socials</title>
+  <title>Comparador de jugadors</title>
 </svelte:head>
 
-<div class="container mx-auto px-4 py-8 max-w-6xl">
-  <div class="mb-6">
-    <h1 class="text-3xl font-bold text-gray-900">Comparador de Jugadors</h1>
-    <p class="mt-2 text-gray-600">Selecciona dos jugadors per veure el seu històric d'enfrontaments directes.</p>
-  </div>
+<div class="cmp-root">
+  <header class="cmp-mast">
+    <div class="editorial-eyebrow">Campionats socials · Anàlisi</div>
+    <h1 class="cmp-title">Comparador de jugadors</h1>
+    <p class="cmp-sub">Selecciona dos jugadors per veure el seu històric d'enfrontaments directes.</p>
+  </header>
 
   <!-- Selectors -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 relative">
@@ -290,8 +291,8 @@
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campionat</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
-              <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{player1.nom}</th>
-              <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{player2.nom}</th>
+              <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{formatarNomJugador(`${player1.nom ?? ''} ${player1.cognoms ?? ''}`.trim())}</th>
+              <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{formatarNomJugador(`${player2.nom ?? ''} ${player2.cognoms ?? ''}`.trim())}</th>
               <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Entr.</th>
             </tr>
           </thead>
@@ -341,3 +342,98 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .cmp-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .cmp-mast {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .cmp-title {
+    margin: 0.4rem 0 0.4rem;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .cmp-sub {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ink-2, #4a443e);
+    max-width: 56ch;
+  }
+
+  .cmp-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .cmp-root :global(.bg-gray-50),
+  .cmp-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .cmp-root :global(.bg-blue-50),
+  .cmp-root :global(.bg-blue-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--blue, #1f4a99) !important; }
+  .cmp-root :global(.bg-green-50),
+  .cmp-root :global(.bg-green-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--green, #1f7a3a) !important; }
+  .cmp-root :global(.bg-yellow-50),
+  .cmp-root :global(.bg-yellow-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+  .cmp-root :global(.bg-blue-600),
+  .cmp-root :global(.bg-blue-700) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .cmp-root :global(.text-gray-500),
+  .cmp-root :global(.text-gray-600),
+  .cmp-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+  .cmp-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+  .cmp-root :global(.text-blue-600),
+  .cmp-root :global(.text-blue-700),
+  .cmp-root :global(.text-blue-800) { color: var(--blue, #1f4a99) !important; }
+  .cmp-root :global(.text-green-600),
+  .cmp-root :global(.text-green-700),
+  .cmp-root :global(.text-green-800) { color: var(--green, #1f7a3a) !important; }
+  .cmp-root :global(.text-red-600),
+  .cmp-root :global(.text-red-700),
+  .cmp-root :global(.text-red-800) { color: var(--accent, #a30b1e) !important; }
+  .cmp-root :global(.border-gray-200),
+  .cmp-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+  .cmp-root :global(.rounded),
+  .cmp-root :global(.rounded-md),
+  .cmp-root :global(.rounded-lg),
+  .cmp-root :global(.rounded-xl),
+  .cmp-root :global(.rounded-2xl),
+  .cmp-root :global(.rounded-full) { border-radius: 0 !important; }
+  .cmp-root :global(.shadow),
+  .cmp-root :global(.shadow-sm),
+  .cmp-root :global(.shadow-md),
+  .cmp-root :global(.shadow-lg) { box-shadow: none !important; }
+  .cmp-root :global(input),
+  .cmp-root :global(select) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .cmp-root :global(input:focus),
+  .cmp-root :global(select:focus) {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: -1px;
+  }
+  .cmp-root :global(table) { font-family: var(--font-sans, sans-serif); }
+  .cmp-root :global(thead.bg-gray-50) {
+    background: var(--paper, #fbfaf6) !important;
+    border-bottom: 1px solid var(--ink, #1a1814) !important;
+  }
+
+  /* Aplica formatarNomJugador inline al display de noms quan no s'usa el helper */
+  .cmp-root :global(button) { font-family: var(--font-sans, sans-serif); }
+</style>

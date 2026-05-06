@@ -147,14 +147,15 @@
 </script>
 
 <svelte:head>
-  <title>Cerca de Jugadors - Campionats Socials</title>
+  <title>Cerca de jugadors</title>
 </svelte:head>
 
-<div class="container mx-auto px-4 py-8 max-w-7xl">
-  <div class="mb-8">
-    <h1 class="text-3xl font-bold text-gray-900">Cerca de Jugadors</h1>
-    <p class="mt-2 text-gray-600">Consulta l'evolució històrica de mitjanes dels jugadors en els campionats socials</p>
-  </div>
+<div class="cer-root">
+  <header class="cer-mast">
+    <div class="editorial-eyebrow">Campionats socials · Anàlisi</div>
+    <h1 class="cer-title">Cerca de jugadors</h1>
+    <p class="cer-sub">Consulta l'evolució històrica de mitjanes dels jugadors en els campionats socials.</p>
+  </header>
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <!-- Search Panel -->
@@ -405,3 +406,82 @@
     </div>
   </div>
 </div>
+
+<style>
+  .cer-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .cer-mast {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .cer-title {
+    margin: 0.4rem 0 0.4rem;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .cer-sub {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ink-2, #4a443e);
+    max-width: 56ch;
+  }
+
+  .cer-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .cer-root :global(.bg-gray-50),
+  .cer-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .cer-root :global(.bg-blue-50),
+  .cer-root :global(.bg-blue-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--blue, #1f4a99) !important; }
+  .cer-root :global(.bg-green-50),
+  .cer-root :global(.bg-green-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--green, #1f7a3a) !important; }
+  .cer-root :global(.bg-blue-600),
+  .cer-root :global(.bg-blue-700) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .cer-root :global(.text-gray-400),
+  .cer-root :global(.text-gray-500),
+  .cer-root :global(.text-gray-600),
+  .cer-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+  .cer-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+  .cer-root :global(.text-blue-600),
+  .cer-root :global(.text-blue-700),
+  .cer-root :global(.text-blue-800) { color: var(--blue, #1f4a99) !important; }
+  .cer-root :global(.border-gray-200),
+  .cer-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+  .cer-root :global(.rounded),
+  .cer-root :global(.rounded-md),
+  .cer-root :global(.rounded-lg),
+  .cer-root :global(.rounded-xl),
+  .cer-root :global(.rounded-2xl),
+  .cer-root :global(.rounded-full) { border-radius: 0 !important; }
+  .cer-root :global(.shadow),
+  .cer-root :global(.shadow-sm),
+  .cer-root :global(.shadow-md) { box-shadow: none !important; }
+  .cer-root :global(input),
+  .cer-root :global(select) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .cer-root :global(input:focus),
+  .cer-root :global(select:focus) {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: -1px;
+  }
+</style>
