@@ -4,6 +4,7 @@
   import { isAdmin } from '$lib/stores/adminAuth';
   import { signOut } from '$lib/utils/auth-client';
   import { viewMode } from '$lib/stores/viewMode';
+  import { mySociNumero } from '$lib/stores/mySoci';
 
   type NavLink = { href: string; label: string; disabled?: boolean };
   type NavSection = {
@@ -185,6 +186,11 @@
             <div class="user-dropdown-head">
               <div class="user-dropdown-email">{$user.email}</div>
             </div>
+            {#if $mySociNumero}
+              <a class="dropdown-item" href={`/jugador/${$mySociNumero}`} on:click={() => (activeDropdown = null)}>
+                Veure el meu perfil
+              </a>
+            {/if}
             {#if $isAdmin}
               <button class="dropdown-item" on:click={() => viewMode.toggleMode()}>
                 Canviar a vista <strong>{$viewMode === 'admin' ? 'Jugador' : 'Admin'}</strong>
