@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { refreshCalendarData, getEventsForDate } from '$lib/stores/calendar';
+  import MyUpcomingMatchesWidget from '$lib/components/general/MyUpcomingMatchesWidget.svelte';
 
   let upcomingEvents: any[] = [];
   let loading = true;
@@ -119,6 +120,9 @@
       </div>
     {/if}
   </header>
+
+  <!-- ────────── Les meves properes partides (només usuaris loggats amb soci) ────────── -->
+  <MyUpcomingMatchesWidget limit={5} />
 
   <!-- ────────── Properes activitats ────────── -->
   <section>
