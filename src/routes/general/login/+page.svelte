@@ -70,67 +70,159 @@
 
 <svelte:head><title>{mode === 'login' ? 'Inicia sessió' : 'Crea un compte'}</title></svelte:head>
 
-<h1 class="text-2xl font-semibold mb-4">
-  {mode === 'login' ? 'Inicia sessió' : 'Crea un compte'}
-</h1>
+<div class="lg-root">
+  <header class="lg-mast">
+    <div class="editorial-eyebrow">Foment Martinenc · Secció billar</div>
+    <h1 class="lg-title">{mode === 'login' ? 'Inicia sessió' : 'Crea un compte'}</h1>
+  </header>
 
-{#if uiError}
-  <div class="rounded border border-red-300 bg-red-50 text-red-800 p-3 mb-3">{uiError}</div>
-{/if}
-{#if okMsg}
-  <div class="rounded border border-green-300 bg-green-50 text-green-800 p-3 mb-3">{okMsg}</div>
-{/if}
+  {#if uiError}
+    <div class="lg-error">{uiError}</div>
+  {/if}
+  {#if okMsg}
+    <div class="lg-ok">{okMsg}</div>
+  {/if}
 
   {#if $status === 'authenticated' && $user}
-  <p class="text-slate-600">Ja has iniciat sessió com <strong>{$user.email}</strong>.</p>
-{:else}
-  <form class="max-w-sm space-y-3" on:submit|preventDefault={onSubmit}>
-    <div>
-      <label for="email" class="block text-sm mb-1">Email</label>
-      <input
-        id="email"
-        type="email"
-        class="w-full rounded border px-3 py-2"
-        placeholder="tu@exemple.cat"
-        bind:value={email}
-        autocomplete="email"
-      />
-    </div>
+    <p class="lg-already">Ja has iniciat sessió com <strong>{$user.email}</strong>.</p>
+  {:else}
+    <form class="lg-form" on:submit|preventDefault={onSubmit}>
+      <div>
+        <label for="email" class="lg-label">Email</label>
+        <input
+          id="email"
+          type="email"
+          class="lg-input"
+          placeholder="tu@exemple.cat"
+          bind:value={email}
+          autocomplete="email"
+        />
+      </div>
 
-    <div>
-      <label for="password" class="block text-sm mb-1">Contrasenya</label>
-      <input
-        id="password"
-        type="password"
-        class="w-full rounded border px-3 py-2"
-        placeholder="••••••••"
-        bind:value={password}
-        autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
-      />
-    </div>
+      <div>
+        <label for="password" class="lg-label">Contrasenya</label>
+        <input
+          id="password"
+          type="password"
+          class="lg-input"
+          placeholder="••••••••"
+          bind:value={password}
+          autocomplete={mode === 'login' ? 'current-password' : 'new-password'}
+        />
+      </div>
 
-    <div class="flex items-center gap-2">
-      <button
-        type="submit"
-        class="rounded bg-slate-900 text-white px-3 py-2 disabled:opacity-60"
-        disabled={loading}
-      >
-        {loading ? 'Processant…' : (mode === 'login' ? 'Entrar' : 'Crear compte')}
-      </button>
+      <div class="lg-actions">
+        <button type="submit" class="lg-btn-primary" disabled={loading}>
+          {loading ? 'Processant…' : (mode === 'login' ? 'Entrar' : 'Crear compte')}
+        </button>
 
-      <button
-        type="button"
-        class="text-sm underline"
-        on:click={() => (mode = mode === 'login' ? 'signup' : 'login')}
-      >
-        {mode === 'login' ? 'No tens compte? Crea’n un' : 'Ja tens compte? Inicia sessió'}
-      </button>
-    </div>
+        <button type="button" class="lg-link" on:click={() => (mode = mode === 'login' ? 'signup' : 'login')}>
+          {mode === 'login' ? 'No tens compte? Crea’n un' : 'Ja tens compte? Inicia sessió'}
+        </button>
+      </div>
 
-    <div class="pt-2">
-      <button type="button" class="text-sm underline" on:click={sendReset} disabled={loading}>
-        He oblidat la contrasenya
-      </button>
-    </div>
-  </form>
-{/if}
+      <div>
+        <button type="button" class="lg-link lg-link-muted" on:click={sendReset} disabled={loading}>
+          He oblidat la contrasenya
+        </button>
+      </div>
+    </form>
+  {/if}
+</div>
+
+<style>
+  .lg-root {
+    max-width: 32rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .lg-mast {
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .lg-title {
+    margin: 0.4rem 0 0;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .lg-error,
+  .lg-ok {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    border: 1px solid;
+  }
+  .lg-error { background: var(--paper); border-color: var(--accent); color: var(--accent); }
+  .lg-ok { background: var(--paper); border-color: var(--green); color: var(--green); }
+  .lg-already { color: var(--ink-2, #4a443e); }
+  .lg-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+  .lg-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--ink-2, #4a443e);
+    margin-bottom: 0.3rem;
+  }
+  .lg-input {
+    width: 100%;
+    background: var(--paper-elevated, #fff);
+    border: 1px solid var(--rule-strong, #b8b3a8);
+    padding: 0.6rem 0.85rem;
+    font-family: var(--font-sans, sans-serif);
+    font-size: 0.9375rem;
+    color: var(--ink, #1a1814);
+  }
+  .lg-input:focus {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: -1px;
+  }
+  .lg-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.85rem;
+    margin-top: 0.4rem;
+  }
+  .lg-btn-primary {
+    background: var(--ink, #1a1814);
+    color: var(--paper, #fbfaf6);
+    border: 1px solid var(--ink, #1a1814);
+    padding: 0.65rem 1.25rem;
+    font-family: var(--font-sans, sans-serif);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .lg-btn-primary:hover:not(:disabled) { opacity: 0.9; }
+  .lg-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .lg-link {
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--ink, #1a1814);
+    font-family: var(--font-sans, sans-serif);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 1px solid currentColor;
+  }
+  .lg-link:hover { color: var(--accent, #a30b1e); }
+  .lg-link-muted { color: var(--ink-3, #807a72); font-weight: 500; }
+</style>

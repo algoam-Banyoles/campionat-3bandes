@@ -102,6 +102,8 @@
   <title>{pageTitle}</title>
 </svelte:head>
 
+<div class="evdet-root">
+
 {#if loading}
   <div class="flex items-center justify-center min-h-64">
     <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -250,3 +252,57 @@
     </div>
   </div>
 {/if}
+</div>
+
+<style>
+  .evdet-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+
+  .evdet-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .evdet-root :global(.bg-gray-50),
+  .evdet-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .evdet-root :global(.bg-blue-50),
+  .evdet-root :global(.bg-blue-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--blue, #1f4a99) !important; }
+  .evdet-root :global(.bg-green-50),
+  .evdet-root :global(.bg-green-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--green, #1f7a3a) !important; }
+  .evdet-root :global(.bg-yellow-50),
+  .evdet-root :global(.bg-yellow-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+  .evdet-root :global(.bg-red-50),
+  .evdet-root :global(.bg-red-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--accent, #a30b1e) !important; }
+  .evdet-root :global(.bg-blue-600),
+  .evdet-root :global(.bg-blue-700) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .evdet-root :global(.text-gray-500),
+  .evdet-root :global(.text-gray-600),
+  .evdet-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+  .evdet-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+  .evdet-root :global(.text-blue-600),
+  .evdet-root :global(.text-blue-700),
+  .evdet-root :global(.text-blue-800) { color: var(--blue, #1f4a99) !important; }
+  .evdet-root :global(.text-green-600),
+  .evdet-root :global(.text-green-700),
+  .evdet-root :global(.text-green-800) { color: var(--green, #1f7a3a) !important; }
+  .evdet-root :global(.text-red-600),
+  .evdet-root :global(.text-red-700),
+  .evdet-root :global(.text-red-800) { color: var(--accent, #a30b1e) !important; }
+  .evdet-root :global(.text-yellow-700),
+  .evdet-root :global(.text-yellow-800) { color: var(--amber, #b8860b) !important; }
+  .evdet-root :global(.border-gray-200),
+  .evdet-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+  .evdet-root :global(.rounded),
+  .evdet-root :global(.rounded-md),
+  .evdet-root :global(.rounded-lg),
+  .evdet-root :global(.rounded-xl),
+  .evdet-root :global(.rounded-2xl),
+  .evdet-root :global(.rounded-full) { border-radius: 0 !important; }
+  .evdet-root :global(.shadow),
+  .evdet-root :global(.shadow-sm),
+  .evdet-root :global(.shadow-md) { box-shadow: none !important; }
+</style>
