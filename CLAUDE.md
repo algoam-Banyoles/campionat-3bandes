@@ -164,6 +164,20 @@ showInfo(message: string): void;
 ### `calendar.ts`
 Gestiona events del calendari general: `currentDate`, `calendarView` ('week'|'month'), `esdeveniments`, `reptesProgramats`, `partidesCalendari`. Funcions: `loadEsdeveniments()`, `loadReptesProgramats()`, `loadPartidesCalendari()`.
 
+### `mySoci.ts`
+
+```typescript
+export const mySociNumero: Writable<number | null>;
+export function getMySociNumero(): number | null;
+```
+
+Resol el `numero_soci` de l'usuari loggat a partir de `socis.email`. Es subscriu automàticament a `$user` i s'omple/buida amb la sessió. Útil per a:
+
+- Construir enllaços al perfil propi (`/jugador/{numero_soci}`)
+- Marcar files "is-mine" a classificacions, calendari, etc.
+- Filtrar reptes/partides per "només meves" (vegeu `/campionat-continu/historial`)
+- Renderitzar widgets personalitzats com `MyUpcomingMatchesWidget`
+
 ## Utils (`src/lib/utils/`)
 
 | Fitxer | Funció principal |
@@ -189,12 +203,15 @@ Gestiona events del calendari general: `currentDate`, `calendarView` ('week'|'mo
 ## Components (`src/lib/components/`)
 
 ### Components generals (`general/`)
-- **`Nav.svelte`**: Navegació principal. Sidebar fixa (tablet/desktop/landscape). Navbar superior mòbil (portrait). Estructura de seccions: `navegacio` (Record<string, NavSection>). Cada secció té `links` (tots), `userLinks` (autenticats), `adminLinks` (admins), `adminOnly` (amaga als no-admins).
+
+- **`Nav.svelte`** (legacy): Navegació antiga, encara referenciada per algunes rutes.
+- **`NavEditorial.svelte`**: Navegació editorial actual. Topbar + section nav per modalitat (general/socials/continu/handicap/admin) amb dropdowns admin contextuals i panell mòbil amb hamburger. Bloqueja el scroll del body via classe `nav-mobile-open`.
 - `Banner.svelte`, `Loader.svelte`, `ErrorBoundary.svelte`, `ErrorToast.svelte`
 - `ConnectionStatus.svelte`, `OfflineIndicator.svelte`
 - `MobileNavigation.svelte`, `BottomTabBar.svelte`, `HamburgerMenu.svelte`
 - `SwipeHandler.svelte`, `PullToRefresh.svelte`
 - `NotificationSettings.svelte`, `NotificationPermissions.svelte`
+- **`MyUpcomingMatchesWidget.svelte`**: Llista properes partides programades d'un soci. Sense props mostra les de l'usuari loggat (via `mySociNumero`). Amb `sociNumero={X}` mostra les d'aquell soci (s'usa al perfil). Si no hi ha partides futures, no es renderitza. Usat a `/+page.svelte` (home) i `/jugador/[numero_soci]/+page.svelte`.
 
 ### Components campionats-socials (`campionats-socials/`)
 - `SocialLeagueCalendarViewer.svelte`, `SocialLeagueMatchResults.svelte`
