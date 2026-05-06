@@ -259,4 +259,40 @@
       min-height: 32px;
     }
   }
+
+  /* Mòbil portrait: cel·les compactes amb barres fines per indicar events.
+     Tap → s'obre el modal del dia amb la llista detallada. */
+  @media (max-width: 639px) {
+    .cal-cell {
+      min-height: 78px;
+      padding: 0.4rem 0.3rem 0.45rem;
+      gap: 0.3rem;
+    }
+    .cal-cell-num { font-size: 0.9375rem; }
+    .cal-cell-count {
+      font-size: 0.5625rem;
+      padding: 0.02rem 0.3rem;
+    }
+    .cal-cell-events {
+      gap: 0.18rem;
+      max-height: 38px;
+      overflow: hidden;
+    }
+    .evt-pill {
+      height: 5px;
+      min-height: 0;
+      padding: 0;
+      border: none;
+      background: currentColor;
+      opacity: 0.85;
+    }
+    .evt-pill:hover {
+      background: currentColor;
+      border: none;
+      opacity: 1;
+    }
+    .evt-title,
+    .evt-meta { display: none; }
+    .evt-more { display: none; }
+  }
 </style>

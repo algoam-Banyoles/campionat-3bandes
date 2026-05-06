@@ -152,7 +152,7 @@
   }
 </script>
 
-<div class="cal-view">
+<div class="cal-view" class:is-week={$calendarView === 'week'} class:is-month={$calendarView === 'month'}>
   <!-- Controls -->
   <div class="cal-toolbar">
     <CalendarControls />
