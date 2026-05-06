@@ -239,111 +239,133 @@
 </div>
 
 <style>
-  .notification-permissions {
-    @apply space-y-4;
-  }
-
-  .notification-permissions.compact {
-    @apply space-y-2;
-  }
+  .notification-permissions { display: flex; flex-direction: column; gap: 1rem; }
+  .notification-permissions.compact { gap: 0.5rem; }
 
   .alert {
-    @apply flex items-start gap-3 p-4 rounded-lg border;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--rule, #e6e3dc);
+    background: var(--paper, #fbfaf6);
   }
+  .alert-warning { border-color: var(--amber, #b8860b); color: var(--amber, #b8860b); }
+  .alert-error { border-color: var(--accent, #a30b1e); color: var(--accent, #a30b1e); }
+  .alert-success { border-color: var(--green, #1f7a3a); color: var(--green, #1f7a3a); }
 
-  .alert-warning {
-    @apply bg-yellow-50 border-yellow-200 text-yellow-800;
-  }
-
-  .alert-error {
-    @apply bg-red-50 border-red-200 text-red-800;
-  }
-
-  .alert-success {
-    @apply bg-green-50 border-green-200 text-green-800;
-  }
-
-  .alert-icon {
-    @apply flex-shrink-0;
-  }
-
-  .alert-title {
-    @apply font-semibold text-sm;
-  }
-
-  .alert-message {
-    @apply text-sm mt-1;
-  }
+  .alert-icon { flex-shrink: 0; }
+  .alert-title { font-weight: 600; font-size: 0.875rem; }
+  .alert-message { font-size: 0.875rem; margin-top: 0.25rem; }
 
   .permission-request {
-    @apply bg-white border border-slate-200 rounded-lg p-6;
+    background: var(--paper-elevated, #fff);
+    border: 1px solid var(--rule, #e6e3dc);
+    padding: 1.5rem;
+    font-family: var(--font-sans, sans-serif);
   }
-
-  .compact .permission-request {
-    @apply p-4;
-  }
+  .compact .permission-request { padding: 1rem; }
 
   .permission-content {
-    @apply flex items-start gap-4 mb-4;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
   }
+  .compact .permission-content { gap: 0.75rem; margin-bottom: 0.75rem; }
 
-  .compact .permission-content {
-    @apply gap-3 mb-3;
-  }
-
-  .permission-icon {
-    @apply flex-shrink-0;
-  }
+  .permission-icon { flex-shrink: 0; }
 
   .permission-title {
-    @apply text-lg font-semibold text-slate-900;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--ink, #1a1814);
+    letter-spacing: -0.01em;
   }
-
-  .compact .permission-title {
-    @apply text-base;
-  }
+  .compact .permission-title { font-size: 1rem; }
 
   .permission-description {
-    @apply text-slate-600 mt-1;
+    color: var(--ink-2, #4a443e);
+    margin-top: 0.25rem;
+    font-size: 0.9375rem;
   }
 
   .permission-benefits {
-    @apply list-disc list-inside text-sm text-slate-600 mt-2 space-y-1;
+    list-style: disc inside;
+    font-size: 0.875rem;
+    color: var(--ink-2, #4a443e);
+    margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
   }
 
   .permission-actions {
-    @apply flex gap-3 items-center;
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
   }
-
-  .compact .permission-actions {
-    @apply gap-2;
-  }
+  .compact .permission-actions { gap: 0.5rem; }
 
   .explanation-box {
-    @apply bg-slate-50 border border-slate-200 rounded-lg p-4 mt-3;
+    background: var(--paper, #fbfaf6);
+    border: 1px solid var(--rule, #e6e3dc);
+    padding: 1rem;
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--ink-2, #4a443e);
   }
 
   .btn {
-    @apply inline-flex items-center px-4 py-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.55rem 1rem;
+    font-family: var(--font-sans, sans-serif);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+  }
+  .btn:focus-visible {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: 2px;
   }
 
   .btn-primary {
-    @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500;
+    background: var(--ink, #1a1814);
+    color: var(--paper, #fbfaf6);
+    border-color: var(--ink, #1a1814);
   }
+  .btn-primary:hover:not(:disabled) { opacity: 0.9; }
 
   .btn-ghost {
-    @apply text-slate-600 hover:text-slate-800 hover:bg-slate-100 focus:ring-slate-500;
+    background: transparent;
+    color: var(--ink-2, #4a443e);
+    border-color: var(--rule-strong, #b8b3a8);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    color: var(--ink, #1a1814);
+    border-color: var(--ink, #1a1814);
+    background: var(--paper, #fbfaf6);
   }
 
-  .btn-sm {
-    @apply px-3 py-1 text-sm;
-  }
+  .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8125rem; }
 
-  .btn:disabled {
-    @apply opacity-50 cursor-not-allowed;
-  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .loading-spinner {
-    @apply inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2;
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin-right: 0.5rem;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 </style>
