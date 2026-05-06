@@ -391,7 +391,13 @@
                   <div class="hof-spot" data-pos={winner.posicio}>
                     <div class="hof-pos tabular-nums">{String(winner.posicio).padStart(2, '0')}</div>
                     <div class="hof-name">
-                      {formatarNomJugador(`${winnerSoci.nom ?? ''} ${winnerSoci.cognoms ?? ''}`.trim())}
+                      {#if winnerSoci.numero_soci}
+                        <a href={`/jugador/${winnerSoci.numero_soci}`} class="hof-link">
+                          {formatarNomJugador(`${winnerSoci.nom ?? ''} ${winnerSoci.cognoms ?? ''}`.trim())}
+                        </a>
+                      {:else}
+                        {formatarNomJugador(`${winnerSoci.nom ?? ''} ${winnerSoci.cognoms ?? ''}`.trim())}
+                      {/if}
                     </div>
                     <div class="hof-place">
                       {winner.posicio === 1 ? 'Primer lloc' : winner.posicio === 2 ? 'Segon lloc' : 'Tercer lloc'}
@@ -425,7 +431,13 @@
             {#each allPlayers as player}
               <tr>
                 <td class="col-left">
-                  <span class="player-name">{formatarNomJugador(`${player.nom ?? ''} ${player.cognoms ?? ''}`.trim())}</span>
+                  {#if player.numero_soci}
+                    <a href={`/jugador/${player.numero_soci}`} class="hof-link player-name">
+                      {formatarNomJugador(`${player.nom ?? ''} ${player.cognoms ?? ''}`.trim())}
+                    </a>
+                  {:else}
+                    <span class="player-name">{formatarNomJugador(`${player.nom ?? ''} ${player.cognoms ?? ''}`.trim())}</span>
+                  {/if}
                 </td>
                 <td class="col-num tabular-nums">{player.totalParticipations}</td>
                 <td class="col-num tabular-nums">{player.uniqueSeasons}</td>
@@ -636,6 +648,16 @@
     font-weight: 700;
     color: var(--ink);
     letter-spacing: -0.012em;
+  }
+  .hof-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .hof-link:hover {
+    color: var(--accent, #a30b1e);
+    border-bottom-color: var(--accent, #a30b1e);
   }
 
   @media (max-width: 640px) {

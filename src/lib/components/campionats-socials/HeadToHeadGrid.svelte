@@ -141,7 +141,11 @@
               {@const totals = getPlayerTotals(player.id)}
               <tr>
                 <th class="player-name" title={getPlayerFullName(player)}>
-                  {getPlayerShortName(player)}
+                  {#if player.numero_soci}
+                    <a href={`/jugador/${player.numero_soci}`} class="h2h-player-link">{getPlayerShortName(player)}</a>
+                  {:else}
+                    {getPlayerShortName(player)}
+                  {/if}
                 </th>
                 {#each sortedPlayers as opponent}
                   <td class="match-cell" class:self={player.id === opponent.id} class:empty={player.id !== opponent.id && !getMatchData(player.id, opponent.id)}>
@@ -573,5 +577,24 @@
     .player-header,
     .player-name,
     .player-header.corner { background: #f5f5f5 !important; color: #000 !important; }
+  }
+
+  .h2h-player-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .h2h-player-link:hover {
+    color: var(--accent, #a30b1e);
+    border-bottom-color: var(--accent, #a30b1e);
+  }
+
+  @media print {
+    .h2h-player-link {
+      color: inherit !important;
+      border: none !important;
+      text-decoration: none !important;
+    }
   }
 </style>

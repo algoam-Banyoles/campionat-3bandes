@@ -240,11 +240,17 @@
         <div class="space-y-6">
           <!-- Player Info -->
           <div class="bg-white border border-gray-200 rounded-lg p-6">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between gap-4 flex-wrap">
               <div>
                 <h2 class="text-2xl font-bold text-gray-900">
                   {formatarNomJugador(`${selectedPlayer.nom ?? ''} ${selectedPlayer.cognoms ?? ''}`.trim())}
                 </h2>
+                <a
+                  href={`/jugador/${selectedPlayer.numero_soci}`}
+                  class="cer-profile-link"
+                >
+                  Veure perfil complet del jugador →
+                </a>
               </div>
               <button
                 on:click={clearSelection}
@@ -483,5 +489,20 @@
   .cer-root :global(select:focus) {
     outline: 2px solid var(--ink, #1a1814);
     outline-offset: -1px;
+  }
+
+  .cer-profile-link {
+    display: inline-block;
+    margin-top: 0.4rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ink, #1a1814);
+    text-decoration: none;
+    border-bottom: 1px solid var(--ink, #1a1814);
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .cer-profile-link:hover {
+    color: var(--accent, #a30b1e);
+    border-color: var(--accent, #a30b1e);
   }
 </style>

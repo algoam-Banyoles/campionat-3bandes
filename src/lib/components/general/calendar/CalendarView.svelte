@@ -152,75 +152,61 @@
   }
 </script>
 
-<div class="max-w-6xl mx-auto">
+<div class="cal-view">
   <!-- Controls -->
-  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+  <div class="cal-toolbar">
     <CalendarControls />
-    
+
     {#if $isAdmin}
       <button
         on:click={handleCreateEvent}
-        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+        class="btn-new-event"
+        title="Crear un nou esdeveniment al calendari"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="ic" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        Nou Esdeveniment
+        <span>Nou esdeveniment</span>
       </button>
     {/if}
   </div>
 
-  <!-- Loading state -->
   {#if $calendarLoading}
-    <div class="flex justify-center items-center h-64">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+    <div class="cal-loading" role="status" aria-live="polite">
+      <span class="editorial-eyebrow">Carregant calendari…</span>
     </div>
   {:else if $calendarError}
-    <!-- Check if this is an authentication-related error -->
     {#if $calendarError.includes('iniciar sessió') || $calendarError.includes('públiques')}
-      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-        <div class="flex items-start gap-3">
-          <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div>
-            <p class="text-blue-700 font-medium">Calendari amb accés restringit</p>
-            <p class="text-blue-600 text-sm mt-1">{$calendarError}</p>
-            <p class="text-blue-600 text-sm mt-2">
-              Podeu veure els esdeveniments generals del club, però les partides programades dels campionats socials requereixen autenticació.
-            </p>
-          </div>
-        </div>
+      <div class="cal-banner cal-banner-info" role="status">
+        <span class="editorial-eyebrow" style="color: var(--blue);">Accés restringit</span>
+        <p class="cal-banner-title">Calendari amb accés restringit</p>
+        <p class="cal-banner-body">{$calendarError}</p>
+        <p class="cal-banner-body">
+          Podeu veure els esdeveniments generals del club, però les partides programades
+          dels campionats socials requereixen autenticació.
+        </p>
       </div>
     {:else}
-      <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-        <p class="text-red-700">Error carregant esdeveniments: {$calendarError}</p>
-        <button 
-          on:click={refreshCalendarData}
-          class="mt-2 px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
-        >
+      <div class="cal-banner cal-banner-error" role="alert">
+        <span class="editorial-eyebrow" style="color: var(--accent);">Error</span>
+        <p class="cal-banner-body">No s'han pogut carregar els esdeveniments: {$calendarError}</p>
+        <button on:click={refreshCalendarData} class="btn-retry">
           Tornar a intentar
         </button>
       </div>
     {/if}
   {:else}
-    
-    <!-- Calendar Grid -->
-    <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-      <!-- Header amb dies de la setmana -->
-      <div class="grid grid-cols-7 bg-slate-50 border-b border-slate-200">
+    <div class="cal-grid-frame">
+      <div class="cal-weekhead" role="row">
         {#each weekDays as day}
-          <div class="p-2 sm:p-3 text-center text-xs sm:text-sm font-semibold text-slate-600">
-            {day}
-          </div>
+          <div class="cal-weekhead-cell" role="columnheader">{day}</div>
         {/each}
       </div>
 
-      <!-- Vista mensual -->
       {#if $calendarView === 'month'}
-        <div class="grid grid-cols-7">
+        <div class="cal-grid">
           {#each monthDays as date}
-            <CalendarDay 
+            <CalendarDay
               {date}
               events={getEventsForDate(date)}
               isCurrentMonth={isCurrentMonth(date)}
@@ -233,11 +219,10 @@
         </div>
       {/if}
 
-      <!-- Vista setmanal -->
       {#if $calendarView === 'week'}
-        <div class="grid grid-cols-7">
+        <div class="cal-grid">
           {#each weekDays_dates as date}
-            <CalendarDay 
+            <CalendarDay
               {date}
               events={getEventsForDate(date)}
               isCurrentMonth={true}
@@ -471,9 +456,137 @@
 {/if}
 
 <!-- Modal per crear/editar esdeveniments -->
-<EventForm 
+<EventForm
   isOpen={showEventForm}
   {editingEvent}
   on:close={closeEventForm}
   on:success={closeEventForm}
 />
+
+<style>
+  .cal-view {
+    width: 100%;
+    font-family: var(--font-sans);
+    color: var(--ink);
+  }
+
+  .cal-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    margin-bottom: 1rem;
+  }
+  @media (min-width: 640px) {
+    .cal-toolbar {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .cal-toolbar > :global(.cal-ctrl-bar) { margin-bottom: 0; flex: 1; }
+  }
+
+  .btn-new-event {
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--ink);
+    padding: 0.55rem 1rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: -0.005em;
+    cursor: pointer;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    transition: background 0.12s ease, border-color 0.12s ease;
+    flex-shrink: 0;
+  }
+  .btn-new-event:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .btn-new-event:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+  .btn-new-event .ic { width: 1rem; height: 1rem; }
+
+  .cal-loading {
+    padding: 3rem 1rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    text-align: center;
+  }
+
+  .cal-banner {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule-strong);
+    padding: 1rem 1.15rem;
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .cal-banner-info { border-color: var(--blue); border-left: 3px solid var(--blue); }
+  .cal-banner-error { border-color: var(--accent); border-left: 3px solid var(--accent); }
+  .cal-banner-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .cal-banner-body {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+    line-height: 1.5;
+  }
+  .btn-retry {
+    align-self: flex-start;
+    margin-top: 0.35rem;
+    background: var(--paper-elevated);
+    color: var(--ink);
+    border: 1px solid var(--rule-strong);
+    padding: 0.45rem 0.85rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    min-height: 36px;
+  }
+  .btn-retry:hover { border-color: var(--ink); }
+
+  .cal-grid-frame {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    overflow: hidden;
+  }
+  .cal-weekhead {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+  }
+  .cal-weekhead-cell {
+    padding: 0.55rem 0.4rem;
+    text-align: center;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-3);
+  }
+  @media (min-width: 640px) {
+    .cal-weekhead-cell { padding: 0.7rem 0.5rem; font-size: 0.75rem; }
+  }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+  }
+  /* Eliminem el border-right de la última columna per evitar doble línia amb el frame */
+  .cal-grid > :global(.cal-cell:nth-child(7n)) { border-right: 0; }
+  /* Eliminem el border-bottom de l'última fila */
+  .cal-grid > :global(.cal-cell:nth-last-child(-n+7)) { border-bottom: 0; }
+</style>

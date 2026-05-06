@@ -1,4 +1,4 @@
-<!-- src/lib/components/calendar/CalendarDay.svelte -->
+<!-- src/lib/components/general/calendar/CalendarDay.svelte -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { CalendarEvent } from '$lib/stores/calendar';
@@ -14,90 +14,41 @@
     eventClick: { event: CalendarEvent };
   }>();
 
-  // Colors per tipus d'esdeveniment i categoria
-  const eventColors = {
-    challenge: {
-      acceptat: 'bg-green-100 text-green-800 border-green-200',
-      proposat: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      jugat: 'bg-blue-100 text-blue-800 border-blue-200',
-      default: 'bg-gray-100 text-gray-800 border-gray-200'
-    },
-    event: {
-      torneig: 'bg-purple-100 text-purple-800 border-purple-200',
-      social: 'bg-pink-100 text-pink-800 border-pink-200',
-      manteniment: 'bg-red-100 text-red-800 border-red-200',
-      general: 'bg-blue-100 text-blue-800 border-blue-200',
-      default: 'bg-gray-100 text-gray-800 border-gray-200'
-    },
-    // Colors per categories de campionats socials
-    categoria: {
-      'A': 'bg-red-100 text-red-800 border-red-200',
-      'B': 'bg-orange-100 text-orange-800 border-orange-200', 
-      'C': 'bg-amber-100 text-amber-800 border-amber-200',
-      'D': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      'E': 'bg-lime-100 text-lime-800 border-lime-200',
-      'F': 'bg-green-100 text-green-800 border-green-200',
-      'G': 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      'H': 'bg-teal-100 text-teal-800 border-teal-200',
-      'I': 'bg-cyan-100 text-cyan-800 border-cyan-200',
-      'J': 'bg-sky-100 text-sky-800 border-sky-200',
-      'K': 'bg-blue-100 text-blue-800 border-blue-200',
-      'L': 'bg-indigo-100 text-indigo-800 border-indigo-200',
-      'M': 'bg-violet-100 text-violet-800 border-violet-200',
-      'N': 'bg-purple-100 text-purple-800 border-purple-200',
-      'O': 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200',
-      'P': 'bg-pink-100 text-pink-800 border-pink-200',
-      'Q': 'bg-rose-100 text-rose-800 border-rose-200',
-      // També per noms de categories més llargs
-      'Primera': 'bg-red-100 text-red-800 border-red-200',
-      'Segona': 'bg-orange-100 text-orange-800 border-orange-200',
-      'Tercera': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      'Quarta': 'bg-green-100 text-green-800 border-green-200',
-      'Cinquena': 'bg-blue-100 text-blue-800 border-blue-200',
-      'Sisena': 'bg-purple-100 text-purple-800 border-purple-200',
-      default: 'bg-gray-100 text-gray-800 border-gray-200'
-    }
+  type EvtTone = 'accent' | 'blue' | 'green' | 'amber' | 'purple' | 'ink';
+
+  const challengeTone: Record<string, EvtTone> = {
+    acceptat: 'green',
+    proposat: 'amber',
+    jugat: 'blue'
   };
 
-  function getEventColor(event: CalendarEvent): string {
-    // Si és un partit de campionat social, usar color per categoria
+  const eventTone: Record<string, EvtTone> = {
+    torneig: 'purple',
+    social: 'green',
+    manteniment: 'accent',
+    general: 'blue'
+  };
+
+  const palette: EvtTone[] = ['accent', 'blue', 'green', 'amber', 'purple', 'ink'];
+
+  function hashTone(name: string): EvtTone {
+    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return palette[hash % palette.length];
+  }
+
+  function getEventTone(event: CalendarEvent): EvtTone {
     if (event.type === 'challenge' && event.subtype?.startsWith('campionat-social')) {
-      // Type guard to check if data has categoria_nom property
-      const hasCategoriaNom = (data: any): data is { categoria_nom: string } => {
-        return data && typeof data.categoria_nom === 'string';
-      };
-      
-      if (hasCategoriaNom(event.data)) {
-        const categoria = event.data.categoria_nom;
-        // Primer provar amb la categoria exacta
-        if (eventColors.categoria[categoria as keyof typeof eventColors.categoria]) {
-          return eventColors.categoria[categoria as keyof typeof eventColors.categoria];
-        }
-        
-        // Si no trobem la categoria, generar un color basat en un hash del nom
-        const hash = categoria.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const colors = [
-          'bg-red-100 text-red-800 border-red-200',
-          'bg-orange-100 text-orange-800 border-orange-200',
-          'bg-yellow-100 text-yellow-800 border-yellow-200',
-          'bg-green-100 text-green-800 border-green-200',
-          'bg-blue-100 text-blue-800 border-blue-200',
-          'bg-purple-100 text-purple-800 border-purple-200',
-          'bg-pink-100 text-pink-800 border-pink-200',
-          'bg-indigo-100 text-indigo-800 border-indigo-200',
-          'bg-teal-100 text-teal-800 border-teal-200',
-          'bg-cyan-100 text-cyan-800 border-cyan-200'
-        ];
-        return colors[hash % colors.length];
+      const data = event.data as { categoria_nom?: unknown } | undefined;
+      if (data && typeof data.categoria_nom === 'string') {
+        return hashTone(data.categoria_nom);
       }
     }
-    
-    // Altres reptes
+
     if (event.type === 'challenge') {
-      return eventColors.challenge[event.subtype as keyof typeof eventColors.challenge] || eventColors.challenge.default;
-    } else {
-      return eventColors.event[event.subtype as keyof typeof eventColors.event] || eventColors.event.default;
+      return challengeTone[event.subtype ?? ''] ?? 'ink';
     }
+
+    return eventTone[event.subtype ?? ''] ?? 'ink';
   }
 
   function handleDayClick() {
@@ -109,56 +60,47 @@
     dispatch('eventClick', { event });
   }
 
-  // Mostrar més esdeveniments per dia
   $: visibleEvents = events.slice(0, 6);
   $: moreEventsCount = events.length - visibleEvents.length;
 </script>
 
 <div
-  class="min-h-[120px] sm:min-h-[140px] lg:min-h-[180px] p-1 sm:p-2 border border-slate-200 cursor-pointer transition-colors hover:bg-slate-50 text-xs sm:text-sm
-    {isCurrentMonth ? 'bg-white' : 'bg-slate-50 text-slate-400'}
-    {isToday ? 'ring-2 ring-blue-500 bg-blue-50' : ''}
-    {isSelected ? 'ring-2 ring-blue-300' : ''}"
+  class="cal-cell"
+  class:off-month={!isCurrentMonth}
+  class:is-today={isToday}
+  class:is-selected={isSelected}
   on:click={handleDayClick}
   role="button"
   tabindex="0"
   on:keydown={(e) => e.key === 'Enter' && handleDayClick()}
 >
-  <!-- Número del dia -->
-  <div class="flex justify-between items-start mb-1 sm:mb-2">
-    <span class="text-sm sm:text-base font-semibold {isToday ? 'text-blue-600' : ''}">
+  <div class="cal-cell-head">
+    <span class="cal-cell-num">
       {date.getDate()}
     </span>
     {#if events.length > 0}
-      <span class="text-xs text-slate-500 bg-slate-100 rounded-full px-1 min-w-[16px] text-center">
+      <span class="cal-cell-count tabular-nums" aria-label="{events.length} esdeveniments">
         {events.length}
       </span>
     {/if}
   </div>
 
-  <!-- Esdeveniments -->
-  <div class="space-y-0.5">
+  <div class="cal-cell-events">
     {#each visibleEvents as event (event.id)}
       <button
-        class="w-full text-left px-1 py-0.5 sm:py-1 rounded border leading-tight touch-manipulation min-h-[28px] sm:min-h-[32px] lg:min-h-[36px] xl:min-h-[48px] {getEventColor(event)}"
+        class="evt-pill evt-{getEventTone(event)}"
         on:click={(e) => handleEventClick(event, e)}
         title={event.description || event.title}
       >
-        <div class="flex items-center justify-between">
-          <span class="text-base sm:text-lg lg:text-xl xl:text-4xl truncate flex-1 font-medium">
-            {event.title}
-          </span>
-          {#if event.tableInfo}
-            <span class="text-xs text-slate-600 ml-1 flex-shrink-0">
-              {event.tableInfo}
-            </span>
-          {/if}
-        </div>
+        <span class="evt-title">{event.title}</span>
+        {#if event.tableInfo}
+          <span class="evt-meta">{event.tableInfo}</span>
+        {/if}
       </button>
     {/each}
 
     {#if moreEventsCount > 0}
-      <div class="text-xs sm:text-sm lg:text-base text-slate-500 px-1 py-0.5 bg-slate-100 rounded mt-1">
+      <div class="evt-more tabular-nums">
         +{moreEventsCount} més
       </div>
     {/if}
@@ -166,10 +108,155 @@
 </div>
 
 <style>
-  /* Ensure text truncation works properly */
-  button {
-    white-space: nowrap;
+  .cal-cell {
+    min-height: clamp(110px, 15vw, 180px);
+    padding: 0.45rem 0.5rem;
+    background: var(--paper-elevated);
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    color: var(--ink);
+    transition: background-color 0.12s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    position: relative;
+  }
+  .cal-cell:hover { background: var(--paper); }
+  .cal-cell:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: -2px;
+  }
+
+  .cal-cell.off-month {
+    background: var(--paper);
+  }
+  .cal-cell.off-month .cal-cell-num {
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .cal-cell.off-month .evt-pill { opacity: 0.55; }
+
+  .cal-cell.is-today::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+  }
+  .cal-cell.is-today .cal-cell-num {
+    color: var(--accent);
+    font-weight: 800;
+  }
+
+  .cal-cell.is-selected {
+    outline: 2px solid var(--ink);
+    outline-offset: -2px;
+    z-index: 1;
+  }
+
+  .cal-cell-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .cal-cell-num {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .cal-cell-count {
+    font-size: 0.625rem;
+    font-weight: 700;
+    color: var(--ink-3);
+    border: 1px solid var(--rule-strong);
+    padding: 0.05rem 0.35rem;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+  }
+
+  .cal-cell-events {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    overflow: hidden;
+  }
+
+  .evt-pill {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    width: 100%;
+    text-align: left;
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--rule-strong);
+    padding: 0.25rem 0.45rem;
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.25;
+    cursor: pointer;
+    min-height: 28px;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+  }
+  .evt-pill:hover {
+    background: var(--paper-elevated);
+    border-color: var(--ink);
+  }
+  .evt-pill:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 1px;
+  }
+  .evt-title {
+    flex: 1;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .evt-meta {
+    flex-shrink: 0;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--ink-3);
+  }
+
+  .evt-accent { border-left-color: var(--accent); color: var(--accent-dark, var(--accent)); }
+  .evt-blue   { border-left-color: var(--blue);   color: var(--blue); }
+  .evt-green  { border-left-color: var(--green);  color: var(--green); }
+  .evt-amber  { border-left-color: var(--amber);  color: var(--amber); }
+  .evt-purple { border-left-color: var(--sec-handicap, #5b3a8b); color: var(--sec-handicap, #5b3a8b); }
+  .evt-ink    { border-left-color: var(--ink);    color: var(--ink-2); }
+
+  .evt-more {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--ink-3);
+    padding: 0.15rem 0.4rem;
+    border: 1px dashed var(--rule);
+    margin-top: 0.1rem;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+
+  @media (min-width: 640px) {
+    .cal-cell {
+      padding: 0.6rem 0.7rem;
+      gap: 0.45rem;
+    }
+    .cal-cell-num { font-size: 0.95rem; }
+    .evt-pill {
+      font-size: 0.8125rem;
+      padding: 0.3rem 0.55rem;
+      min-height: 32px;
+    }
   }
 </style>
