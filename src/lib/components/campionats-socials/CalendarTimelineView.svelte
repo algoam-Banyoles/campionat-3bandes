@@ -24,65 +24,58 @@
 </script>
 
 {#if timelineGrouped.size === 0}
-  <div class="bg-white border border-gray-200 rounded-lg p-8 text-center">
-    <div class="text-gray-500">
-      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2z"/>
-      </svg>
-      {#if hasPlayerFilter}
-        <p class="mt-2">Cap partit trobat per "{playerSearch}"</p>
-        <p class="text-sm text-gray-400">Prova amb un altre nom o neteja els filtres</p>
-      {:else if hasOtherFilter}
-        <p class="mt-2">Cap partit trobat amb els filtres aplicats</p>
-        <p class="text-sm text-gray-400">Prova eliminant alguns filtres</p>
-      {:else}
-        <p class="mt-2">No s'han generat slots de calendari</p>
-        <p class="text-sm text-gray-400">Comprova la configuració del calendari o que hi hagi partits programats</p>
-      {/if}
-    </div>
+  <div class="state-empty">
+    {#if hasPlayerFilter}
+      <div class="state-title">Cap partit trobat per "{playerSearch}"</div>
+      <div class="state-sub">Prova amb un altre nom o neteja els filtres.</div>
+    {:else if hasOtherFilter}
+      <div class="state-title">Cap partit amb els filtres aplicats</div>
+      <div class="state-sub">Prova eliminant alguns filtres.</div>
+    {:else}
+      <div class="state-title">No s'han generat slots de calendari</div>
+      <div class="state-sub">Comprova la configuració del calendari o que hi hagi partits programats.</div>
+    {/if}
   </div>
 {:else}
   <!-- Unified table view with merged columns for days and hours -->
-  <div class="bg-white border border-gray-200 rounded-lg overflow-hidden calendar-main-container">
+  <div class="calendar-main-container">
     <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-500 calendar-table border-collapse">
-        <thead class="bg-gray-100">
+      <table class="calendar-table">
+        <thead>
           <tr>
             {#if isAdmin && swapMode}
-              <th class="px-3 py-4 text-center text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 print-hide">Seleccionar</th>
+              <th class="th-narrow print-hide">Sel.</th>
             {/if}
-            <th class="px-2 sm:px-3 py-2 sm:py-4 text-left text-sm sm:text-base lg:text-lg xl:text-xl font-semibold text-gray-800 uppercase border-r-4 border-gray-800 day-column">Dia</th>
-            <th class="px-2 sm:px-3 py-2 sm:py-4 text-left text-sm sm:text-base lg:text-lg xl:text-xl font-semibold text-gray-800 uppercase border-r-4 border-gray-800 hour-column">Hora</th>
-            <th class="px-2 sm:px-6 py-2 sm:py-4 text-center text-xs sm:text-sm md:text-base font-semibold text-gray-800 uppercase border-r-2 border-gray-400 table-column min-w-[60px] sm:min-w-[100px]">Billar</th>
-            <th class="px-2 sm:px-3 py-2 sm:py-4 text-left text-sm sm:text-base lg:text-lg xl:text-xl font-semibold text-gray-800 uppercase border-r-2 border-gray-400 player-column hidden sm:table-cell">Jugador 1</th>
-            <th class="px-2 sm:px-3 py-2 sm:py-4 text-left text-sm sm:text-base lg:text-lg xl:text-xl font-semibold text-gray-800 uppercase border-r-2 border-gray-400 player-column hidden sm:table-cell">Jugador 2</th>
-            <th class="px-2 sm:px-3 py-2 sm:py-4 text-left text-sm sm:text-base lg:text-lg xl:text-xl font-semibold text-gray-800 uppercase border-r-2 border-gray-400 player-column sm:hidden">Partida</th>
+            <th class="th-day col-day">Dia</th>
+            <th class="th-hour col-hour">Hora</th>
+            <th class="th-billiard col-billiard">Billar</th>
+            <th class="th-player col-player hide-sm">Jugador 1</th>
+            <th class="th-player col-player hide-sm">Jugador 2</th>
+            <th class="th-player col-player show-sm-only">Partida</th>
             {#if isAdmin}
-              <th class="px-3 py-4 text-left text-sm md:text-base font-semibold text-gray-800 uppercase print-hide">Accions</th>
+              <th class="th-actions print-hide">Accions</th>
             {/if}
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-300">
+        <tbody>
           {#each Array.from(timelineGrouped.entries()) as [dateStr, hourGroups], dayIndex}
             {@const totalSlotsForDay = Array.from(hourGroups.values()).reduce((total, slots) => total + slots.length, 0)}
             {#each Array.from(hourGroups.entries()) as [hora, slots], hourIndex}
               {#each slots as slot, slotIndex}
-                <tr class="hover:bg-gray-50"
-                    class:border-t-4={hourIndex === 0 && slotIndex === 0 && dayIndex > 0}
-                    class:border-t-gray-600={hourIndex === 0 && slotIndex === 0 && dayIndex > 0}
-                    class:border-t-2={hourIndex > 0 && slotIndex === 0}
-                    class:border-t-gray-400={hourIndex > 0 && slotIndex === 0}
-                    class:bg-blue-50={swapMode && slot.match && selectedMatches.has(slot.match.id)}>
-
+                <tr
+                  class:row-day-start={hourIndex === 0 && slotIndex === 0 && dayIndex > 0}
+                  class:row-hour-start={hourIndex > 0 && slotIndex === 0}
+                  class:row-selected={swapMode && slot.match && selectedMatches.has(slot.match.id)}
+                  class:row-empty={!slot.match}
+                >
                   <!-- Checkbox column for swap mode -->
                   {#if isAdmin && swapMode}
-                    <td class="px-3 py-4 whitespace-nowrap text-center border-r-2 border-gray-400 print-hide">
+                    <td class="cell-narrow print-hide">
                       {#if slot.match}
                         <input
                           type="checkbox"
                           checked={selectedMatches.has(slot.match.id)}
                           on:change={() => slot.match && dispatch('toggleMatch', { matchId: slot.match.id })}
-                          class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                           disabled={!slot.match.data_programada || !slot.match.hora_inici}
                         />
                       {/if}
@@ -91,102 +84,73 @@
 
                   <!-- Day column with rowspan -->
                   {#if hourIndex === 0 && slotIndex === 0}
-                    <td class="px-2 sm:px-3 py-2 sm:py-4 text-base sm:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 border-r-4 border-gray-800 bg-gray-50 align-top day-column" rowspan={totalSlotsForDay}>
-                      <div class="sticky top-0 print-day-header">
-                        <div class="print-date-main text-base sm:text-lg lg:text-xl xl:text-2xl">{formatDate(new Date(dateStr))}</div>
-                        <div class="print-day-name text-xs sm:text-sm hidden sm:block">{dayNames[getDayOfWeekCode(new Date(dateStr + 'T00:00:00').getDay())]}</div>
+                    <td class="td-day col-day" rowspan={totalSlotsForDay}>
+                      <div class="day-cell">
+                        <div class="day-date print-date-main">{formatDate(new Date(dateStr))}</div>
+                        <div class="day-name print-day-name hide-sm">{dayNames[getDayOfWeekCode(new Date(dateStr + 'T00:00:00').getDay())]}</div>
                       </div>
                     </td>
                   {/if}
 
-                  <!-- Hour column with rowspan for each hour group -->
+                  <!-- Hour column with rowspan -->
                   {#if slotIndex === 0}
-                    <td class="px-2 sm:px-3 py-2 sm:py-4 text-base sm:text-lg lg:text-xl xl:text-2xl font-bold text-gray-800 border-r-4 border-gray-800 bg-gray-100 align-top hour-column" rowspan={slots.length}>
-                      <div class="print-hour-header">{hora}</div>
+                    <td class="td-hour col-hour" rowspan={slots.length}>
+                      <div class="hour-cell tabular-nums print-hour-header">{hora}</div>
                     </td>
                   {/if}
 
-                  <!-- Table column -->
-                  <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm md:text-base text-gray-900 border-r-2 border-gray-400 table-column text-center font-medium min-w-[60px] sm:min-w-[100px]" class:match-cell={slot.match} class:empty-cell={!slot.match}>
+                  <!-- Billiard column -->
+                  <td class="td-billiard col-billiard" class:match-cell={slot.match} class:empty-cell={!slot.match}>
                     {#if slot.match && slot.match.taula_assignada}
-                      <span class="table-number-compact bg-green-100 px-3 py-2 rounded-full text-green-800 font-bold text-lg">B{slot.match.taula_assignada}</span>
+                      <span class="billiard-badge billiard-confirmed">B{slot.match.taula_assignada}</span>
                     {:else if slot.match}
-                      <span class="table-number-compact bg-orange-100 px-3 py-2 rounded-full text-orange-800 font-bold text-lg">B{slot.taula}</span>
+                      <span class="billiard-badge billiard-pending">B{slot.taula}</span>
                     {:else}
-                      <span class="table-number-compact bg-blue-100 px-3 py-2 rounded-full text-blue-800 font-bold text-lg">B{slot.taula}</span>
+                      <span class="billiard-badge billiard-empty">B{slot.taula}</span>
                     {/if}
                   </td>
 
                   <!-- Jugador 1 (hidden on mobile) -->
-                  <td class="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-base sm:text-lg lg:text-xl xl:text-2xl text-gray-900 border-r-2 border-gray-400 player-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
+                  <td class="td-player col-player hide-sm" class:match-cell={slot.match} class:empty-cell={!slot.match}>
                     {#if slot.match}
-                      <span class="font-semibold">{formatPlayerName(slot.match.jugador1)}</span>
+                      <span class="player-name">{formatPlayerName(slot.match.jugador1)}</span>
                     {/if}
                   </td>
 
                   <!-- Jugador 2 (hidden on mobile) -->
-                  <td class="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-4 whitespace-nowrap text-base sm:text-lg lg:text-xl xl:text-2xl text-gray-900 border-r-2 border-gray-400 player-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
+                  <td class="td-player col-player hide-sm" class:match-cell={slot.match} class:empty-cell={!slot.match}>
                     {#if slot.match}
-                      <span class="font-semibold">{formatPlayerName(slot.match.jugador2)}</span>
+                      <span class="player-name">{formatPlayerName(slot.match.jugador2)}</span>
                     {/if}
                   </td>
 
                   <!-- Combined players column (visible only on mobile) -->
-                  <td class="sm:hidden px-2 py-2 text-sm text-gray-900 border-r-2 border-gray-400 player-column" class:match-cell={slot.match} class:empty-cell={!slot.match}>
+                  <td class="td-player-mobile col-player show-sm-only" class:match-cell={slot.match} class:empty-cell={!slot.match}>
                     {#if slot.match}
-                      <div class="flex flex-col">
-                        <span class="font-semibold text-sm">{formatPlayerName(slot.match.jugador1)}</span>
-                        <span class="text-xs text-gray-500">vs</span>
-                        <span class="font-semibold text-sm">{formatPlayerName(slot.match.jugador2)}</span>
+                      <div class="vs-mobile">
+                        <span class="player-name">{formatPlayerName(slot.match.jugador1)}</span>
+                        <span class="vs-sep">vs</span>
+                        <span class="player-name">{formatPlayerName(slot.match.jugador2)}</span>
                       </div>
                     {/if}
                   </td>
 
                   <!-- Actions column -->
                   {#if isAdmin}
-                    <td class="px-3 py-4 whitespace-nowrap text-sm md:text-base font-medium print-hide">
+                    <td class="td-actions print-hide">
                       {#if slot.match}
-                        <div class="flex flex-col space-y-1">
+                        <div class="actions-stack">
                           {#if slot.match.estat !== 'jugada' && slot.match.estat !== 'cancel·lada'}
-                            <button
-                              on:click={() => dispatch('openResult', { match: slot.match })}
-                              class="text-green-600 hover:text-green-900 text-sm md:text-base font-semibold"
-                              title="Introduir resultat de la partida"
-                            >
-                              📝 Resultat
-                            </button>
-                            <button
-                              on:click={() => dispatch('openIncompareixenca', { match: slot.match })}
-                              class="text-red-600 hover:text-red-900 text-xs md:text-sm font-semibold"
-                              title="Marcar incompareixença"
-                            >
-                              ⚠️ Incompareixença
-                            </button>
+                            <button on:click={() => dispatch('openResult', { match: slot.match })} class="action-link link-green" title="Introduir resultat de la partida">Resultat</button>
+                            <button on:click={() => dispatch('openIncompareixenca', { match: slot.match })} class="action-link link-red" title="Marcar incompareixença">Incompareixença</button>
                           {/if}
-                          <button
-                            on:click={() => dispatch('startEdit', { match: slot.match })}
-                            class="text-blue-600 hover:text-blue-900 text-sm md:text-base font-medium"
-                          >
-                            Editar
-                          </button>
+                          <button on:click={() => dispatch('startEdit', { match: slot.match })} class="action-link link-blue">Editar</button>
                           {#if slot.match.data_programada}
-                            <button
-                              on:click={() => dispatch('convertUnprogrammed', { match: slot.match })}
-                              class="text-orange-600 hover:text-orange-900 text-xs md:text-sm font-medium"
-                              title="Convertir a no programada"
-                            >
-                              No programar
-                            </button>
+                            <button on:click={() => dispatch('convertUnprogrammed', { match: slot.match })} class="action-link link-amber" title="Convertir a no programada">No programar</button>
                           {/if}
                         </div>
                       {:else}
-                        <button
-                          on:click={() => dispatch('programSlot', { slot })}
-                          class="text-green-600 hover:text-green-900 text-sm md:text-base font-semibold"
-                          title="Programar partida en aquest slot"
-                        >
-                          + Programar
-                        </button>
+                        <button on:click={() => dispatch('programSlot', { slot })} class="action-link link-green" title="Programar partida en aquest slot">+ Programar</button>
                       {/if}
                     </td>
                   {/if}
@@ -201,161 +165,247 @@
 {/if}
 
 <style>
-  /* Estils del calendari cronològic. Originalment estaven a
-     SocialLeagueCalendarViewer; s'han mogut aquí amb la subdivisió
-     perquè ara és aquí on es renderitza la taula. */
-
-  /* Estructura general */
-  .calendar-table {
-    border: 2px solid #374151 !important;
+  /* ── Calendari cronològic — estils editorials ────── */
+  .state-empty {
+    padding: 2rem 1.75rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    text-align: center;
+    font-family: var(--font-sans);
+  }
+  .state-title {
+    font-weight: 700;
+    font-size: 1.0625rem;
+    color: var(--ink);
+    letter-spacing: -0.014em;
+  }
+  .state-sub {
+    margin-top: 0.4rem;
+    font-size: 0.875rem;
+    color: var(--ink-3);
   }
 
+  .calendar-main-container {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    overflow: hidden;
+    font-family: var(--font-sans);
+    color: var(--ink);
+  }
+  .calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 2px solid var(--ink);
+  }
   .calendar-table th,
   .calendar-table td {
-    border: 1px solid #d1d5db !important;
+    border: 1px solid var(--rule);
+  }
+  .calendar-table thead {
+    background: var(--paper);
+  }
+  .calendar-table th {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    text-align: left;
+    padding: 0.85rem 0.85rem;
+    white-space: nowrap;
+  }
+  .calendar-table th.th-narrow,
+  .calendar-table th.th-billiard,
+  .calendar-table td.cell-narrow,
+  .calendar-table td.td-billiard { text-align: center; }
+  .calendar-table th.th-day,
+  .calendar-table th.th-hour { border-right: 3px solid var(--ink); }
+
+  /* Files: separadors visuals entre dies i hores */
+  .calendar-table tbody tr:hover { background: var(--paper); }
+  .calendar-table tbody tr.row-day-start td {
+    border-top: 3px solid var(--ink);
+  }
+  .calendar-table tbody tr.row-hour-start td {
+    border-top: 2px solid var(--rule-strong);
+  }
+  .calendar-table tbody tr.row-selected {
+    background: rgba(31, 79, 139, 0.08);
+  }
+  .calendar-table td {
+    padding: 0.75rem 0.85rem;
+    font-size: 0.9375rem;
+    color: var(--ink);
+    vertical-align: middle;
   }
 
-  .calendar-table tbody tr {
-    border-bottom: 1px solid #d1d5db !important;
+  /* Cel·la de dia: vertical, amb data destacada i nom del dia a sota */
+  .calendar-table td.td-day {
+    background: var(--paper);
+    border-right: 3px solid var(--ink);
+    vertical-align: top;
+    padding: 0.85rem;
+  }
+  .day-cell { line-height: 1.2; }
+  .day-date {
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--ink);
+    letter-spacing: -0.018em;
+  }
+  .day-name {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-top: 0.25rem;
   }
 
-  .calendar-table tbody tr:where(.border-t-4) {
-    border-top: 4px solid #374151 !important;
+  .calendar-table td.td-hour {
+    background: var(--paper);
+    border-right: 3px solid var(--ink);
+    vertical-align: top;
+    padding: 0.85rem;
+  }
+  .hour-cell {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--ink);
+    letter-spacing: -0.012em;
   }
 
-  .calendar-table tbody tr:where(.border-t-2) {
-    border-top: 2px solid #6b7280 !important;
+  /* Billiard badge */
+  .billiard-badge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    font-weight: 700;
+    font-size: 0.875rem;
+    letter-spacing: -0.012em;
+    border: 1px solid var(--rule-strong);
+    font-feature-settings: 'tnum' 1;
+  }
+  .billiard-confirmed {
+    color: var(--green);
+    border-color: var(--green);
+  }
+  .billiard-pending {
+    color: var(--amber);
+    border-color: var(--amber);
+  }
+  .billiard-empty {
+    color: var(--ink-3);
+    border-color: var(--rule);
   }
 
-  /* Pantalla: forçar visibilitat de la columna del billar */
-  @media screen {
-    .table-column {
-      min-width: 100px !important;
-      width: 100px !important;
-      visibility: visible !important;
-      display: table-cell !important;
-    }
-
-    .table-number-compact {
-      display: inline-block !important;
-      visibility: visible !important;
-    }
-
-    .calendar-table .table-column {
-      opacity: 1 !important;
-      visibility: visible !important;
-      display: table-cell !important;
-    }
+  /* Player */
+  .player-name {
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.012em;
+  }
+  .empty-cell .player-name { color: var(--ink-3); }
+  .vs-mobile {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+  .vs-sep {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3);
+    margin: 0.15rem 0;
   }
 
-  /* Mòbil */
-  @media (max-width: 768px) {
-    .calendar-table {
-      font-size: 16px !important;
-    }
+  /* Actions stack */
+  .actions-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    align-items: flex-start;
+  }
+  .action-link {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 1px;
+  }
+  .link-green { color: var(--green); }
+  .link-red   { color: var(--accent); }
+  .link-blue  { color: var(--blue); }
+  .link-amber { color: var(--amber); font-size: 0.75rem; }
+  .action-link:hover { opacity: 0.8; }
 
-    .calendar-table th,
-    .calendar-table td {
-      padding: 8px 6px !important;
-      font-size: 14px !important;
-      line-height: 1.4 !important;
-    }
-
-    .calendar-table .day-column {
-      min-width: 80px !important;
-    }
-
-    .calendar-table .hour-column {
-      min-width: 60px !important;
-    }
-
-    .calendar-table .player-column {
-      min-width: 100px !important;
-    }
-
-    .calendar-table .font-bold {
-      font-size: 16px !important;
-    }
-
-    .calendar-table .font-semibold {
-      font-size: 15px !important;
-    }
+  /* Mostrar/amagar columnes en mòbil */
+  .show-sm-only { display: none; }
+  @media (max-width: 640px) {
+    .hide-sm { display: none !important; }
+    .show-sm-only { display: table-cell !important; }
+    .calendar-table th, .calendar-table td { padding: 0.5rem 0.5rem; }
+    .day-date { font-size: 0.875rem; }
+    .hour-cell { font-size: 0.875rem; }
+    .billiard-badge { font-size: 0.75rem; padding: 0.15rem 0.4rem; }
+    .player-name { font-size: 0.875rem; }
   }
 
-  /* Tauletes */
-  @media (min-width: 769px) and (max-width: 1024px) {
-    .calendar-table th,
-    .calendar-table td {
-      font-size: 15px !important;
-      padding: 10px 8px !important;
-    }
-  }
-
-  /* Print: la taula i els seus estils específics */
+  /* ── Print ─────────────────────────────────────────── */
   @media print {
     .calendar-main-container {
       border: none !important;
-      border-radius: 0 !important;
       box-shadow: none !important;
       margin-top: 140px !important;
       position: relative !important;
     }
-
     .calendar-main-container .overflow-x-auto {
       overflow: visible !important;
     }
-
-    .calendar-table .day-column {
+    .calendar-table {
+      border-color: #000 !important;
+    }
+    .calendar-table th,
+    .calendar-table td {
+      border-color: #555 !important;
+    }
+    .calendar-table th.th-day,
+    .calendar-table th.th-hour,
+    .calendar-table td.td-day,
+    .calendar-table td.td-hour {
+      border-right: 4px solid #000 !important;
+    }
+    .calendar-table .col-day {
       width: 80px !important;
       min-width: 80px !important;
       max-width: 80px !important;
-      border-right: 4px solid #1f2937 !important;
     }
-
-    .calendar-table .hour-column {
+    .calendar-table .col-hour {
       width: 50px !important;
       min-width: 50px !important;
       max-width: 50px !important;
-      border-right: 4px solid #1f2937 !important;
     }
-
-    .calendar-table .table-column {
+    .calendar-table .col-billiard {
       width: 60px !important;
       min-width: 60px !important;
       max-width: 60px !important;
-      visibility: visible !important;
-      display: table-cell !important;
     }
-
-    .calendar-table th:nth-child(3),
-    .calendar-table td:nth-child(3) {
-      border-right: 2px solid #6b7280 !important;
+    .billiard-badge {
+      background: white !important;
+      color: #000 !important;
+      border-color: #555 !important;
     }
-
-    .calendar-table th,
-    .calendar-table td {
-      border-right: 2px solid #666 !important;
-    }
-
-    .table-number-compact {
-      font-size: 9px !important;
-      font-weight: bold !important;
-      background-color: #f0f0f0 !important;
-      padding: 1px 3px !important;
-      border-radius: 2px !important;
-    }
-
-    .print-day-header {
-      text-align: center !important;
-    }
-
     .print-date-main {
       font-size: 10px !important;
       font-weight: bold !important;
       line-height: 1.1 !important;
       margin: 0 !important;
     }
-
     .print-day-name {
       font-size: 8px !important;
       font-weight: normal !important;
@@ -363,25 +413,17 @@
       line-height: 1.1 !important;
       margin: 1px 0 0 0 !important;
     }
-
     .print-hour-header {
       font-size: 11px !important;
       font-weight: bold !important;
       text-align: center !important;
       line-height: 1.1 !important;
-      margin: 0 !important;
     }
-
-    .match-cell {
-      background-color: #fafafa !important;
-      font-weight: bold !important;
-      font-size: 14px !important;
+    .match-cell .player-name {
+      font-weight: 700 !important;
+      font-size: 11px !important;
     }
-
-    .empty-cell {
-      color: #666 !important;
-      font-style: italic !important;
-    }
+    .empty-cell .player-name { color: #888 !important; }
   }
 </style>
 

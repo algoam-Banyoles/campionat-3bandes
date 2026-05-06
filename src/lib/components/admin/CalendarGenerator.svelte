@@ -4,6 +4,7 @@
   import { formatSupabaseError } from '$lib/ui/alerts';
   import { showWarning } from '$lib/stores/toastStore';
   import { showConfirm } from '$lib/stores/confirmDialogStore';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   const dispatch = createEventDispatcher();
 
@@ -3360,7 +3361,7 @@
                     {@const hasMinViolation = player.minRequired > 0 && (player.taula1 < player.minRequired || player.taula2 < player.minRequired || player.taula3 < player.minRequired)}
                     <tr class="{hasMaxViolation || hasMinViolation ? 'bg-red-50' : ''}">
                       <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {player.nom} {player.cognoms}
+                        {formatarNomJugador(`${player.nom ?? ''} ${player.cognoms ?? ''}`.trim())}
                       </td>
                       <td class="px-4 py-2 text-center text-sm">
                         <span class="{

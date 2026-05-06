@@ -148,11 +148,16 @@
 </script>
 
 <svelte:head>
-  <title>Gestió Categories i Promocions</title>
+  <title>Categories i promocions</title>
 </svelte:head>
 
-<div class="max-w-6xl mx-auto p-4">
-  <h1 class="text-2xl font-semibold mb-4">Gestió Categories i Promocions</h1>
+<div class="cat-root">
+  <header class="cat-mast">
+    <a href="/admin" class="cat-back">← Tornar a l'administració</a>
+    <div class="editorial-eyebrow">Configuració · Campionats socials</div>
+    <h1 class="cat-title">Categories i promocions</h1>
+    <p class="cat-sub">Configura les categories de campionats socials i les mitjanes mínimes de promoció.</p>
+  </header>
 
   {#if loading}
     <Loader />
@@ -268,3 +273,112 @@
     {/if}
   {/if}
 </div>
+
+<style>
+  .cat-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .cat-mast {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .cat-back {
+    display: inline-block;
+    color: var(--ink-2, #4a443e);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .cat-back:hover { color: var(--ink, #1a1814); }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .cat-title {
+    margin: 0.4rem 0 0.4rem;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .cat-sub {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ink-2, #4a443e);
+    max-width: 56ch;
+  }
+
+  .cat-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .cat-root :global(.bg-gray-50),
+  .cat-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .cat-root :global(.bg-blue-50),
+  .cat-root :global(.bg-blue-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--blue, #1f4a99) !important; }
+  .cat-root :global(.bg-green-50),
+  .cat-root :global(.bg-green-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--green, #1f7a3a) !important; }
+  .cat-root :global(.bg-yellow-50),
+  .cat-root :global(.bg-yellow-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+  .cat-root :global(.bg-red-50),
+  .cat-root :global(.bg-red-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--accent, #a30b1e) !important; }
+  .cat-root :global(.bg-blue-600),
+  .cat-root :global(.bg-blue-700) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .cat-root :global(.bg-red-600),
+  .cat-root :global(.bg-red-700) {
+    background: var(--accent, #a30b1e) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+
+  .cat-root :global(.text-gray-500),
+  .cat-root :global(.text-gray-600),
+  .cat-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+  .cat-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+  .cat-root :global(.text-blue-600),
+  .cat-root :global(.text-blue-800) { color: var(--blue, #1f4a99) !important; }
+  .cat-root :global(.text-green-600),
+  .cat-root :global(.text-green-800) { color: var(--green, #1f7a3a) !important; }
+  .cat-root :global(.text-red-600),
+  .cat-root :global(.text-red-800) { color: var(--accent, #a30b1e) !important; }
+  .cat-root :global(.text-yellow-700),
+  .cat-root :global(.text-yellow-800) { color: var(--amber, #b8860b) !important; }
+  .cat-root :global(.border-gray-200),
+  .cat-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+  .cat-root :global(.rounded),
+  .cat-root :global(.rounded-md),
+  .cat-root :global(.rounded-lg),
+  .cat-root :global(.rounded-xl),
+  .cat-root :global(.rounded-2xl),
+  .cat-root :global(.rounded-full) { border-radius: 0 !important; }
+  .cat-root :global(.shadow),
+  .cat-root :global(.shadow-sm),
+  .cat-root :global(.shadow-md) { box-shadow: none !important; }
+  .cat-root :global(input),
+  .cat-root :global(select),
+  .cat-root :global(textarea) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .cat-root :global(input:focus),
+  .cat-root :global(select:focus),
+  .cat-root :global(textarea:focus) {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: -1px;
+  }
+  .cat-root :global(table) { font-family: var(--font-sans, sans-serif); }
+  .cat-root :global(thead.bg-gray-50) {
+    background: var(--paper, #fbfaf6) !important;
+    border-bottom: 1px solid var(--ink, #1a1814) !important;
+  }
+</style>

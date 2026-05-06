@@ -387,338 +387,236 @@
   }
 </script>
 
-<div class="space-y-6">
-  <!-- Filters -->
-  <div class="bg-white border border-gray-200 rounded-lg p-6">
-    <div class="space-y-6">
-      <!-- Category filter with buttons (multiple selection) -->
-      <fieldset>
-        <legend class="block text-sm font-medium text-gray-700 mb-3">
-          Categories {selectedCategories.size > 0 ? `(${selectedCategories.size} seleccionades)` : ''}
-        </legend>
-        <div class="flex flex-wrap gap-2">
-          {#each sortedCategories as category}
-            <button
-              on:click={() => toggleCategory(category.id)}
-              class="px-4 py-2 rounded-md text-sm font-medium transition-colors {
-                selectedCategories.has(category.id)
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }"
-            >
-              {category.nom}
-            </button>
-          {/each}
-          {#if selectedCategories.size > 0}
-            <button
-              on:click={() => selectedCategories = new Set()}
-              class="px-4 py-2 rounded-md text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200"
-            >
-              Netejar filtres
-            </button>
-          {/if}
-        </div>
-      </fieldset>
+<div class="results-root">
+  <!-- Filtres editorials -->
+  <div class="results-filters">
+    <fieldset class="filter-group">
+      <legend class="filter-legend">
+        Categories {selectedCategories.size > 0 ? `· ${selectedCategories.size} seleccionades` : ''}
+      </legend>
+      <div class="cat-pills">
+        {#each sortedCategories as category}
+          <button
+            on:click={() => toggleCategory(category.id)}
+            class="cat-pill"
+            class:active={selectedCategories.has(category.id)}
+          >
+            {category.nom}
+          </button>
+        {/each}
+        {#if selectedCategories.size > 0}
+          <button
+            on:click={() => selectedCategories = new Set()}
+            class="cat-pill cat-pill-clear"
+          >
+            Netejar filtres
+          </button>
+        {/if}
+      </div>
+    </fieldset>
 
-      <!-- Player search and checkbox in same row -->
-      <div class="flex gap-4 items-start">
-        <!-- Player search (more narrow) -->
-        <div class="flex-1 max-w-md">
-          <label for="player-search" class="block text-sm font-medium text-gray-700 mb-2">
-            Cerca per jugador
-          </label>
-          <div class="relative">
-            <input
-              id="player-search"
-              type="text"
-              bind:value={searchPlayer}
-              placeholder="Escriu nom o cognoms..."
-              class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              disabled={showOnlyMyResults}
-            />
-            <svg class="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-            </svg>
-            {#if searchPlayer}
-              <button
-                on:click={() => searchPlayer = ''}
-                class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
-                aria-label="Netejar cerca de jugador"
-              >
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </button>
-            {/if}
-          </div>
-        </div>
-
-        <!-- Checkbox "Els meus resultats" al costat -->
-        <div class="flex-shrink-0 pt-8">
-          {#if myPlayerData}
-            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer whitespace-nowrap">
-              <input
-                type="checkbox"
-                bind:checked={showOnlyMyResults}
-                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <span class="font-medium">🎯 Els meus resultats</span>
-            </label>
-          {:else}
-            <div class="text-xs text-gray-400">
-              DEBUG: user={$user ? 'YES' : 'NO'}, myPlayerData={myPlayerData ? 'YES' : 'NO'}
-            </div>
+    <div class="filter-row-bottom">
+      <div class="filter-search-block">
+        <label for="player-search" class="filter-legend">Cerca per jugador</label>
+        <div class="search-wrap">
+          <input
+            id="player-search"
+            type="text"
+            bind:value={searchPlayer}
+            placeholder="Nom o cognoms…"
+            class="filter-input"
+            disabled={showOnlyMyResults}
+          />
+          {#if searchPlayer}
+            <button
+              on:click={() => searchPlayer = ''}
+              class="search-clear"
+              aria-label="Netejar cerca de jugador"
+            >×</button>
           {/if}
         </div>
       </div>
+
+      {#if myPlayerData}
+        <label class="my-results-toggle">
+          <input
+            type="checkbox"
+            bind:checked={showOnlyMyResults}
+          />
+          <span>Només els meus resultats</span>
+        </label>
+      {/if}
     </div>
   </div>
 
   {#if loading}
-    <div class="text-center py-12">
-      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      <p class="mt-2 text-gray-600">Carregant resultats...</p>
-    </div>
+    <div class="state-empty">Carregant resultats…</div>
   {:else if error}
-    <div class="bg-red-50 border border-red-200 rounded-lg p-6">
-      <h3 class="text-lg font-medium text-red-800 mb-2">Error</h3>
-      <p class="text-red-600">{error}</p>
-    </div>
+    <div class="state-empty error-state">{error}</div>
   {:else if filteredMatches.length === 0}
-    <div class="text-center py-12">
-      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-      </svg>
-      <h3 class="mt-2 text-sm font-medium text-gray-900">
+    <div class="state-empty">
+      <div class="state-title">
         {selectedCategories.size > 0 || searchPlayer !== '' ? 'No hi ha partides amb aquests filtres' : 'No hi ha resultats de partides'}
-      </h3>
-      <p class="mt-1 text-sm text-gray-500">
-        {selectedCategories.size > 0 || searchPlayer !== '' ? 'Prova a canviar els filtres de categoria o cerca de jugador.' : 'Encara no s\'han jugat partides en aquest campionat.'}
-      </p>
+      </div>
+      <div class="state-sub">
+        {selectedCategories.size > 0 || searchPlayer !== '' ? 'Prova a canviar els filtres de categoria o cerca de jugador.' : "Encara no s'han jugat partides en aquest campionat."}
+      </div>
     </div>
   {:else}
-    <!-- Matches list -->
-    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-300">
-          <thead class="bg-gray-50">
+    <!-- Llista de partides — taula editorial -->
+    <div class="results-table-wrap">
+      <table class="results-table">
+        <thead>
+          <tr>
+            <th class="col-left">Categoria</th>
+            <th class="col-left">Jugadors</th>
+            <th class="col-num">Caramboles</th>
+            <th class="col-num">Mitjanes</th>
+            <th class="col-num">Entrades</th>
+            {#if $effectiveIsAdmin}
+              <th class="col-num">Accions</th>
+            {/if}
+          </tr>
+        </thead>
+        <tbody>
+          {#each filteredMatches as match (match.id)}
+            {@const status = getMatchStatus(match)}
+            {@const winner = getMatchWinner(match)}
             <tr>
-              <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                Categoria
-              </th>
-              <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                Jugadors
-              </th>
-              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                Caramboles
-              </th>
-              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                Mitjanes
-              </th>
-              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                Entrades
-              </th>
+              <td>
+                <div class="cat-cell">
+                  <span class="cat-label">{match.categoria_nom || 'Sense categoria'}</span>
+                  {#if match.categoria_distancia}
+                    <span class="cat-distance">{match.categoria_distancia} caramboles</span>
+                  {/if}
+                </div>
+              </td>
+              <td>
+                <div class="players-cell">
+                  <div class="player-row" class:player-winner={winner === 1}>
+                    <SociFoto numeroSoci={match.jugador1_numero_soci} size="xs" alt="{match.jugador1_nom} {match.jugador1_cognoms}" />
+                    <span class="player-name">{formatPlayerName(match.jugador1_nom, match.jugador1_cognoms, match.jugador1_numero_soci)}</span>
+                    {#if match.incompareixenca_jugador1}
+                      <span class="badge-noshow">No presentat</span>
+                    {/if}
+                  </div>
+                  <div class="vs-sep">vs</div>
+                  <div class="player-row" class:player-winner={winner === 2}>
+                    <SociFoto numeroSoci={match.jugador2_numero_soci} size="xs" alt="{match.jugador2_nom} {match.jugador2_cognoms}" />
+                    <span class="player-name">{formatPlayerName(match.jugador2_nom, match.jugador2_cognoms, match.jugador2_numero_soci)}</span>
+                    {#if match.incompareixenca_jugador2}
+                      <span class="badge-noshow">No presentat</span>
+                    {/if}
+                  </div>
+                </div>
+              </td>
+              <td class="col-num">
+                {#if status === 'completed'}
+                  <div class="num-stack tabular-nums">
+                    <div class="num-line" class:winner={winner === 1}>{match.caramboles_reptador ?? 0}</div>
+                    <div class="num-sep">–</div>
+                    <div class="num-line" class:winner={winner === 2}>{match.caramboles_reptat ?? 0}</div>
+                  </div>
+                {:else}
+                  <span class="muted">—</span>
+                {/if}
+              </td>
+              <td class="col-num">
+                {#if status === 'completed' && match.entrades}
+                  <div class="num-stack tabular-nums">
+                    <div class="num-line num-secondary" class:winner={winner === 1}>{calcularMitjana(match.caramboles_reptador, match.entrades)}</div>
+                    <div class="num-sep">–</div>
+                    <div class="num-line num-secondary" class:winner={winner === 2}>{calcularMitjana(match.caramboles_reptat, match.entrades)}</div>
+                  </div>
+                {:else}
+                  <span class="muted">—</span>
+                {/if}
+              </td>
+              <td class="col-num">
+                {#if status === 'completed'}
+                  <span class="tabular-nums">{match.entrades ?? '—'}</span>
+                {:else}
+                  <span class="muted">—</span>
+                {/if}
+              </td>
               {#if $effectiveIsAdmin}
-                <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                  Accions
-                </th>
+                <td class="col-num">
+                  {#if status === 'completed'}
+                    <button
+                      on:click={() => startEditingMatch(match)}
+                      class="action-link link-blue"
+                    >
+                      Editar
+                    </button>
+                  {:else}
+                    <span class="muted">—</span>
+                  {/if}
+                </td>
               {/if}
             </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-200 bg-white">
-            {#each filteredMatches as match (match.id)}
-              {@const status = getMatchStatus(match)}
-              {@const winner = getMatchWinner(match)}
-              <tr class="hover:bg-gray-50">
-                <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
-                  <div>
-                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {match.categoria_nom || 'Sense categoria'}
-                    </span>
-                    {#if match.categoria_distancia}
-                      <div class="text-xs text-gray-500 mt-1">
-                        {match.categoria_distancia} caramboles
-                      </div>
-                    {/if}
-                  </div>
-                </td>
-                <td class="px-3 py-4 text-sm">
-                  <div class="space-y-1">
-                    <div class="flex items-center gap-2 {winner === 1 ? 'font-semibold text-green-600' : 'text-gray-900'}">
-                      <span>{winner === 1 ? '🏆' : ''}</span>
-                      <SociFoto numeroSoci={match.jugador1_numero_soci} size="xs" alt="{match.jugador1_nom} {match.jugador1_cognoms}" />
-                      <span>{formatPlayerName(match.jugador1_nom, match.jugador1_cognoms, match.jugador1_numero_soci)}</span>
-                      {#if match.incompareixenca_jugador1}
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                          No presentat
-                        </span>
-                      {/if}
-                    </div>
-                    <div class="text-gray-400 text-xs">vs</div>
-                    <div class="flex items-center gap-2 {winner === 2 ? 'font-semibold text-green-600' : 'text-gray-900'}">
-                      <span>{winner === 2 ? '🏆' : ''}</span>
-                      <SociFoto numeroSoci={match.jugador2_numero_soci} size="xs" alt="{match.jugador2_nom} {match.jugador2_cognoms}" />
-                      <span>{formatPlayerName(match.jugador2_nom, match.jugador2_cognoms, match.jugador2_numero_soci)}</span>
-                      {#if match.incompareixenca_jugador2}
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                          No presentat
-                        </span>
-                      {/if}
-                    </div>
-                  </div>
-                </td>
-                <td class="px-3 py-4 text-sm text-center">
-                  {#if status === 'completed'}
-                    <div class="space-y-1">
-                      <div class="font-mono text-base {winner === 1 ? 'font-bold text-green-600' : 'text-gray-700'}">
-                        {match.caramboles_reptador ?? 0}
-                      </div>
-                      <div class="text-gray-400 text-xs">-</div>
-                      <div class="font-mono text-base {winner === 2 ? 'font-bold text-green-600' : 'text-gray-700'}">
-                        {match.caramboles_reptat ?? 0}
-                      </div>
-                    </div>
-                  {:else}
-                    <span class="text-gray-400 text-sm">-</span>
-                  {/if}
-                </td>
-                <td class="px-3 py-4 text-sm text-center">
-                  {#if status === 'completed' && match.entrades}
-                    <div class="space-y-1">
-                      <div class="font-mono text-sm {winner === 1 ? 'font-semibold text-green-600' : 'text-gray-600'}">
-                        {calcularMitjana(match.caramboles_reptador, match.entrades)}
-                      </div>
-                      <div class="text-gray-400 text-xs">-</div>
-                      <div class="font-mono text-sm {winner === 2 ? 'font-semibold text-green-600' : 'text-gray-600'}">
-                        {calcularMitjana(match.caramboles_reptat, match.entrades)}
-                      </div>
-                    </div>
-                  {:else}
-                    <span class="text-gray-400 text-sm">-</span>
-                  {/if}
-                </td>
-                <td class="px-3 py-4 text-sm text-center">
-                  {#if status === 'completed'}
-                    <span class="font-mono text-gray-700">{match.entrades ?? '-'}</span>
-                  {:else}
-                    <span class="text-gray-400">-</span>
-                  {/if}
-                </td>
-                {#if $effectiveIsAdmin}
-                  <td class="px-3 py-4 text-sm text-center">
-                    {#if status === 'completed'}
-                      <button
-                        on:click={() => startEditingMatch(match)}
-                        class="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                        </svg>
-                        Editar
-                      </button>
-                    {:else}
-                      <span class="text-gray-400">-</span>
-                    {/if}
-                  </td>
-                {/if}
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+          {/each}
+        </tbody>
+      </table>
     </div>
 
-    <!-- Summary stats at the end -->
-    <div class="bg-white border border-gray-200 rounded-lg p-6">
-      <h4 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
-        <span class="mr-2">📊</span>
-        Resum de Partides
-      </h4>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="text-center bg-gray-50 rounded-lg p-6">
-          <div class="text-3xl font-bold text-gray-900">{allMatches.length}</div>
-          <div class="text-sm text-gray-600 mt-1">Total Partides</div>
+    <!-- Resum stats editorial -->
+    <section class="results-summary">
+      <div class="editorial-eyebrow" style="margin-bottom: 0.65rem;">Resum de partides</div>
+      <div class="results-summary-strip">
+        <div>
+          <div class="cls-stat-num tabular-nums">{allMatches.length}</div>
+          <div class="cls-stat-lbl">Total partides</div>
         </div>
-        <div class="text-center bg-green-50 rounded-lg p-6">
-          <div class="text-3xl font-bold text-green-600">{matchesByStatus.completed}</div>
-          <div class="text-sm text-gray-600 mt-1">Partides Jugades</div>
+        <div>
+          <div class="cls-stat-num tabular-nums">{matchesByStatus.completed}</div>
+          <div class="cls-stat-lbl">Partides jugades</div>
         </div>
       </div>
-    </div>
+    </section>
 
   {/if}
 </div>
 
 <!-- Edit Modal (Admin only) -->
 {#if editingMatch && $effectiveIsAdmin}
-    <div class="fixed inset-0 flex items-center justify-center z-50 p-4">
-      <div
-        class="absolute inset-0 bg-black bg-opacity-50"
-        aria-label="Tanca modal d'edició de resultats"
-        on:click={cancelEdit}
-        on:keydown={(e) => e.key === 'Escape' && cancelEdit()}
-        role="button"
-        tabindex="-1"
-      ></div>
-  <div class="bg-white rounded-lg shadow-xl max-w-md w-full relative z-10" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
-      <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg">
-        <div class="flex items-center justify-between">
-          <h2 class="text-xl font-semibold text-gray-900">Editar Resultat</h2>
-          <button type="button" aria-label="Tancar Editar Resultat" on:click={cancelEdit} class="text-gray-400 hover:text-gray-600">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
+  <div class="modal-root">
+    <div
+      class="modal-overlay"
+      aria-label="Tanca modal d'edició de resultats"
+      on:click={cancelEdit}
+      on:keydown={(e) => e.key === 'Escape' && cancelEdit()}
+      role="button"
+      tabindex="-1"
+    ></div>
+    <div class="modal-card" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+      <div class="modal-head">
+        <h2 class="modal-title">Editar resultat</h2>
+        <button type="button" aria-label="Tancar editar resultat" on:click={cancelEdit} class="modal-close">×</button>
       </div>
 
-      <form on:submit|preventDefault={saveMatchResult} class="p-6 space-y-4">
+      <form on:submit|preventDefault={saveMatchResult} class="modal-body">
         <!-- Match info -->
-        <div class="bg-gray-50 rounded-lg p-4 mb-4">
-          <div class="text-sm font-medium text-gray-900 mb-2">
+        <div class="match-info">
+          <div class="match-info-eyebrow">Partida</div>
+          <div class="match-info-player">
             {formatPlayerName(editingMatch.jugador1_nom, editingMatch.jugador1_cognoms, editingMatch.jugador1_numero_soci)}
           </div>
-          <div class="text-xs text-gray-500 mb-2">vs</div>
-          <div class="text-sm font-medium text-gray-900">
+          <div class="match-info-sep">vs</div>
+          <div class="match-info-player">
             {formatPlayerName(editingMatch.jugador2_nom, editingMatch.jugador2_cognoms, editingMatch.jugador2_numero_soci)}
           </div>
         </div>
 
-        <!-- Error/Success messages -->
         {#if updateError}
-          <div class="rounded-md bg-red-50 p-4">
-            <div class="flex">
-              <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-                </svg>
-              </div>
-              <div class="ml-3">
-                <p class="text-sm font-medium text-red-800">{updateError}</p>
-              </div>
-            </div>
-          </div>
+          <div class="msg msg-error">{updateError}</div>
         {/if}
-
         {#if updateSuccess}
-          <div class="rounded-md bg-green-50 p-4">
-            <div class="flex">
-              <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                </svg>
-              </div>
-              <div class="ml-3">
-                <p class="text-sm font-medium text-green-800">{updateSuccess}</p>
-              </div>
-            </div>
-          </div>
+          <div class="msg msg-success">{updateSuccess}</div>
         {/if}
 
-        <!-- Form fields -->
-        <div class="space-y-4">
-          <div>
-            <label for="caramboles_reptador" class="block text-sm font-medium text-gray-700 mb-2">
+        <div class="form-fields">
+          <div class="form-field">
+            <label for="caramboles_reptador">
               Caramboles {formatPlayerName(editingMatch.jugador1_nom, editingMatch.jugador1_cognoms, editingMatch.jugador1_numero_soci)}
             </label>
             <input
@@ -727,12 +625,12 @@
               min="0"
               bind:value={editForm.caramboles_reptador}
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="filter-input"
             />
           </div>
 
-          <div>
-            <label for="caramboles_reptat" class="block text-sm font-medium text-gray-700 mb-2">
+          <div class="form-field">
+            <label for="caramboles_reptat">
               Caramboles {formatPlayerName(editingMatch.jugador2_nom, editingMatch.jugador2_cognoms, editingMatch.jugador2_numero_soci)}
             </label>
             <input
@@ -741,12 +639,12 @@
               min="0"
               bind:value={editForm.caramboles_reptat}
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="filter-input"
             />
           </div>
 
-          <div>
-            <label for="entrades_reptador" class="block text-sm font-medium text-gray-700 mb-2">
+          <div class="form-field">
+            <label for="entrades_reptador">
               Entrades {formatPlayerName(editingMatch.jugador1_nom, editingMatch.jugador1_cognoms, editingMatch.jugador1_numero_soci)}
             </label>
             <input
@@ -755,12 +653,12 @@
               min="1"
               bind:value={editForm.entrades_reptador}
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="filter-input"
             />
           </div>
 
-          <div>
-            <label for="entrades_reptat" class="block text-sm font-medium text-gray-700 mb-2">
+          <div class="form-field">
+            <label for="entrades_reptat">
               Entrades {formatPlayerName(editingMatch.jugador2_nom, editingMatch.jugador2_cognoms, editingMatch.jugador2_numero_soci)}
             </label>
             <input
@@ -769,47 +667,573 @@
               min="1"
               bind:value={editForm.entrades_reptat}
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="filter-input"
             />
           </div>
 
           <!-- Calculated averages preview -->
-          <div class="bg-blue-50 rounded-lg p-4">
-            <div class="text-xs font-medium text-blue-900 mb-2">Mitjanes calculades:</div>
-            <div class="grid grid-cols-2 gap-2 text-sm">
+          <div class="averages-preview">
+            <div class="editorial-eyebrow">Mitjanes calculades</div>
+            <div class="averages-grid">
               <div>
-                <div class="text-blue-700 font-mono">
-                  {calcularMitjana(editForm.caramboles_reptador, editForm.entrades_reptador)}
-                </div>
-                <div class="text-xs text-blue-600">Jugador 1</div>
+                <div class="averages-num tabular-nums">{calcularMitjana(editForm.caramboles_reptador, editForm.entrades_reptador)}</div>
+                <div class="averages-lbl">Jugador 1</div>
               </div>
               <div>
-                <div class="text-blue-700 font-mono">
-                  {calcularMitjana(editForm.caramboles_reptat, editForm.entrades_reptat)}
-                </div>
-                <div class="text-xs text-blue-600">Jugador 2</div>
+                <div class="averages-num tabular-nums">{calcularMitjana(editForm.caramboles_reptat, editForm.entrades_reptat)}</div>
+                <div class="averages-lbl">Jugador 2</div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="mt-6 flex justify-end space-x-3">
-          <button
-            type="button"
-            on:click={cancelEdit}
-            class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-          >
-            Cancel·lar
-          </button>
-          <button
-            type="submit"
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            disabled={saving}
-          >
-            Guardar
+        <div class="modal-actions">
+          <button type="button" on:click={cancelEdit} class="btn-secondary">Cancel·lar</button>
+          <button type="submit" class="btn-primary" disabled={saving}>
+            {saving ? 'Guardant…' : 'Guardar'}
           </button>
         </div>
       </form>
     </div>
   </div>
 {/if}
+
+<style>
+  .results-root {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    font-family: var(--font-sans);
+    color: var(--ink);
+  }
+
+  /* ── Filtres ──────────────────────────────────────── */
+  .results-filters {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .filter-group { border: none; padding: 0; margin: 0; }
+  .filter-legend {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 0.55rem;
+    display: block;
+  }
+  .cat-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .cat-pill {
+    background: transparent;
+    border: 1px solid var(--rule-strong);
+    color: var(--ink-2);
+    padding: 0.45rem 0.85rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: -0.005em;
+    cursor: pointer;
+    min-height: 40px;
+  }
+  .cat-pill:hover { color: var(--ink); border-color: var(--ink); }
+  .cat-pill.active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .cat-pill.cat-pill-clear {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .cat-pill.cat-pill-clear:hover {
+    background: var(--accent);
+    color: white;
+  }
+
+  .filter-row-bottom {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  .filter-search-block { flex: 1; max-width: 28rem; }
+  .filter-input {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule-strong);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    min-height: 44px;
+  }
+  .filter-input:focus {
+    outline: 2px solid var(--ink);
+    outline-offset: 1px;
+    border-color: var(--ink);
+  }
+  .filter-input:disabled { opacity: 0.5; cursor: not-allowed; }
+  .search-wrap { position: relative; }
+  .search-clear {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--ink-3);
+    font-size: 1.25rem;
+    width: 1.75rem;
+    height: 1.75rem;
+    cursor: pointer;
+  }
+  .search-clear:hover { color: var(--ink); }
+  .my-results-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ink-2);
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .my-results-toggle input { width: 1.1rem; height: 1.1rem; accent-color: var(--ink); }
+  .my-results-toggle:hover { color: var(--ink); }
+
+  /* ── Estats ──────────────────────────────────────── */
+  .state-empty {
+    padding: 1.75rem 2rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    text-align: center;
+  }
+  .state-empty.error-state { color: var(--accent); border-color: var(--accent); }
+  .state-title { font-weight: 700; font-size: 1.0625rem; color: var(--ink); }
+  .state-sub { margin-top: 0.4rem; font-size: 0.875rem; color: var(--ink-3); }
+
+  /* ── Taula resultats ─────────────────────────────── */
+  .results-table-wrap {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    overflow-x: auto;
+  }
+  .results-table { width: 100%; border-collapse: collapse; }
+  .results-table th {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-3);
+    padding: 0.85rem;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+    background: var(--paper);
+  }
+  .results-table th.col-left { text-align: left; }
+  .results-table th.col-num { text-align: right; }
+  .results-table td {
+    padding: 0.85rem;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.9375rem;
+    color: var(--ink);
+    vertical-align: middle;
+  }
+  .results-table td.col-num { text-align: right; }
+  .results-table tr:last-child td { border-bottom: none; }
+  .results-table tr:hover { background: var(--paper); }
+
+  .cat-cell { display: flex; flex-direction: column; gap: 0.2rem; }
+  .cat-label {
+    display: inline-block;
+    padding: 0.18rem 0.55rem;
+    border: 1px solid var(--rule-strong);
+    font-weight: 700;
+    font-size: 0.75rem;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    align-self: flex-start;
+  }
+  .cat-distance {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .players-cell { display: flex; flex-direction: column; line-height: 1.3; }
+  .player-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.15rem 0;
+  }
+  .player-row .player-name {
+    font-weight: 500;
+    color: var(--ink);
+    letter-spacing: -0.012em;
+  }
+  .player-row.player-winner .player-name {
+    font-weight: 700;
+    color: var(--green);
+  }
+  .vs-sep {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3);
+    padding-left: 2.4rem;
+    margin: 0.15rem 0;
+  }
+  .badge-noshow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 0.12rem 0.4rem;
+  }
+
+  .num-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1.3;
+  }
+  .num-line {
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.012em;
+  }
+  .num-line.num-secondary { font-weight: 600; font-size: 0.875rem; color: var(--ink-2); }
+  .num-line.winner { color: var(--green); font-weight: 800; }
+  .num-sep {
+    font-size: 0.6875rem;
+    color: var(--ink-3);
+    margin: 0.12rem 0;
+  }
+  .muted { color: var(--ink-3); }
+
+  .action-link {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 1px;
+  }
+  .action-link.link-blue { color: var(--blue); }
+  .action-link:hover { opacity: 0.8; }
+
+  /* ── Resum ─────────────────────────────────────────── */
+  .results-summary {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    padding: 1.25rem 1.5rem 0;
+  }
+  .results-summary-strip {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .results-summary-strip > div {
+    padding: 1rem 0 1.25rem;
+    border-right: 1px solid var(--rule);
+    padding-left: 1.25rem;
+  }
+  .results-summary-strip > div:first-child { padding-left: 0; }
+  .results-summary-strip > div:last-child { border-right: none; }
+  .cls-stat-num {
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .cls-stat-lbl {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3);
+    margin-top: 0.4rem;
+  }
+
+  /* ── Modal d'edició ──────────────────────────────── */
+  .modal-root {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(26, 24, 20, 0.55);
+  }
+  .modal-card {
+    position: relative;
+    z-index: 10;
+    max-width: 28rem;
+    width: 100%;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-head {
+    position: sticky;
+    top: 0;
+    background: var(--paper-elevated);
+    padding: 1rem 1.5rem;
+    border-bottom: 2px solid var(--ink);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal-title {
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: -0.022em;
+    margin: 0;
+  }
+  .modal-close {
+    background: transparent;
+    border: none;
+    color: var(--ink-3);
+    font-size: 1.5rem;
+    width: 2rem;
+    height: 2rem;
+    cursor: pointer;
+  }
+  .modal-close:hover { color: var(--ink); }
+  .modal-body {
+    padding: 1.25rem 1.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .match-info {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 0.85rem 1rem;
+  }
+  .match-info-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3);
+    margin-bottom: 0.4rem;
+  }
+  .match-info-player {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--ink);
+    letter-spacing: -0.012em;
+  }
+  .match-info-sep {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3);
+    margin: 0.15rem 0;
+  }
+
+  .msg {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.875rem;
+    border-left: 3px solid;
+  }
+  .msg-error { color: var(--accent); border-color: var(--accent); background: rgba(163, 11, 30, 0.05); }
+  .msg-success { color: var(--green); border-color: var(--green); background: rgba(45, 110, 62, 0.05); }
+
+  .form-fields { display: flex; flex-direction: column; gap: 0.85rem; }
+  .form-field { display: flex; flex-direction: column; gap: 0.35rem; }
+  .form-field label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--ink-2);
+    letter-spacing: -0.005em;
+  }
+
+  .averages-preview {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 0.85rem 1rem;
+  }
+  .averages-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 0.55rem;
+  }
+  .averages-num {
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: -0.022em;
+    color: var(--ink);
+  }
+  .averages-lbl {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-3);
+    margin-top: 0.2rem;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--rule);
+  }
+  .btn-secondary {
+    padding: 0.55rem 1rem;
+    background: transparent;
+    border: 1px solid var(--rule-strong);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .btn-secondary:hover { border-color: var(--ink); }
+  .btn-primary {
+    padding: 0.55rem 1rem;
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    color: var(--paper);
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .btn-primary:hover { opacity: 0.92; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .results-filters { padding: 1rem; }
+    .filter-row-bottom { flex-direction: column; align-items: stretch; gap: 1rem; }
+    .filter-search-block { max-width: none; }
+
+    /* Reformatar la taula com a fitxes en mòbil — la versió taula és massa
+       densa quan tens 5 columnes amb stacks de 3 línies cadascuna. */
+    .results-table-wrap { background: transparent; border: none; }
+    .results-table,
+    .results-table thead,
+    .results-table tbody,
+    .results-table tr,
+    .results-table th,
+    .results-table td {
+      display: block;
+    }
+    .results-table thead { display: none; }
+    .results-table tr {
+      background: var(--paper-elevated);
+      border: 1px solid var(--rule);
+      margin-bottom: 0.75rem;
+      padding: 0.85rem 1rem;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.5rem 0.75rem;
+      align-items: start;
+    }
+    .results-table tr:hover { background: var(--paper-elevated); }
+    .results-table td {
+      padding: 0;
+      border: none;
+    }
+    .results-table td.col-num { text-align: right; }
+
+    /* Categoria petita a la part superior */
+    .results-table td:nth-child(1) {
+      grid-column: 1 / -1;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--rule);
+      margin-bottom: 0.4rem;
+    }
+    /* Jugadors ocupen la columna esquerra principal */
+    .results-table td:nth-child(2) {
+      grid-column: 1;
+      grid-row: 2 / span 3;
+    }
+    /* Caramboles (3a col) a la dreta */
+    .results-table td:nth-child(3) {
+      grid-column: 2;
+      grid-row: 2;
+    }
+    /* Mitjanes (4a col) a la dreta sota caramboles */
+    .results-table td:nth-child(4) {
+      grid-column: 2;
+      grid-row: 3;
+      padding-top: 0.35rem;
+      border-top: 1px dashed var(--rule);
+    }
+    /* Entrades + Accions per sota */
+    .results-table td:nth-child(5),
+    .results-table td:nth-child(6) {
+      grid-column: 1 / -1;
+      padding-top: 0.4rem;
+      border-top: 1px solid var(--rule);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .results-table td:nth-child(5)::before {
+      content: 'Entrades:';
+      font-size: 0.625rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      margin-right: 0.5rem;
+    }
+    .results-table td:nth-child(6)::before {
+      content: 'Accions:';
+      font-size: 0.625rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+    }
+
+    /* Stacks compactes a mobile */
+    .num-stack { gap: 0; }
+    .num-line { font-size: 0.9375rem; }
+    .num-line.num-secondary { font-size: 0.8125rem; }
+    .num-sep { font-size: 0.625rem; margin: 0.05rem 0; }
+
+    .vs-sep { padding-left: 0; margin: 0.25rem 0; }
+    .player-row { gap: 0.4rem; }
+    .player-row .player-name { font-size: 0.875rem; }
+  }
+
+  @media (max-width: 480px) {
+    .cat-pills { gap: 0.3rem; }
+    .cat-pill { padding: 0.4rem 0.65rem; font-size: 0.75rem; min-height: 36px; }
+  }
+</style>

@@ -110,50 +110,158 @@ let loading = true;
 </script>
 
 <svelte:head>
-  <title>Llista d’espera</title>
+  <title>Llista d'espera — Campionat Continu</title>
 </svelte:head>
 
-<h1 class="text-2xl font-semibold mb-4">Llista d’espera</h1>
+<div class="wait-root">
+
+<header class="page-mast">
+  <div>
+    <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">Campionat continu</div>
+    <h1 class="page-title">Llista d'espera</h1>
+  </div>
+</header>
 
 {#if rows.length && mySociNumero === rows[0].soci_numero}
-  <Banner
-    type="info"
-    message={`Tens ${countdown} per reptar la posició 20${player20 ? ` — ${player20.nom}` : ''}`}
-    class="mb-3"
-  />
-  {#if player20}
-    <button
-      class="mb-4 rounded-2xl border px-3 py-1 text-sm"
-      on:click={reptar}
-    >
-      Reptar posició 20
-    </button>
-  {/if}
+  <div class="info-callout">
+    <div class="callout-text">
+      Tens <strong class="tabular-nums">{countdown}</strong> per reptar la posició 20{player20 ? ` — ${player20.nom}` : ''}.
+    </div>
+    {#if player20}
+      <button class="btn-primary" on:click={reptar}>
+        Reptar posició 20 →
+      </button>
+    {/if}
+  </div>
 {/if}
 
 {#if loading}
-  <p class="text-slate-500">Carregant llista d’espera…</p>
+  <div class="state-empty">Carregant llista d'espera…</div>
 {:else if error}
-  <div class="mb-4 rounded border border-red-300 bg-red-50 p-3 text-red-800">{error}</div>
+  <div class="state-empty error-state">{error}</div>
 {:else if rows.length === 0}
-  <p class="text-slate-500">No hi ha ningú en llista d’espera.</p>
+  <div class="state-empty">No hi ha ningú en llista d'espera.</div>
 {:else}
-  <div class="overflow-x-auto rounded-lg border border-slate-200">
-    <table class="min-w-full text-sm">
-      <thead class="bg-slate-50">
+  <div class="wait-table-wrap">
+    <table class="wait-table">
+      <thead>
         <tr>
-          <th class="px-3 py-2 text-left font-semibold">Ordre</th>
-          <th class="px-3 py-2 text-left font-semibold">Nom</th>
+          <th class="col-pos">Ordre</th>
+          <th class="col-left">Jugador</th>
         </tr>
       </thead>
       <tbody>
         {#each rows as r}
-          <tr class="border-t">
-            <td class="px-3 py-2">{r.ordre}</td>
-            <td class="px-3 py-2">{r.nom}</td>
+          <tr>
+            <td class="col-pos"><span class="pos-num tabular-nums">{r.ordre.toString().padStart(2, '0')}</span></td>
+            <td class="col-left"><span class="player-name">{r.nom}</span></td>
           </tr>
         {/each}
       </tbody>
     </table>
   </div>
 {/if}
+
+</div>
+
+<style>
+  .wait-root {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    font-family: var(--font-sans);
+    color: var(--ink);
+  }
+  .page-mast {
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .editorial-eyebrow {
+    font-size: 0.75rem; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--sec-continu);
+  }
+  .page-title {
+    font-weight: 800; font-size: 2rem;
+    letter-spacing: -0.025em; line-height: 1.05;
+    margin: 0; color: var(--ink);
+  }
+
+  .info-callout {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--blue);
+    padding: 1rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .callout-text { color: var(--ink); font-size: 0.9375rem; }
+  .callout-text strong { color: var(--ink); font-weight: 700; }
+
+  .btn-primary {
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--ink);
+    padding: 0.55rem 1rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .btn-primary:hover { opacity: 0.92; }
+
+  .state-empty {
+    padding: 1.5rem 1.75rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    text-align: center;
+  }
+  .state-empty.error-state { color: var(--accent); border-color: var(--accent); }
+
+  .wait-table-wrap {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    overflow-x: auto;
+  }
+  .wait-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .wait-table th {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-3);
+    padding: 0.85rem;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper);
+    text-align: left;
+  }
+  .wait-table th.col-pos { width: 5rem; padding-left: 1.25rem; }
+  .wait-table td {
+    padding: 0.85rem;
+    border-bottom: 1px solid var(--rule);
+    color: var(--ink);
+  }
+  .wait-table td.col-pos { padding-left: 1.25rem; }
+  .wait-table tr:last-child td { border-bottom: none; }
+  .wait-table tr:hover { background: var(--paper); }
+  .pos-num {
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .player-name {
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.012em;
+    font-size: 1rem;
+  }
+</style>

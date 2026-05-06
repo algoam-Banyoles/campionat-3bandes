@@ -175,14 +175,15 @@
 	});
 </script>
 
-<div class="mx-auto max-w-4xl p-4">
-	<div class="mb-4 flex items-center gap-3">
-		<a href="/handicap" class="text-sm text-purple-600 hover:underline">← Hàndicap</a>
-		<h1 class="text-2xl font-bold text-gray-900">Sorteig</h1>
-		{#if event}
-			<span class="text-sm text-gray-500">{event.nom}</span>
-		{/if}
-	</div>
+<div class="hcap-page-root">
+	<header class="page-mast">
+		<div>
+			<div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">
+				<a href="/handicap" class="back-link">← Hàndicap</a>{#if event} · {event.nom}{/if}
+			</div>
+			<h1 class="page-title">Sorteig</h1>
+		</div>
+	</header>
 
 	{#if loading}
 		<p class="text-gray-500">Carregant...</p>
@@ -350,3 +351,81 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	.hcap-page-root {
+		max-width: 56rem; margin: 0 auto; padding: 1rem;
+		display: flex; flex-direction: column; gap: 1.25rem;
+		font-family: var(--font-sans); color: var(--ink);
+	}
+	.page-mast { padding-bottom: 1rem; border-bottom: 2px solid var(--ink); }
+	.editorial-eyebrow {
+		font-size: 0.75rem; font-weight: 600;
+		letter-spacing: 0.16em; text-transform: uppercase;
+		color: var(--sec-handicap);
+	}
+	.back-link { color: var(--sec-handicap); text-decoration: none; }
+	.back-link:hover { color: var(--ink); }
+	.page-title {
+		font-weight: 800; font-size: 2rem;
+		letter-spacing: -0.025em; margin: 0;
+	}
+	.hcap-page-root :global(.bg-white),
+	.hcap-page-root :global(.bg-purple-50),
+	.hcap-page-root :global(.bg-blue-50),
+	.hcap-page-root :global(.bg-yellow-50),
+	.hcap-page-root :global(.bg-green-50),
+	.hcap-page-root :global(.bg-gray-50),
+	.hcap-page-root :global(.bg-slate-50) {
+		background: var(--paper-elevated) !important;
+		border-radius: 0 !important;
+	}
+	.hcap-page-root :global(.bg-red-50) {
+		background: var(--paper-elevated) !important;
+		border: 1px solid var(--accent) !important;
+		color: var(--accent) !important;
+		border-radius: 0 !important;
+	}
+	.hcap-page-root :global(.text-purple-600),
+	.hcap-page-root :global(.text-purple-700) { color: var(--sec-handicap) !important; }
+	.hcap-page-root :global(.text-yellow-700),
+	.hcap-page-root :global(.text-amber-700) { color: var(--amber) !important; }
+	.hcap-page-root :global(.text-green-600),
+	.hcap-page-root :global(.text-green-700) { color: var(--green) !important; }
+	.hcap-page-root :global(.text-red-600),
+	.hcap-page-root :global(.text-red-700) { color: var(--accent) !important; }
+	.hcap-page-root :global(.text-gray-500),
+	.hcap-page-root :global(.text-gray-600) { color: var(--ink-2) !important; }
+	.hcap-page-root :global(.text-gray-900) { color: var(--ink) !important; }
+	.hcap-page-root :global(button.bg-purple-600),
+	.hcap-page-root :global(button[class*="bg-purple"]) {
+		background: var(--sec-handicap) !important;
+		color: white !important;
+		border: 1px solid var(--sec-handicap) !important;
+		border-radius: 0 !important;
+		font-weight: 600 !important;
+	}
+	.hcap-page-root :global(button.bg-blue-600),
+	.hcap-page-root :global(button[class*="bg-blue"]) {
+		background: var(--ink) !important;
+		color: var(--paper) !important;
+		border: 1px solid var(--ink) !important;
+		border-radius: 0 !important;
+		font-weight: 600 !important;
+	}
+	.hcap-page-root :global(input),
+	.hcap-page-root :global(select) {
+		background: var(--paper-elevated) !important;
+		border: 1px solid var(--rule-strong) !important;
+		border-radius: 0 !important;
+		color: var(--ink) !important;
+	}
+	.hcap-page-root :global(.rounded),
+	.hcap-page-root :global(.rounded-lg),
+	.hcap-page-root :global(.rounded-md),
+	.hcap-page-root :global(.rounded-xl),
+	.hcap-page-root :global(.rounded-full) { border-radius: 0 !important; }
+	.hcap-page-root :global(.shadow),
+	.hcap-page-root :global(.shadow-sm),
+	.hcap-page-root :global(.shadow-md) { box-shadow: none !important; }
+</style>

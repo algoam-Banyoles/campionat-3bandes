@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import type { PageData } from './$types';
@@ -13,6 +13,7 @@
   import CalendarGenerator from '$lib/components/admin/CalendarGenerator.svelte';
   import PlayerRestrictionsTable from '$lib/components/campionats-socials/PlayerRestrictionsTable.svelte';
   import HeadToHeadGrid from '$lib/components/campionats-socials/HeadToHeadGrid.svelte';
+  import HeadToHeadPrintModal from '$lib/components/campionats-socials/HeadToHeadPrintModal.svelte';
   import HallOfFame from '$lib/components/campionats-socials/HallOfFame.svelte';
   import { user } from '$lib/stores/auth';
   import { isAdmin, adminUser } from '$lib/stores/adminAuth';
@@ -22,6 +23,10 @@
   import { supabase } from '$lib/supabaseClient';
   import { showSuccess, showError, showWarning, showInfo } from '$lib/stores/toastStore';
   import { showConfirm } from '$lib/stores/confirmDialogStore';
+  import {
+    subscribeToEventUpdates,
+    markEventLocallyMutated
+  } from '$lib/services/realtimeEventsService';
 
   export const data: PageData = {} as PageData; // Unused export for type compatibility
 
@@ -59,6 +64,9 @@
 
   // Variable per la categoria seleccionada a la graella head-to-head
   let selectedHeadToHeadCategory: any = null;
+  // Refs als modals d'impressió de la graella (un per branca; visualment idèntics)
+  let h2hPrintModalAdmin: HeadToHeadPrintModal | null = null;
+  let h2hPrintModalPublic: HeadToHeadPrintModal | null = null;
 
   function getHistoricalModality(modality: string | undefined): string | null {
     const map: Record<string, string> = {
@@ -301,6 +309,35 @@
     }
   }
 
+  // Realtime: canvis a l'event seleccionat (estat, publicació) propagats
+  // entre clients per a admins concurrents.
+  let unsubscribeEventRealtime: (() => void) | null = null;
+  $: {
+    if (unsubscribeEventRealtime) {
+      unsubscribeEventRealtime();
+      unsubscribeEventRealtime = null;
+    }
+    if (selectedEventId) {
+      unsubscribeEventRealtime = subscribeToEventUpdates(supabase, selectedEventId, async (e) => {
+        if (e.isLocalEcho) {
+          await loadEvents();
+          return;
+        }
+        if (e.type === 'estat_changed') {
+          showInfo(`Estat del campionat actualitzat: ${e.newRow?.estat_competicio ?? '?'}`);
+        } else if (e.type === 'calendari_published') {
+          showInfo('Calendari publicat per un altre admin');
+        } else if (e.type === 'actiu_toggled') {
+          showInfo(e.newRow?.actiu ? 'Campionat activat' : 'Campionat desactivat');
+        }
+        await loadEvents();
+      });
+    }
+  }
+  onDestroy(() => {
+    if (unsubscribeEventRealtime) unsubscribeEventRealtime();
+  });
+
   // Carregar events
   async function loadEvents() {
     try {
@@ -338,6 +375,7 @@
   // Actualitzar estat del campionat
   async function updateEventStatus(eventId: string, newStatus: string) {
     try {
+      markEventLocallyMutated(eventId);
       const { error } = await supabase
         .from('events')
         .update({ estat_competicio: newStatus })
@@ -697,80 +735,60 @@
   <title>Campionats Socials - Campionat 3 Bandes</title>
 </svelte:head>
 
-<div class="px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8 lg:space-y-10 pb-safe">
-  <!-- Header -->
-  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6">
-    <div class="flex-1 min-w-0">
-      <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold leading-7 text-gray-900">
+<div class="socials-page pb-safe">
+  <!-- ────────── Mast-head editorial ────────── -->
+  <header class="page-mast">
+    <div class="page-mast-head">
+      <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">
         Campionats Socials
-      </h2>
-      <p class="mt-1 text-sm sm:text-base text-gray-500">
-        Competicions socials per modalitats: Lliure, Banda i 3 Bandes
+      </div>
+      <h1 class="page-title">Socials per categories</h1>
+      <p class="page-lede">
+        Competicions socials per modalitats: 3 Bandes, Lliure i Banda
       </p>
     </div>
-    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:space-x-4">
-      <!-- Navegació ràpida amb touch targets millors -->
-      <div class="flex bg-gray-100 rounded-lg p-1 w-full sm:w-auto min-h-[44px]">
-        <button
-          on:click={() => setView('active')}
-          class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px] touch-manipulation"
-          class:bg-white={activeView === 'active'}
-          class:text-gray-900={activeView === 'active'}
-          class:shadow-sm={activeView === 'active'}
-          class:text-gray-500={activeView !== 'active'}
-          class:hover:text-gray-700={activeView !== 'active'}
-        >
-          🏃 Actius
-        </button>
-        <button
-          on:click={() => setView('history')}
-          class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px] touch-manipulation"
-          class:bg-white={activeView === 'history'}
-          class:text-gray-900={activeView === 'history'}
-          class:shadow-sm={activeView === 'history'}
-          class:text-gray-500={activeView !== 'history'}
-          class:hover:text-gray-700={activeView !== 'history'}
-        >
-          📚 Historial
-        </button>
-        <button
-          on:click={() => setView('hall-of-fame')}
-          class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px] touch-manipulation"
-          class:bg-white={activeView === 'hall-of-fame'}
-          class:text-gray-900={activeView === 'hall-of-fame'}
-          class:shadow-sm={activeView === 'hall-of-fame'}
-          class:text-gray-500={activeView !== 'hall-of-fame'}
-          class:hover:text-gray-700={activeView !== 'hall-of-fame'}
-        >
-          🏆 Quadre d'Honor
-        </button>
-        {#if isUserAdmin}
-          <button
-            on:click={() => setView('preparation')}
-            class="flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors min-h-[40px] touch-manipulation"
-            class:bg-white={activeView === 'preparation'}
-            class:text-gray-900={activeView === 'preparation'}
-            class:shadow-sm={activeView === 'preparation'}
-            class:text-gray-500={activeView !== 'preparation'}
-            class:hover:text-gray-700={activeView !== 'preparation'}
-          >
-            🔧 Preparació
-          </button>
-          <button
-            on:click={() => setView('pagaments')}
-            class="flex-1 sm:flex-none px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium transition-colors"
-            class:bg-white={activeView === 'pagaments'}
-            class:text-gray-900={activeView === 'pagaments'}
-            class:shadow-sm={activeView === 'pagaments'}
-            class:text-gray-500={activeView !== 'pagaments'}
-            class:hover:text-gray-700={activeView !== 'pagaments'}
-          >
-            💶 Pagaments
-          </button>
-        {/if}
-      </div>
-    </div>
-  </div>
+  </header>
+
+  <!-- ────────── Subtabs editorials ────────── -->
+  <nav class="page-subtabs" aria-label="Vistes de campionats socials">
+    <button
+      on:click={() => setView('active')}
+      class="subtab"
+      class:active={activeView === 'active'}
+    >
+      Actius
+    </button>
+    <button
+      on:click={() => setView('history')}
+      class="subtab"
+      class:active={activeView === 'history'}
+    >
+      Historial
+    </button>
+    <button
+      on:click={() => setView('hall-of-fame')}
+      class="subtab"
+      class:active={activeView === 'hall-of-fame'}
+    >
+      Quadre d'honor
+    </button>
+    {#if isUserAdmin}
+      <button
+        on:click={() => setView('preparation')}
+        class="subtab subtab-admin"
+        class:active={activeView === 'preparation'}
+      >
+        Preparació
+      </button>
+      <button
+        on:click={() => setView('pagaments')}
+        class="subtab subtab-admin"
+        class:active={activeView === 'pagaments'}
+      >
+        Pagaments
+      </button>
+    {/if}
+  </nav>
 
   <!-- Pestanya de pagaments (només admins) -->
   {#if activeView === 'pagaments' && isUserAdmin}
@@ -947,83 +965,55 @@
               </div>
 
               <!-- Navegació de gestió -->
-              <div class="border-b border-gray-200 mb-6">
-                <nav class="-mb-px flex space-x-10 sm:space-x-12">
-                  <button
-                    on:click={() => managementView = 'inscriptions'}
-                    class="py-2 px-1 border-b-2 font-medium text-sm"
-                    class:border-orange-500={managementView === 'inscriptions'}
-                    class:text-orange-600={managementView === 'inscriptions'}
-                    class:border-transparent={managementView !== 'inscriptions'}
-                    class:text-gray-500={managementView !== 'inscriptions'}
-                    class:hover:text-gray-700={managementView !== 'inscriptions'}
-                    class:hover:border-gray-300={managementView !== 'inscriptions'}
-                  >
-                    👥 Inscripcions
-                  </button>
-                  <button
-                    on:click={() => managementView = 'categories'}
-                    class="py-2 px-1 border-b-2 font-medium text-sm"
-                    class:border-orange-500={managementView === 'categories'}
-                    class:text-orange-600={managementView === 'categories'}
-                    class:border-transparent={managementView !== 'categories'}
-                    class:text-gray-500={managementView !== 'categories'}
-                    class:hover:text-gray-700={managementView !== 'categories'}
-                    class:hover:border-gray-300={managementView !== 'categories'}
-                  >
-                    📂 Categories
-                  </button>
-                  <button
-                    on:click={() => managementView = 'restrictions'}
-                    class="py-2 px-1 border-b-2 font-medium text-sm"
-                    class:border-orange-500={managementView === 'restrictions'}
-                    class:text-orange-600={managementView === 'restrictions'}
-                    class:border-transparent={managementView !== 'restrictions'}
-                    class:text-gray-500={managementView !== 'restrictions'}
-                    class:hover:text-gray-700={managementView !== 'restrictions'}
-                    class:hover:border-gray-300={managementView !== 'restrictions'}
-                  >
-                    🚫 Restriccions
-                  </button>
-                  <button
-                    on:click={() => managementView = 'generate-calendar'}
-                    class="py-2 px-1 border-b-2 font-medium text-sm relative"
-                    class:border-orange-500={managementView === 'generate-calendar'}
-                    class:text-orange-600={managementView === 'generate-calendar'}
-                    class:border-transparent={managementView !== 'generate-calendar'}
-                    class:text-gray-500={managementView !== 'generate-calendar'}
-                    class:hover:text-gray-700={managementView !== 'generate-calendar'}
-                    class:hover:border-gray-300={managementView !== 'generate-calendar'}
-                  >
-                    🔨 Generar Calendari
-                    {#if calendarStatus === 'not-generated'}
-                      <span class="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
-                    {/if}
-                  </button>
-                  <button
-                    on:click={() => managementView = 'view-calendar'}
-                    class="py-2 px-1 border-b-2 font-medium text-sm relative"
-                    class:border-orange-500={managementView === 'view-calendar'}
-                    class:text-orange-600={managementView === 'view-calendar'}
-                    class:border-transparent={managementView !== 'view-calendar'}
-                    class:text-gray-500={managementView !== 'view-calendar' && calendarStatus === 'not-generated'}
-                    class:hover:text-gray-700={managementView !== 'view-calendar' && calendarStatus !== 'not-generated'}
-                    class:hover:border-gray-300={managementView !== 'view-calendar' && calendarStatus !== 'not-generated'}
-                    disabled={false}
-                    class:opacity-50={calendarStatus === 'not-generated'}
-                    title={calendarStatus === 'not-generated' ? 'Calendari no generat encara' : 'Visualitzar calendari generat'}
-                  >
-                    📅 Visualitzar Calendari
-                    {#if calendarStatus === 'generated'}
-                      <span class="absolute -top-1 -right-1 h-3 w-3 bg-yellow-500 rounded-full"></span>
-                    {:else if calendarStatus === 'validated'}
-                      <span class="absolute -top-1 -right-1 h-3 w-3 bg-green-500 rounded-full"></span>
-                    {:else if calendarStatus === 'partially-validated'}
-                      <span class="absolute -top-1 -right-1 h-3 w-3 bg-blue-500 rounded-full"></span>
-                    {/if}
-                  </button>
-                </nav>
-              </div>
+              <nav class="page-subtabs inner-subtabs" aria-label="Vistes de preparació">
+                <button
+                  on:click={() => managementView = 'inscriptions'}
+                  class="subtab subtab-admin"
+                  class:active={managementView === 'inscriptions'}
+                >
+                  Inscripcions
+                </button>
+                <button
+                  on:click={() => managementView = 'categories'}
+                  class="subtab subtab-admin"
+                  class:active={managementView === 'categories'}
+                >
+                  Categories
+                </button>
+                <button
+                  on:click={() => managementView = 'restrictions'}
+                  class="subtab subtab-admin"
+                  class:active={managementView === 'restrictions'}
+                >
+                  Restriccions
+                </button>
+                <button
+                  on:click={() => managementView = 'generate-calendar'}
+                  class="subtab subtab-admin subtab-with-dot"
+                  class:active={managementView === 'generate-calendar'}
+                >
+                  Generar calendari
+                  {#if calendarStatus === 'not-generated'}
+                    <span class="status-dot dot-red" title="Calendari no generat"></span>
+                  {/if}
+                </button>
+                <button
+                  on:click={() => managementView = 'view-calendar'}
+                  class="subtab subtab-admin subtab-with-dot"
+                  class:active={managementView === 'view-calendar'}
+                  class:disabled={calendarStatus === 'not-generated'}
+                  title={calendarStatus === 'not-generated' ? 'Calendari no generat encara' : 'Visualitzar calendari generat'}
+                >
+                  Visualitzar calendari
+                  {#if calendarStatus === 'generated'}
+                    <span class="status-dot dot-amber" title="Pendent de validació"></span>
+                  {:else if calendarStatus === 'validated'}
+                    <span class="status-dot dot-green" title="Validat"></span>
+                  {:else if calendarStatus === 'partially-validated'}
+                    <span class="status-dot dot-blue" title="Parcialment validat"></span>
+                  {/if}
+                </button>
+              </nav>
 
               <!-- Contingut segons la vista de gestió -->
               {#if managementView === 'inscriptions'}
@@ -1227,75 +1217,48 @@
                   </div>
 
                 <!-- Navegació interna del campionat -->
-                <div class="border-b border-gray-200 mb-6">
-                  <nav class="-mb-px flex space-x-6 sm:space-x-8">
-                    <button
-                      on:click={() => managementView = 'view-calendar'}
-                      class="py-2 px-1 border-b-2 font-medium text-sm"
-                      class:border-green-500={managementView === 'view-calendar'}
-                      class:text-green-600={managementView === 'view-calendar'}
-                      class:border-transparent={managementView !== 'view-calendar'}
-                      class:text-gray-500={managementView !== 'view-calendar'}
-                      class:hover:text-gray-700={managementView !== 'view-calendar'}
-                      class:hover:border-gray-300={managementView !== 'view-calendar'}
-                    >
-                      📅 Calendari
-                    </button>
-                    <button
-                      on:click={() => managementView = 'results'}
-                      class="py-2 px-1 border-b-2 font-medium text-sm"
-                      class:border-green-500={managementView === 'results'}
-                      class:text-green-600={managementView === 'results'}
-                      class:border-transparent={managementView !== 'results'}
-                      class:text-gray-500={managementView !== 'results'}
-                      class:hover:text-gray-700={managementView !== 'results'}
-                      class:hover:border-gray-300={managementView !== 'results'}
-                    >
-                      ⚡ Resultats
-                    </button>
-                    <button
-                      on:click={() => {
-                        managementView = 'head-to-head';
-                        if (!selectedHeadToHeadCategory && selectedEvent?.categories?.length > 0) {
-                          selectedHeadToHeadCategory = selectedEvent.categories[0];
-                        }
-                      }}
-                      class="py-2 px-1 border-b-2 font-medium text-sm"
-                      class:border-green-500={managementView === 'head-to-head'}
-                      class:text-green-600={managementView === 'head-to-head'}
-                      class:border-transparent={managementView !== 'head-to-head'}
-                      class:text-gray-500={managementView !== 'head-to-head'}
-                      class:hover:text-gray-700={managementView !== 'head-to-head'}
-                      class:hover:border-gray-300={managementView !== 'head-to-head'}
-                    >
-                      🔲 Graelles
-                    </button>
-                    <button
-                      on:click={() => managementView = 'standings'}
-                      class="py-2 px-1 border-b-2 font-medium text-sm"
-                      class:border-green-500={managementView === 'standings'}
-                      class:text-green-600={managementView === 'standings'}
-                      class:border-transparent={managementView !== 'standings'}
-                      class:text-gray-500={managementView !== 'standings'}
-                      class:hover:text-gray-700={managementView !== 'standings'}
-                      class:hover:border-gray-300={managementView !== 'standings'}
-                    >
-                      📊 Classificació
-                    </button>
-                    <button
-                      on:click={() => managementView = 'inscriptions'}
-                      class="py-2 px-1 border-b-2 font-medium text-sm"
-                      class:border-green-500={managementView === 'inscriptions'}
-                      class:text-green-600={managementView === 'inscriptions'}
-                      class:border-transparent={managementView !== 'inscriptions'}
-                      class:text-gray-500={managementView !== 'inscriptions'}
-                      class:hover:text-gray-700={managementView !== 'inscriptions'}
-                      class:hover:border-gray-300={managementView !== 'inscriptions'}
-                    >
-                      👥 Jugadors
-                    </button>
-                  </nav>
-                </div>
+                <nav class="page-subtabs inner-subtabs" aria-label="Vistes del campionat">
+                  <button
+                    on:click={() => managementView = 'view-calendar'}
+                    class="subtab"
+                    class:active={managementView === 'view-calendar'}
+                  >
+                    Calendari
+                  </button>
+                  <button
+                    on:click={() => managementView = 'results'}
+                    class="subtab"
+                    class:active={managementView === 'results'}
+                  >
+                    Resultats
+                  </button>
+                  <button
+                    on:click={() => {
+                      managementView = 'head-to-head';
+                      if (!selectedHeadToHeadCategory && selectedEvent?.categories?.length > 0) {
+                        selectedHeadToHeadCategory = selectedEvent.categories[0];
+                      }
+                    }}
+                    class="subtab"
+                    class:active={managementView === 'head-to-head'}
+                  >
+                    Graelles
+                  </button>
+                  <button
+                    on:click={() => managementView = 'standings'}
+                    class="subtab"
+                    class:active={managementView === 'standings'}
+                  >
+                    Classificació
+                  </button>
+                  <button
+                    on:click={() => managementView = 'inscriptions'}
+                    class="subtab"
+                    class:active={managementView === 'inscriptions'}
+                  >
+                    Jugadors
+                  </button>
+                </nav>
 
                 <!-- Contingut segons la vista seleccionada -->
                 {#if managementView === 'view-calendar'}
@@ -1340,26 +1303,28 @@
 
                 {:else if managementView === 'head-to-head'}
                   <!-- Graella de resultats creuats -->
-                  <div class="space-y-6">
-                    <!-- Selector de categoria amb botons -->
-                    <div class="space-y-4">
-                      <h3 class="text-lg font-semibold text-gray-900">Graella de Resultats Creuats</h3>
-                      <div class="flex flex-wrap gap-2">
+                  <div class="h2h-public">
+                    <div class="h2h-toolbar">
+                      <div class="cat-toggle">
                         {#each selectedEvent.categories || [] as category}
                           <button
                             on:click={() => selectedHeadToHeadCategory = category}
-                            class="px-4 py-2 rounded-lg font-medium transition-colors"
-                            class:bg-green-600={selectedHeadToHeadCategory?.id === category.id}
-                            class:text-white={selectedHeadToHeadCategory?.id === category.id}
-                            class:bg-gray-200={selectedHeadToHeadCategory?.id !== category.id}
-                            class:text-gray-700={selectedHeadToHeadCategory?.id !== category.id}
-                            class:hover:bg-green-500={selectedHeadToHeadCategory?.id === category.id}
-                            class:hover:bg-gray-300={selectedHeadToHeadCategory?.id !== category.id}
+                            class="cat-pill"
+                            class:active={selectedHeadToHeadCategory?.id === category.id}
                           >
                             {category.nom}
                           </button>
                         {/each}
                       </div>
+                      <button
+                        type="button"
+                        class="h2h-print-btn"
+                        on:click={() => h2hPrintModalAdmin?.open()}
+                        disabled={!(selectedEvent?.categories?.length)}
+                        title="Exportar la graella en format A3 apaïsat"
+                      >
+                        Imprimir (A3)
+                      </button>
                     </div>
 
                     <!-- Component de graella -->
@@ -1370,9 +1335,17 @@
                         categoriaNom={selectedHeadToHeadCategory.nom}
                       />
                     {:else}
-                      <div class="text-center py-12 text-gray-500">
-                        Selecciona una categoria per veure la graella de resultats
+                      <div class="state-empty">
+                        Selecciona una categoria per veure la graella de resultats.
                       </div>
+                    {/if}
+
+                    {#if selectedEvent}
+                      <HeadToHeadPrintModal
+                        bind:this={h2hPrintModalAdmin}
+                        event={selectedEvent}
+                        categories={selectedEvent.categories || []}
+                      />
                     {/if}
                   </div>
                 {/if}
@@ -1410,85 +1383,53 @@
 
               <!-- Dashboard públic simplificat -->
               {#if selectedEventId && selectedEvent}
-                <!-- Navegació per pestanyes públiques -->
-                <div class="bg-white shadow rounded-lg">
-                  <div class="border-b border-gray-200">
-                    <nav class="-mb-px flex space-x-4 md:space-x-6 px-6">
-                      <button
-                        on:click={() => managementView = 'view-calendar'}
-                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-sm"
-                        class:border-blue-500={managementView === 'view-calendar'}
-                        class:text-blue-600={managementView === 'view-calendar'}
-                        class:border-transparent={managementView !== 'view-calendar'}
-                        class:text-gray-500={managementView !== 'view-calendar'}
-                        class:hover:text-gray-700={managementView !== 'view-calendar'}
-                        title="Calendari"
-                      >
-                        <span class="md:hidden">📅</span>
-                        <span class="hidden md:inline">📅 Calendari</span>
-                      </button>
-                      <button
-                        on:click={() => managementView = 'results'}
-                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-sm"
-                        class:border-blue-500={managementView === 'results'}
-                        class:text-blue-600={managementView === 'results'}
-                        class:border-transparent={managementView !== 'results'}
-                        class:text-gray-500={managementView !== 'results'}
-                        class:hover:text-gray-700={managementView !== 'results'}
-                        title="Resultats"
-                      >
-                        <span class="md:hidden">⚡</span>
-                        <span class="hidden md:inline">⚡ Resultats</span>
-                      </button>
-                      <button
-                        on:click={() => {
-                          managementView = 'head-to-head';
-                          if (!selectedHeadToHeadCategory && selectedEvent?.categories?.length > 0) {
-                            selectedHeadToHeadCategory = selectedEvent.categories[0];
-                          }
-                        }}
-                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-sm"
-                        class:border-blue-500={managementView === 'head-to-head'}
-                        class:text-blue-600={managementView === 'head-to-head'}
-                        class:border-transparent={managementView !== 'head-to-head'}
-                        class:text-gray-500={managementView !== 'head-to-head'}
-                        class:hover:text-gray-700={managementView !== 'head-to-head'}
-                        title="Graelles"
-                      >
-                        <span class="md:hidden">🔲</span>
-                        <span class="hidden md:inline">🔲 Graelles</span>
-                      </button>
-                      <button
-                        on:click={() => managementView = 'standings'}
-                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-sm"
-                        class:border-blue-500={managementView === 'standings'}
-                        class:text-blue-600={managementView === 'standings'}
-                        class:border-transparent={managementView !== 'standings'}
-                        class:text-gray-500={managementView !== 'standings'}
-                        class:hover:text-gray-700={managementView !== 'standings'}
-                        title="Classificacions"
-                      >
-                        <span class="md:hidden">📊</span>
-                        <span class="hidden md:inline">📊 Classificació</span>
-                      </button>
-                      <button
-                        on:click={() => managementView = 'inscriptions'}
-                        class="py-3 px-1 border-b-2 font-medium text-2xl md:text-sm"
-                        class:border-blue-500={managementView === 'inscriptions'}
-                        class:text-blue-600={managementView === 'inscriptions'}
-                        class:border-transparent={managementView !== 'inscriptions'}
-                        class:text-gray-500={managementView !== 'inscriptions'}
-                        class:hover:text-gray-700={managementView !== 'inscriptions'}
-                        title="Jugadors"
-                      >
-                        <span class="md:hidden">👥</span>
-                        <span class="hidden md:inline">👥 Jugadors</span>
-                      </button>
-                    </nav>
-                  </div>
+                <!-- Navegació interna del campionat (idèntica a l'admin per congruència visual) -->
+                <nav class="page-subtabs inner-subtabs" aria-label="Vistes del campionat">
+                  <button
+                    on:click={() => managementView = 'view-calendar'}
+                    class="subtab"
+                    class:active={managementView === 'view-calendar'}
+                  >
+                    Calendari
+                  </button>
+                  <button
+                    on:click={() => managementView = 'results'}
+                    class="subtab"
+                    class:active={managementView === 'results'}
+                  >
+                    Resultats
+                  </button>
+                  <button
+                    on:click={() => {
+                      managementView = 'head-to-head';
+                      if (!selectedHeadToHeadCategory && selectedEvent?.categories?.length > 0) {
+                        selectedHeadToHeadCategory = selectedEvent.categories[0];
+                      }
+                    }}
+                    class="subtab"
+                    class:active={managementView === 'head-to-head'}
+                  >
+                    Graelles
+                  </button>
+                  <button
+                    on:click={() => managementView = 'standings'}
+                    class="subtab"
+                    class:active={managementView === 'standings'}
+                  >
+                    Classificació
+                  </button>
+                  <button
+                    on:click={() => managementView = 'inscriptions'}
+                    class="subtab"
+                    class:active={managementView === 'inscriptions'}
+                  >
+                    Jugadors
+                  </button>
+                </nav>
 
-                  <!-- Contingut de cada pestanya -->
-                  <div class="p-6">
+                <!-- Contingut de cada pestanya -->
+                <div class="public-tab-content">
+                  <div>
                     {#if managementView === 'view-calendar'}
                       <!-- Calendari -->
                       <SocialLeagueCalendarViewer
@@ -1525,26 +1466,28 @@
 
                     {:else if managementView === 'head-to-head'}
                       <!-- Graella de resultats creuats -->
-                      <div class="space-y-6">
-                        <!-- Selector de categoria amb botons -->
-                        <div class="space-y-4">
-                          <h3 class="text-lg font-semibold text-gray-900">Graella de Resultats Creuats</h3>
-                          <div class="flex flex-wrap gap-2">
+                      <div class="h2h-public">
+                        <div class="h2h-toolbar">
+                          <div class="cat-toggle">
                             {#each selectedEvent.categories || [] as category}
                               <button
                                 on:click={() => selectedHeadToHeadCategory = category}
-                                class="px-4 py-2 rounded-lg font-medium transition-colors"
-                                class:bg-blue-600={selectedHeadToHeadCategory?.id === category.id}
-                                class:text-white={selectedHeadToHeadCategory?.id === category.id}
-                                class:bg-gray-200={selectedHeadToHeadCategory?.id !== category.id}
-                                class:text-gray-700={selectedHeadToHeadCategory?.id !== category.id}
-                                class:hover:bg-blue-500={selectedHeadToHeadCategory?.id === category.id}
-                                class:hover:bg-gray-300={selectedHeadToHeadCategory?.id !== category.id}
+                                class="cat-pill"
+                                class:active={selectedHeadToHeadCategory?.id === category.id}
                               >
                                 {category.nom}
                               </button>
                             {/each}
                           </div>
+                          <button
+                            type="button"
+                            class="h2h-print-btn"
+                            on:click={() => h2hPrintModalPublic?.open()}
+                            disabled={!(selectedEvent?.categories?.length)}
+                            title="Exportar la graella en format A3 apaïsat"
+                          >
+                            Imprimir (A3)
+                          </button>
                         </div>
 
                         <!-- Component de graella -->
@@ -1555,9 +1498,17 @@
                             categoriaNom={selectedHeadToHeadCategory.nom}
                           />
                         {:else}
-                          <div class="text-center py-12 text-gray-500">
-                            Selecciona una categoria per veure la graella de resultats
+                          <div class="state-empty">
+                            Selecciona una categoria per veure la graella de resultats.
                           </div>
+                        {/if}
+
+                        {#if selectedEvent}
+                          <HeadToHeadPrintModal
+                            bind:this={h2hPrintModalPublic}
+                            event={selectedEvent}
+                            categories={selectedEvent.categories || []}
+                          />
                         {/if}
                       </div>
                     {/if}
@@ -1579,122 +1530,117 @@
     {/if}
 
   {:else if activeView === 'history'}
-    <!-- Historial -->
-    <div class="bg-white shadow rounded-lg">
-      <div class="px-4 py-5 sm:p-6">
-        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
-          Historial de Campionats
-        </h3>
+    <!-- Historial editorial -->
+    <section class="hist-section">
+      <header class="hist-header">
+        <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">Campionats finalitzats</div>
+        <h2 class="hist-title">Historial</h2>
+      </header>
 
-        <!-- Filtres amb millor responsivitat mòbil -->
-        <div class="mb-6 bg-gray-50 rounded-lg p-3 sm:p-4">
-          <h4 class="text-sm sm:text-base font-medium text-gray-900 mb-3">Filtres</h4>
-          <div class="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-4">
-            <!-- Filtre de Modalitat -->
-            <div>
-              <label for="history-modalitat" class="block text-sm font-medium text-gray-700 mb-2">Modalitat</label>
-              <select
-                id="history-modalitat"
-                bind:value={historyModalityFilter}
-                class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[44px] touch-manipulation bg-white"
-              >
-                <option value="">Totes les modalitats</option>
-                <option value="tres_bandes">3 Bandes</option>
-                <option value="lliure">Lliure</option>
-                <option value="banda">Banda</option>
-              </select>
-            </div>
+      <!-- Accés a vistes de mitjanes (per temporada i comparativa) -->
+      <nav class="hist-extra-nav" aria-label="Mitjanes històriques">
+        <a href="/campionats-socials/mitjanes-historiques" class="hist-extra-link">
+          <span class="hist-extra-eyebrow">Mitjanes per temporada</span>
+          <span class="hist-extra-cta">Veure totes les mitjanes registrades →</span>
+        </a>
+        <a href="/campionats-socials/mitjanes-comparatives" class="hist-extra-link">
+          <span class="hist-extra-eyebrow">Comparativa entre temporades</span>
+          <span class="hist-extra-cta">Comparar dues últimes temporades →</span>
+        </a>
+      </nav>
 
-            <!-- Filtre de Temporada -->
-            <div>
-              <label for="history-temporada" class="block text-sm font-medium text-gray-700 mb-2">Temporada</label>
-              <select
-                id="history-temporada"
-                bind:value={historySeasonFilter}
-                class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[44px] touch-manipulation bg-white"
-              >
-                <option value="">Totes les temporades</option>
-                {#each [...new Set(historicalEvents.map(e => e.temporada))].sort().reverse() as temporada}
-                  <option value={temporada}>{temporada}</option>
-                {/each}
-              </select>
-            </div>
-
-            <!-- Botó per netejar filtres -->
-            <div class="flex items-end">
-              <button
-                on:click={() => {
-                  historyModalityFilter = '';
-                  historySeasonFilter = '';
-                }}
-                class="w-full px-4 py-3 text-sm sm:text-base bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors min-h-[44px] touch-manipulation font-medium"
-              >
-                🗑️ Netejar filtres
-              </button>
-            </div>
-          </div>
+      <!-- Filtres -->
+      <div class="hist-filters">
+        <div class="hist-filter-field">
+          <label for="history-modalitat" class="filter-legend">Modalitat</label>
+          <select
+            id="history-modalitat"
+            bind:value={historyModalityFilter}
+            class="filter-input"
+          >
+            <option value="">Totes les modalitats</option>
+            <option value="tres_bandes">3 Bandes</option>
+            <option value="lliure">Lliure</option>
+            <option value="banda">Banda</option>
+          </select>
         </div>
 
-        {#if filteredHistoricalEvents.length > 0}
-          <div class="space-y-4">
-            {#each filteredHistoricalEvents.slice(0, displayLimit) as event}
-              <div class="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div class="flex-1 min-w-0">
-                    <h4 class="font-medium text-gray-900 text-base sm:text-lg">{event.nom}</h4>
-                    <p class="text-sm text-gray-500 mt-1">
-                      Temporada {event.temporada} •
-                      {event.modalitat === 'tres_bandes' ? '3 Bandes' :
-                       event.modalitat === 'lliure' ? 'Lliure' : 'Banda'}
-                    </p>
-                  </div>
-                  <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    <span class="inline-flex items-center justify-center px-3 py-2 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      ✅ Finalitzat
-                    </span>
-                    <a
-                      href="/campionats-socials/{event.id}/classificacio?from=history"
-                      class="inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors min-h-[44px] touch-manipulation"
-                    >
-                      📊 Classificació
-                    </a>
-                  </div>
+        <div class="hist-filter-field">
+          <label for="history-temporada" class="filter-legend">Temporada</label>
+          <select
+            id="history-temporada"
+            bind:value={historySeasonFilter}
+            class="filter-input"
+          >
+            <option value="">Totes les temporades</option>
+            {#each [...new Set(historicalEvents.map(e => e.temporada))].sort().reverse() as temporada}
+              <option value={temporada}>{temporada}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="hist-filter-field hist-filter-action">
+          <button
+            on:click={() => {
+              historyModalityFilter = '';
+              historySeasonFilter = '';
+            }}
+            class="hist-clear-btn"
+          >
+            Netejar filtres
+          </button>
+        </div>
+      </div>
+
+      {#if filteredHistoricalEvents.length > 0}
+        <ul class="hist-list">
+          {#each filteredHistoricalEvents.slice(0, displayLimit) as event}
+            <li class="hist-row">
+              <div class="hist-row-info">
+                <div class="hist-row-name">{event.nom}</div>
+                <div class="hist-row-meta">
+                  Temporada <strong>{event.temporada}</strong> ·
+                  {event.modalitat === 'tres_bandes' ? '3 Bandes' :
+                   event.modalitat === 'lliure' ? 'Lliure' : 'Banda'}
                 </div>
               </div>
-            {/each}
-          </div>
-
-          <!-- Controls de paginació amb millor touch targets -->
-          <div class="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div class="text-sm text-gray-500 text-center sm:text-left">
-              Mostrant {Math.min(displayLimit, filteredHistoricalEvents.length)} de {filteredHistoricalEvents.length} campionats
-            </div>
-            {#if filteredHistoricalEvents.length > displayLimit}
-              <button
-                on:click={() => displayLimit += 10}
-                class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-blue-600 bg-blue-100 hover:bg-blue-200 transition-colors min-h-[44px] touch-manipulation"
-              >
-                📋 Mostrar més campionats
-              </button>
-            {/if}
-          </div>
-        {:else}
-          <div class="text-center py-8">
-            {#if historyModalityFilter || historySeasonFilter}
-              <div class="text-center">
-                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <h3 class="mt-2 text-sm font-medium text-gray-900">No s'han trobat campionats</h3>
-                <p class="mt-1 text-sm text-gray-500">No hi ha cap campionat que compleixi els filtres aplicats.</p>
+              <div class="hist-row-actions">
+                <span class="hist-status">Finalitzat</span>
+                <a
+                  href="/campionats-socials/{event.id}/classificacio?from=history"
+                  class="hist-link"
+                >
+                  Veure classificació →
+                </a>
               </div>
-            {:else}
-              <p class="text-gray-500">No hi ha campionats històrics disponibles.</p>
-            {/if}
+            </li>
+          {/each}
+        </ul>
+
+        <div class="hist-pagination">
+          <div class="hist-pagination-meta tabular-nums">
+            Mostrant {Math.min(displayLimit, filteredHistoricalEvents.length)} de {filteredHistoricalEvents.length} campionats
           </div>
-        {/if}
-      </div>
-    </div>
+          {#if filteredHistoricalEvents.length > displayLimit}
+            <button
+              on:click={() => displayLimit += 10}
+              class="hist-more-btn"
+            >
+              Mostrar més →
+            </button>
+          {/if}
+        </div>
+      {:else}
+        <div class="state-empty" style="margin-top: 1.25rem;">
+          {#if historyModalityFilter || historySeasonFilter}
+            <div class="state-title">No s'han trobat campionats</div>
+            <div class="state-sub">No hi ha cap campionat que compleixi els filtres aplicats.</div>
+          {:else}
+            <div class="state-title">No hi ha campionats històrics</div>
+          {/if}
+        </div>
+      {/if}
+    </section>
 
   {:else if activeView === 'hall-of-fame'}
     <!-- Quadre d'Honor -->
@@ -1820,6 +1766,369 @@
 </div>
 
 <style>
+  /* ── Estils editorials del main page ──────────────── */
+  .socials-page {
+    width: 100%;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+
+  .page-mast {
+    padding: 1.5rem 0 1.25rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .page-mast-head { max-width: 56ch; }
+  .page-title {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 2.75rem;
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+    color: var(--ink);
+    margin: 0;
+    font-variation-settings: 'opsz' 32;
+  }
+  .page-lede {
+    margin: 0.85rem 0 0;
+    font-size: 1rem;
+    color: var(--ink-2);
+    font-weight: 500;
+    line-height: 1.55;
+  }
+
+  /* Subtabs */
+  .page-subtabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--rule);
+    margin-top: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .subtab {
+    background: transparent;
+    border: none;
+    padding: 0.85rem 0;
+    margin-right: 1.75rem;
+    color: var(--ink-3);
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 0.9375rem;
+    letter-spacing: -0.005em;
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+    min-height: 48px;
+  }
+  .subtab:hover { color: var(--ink-2); }
+  .subtab.active {
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .subtab.active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 1.75rem;
+    bottom: -1px;
+    height: 2px;
+    background: var(--ink);
+  }
+  .subtab.subtab-admin {
+    color: var(--accent);
+  }
+  .subtab.subtab-admin:hover { opacity: 0.8; }
+  .subtab.subtab-admin.active::after {
+    background: var(--accent);
+  }
+
+  @media (max-width: 640px) {
+    .page-title { font-size: 2rem; letter-spacing: -0.03em; }
+    .page-lede { font-size: 0.9375rem; }
+    .subtab { margin-right: 1.25rem; font-size: 0.875rem; }
+  }
+
+  /* Subtabs interns d'un campionat (gestió o detall) */
+  .inner-subtabs {
+    margin-bottom: 1.5rem;
+  }
+
+  /* Selector de categoria del head-to-head */
+  .h2h-public {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .h2h-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .h2h-print-btn {
+    background: var(--paper-elevated);
+    border: 1px solid var(--ink);
+    color: var(--ink);
+    padding: 0.5rem 1rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: -0.005em;
+    cursor: pointer;
+    min-height: 40px;
+  }
+  .h2h-print-btn:hover:not(:disabled) {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .h2h-print-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .cat-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .cat-pill {
+    background: transparent;
+    border: 1px solid var(--rule-strong);
+    color: var(--ink-2);
+    padding: 0.5rem 0.95rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: -0.005em;
+    cursor: pointer;
+    min-height: 40px;
+  }
+  .cat-pill:hover {
+    color: var(--ink);
+    border-color: var(--ink);
+  }
+  .cat-pill.active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .subtab.disabled { opacity: 0.5; cursor: not-allowed; }
+  .subtab-with-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    position: relative;
+  }
+  .status-dot {
+    display: inline-block;
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+  }
+  .status-dot.dot-red    { background: var(--accent); }
+  .status-dot.dot-amber  { background: var(--amber); }
+  .status-dot.dot-green  { background: var(--green); }
+  .status-dot.dot-blue   { background: var(--blue); }
+
+  /* ── Historial ─────────────────────────────────── */
+  .hist-section {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    padding: 1.5rem 1.75rem;
+    font-family: var(--font-sans);
+    color: var(--ink);
+  }
+  .hist-header {
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .hist-title {
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: -0.022em;
+    margin: 0;
+    line-height: 1.15;
+  }
+  .hist-extra-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+  .hist-extra-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.95rem 1.1rem;
+    border: 1px solid var(--rule-strong);
+    background: var(--paper);
+    color: var(--ink);
+    text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .hist-extra-link:hover {
+    background: var(--paper-elevated);
+    border-color: var(--ink);
+  }
+  .hist-extra-eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .hist-extra-cta {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  @media (max-width: 600px) {
+    .hist-extra-nav { grid-template-columns: 1fr; }
+  }
+  .hist-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 1rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+  }
+  .hist-filter-field { display: flex; flex-direction: column; }
+  .hist-filter-field .filter-legend {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 0.4rem;
+  }
+  .hist-filter-action { justify-content: flex-end; }
+  .filter-input {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule-strong);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    min-height: 44px;
+  }
+  .filter-input:focus {
+    outline: 2px solid var(--ink);
+    outline-offset: 1px;
+    border-color: var(--ink);
+  }
+  .hist-clear-btn {
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--ink);
+    padding: 0.55rem 1rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .hist-clear-btn:hover { opacity: 0.92; }
+  .hist-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .hist-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-top: 1px solid var(--rule);
+    flex-wrap: wrap;
+  }
+  .hist-row:last-child { border-bottom: 1px solid var(--rule); }
+  .hist-row-info { flex: 1; min-width: 0; }
+  .hist-row-name {
+    font-weight: 700;
+    font-size: 1.0625rem;
+    color: var(--ink);
+    letter-spacing: -0.014em;
+  }
+  .hist-row-meta {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--ink-3);
+  }
+  .hist-row-meta strong { color: var(--ink-2); font-weight: 700; }
+  .hist-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    flex-shrink: 0;
+  }
+  .hist-status {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-3);
+    border: 1px solid var(--rule-strong);
+    padding: 0.18rem 0.5rem;
+  }
+  .hist-link {
+    color: var(--blue);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    text-decoration: none;
+    border-bottom: 1px solid var(--blue);
+    padding-bottom: 1px;
+    white-space: nowrap;
+  }
+  .hist-link:hover { color: var(--ink); border-color: var(--ink); }
+  .hist-pagination {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .hist-pagination-meta {
+    font-size: 0.8125rem;
+    color: var(--ink-3);
+  }
+  .hist-more-btn {
+    background: transparent;
+    border: 1px solid var(--rule-strong);
+    color: var(--ink);
+    padding: 0.55rem 1rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .hist-more-btn:hover { border-color: var(--ink); }
+  .state-empty {
+    padding: 1.5rem 1.75rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    text-align: center;
+  }
+  .state-title { font-weight: 700; font-size: 1.0625rem; color: var(--ink); }
+  .state-sub { margin-top: 0.4rem; font-size: 0.875rem; color: var(--ink-3); }
+
+  @media (max-width: 640px) {
+    .hist-section { padding: 1rem 1.1rem; }
+    .hist-filters { grid-template-columns: 1fr; padding: 0.85rem; }
+    .hist-filter-action { justify-content: stretch; }
+    .hist-row { align-items: flex-start; }
+    .hist-row-actions { width: 100%; justify-content: space-between; }
+  }
+
   /* Estils normals - ocultar header en pantalla */
   :global(.payment-list-header) {
     display: none;

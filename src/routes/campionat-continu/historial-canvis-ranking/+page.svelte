@@ -1,11 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+    import { goto } from '$app/navigation';
     import Loader from '$lib/components/general/Loader.svelte';
     import Banner from '$lib/components/general/Banner.svelte';
     import { supabase } from '$lib/supabaseClient';
     import { formatSupabaseError } from '$lib/ui/alerts';
-    import { isAdmin } from '$lib/stores/adminAuth';
+    import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
     import { initAdminPage } from '$lib/utils/adminPage';
+
+    // Guard: només admins.
+    $: if ($adminChecked && !$isAdmin) {
+      goto('/campionat-continu/historial');
+    }
 
   type Change = {
     creat_el: string;
@@ -110,10 +116,15 @@
 </script>
 
 <svelte:head>
-  <title>Historial de moviments</title>
+  <title>Historial de canvis al rànquing</title>
 </svelte:head>
 
-<h1 class="text-2xl font-semibold mb-4">Historial de moviments</h1>
+<div class="hcr-root">
+  <header class="hcr-mast">
+    <div class="editorial-eyebrow">Rànquing continu · Auditoria</div>
+    <h1 class="hcr-title">Historial de canvis de posició</h1>
+    <p class="hcr-sub">Registre de moviments del rànquing: pujades, baixades, retirades i penalitzacions.</p>
+  </header>
 
 {#if $isAdmin}
   {#if loading && changes.length === 0}
@@ -167,7 +178,7 @@
               <td class="p-2">{r.motiu ?? '—'}</td>
               <td class="p-2">
                 {#if r.ref_challenge}
-                  <a href={`/admin/reptes/${r.ref_challenge}`} class="text-blue-600 underline">{r.ref_challenge}</a>
+                  <a href={`/campionat-continu/gestio-reptes/${r.ref_challenge}`} class="text-blue-600 underline">{r.ref_challenge}</a>
                 {:else}
                   —
                 {/if}
@@ -191,9 +202,78 @@
     {/if}
   {/if}
 {:else}
-  <p>No autoritzat</p>
+  <p class="muted">No autoritzat</p>
 {/if}
+</div>
 
 <style>
-  table th, table td { border-color: rgb(203 213 225); }
+  .hcr-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .hcr-mast {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .hcr-title {
+    margin: 0.4rem 0 0.4rem;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .hcr-sub {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ink-2, #4a443e);
+    max-width: 56ch;
+  }
+  .muted { color: var(--ink-3, #807a72); font-size: 0.875rem; }
+
+  /* Overrides Tailwind dins .hcr-root */
+  .hcr-root :global(table) { font-family: var(--font-sans, sans-serif); }
+  .hcr-root :global(table th),
+  .hcr-root :global(table td) { border-color: var(--rule, #e6e3dc); }
+  .hcr-root :global(thead.bg-slate-100) {
+    background: var(--paper, #fbfaf6) !important;
+    border-bottom: 1px solid var(--ink, #1a1814) !important;
+  }
+  .hcr-root :global(.bg-slate-100),
+  .hcr-root :global(.bg-slate-200) { background: var(--paper, #fbfaf6) !important; }
+  .hcr-root :global(.bg-slate-900) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .hcr-root :global(.text-slate-600),
+  .hcr-root :global(.text-slate-700) { color: var(--ink-2, #4a443e) !important; }
+  .hcr-root :global(.text-blue-600) { color: var(--ink, #1a1814) !important; }
+  .hcr-root :global(.rounded),
+  .hcr-root :global(.rounded-sm),
+  .hcr-root :global(.rounded-md),
+  .hcr-root :global(.rounded-lg),
+  .hcr-root :global(.rounded-xl),
+  .hcr-root :global(.rounded-full) { border-radius: 0 !important; }
+  .hcr-root :global(input),
+  .hcr-root :global(select) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .hcr-root :global(input:focus),
+  .hcr-root :global(select:focus) {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: -1px;
+  }
 </style>

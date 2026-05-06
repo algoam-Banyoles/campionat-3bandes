@@ -5,10 +5,13 @@
 /**
  * Formateja el nom complet d'un jugador a format: Inicials + Primer cognom
  *
+ * Detecta el connector català "i" entre els dos cognoms i el tracta correctament.
+ *
  * Exemples:
  * - "Albert Gómez Ametller" -> "A. Gómez"
+ * - "Joan Garcia i Pujol" -> "J. Garcia"   (format català amb "i")
  * - "José María Campos Gonzalez" -> "J. M. Campos"
- * - "Juan Felix Santos Gonzalez" -> "J. F. Santos"
+ * - "Francesc Pi i Margall" -> "F. Pi"
  *
  * @param nomComplet - El nom complet del jugador
  * @returns El nom formatat amb inicials i primer cognom
@@ -25,27 +28,45 @@ export function formatarNomJugador(nomComplet: string): string {
   }
 
   if (parts.length === 1) {
-    // Si només hi ha una paraula, retorna-la tal com està
     return parts[0];
   }
 
-  // Separar noms i cognoms
-  // Assumim que l'últim segment és sempre un cognom
-  const cognoms = [parts[parts.length - 1]];
-  const noms = parts.slice(0, -1);
+  // Detectar el connector català "i" (en minúscula i envoltat d'altres paraules).
+  // Format típic: "Nom [Nom2…] Cognom1 i Cognom2"
+  const iIndex = parts.findIndex(
+    (p, i) => i > 0 && i < parts.length - 1 && p.toLowerCase() === 'i'
+  );
 
-  // Si hi ha més d'una paraula abans de l'últim cognom, assumim que el penúltim també és cognom
-  if (parts.length > 2) {
-    cognoms.unshift(parts[parts.length - 2]);
-    noms.pop(); // Treiem el penúltim del array de noms
+  let noms: string[];
+  let cognoms: string[];
+
+  if (iIndex > 0) {
+    // Cas català: tot el que hi ha just abans de "i" és el primer cognom;
+    // la resta a l'esquerra (excloent el primer cognom) són noms.
+    noms = parts.slice(0, iIndex - 1);
+    cognoms = [parts[iIndex - 1], parts.slice(iIndex + 1).join(' ')];
+  } else {
+    // Format estàndard: assumim que l'últim segment és cognom; si hi ha 3+ parts,
+    // també tractem el penúltim com a cognom (cas dos cognoms sense "i").
+    cognoms = [parts[parts.length - 1]];
+    noms = parts.slice(0, -1);
+
+    if (parts.length > 2) {
+      cognoms.unshift(parts[parts.length - 2]);
+      noms.pop();
+    }
   }
 
-  // Crear inicials dels noms
+  // Si tot són cognoms (cas degenerat: nom complet sense nom de pila), retornem
+  // només el primer cognom — és el màxim que podem inferir.
+  if (noms.length === 0) {
+    return cognoms[0];
+  }
+
   const inicials = noms
     .map(nom => nom.charAt(0).toUpperCase() + '.')
     .join(' ');
 
-  // Primer cognom
   const primerCognom = cognoms[0];
 
   return `${inicials} ${primerCognom}`;

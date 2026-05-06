@@ -486,32 +486,29 @@
 	}
 </script>
 
-<div class="mx-auto max-w-full p-4 lg:max-w-screen-2xl">
+<div class="quadre-root">
 	<!-- Capçalera -->
-	<div class="mb-4 flex flex-wrap items-center gap-3 print:hidden">
-		<a href="/handicap" class="text-sm text-purple-600 hover:underline">← Hàndicap</a>
-		<h1 class="text-xl font-bold text-gray-900">Quadre</h1>
-		{#if event}
-			<span class="text-sm text-gray-500">{event.nom}</span>
-		{/if}
+	<header class="page-mast print:hidden">
+		<div>
+			<div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">
+				<a href="/handicap" class="back-link">← Hàndicap</a>
+				{#if event} · {event.nom}{/if}
+			</div>
+			<h1 class="page-title">Quadre</h1>
+		</div>
+		<div class="header-actions">
 
 		{#if !loading && !error}
 			{#if isFinalitzat}
-				<span class="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-800">
-					🏆 Finalitzat
-				</span>
+				<span class="status-badge status-finalitzat">Finalitzat</span>
 			{:else if isLocked}
-				<span class="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-					&#128274; Bloquejat (hi ha partides jugades)
-				</span>
+				<span class="status-badge status-locked">Bloquejat</span>
 			{:else}
-				<span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
-					&#9998; Editable
-				</span>
+				<span class="status-badge status-editable">Editable</span>
 			{/if}
 		{/if}
 
-		<div class="ml-auto flex flex-wrap gap-2">
+		<div class="actions-list">
 			{#if !loading && !error}
 				{#if $isAdmin}
 					{#if !isLocked && !isFinalitzat}
@@ -541,27 +538,23 @@
 						</button>
 					{/if}
 				{/if}
-				<button
-					type="button"
-					on:click={() => window.print()}
-					class="rounded border border-gray-300 bg-white px-3 py-1 text-xs text-gray-600 hover:bg-gray-50"
-				>
-					&#128438; Imprimir
+				<button type="button" on:click={() => window.print()} class="btn-action">
+					Imprimir →
 				</button>
 			{/if}
 		</div>
-	</div>
+	</header>
 
 	<!-- Capçalera visible només a impressió -->
-	<div class="mb-4 hidden print:block">
-		<h1 class="text-2xl font-bold text-gray-900">Quadre — {event?.nom ?? 'Hàndicap'}</h1>
-		<p class="text-sm text-gray-500">{new Date().toLocaleDateString('ca-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+	<div class="hidden print:block">
+		<h1>Quadre — {event?.nom ?? 'Hàndicap'}</h1>
+		<p>{new Date().toLocaleDateString('ca-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
 	</div>
 
 	{#if loading}
-		<p class="text-gray-500">Carregant bracket...</p>
+		<div class="state-empty">Carregant quadre…</div>
 	{:else if error}
-		<div class="rounded border border-red-300 bg-red-50 p-4 text-red-800">{error}</div>
+		<div class="state-empty error-state">{error}</div>
 	{:else}
 		<!-- ── Banner campió ──────────────────────────────────────────────────── -->
 		{#if isFinalitzat && championName}
@@ -649,7 +642,6 @@
 		</div>
 
 		<!-- ── Visualització bracket ──────────────────────────────────────────── -->
-		<div class="overflow-x-auto -mx-4 px-4">
 		<HandicapBracketView
 			{matchViews}
 			{filter}
@@ -658,7 +650,6 @@
 			{sistemaPuntuacio}
 			on:matchclick={(e) => openMatch(e.detail)}
 		/>
-		</div>
 	{/if}
 </div>
 
@@ -847,41 +838,133 @@
 {/if}
 
 <style>
-	@media print {
-		/* Orientació apaïsada */
-		@page {
-			size: landscape;
-			margin: 0.5cm;
-		}
+	.quadre-root {
+		max-width: 100%;
+		padding: 1rem;
+		display: flex; flex-direction: column; gap: 1.25rem;
+		font-family: var(--font-sans); color: var(--ink);
+	}
+	@media (min-width: 1024px) { .quadre-root { max-width: 100rem; margin: 0 auto; } }
 
-		/* Amagar navegació i controls */
+	.page-mast {
+		display: flex; justify-content: space-between; align-items: flex-end;
+		gap: 1rem; flex-wrap: wrap;
+		padding-bottom: 1rem;
+		border-bottom: 2px solid var(--ink);
+	}
+	.editorial-eyebrow {
+		font-size: 0.75rem; font-weight: 600;
+		letter-spacing: 0.16em; text-transform: uppercase;
+		color: var(--sec-handicap);
+	}
+	.back-link {
+		color: var(--sec-handicap); text-decoration: none;
+	}
+	.back-link:hover { color: var(--ink); }
+	.page-title {
+		font-weight: 800; font-size: 2rem;
+		letter-spacing: -0.025em; line-height: 1.05;
+		margin: 0; color: var(--ink);
+	}
+	.header-actions {
+		display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+	}
+	.actions-list {
+		display: flex; flex-wrap: wrap; gap: 0.4rem;
+	}
+
+	.status-badge {
+		display: inline-block;
+		padding: 0.18rem 0.5rem;
+		font-size: 0.625rem; font-weight: 700;
+		text-transform: uppercase; letter-spacing: 0.12em;
+		border: 1px solid;
+	}
+	.status-badge.status-finalitzat { color: var(--amber); border-color: var(--amber); }
+	.status-badge.status-locked { color: var(--accent); border-color: var(--accent); }
+	.status-badge.status-editable { color: var(--green); border-color: var(--green); }
+
+	.btn-action {
+		background: transparent; color: var(--ink);
+		border: 1px solid var(--rule-strong);
+		padding: 0.4rem 0.75rem;
+		font-family: var(--font-sans);
+		font-weight: 600; font-size: 0.75rem;
+		text-decoration: none;
+		cursor: pointer; min-height: 36px;
+	}
+	.btn-action:hover { border-color: var(--ink); }
+
+	.state-empty {
+		padding: 1.5rem 1.75rem;
+		background: var(--paper-elevated);
+		border: 1px solid var(--rule);
+		color: var(--ink-2);
+		text-align: center;
+	}
+	.state-empty.error-state { color: var(--accent); border-color: var(--accent); }
+
+	/* Tailwind overrides per botons existents dins el contenidor */
+	.quadre-root :global(button.bg-amber-50),
+	.quadre-root :global(a.bg-amber-50),
+	.quadre-root :global(button.border-amber-400),
+	.quadre-root :global(a.border-amber-400) {
+		background: transparent !important;
+		border: 1px solid var(--amber) !important;
+		color: var(--amber) !important;
+		border-radius: 0 !important;
+		font-weight: 600 !important;
+	}
+	.quadre-root :global(button.bg-red-50),
+	.quadre-root :global(button.border-red-400) {
+		background: transparent !important;
+		border: 1px solid var(--accent) !important;
+		color: var(--accent) !important;
+		border-radius: 0 !important;
+		font-weight: 600 !important;
+	}
+	.quadre-root :global(.bg-white),
+	.quadre-root :global(button.bg-white),
+	.quadre-root :global(a.bg-white) {
+		background: var(--paper-elevated) !important;
+	}
+	.quadre-root :global(.bg-yellow-50),
+	.quadre-root :global([class*='from-yellow-']),
+	.quadre-root :global([class*='to-amber-']) {
+		background: var(--paper-elevated) !important;
+		border: 1px solid var(--amber) !important;
+		border-radius: 0 !important;
+		box-shadow: none !important;
+	}
+	.quadre-root :global(.text-yellow-800),
+	.quadre-root :global(.text-yellow-900) { color: var(--amber) !important; }
+	.quadre-root :global(.text-purple-600),
+	.quadre-root :global(.text-purple-700),
+	.quadre-root :global(.text-purple-800),
+	.quadre-root :global(.text-purple-900) { color: var(--sec-handicap) !important; }
+	.quadre-root :global(.text-gray-500),
+	.quadre-root :global(.text-gray-600) { color: var(--ink-2) !important; }
+	.quadre-root :global(.rounded),
+	.quadre-root :global(.rounded-lg),
+	.quadre-root :global(.rounded-xl),
+	.quadre-root :global(.rounded-md),
+	.quadre-root :global(.rounded-full) { border-radius: 0 !important; }
+	.quadre-root :global(.shadow),
+	.quadre-root :global(.shadow-sm),
+	.quadre-root :global(.shadow-md),
+	.quadre-root :global(.shadow-lg) { box-shadow: none !important; }
+
+	@media print {
+		@page { size: landscape; margin: 0.5cm; }
 		:global(nav),
 		:global(header),
-		.print\:hidden {
-			display: none !important;
-		}
-
-		/* Mostrar capçalera d'impressió */
-		.print\:block {
-			display: block !important;
-		}
-
-		/* Eliminar restriccions de mida i padding del contenidor de pàgina */
-		.mx-auto {
-			max-width: none !important;
-			padding: 0 !important;
-			margin: 0 !important;
-		}
-
-		/* Eliminar overflow/scroll del contenidor exterior del bracket */
+		.print\:hidden { display: none !important; }
+		.print\:block { display: block !important; }
+		.quadre-root { max-width: none !important; padding: 0 !important; }
 		.overflow-x-auto {
 			overflow: visible !important;
 			max-width: none !important;
 			width: auto !important;
-			margin-left: 0 !important;
-			margin-right: 0 !important;
-			padding-left: 0 !important;
-			padding-right: 0 !important;
 		}
 	}
 </style>

@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { fkOne, normalizeSociFromFK } from '$lib/utils/supabaseJoins';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   let loading = true;
   let error: string | null = null;
@@ -267,133 +268,385 @@
     if (position === 3) return '🥉';
     return '';
   }
+
+  /**
+   * Estadístiques agregades a partir de winners + allPlayers.
+   * Sumen títols (1r), top-3 i mostren el rànquing de jugadors més
+   * laureats. Es calcula reactivament al canviar la temporada.
+   */
+  $: stats = (() => {
+    if (winners.length === 0) {
+      return {
+        totalChampionships: 0,
+        topChampions: [] as { numero_soci: number; nom: string; cognoms: string; titles: number; podiums: number }[],
+        bestMitjana: null as null | { player: string; mitjana: number; categoria: string; modalitat: string; temporada: string },
+        mostParticipations: [] as typeof allPlayers
+      };
+    }
+
+    const championsCount = new Map<number, { nom: string; cognoms: string; titles: number; podiums: number }>();
+
+    for (const w of winners as any[]) {
+      const numeroSoci = w.soci_numero;
+      if (numeroSoci == null) continue;
+      const sociRaw = Array.isArray(w.socis) ? w.socis[0] : w.socis;
+      const nom = sociRaw?.nom ?? '';
+      const cognoms = sociRaw?.cognoms ?? '';
+      const existing = championsCount.get(numeroSoci) ?? {
+        nom,
+        cognoms,
+        titles: 0,
+        podiums: 0
+      };
+      if (w.posicio === 1) existing.titles++;
+      if (w.posicio <= 3) existing.podiums++;
+      championsCount.set(numeroSoci, existing);
+    }
+
+    const topChampions = Array.from(championsCount.entries())
+      .map(([numero_soci, info]) => ({ numero_soci, ...info }))
+      .sort((a, b) => b.titles - a.titles || b.podiums - a.podiums)
+      .slice(0, 5);
+
+    const mostParticipations = [...allPlayers]
+      .sort((a, b) => b.totalParticipations - a.totalParticipations || b.uniqueSeasons - a.uniqueSeasons)
+      .slice(0, 5);
+
+    // Millor mitjana: cerquem entre els winners (que carreguem amb mitjana_particular)
+    type BestMitjana = { player: string; mitjana: number; categoria: string; modalitat: string; temporada: string };
+    let bestMitjana: BestMitjana | null = null;
+    for (const w of winners as any[]) {
+      if (typeof w.mitjana_particular === 'number' && w.mitjana_particular > 0) {
+        if (!bestMitjana || w.mitjana_particular > bestMitjana.mitjana) {
+          const sociRaw = Array.isArray(w.socis) ? w.socis[0] : w.socis;
+          bestMitjana = {
+            player: `${sociRaw?.nom ?? ''} ${sociRaw?.cognoms ?? ''}`.trim() || `Soci #${w.soci_numero}`,
+            mitjana: w.mitjana_particular,
+            categoria: w.categories?.nom ?? '',
+            modalitat: w.events?.modalitat ?? '',
+            temporada: w.events?.temporada ?? ''
+          };
+        }
+      }
+    }
+
+    return {
+      totalChampionships: winners.filter((w: any) => w.posicio === 1).length,
+      topChampions,
+      bestMitjana,
+      mostParticipations
+    };
+  })();
 </script>
 
-<div class="space-y-4">
-  <!-- Filtres -->
-  <div class="bg-white shadow rounded-lg p-4">
-    <h3 class="text-base font-semibold text-gray-900 mb-3">Filtres</h3>
-    <div class="grid grid-cols-1 gap-3">
-      <div>
-        <label for="season-filter" class="block text-xs font-medium text-gray-700 mb-1">
-          Temporada
-        </label>
-        <select
-          id="season-filter"
-          bind:value={selectedSeason}
-          class="block w-full rounded-md border-gray-300 text-sm py-1.5 focus:border-blue-500 focus:ring-blue-500"
-        >
-          <option value="">Totes les temporades</option>
-          {#each seasons as season}
-            <option value={season}>{season}</option>
-          {/each}
-        </select>
-      </div>
-    </div>
+<div class="hof-root">
+  <!-- Filtres editorial -->
+  <div class="hof-filters">
+    <label for="season-filter" class="filter-legend">Temporada</label>
+    <select
+      id="season-filter"
+      bind:value={selectedSeason}
+      class="filter-input"
+    >
+      <option value="">Totes les temporades</option>
+      {#each seasons as season}
+        <option value={season}>{season}</option>
+      {/each}
+    </select>
   </div>
 
   {#if loading}
-    <div class="text-center py-8">
-      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      <p class="mt-2 text-gray-600">Carregant dades...</p>
-    </div>
+    <div class="state-empty">Carregant dades…</div>
   {:else if error}
-    <div class="bg-red-50 border border-red-200 rounded-lg p-3">
-      <p class="text-red-800 text-sm">{error}</p>
-    </div>
+    <div class="state-empty error-state">{error}</div>
   {:else}
     <!-- Quadre d'Honor -->
-    <div class="bg-white shadow rounded-lg p-4">
-      <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
-        🏆 Quadre d'Honor
-      </h3>
+    <section class="hof-section">
+      <header class="hof-section-head">
+        <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">Quadre d'honor</div>
+        <h2 class="hof-section-title">Campions per categoria</h2>
+      </header>
 
       {#if Object.keys(winnersByEvent).length === 0}
-        <p class="text-gray-500 text-center py-6 text-sm">No hi ha classificacions disponibles amb els filtres seleccionats.</p>
+        <div class="state-empty" style="margin: 0; border: none;">
+          No hi ha classificacions disponibles amb els filtres seleccionats.
+        </div>
       {:else}
-        <div class="space-y-4">
+        <div class="hof-events">
           {#each Object.entries(winnersByEvent) as [_, eventData]}
             {@const typedEventData = eventData as any}
-            <div class="border border-gray-200 rounded-lg p-3">
-              <div class="mb-3">
-                <h4 class="font-bold text-base text-gray-900">{typedEventData.event.nom}</h4>
-                <div class="flex flex-wrap gap-1.5 mt-1.5">
-                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-800">
-                    {getModalityLabel(typedEventData.event.modalitat)}
-                  </span>
-                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-800">
-                    Temporada {typedEventData.event.temporada}
-                  </span>
-                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-800">
-                    {typedEventData.category.nom}
-                  </span>
+            <article class="hof-event">
+              <header class="hof-event-head">
+                <h3 class="hof-event-title">{typedEventData.event.nom}</h3>
+                <div class="hof-event-tags">
+                  <span class="hof-tag">{getModalityLabel(typedEventData.event.modalitat)}</span>
+                  <span class="hof-tag hof-tag-muted">Temporada {typedEventData.event.temporada}</span>
+                  <span class="hof-tag hof-tag-cat">{typedEventData.category.nom}</span>
                 </div>
-              </div>
+              </header>
 
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div class="hof-podium">
                 {#each typedEventData.winners.sort((a: any, b: any) => a.posicio - b.posicio) as winner}
                   {@const winnerSoci = normalizeSociFromFK(winner.socis)}
-                  <div class="bg-gradient-to-br {winner.posicio === 1 ? 'from-yellow-50 to-yellow-100 border-yellow-300' : winner.posicio === 2 ? 'from-gray-50 to-gray-100 border-gray-300' : 'from-orange-50 to-orange-100 border-orange-300'} border rounded-lg p-3 text-center">
-                    <div class="text-3xl mb-1">{getMedalEmoji(winner.posicio)}</div>
-                    <div class="font-bold text-base text-gray-900 leading-tight">
-                      {winnerSoci.nom ?? ''} {winnerSoci.cognoms ?? ''}
+                  <div class="hof-spot" data-pos={winner.posicio}>
+                    <div class="hof-pos tabular-nums">{String(winner.posicio).padStart(2, '0')}</div>
+                    <div class="hof-name">
+                      {formatarNomJugador(`${winnerSoci.nom ?? ''} ${winnerSoci.cognoms ?? ''}`.trim())}
                     </div>
-                    <div class="text-xs text-gray-600 mt-1">
-                      {winner.posicio === 1 ? '1r' : winner.posicio === 2 ? '2n' : '3r'} lloc
+                    <div class="hof-place">
+                      {winner.posicio === 1 ? 'Primer lloc' : winner.posicio === 2 ? 'Segon lloc' : 'Tercer lloc'}
                     </div>
                   </div>
                 {/each}
               </div>
-            </div>
+            </article>
           {/each}
         </div>
       {/if}
-    </div>
+    </section>
 
-    <!-- Llistat de tots els jugadors -->
-    <div class="bg-white shadow rounded-lg p-4">
-      <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
-        👥 Tots els Participants ({allPlayers.length})
-      </h3>
+    <!-- Llistat de participants -->
+    <section class="hof-section">
+      <header class="hof-section-head">
+        <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">Participants</div>
+        <h2 class="hof-section-title">Tots els participants <span class="hof-section-count tabular-nums">({allPlayers.length})</span></h2>
+      </header>
 
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
+      <div class="hof-table-wrap">
+        <table class="hof-table">
+          <thead>
             <tr>
-              <th scope="col" class="px-3 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">
-                Jugador
-              </th>
-              <th scope="col" class="px-3 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">
-                Núm. Soci
-              </th>
-              <th scope="col" class="px-3 py-2 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider">
-                Participacions
-              </th>
-              <th scope="col" class="px-3 py-2 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider">
-                Temporades
-              </th>
+              <th class="col-left">Jugador</th>
+              <th class="col-num">Participacions</th>
+              <th class="col-num">Temporades</th>
             </tr>
           </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
+          <tbody>
             {#each allPlayers as player}
-              <tr class="hover:bg-gray-50">
-                <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {player.cognoms}, {player.nom}
+              <tr>
+                <td class="col-left">
+                  <span class="player-name">{formatarNomJugador(`${player.nom ?? ''} ${player.cognoms ?? ''}`.trim())}</span>
                 </td>
-                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
-                  {player.numero_soci}
-                </td>
-                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 text-center">
-                  {player.totalParticipations}
-                </td>
-                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 text-center">
-                  {player.uniqueSeasons}
-                </td>
+                <td class="col-num tabular-nums">{player.totalParticipations}</td>
+                <td class="col-num tabular-nums">{player.uniqueSeasons}</td>
               </tr>
             {/each}
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
   {/if}
 </div>
+
+<style>
+  .hof-root {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    font-family: var(--font-sans);
+    color: var(--ink);
+  }
+
+  /* Filtres */
+  .hof-filters {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+  }
+  .filter-legend {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .filter-input {
+    padding: 0.5rem 0.75rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule-strong);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    min-height: 40px;
+    min-width: 14rem;
+  }
+  .filter-input:focus {
+    outline: 2px solid var(--ink);
+    outline-offset: 1px;
+    border-color: var(--ink);
+  }
+
+  /* Estats */
+  .state-empty {
+    padding: 1.75rem 2rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    text-align: center;
+  }
+  .state-empty.error-state { color: var(--accent); border-color: var(--accent); }
+
+  /* Secció */
+  .hof-section {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    padding: 1.5rem 1.75rem;
+  }
+  .hof-section-head {
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .hof-section-title {
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: -0.022em;
+    margin: 0;
+    line-height: 1.15;
+  }
+  .hof-section-count {
+    color: var(--ink-3);
+    font-weight: 500;
+    font-size: 1rem;
+    margin-left: 0.4rem;
+  }
+
+  /* Events */
+  .hof-events {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .hof-event {
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    padding: 1.25rem 1.5rem;
+  }
+  .hof-event-head {
+    margin-bottom: 1rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .hof-event-title {
+    font-weight: 700;
+    font-size: 1.125rem;
+    letter-spacing: -0.018em;
+    margin: 0 0 0.5rem;
+    color: var(--ink);
+  }
+  .hof-event-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .hof-tag {
+    display: inline-block;
+    padding: 0.18rem 0.55rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    border: 1px solid var(--ink);
+    color: var(--ink);
+  }
+  .hof-tag.hof-tag-muted {
+    color: var(--ink-3);
+    border-color: var(--rule-strong);
+  }
+  .hof-tag.hof-tag-cat {
+    color: var(--green);
+    border-color: var(--green);
+  }
+
+  /* Podium 1r/2n/3r */
+  .hof-podium {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border: 1px solid var(--rule);
+    background: var(--paper-elevated);
+  }
+  .hof-spot {
+    padding: 1.25rem 1rem;
+    border-right: 1px solid var(--rule);
+    text-align: center;
+  }
+  .hof-spot:last-child { border-right: none; }
+  .hof-spot[data-pos="1"] { border-top: 3px solid var(--accent); }
+  .hof-spot[data-pos="2"] { border-top: 3px solid var(--ink-3); }
+  .hof-spot[data-pos="3"] { border-top: 3px solid var(--amber); }
+  .hof-pos {
+    font-weight: 800;
+    font-size: 1.875rem;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--ink-3);
+    margin-bottom: 0.65rem;
+  }
+  .hof-spot[data-pos="1"] .hof-pos { color: var(--accent); }
+  .hof-spot[data-pos="3"] .hof-pos { color: var(--amber); }
+  .hof-name {
+    font-weight: 800;
+    font-size: 1rem;
+    letter-spacing: -0.018em;
+    color: var(--ink);
+    line-height: 1.2;
+  }
+  .hof-place {
+    margin-top: 0.4rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3);
+  }
+
+  /* Taula de participants */
+  .hof-table-wrap { overflow-x: auto; }
+  .hof-table { width: 100%; border-collapse: collapse; }
+  .hof-table th {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-3);
+    padding: 0.75rem 0.85rem;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+    background: var(--paper);
+  }
+  .hof-table th.col-left { text-align: left; }
+  .hof-table th.col-num { text-align: right; }
+  .hof-table td {
+    padding: 0.7rem 0.85rem;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.9375rem;
+    color: var(--ink);
+  }
+  .hof-table td.col-left { text-align: left; }
+  .hof-table td.col-num { text-align: right; }
+  .hof-table td.col-narrow { color: var(--ink-3); }
+  .hof-table tr:last-child td { border-bottom: none; }
+  .hof-table tr:hover { background: var(--paper); }
+  .player-name {
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.012em;
+  }
+
+  @media (max-width: 640px) {
+    .hof-section { padding: 1rem 1.1rem; }
+    .hof-event { padding: 1rem; }
+    .hof-podium { grid-template-columns: 1fr; }
+    .hof-spot { border-right: none; border-bottom: 1px solid var(--rule); }
+    .hof-spot:last-child { border-bottom: none; }
+    .hof-section-title { font-size: 1.25rem; }
+    .hof-filters { flex-direction: column; align-items: stretch; }
+    .filter-input { min-width: 0; width: 100%; }
+    .hof-table .col-narrow { display: none; }
+  }
+</style>

@@ -710,6 +710,146 @@ export async function getHeadToHeadResults(eventId: string, categoriaId: string)
 }
 
 /**
+ * Resultat d'una partida head-to-head amb context d'event i categoria.
+ */
+export interface HeadToHeadHistoryMatch {
+  id: string;
+  event_id: string;
+  event_nom: string | null;
+  event_temporada: string | null;
+  event_modalitat: string | null;
+  categoria_id: string | null;
+  categoria_nom: string | null;
+  data_joc: string | null;
+  data_programada: string | null;
+  /** Caramboles de player1 (l'usuari hi posa el seu primer soci en la query). */
+  caramboles_player1: number;
+  caramboles_player2: number;
+  entrades: number | null;
+  /** 1 = player1 guanya, 2 = player2 guanya, 0 = empat. */
+  winner: 0 | 1 | 2;
+}
+
+export interface HeadToHeadHistorySummary {
+  matches: HeadToHeadHistoryMatch[];
+  player1Wins: number;
+  player2Wins: number;
+  draws: number;
+  player1TotalCaramboles: number;
+  player2TotalCaramboles: number;
+  totalEntrades: number;
+}
+
+/**
+ * Llegeix totes les partides jugades entre dos socis a través de tots
+ * els events. Retorna els resultats amb `caramboles_player1` reordenats
+ * perquè sempre corresponguin a `player1SociNumero`.
+ */
+export async function getHeadToHeadHistory(
+  player1SociNumero: number,
+  player2SociNumero: number
+): Promise<HeadToHeadHistorySummary> {
+  if (!player1SociNumero || !player2SociNumero || player1SociNumero === player2SociNumero) {
+    return {
+      matches: [],
+      player1Wins: 0,
+      player2Wins: 0,
+      draws: 0,
+      player1TotalCaramboles: 0,
+      player2TotalCaramboles: 0,
+      totalEntrades: 0
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('calendari_partides')
+    .select(
+      `
+      id,
+      event_id,
+      categoria_id,
+      data_joc,
+      data_programada,
+      jugador1_soci_numero,
+      jugador2_soci_numero,
+      caramboles_jugador1,
+      caramboles_jugador2,
+      entrades,
+      partida_anullada,
+      events ( nom, temporada, modalitat ),
+      categories ( nom )
+    `
+    )
+    .or(
+      `and(jugador1_soci_numero.eq.${player1SociNumero},jugador2_soci_numero.eq.${player2SociNumero}),and(jugador1_soci_numero.eq.${player2SociNumero},jugador2_soci_numero.eq.${player1SociNumero})`
+    )
+    .not('caramboles_jugador1', 'is', null)
+    .not('caramboles_jugador2', 'is', null)
+    .or('partida_anullada.is.null,partida_anullada.eq.false')
+    .order('data_joc', { ascending: false, nullsFirst: false });
+
+  if (error) {
+    console.error('Error fetching head-to-head history:', error);
+    throw error;
+  }
+
+  const matches: HeadToHeadHistoryMatch[] = [];
+  let player1Wins = 0;
+  let player2Wins = 0;
+  let draws = 0;
+  let player1TotalCaramboles = 0;
+  let player2TotalCaramboles = 0;
+  let totalEntrades = 0;
+
+  for (const row of (data || []) as any[]) {
+    const evt = fkOne(row.events) as any;
+    const cat = fkOne(row.categories) as any;
+    // Normalitzem perquè caramboles_player1 sempre correspongui a player1SociNumero
+    const isPlayer1First = row.jugador1_soci_numero === player1SociNumero;
+    const car1 = isPlayer1First ? row.caramboles_jugador1 : row.caramboles_jugador2;
+    const car2 = isPlayer1First ? row.caramboles_jugador2 : row.caramboles_jugador1;
+
+    let winner: 0 | 1 | 2 = 0;
+    if (car1 > car2) winner = 1;
+    else if (car2 > car1) winner = 2;
+    else winner = 0;
+
+    if (winner === 1) player1Wins++;
+    else if (winner === 2) player2Wins++;
+    else draws++;
+    player1TotalCaramboles += car1 || 0;
+    player2TotalCaramboles += car2 || 0;
+    totalEntrades += row.entrades || 0;
+
+    matches.push({
+      id: row.id,
+      event_id: row.event_id,
+      event_nom: evt?.nom ?? null,
+      event_temporada: evt?.temporada ?? null,
+      event_modalitat: evt?.modalitat ?? null,
+      categoria_id: row.categoria_id,
+      categoria_nom: cat?.nom ?? null,
+      data_joc: row.data_joc,
+      data_programada: row.data_programada,
+      caramboles_player1: car1,
+      caramboles_player2: car2,
+      entrades: row.entrades,
+      winner
+    });
+  }
+
+  return {
+    matches,
+    player1Wins,
+    player2Wins,
+    draws,
+    player1TotalCaramboles,
+    player2TotalCaramboles,
+    totalEntrades
+  };
+}
+
+/**
  * Obtenir l'històric de mitjanes d'un jugador per modalitat
  */
 export async function getPlayerAverageHistory(playerNumeroSoci: number, modalitat?: string) {
@@ -749,7 +889,7 @@ export async function getPlayerAverageHistory(playerNumeroSoci: number, modalita
   const results = (data || []).map((record: any) => ({
     temporada: `${record.year - 1}-${record.year}`, // Convert year to temporada format (e.g., 2024 -> 2023-2024)
     modalitat: modalitatInverseMapping[record.modalitat] || record.modalitat.toLowerCase(),
-    event_nom: `Lliga Social ${record.modalitat} ${record.year - 1}-${record.year}`,
+    event_nom: `Social ${record.modalitat} ${record.year - 1}-${record.year}`,
     categoria_nom: '', // Not available in mitjanes_historiques
     posicio: 0, // Not available in mitjanes_historiques
     mitjana_particular: record.mitjana,

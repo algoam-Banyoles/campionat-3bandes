@@ -307,13 +307,15 @@
   }
 </script>
 
-<div class="mb-6">
-  <h1 class="text-2xl font-bold text-slate-900 mb-2 flex items-center gap-3">
-    <span class="text-3xl">🏆</span>
-    Classificació del Rànquing
-  </h1>
-  <p class="text-slate-600 text-sm">Posicions actuals del campionat continu de 3 bandes</p>
-</div>
+<div class="cls-root">
+
+<header class="page-mast">
+  <div>
+    <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">Campionat continu</div>
+    <h1 class="page-title">Classificació del rànquing</h1>
+    <p class="page-lede">Posicions actuals del campionat continu de 3 bandes.</p>
+  </div>
+</header>
 
 {#if loading}
   <p class="text-slate-500">Carregant rànquing…</p>
@@ -487,3 +489,170 @@
 
 {/if}
 
+</div>
+
+<style>
+  .cls-root {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    font-family: var(--font-sans);
+    color: var(--ink);
+  }
+  .page-mast {
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .editorial-eyebrow {
+    font-size: 0.75rem; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--sec-continu);
+  }
+  .page-title {
+    font-weight: 800; font-size: 2rem;
+    letter-spacing: -0.025em; line-height: 1.05;
+    margin: 0; color: var(--ink);
+  }
+  .page-lede {
+    margin: 0.4rem 0 0;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+  }
+
+  /* Neutralització de gradients i overrides */
+  .cls-root :global([class*='bg-gradient-to-r']) {
+    background: var(--paper-elevated) !important;
+    border: 1px solid var(--rule) !important;
+    color: var(--ink) !important;
+    box-shadow: none !important;
+  }
+  .cls-root :global(.bg-white),
+  .cls-root :global(.shadow-sm) {
+    background: var(--paper-elevated);
+    box-shadow: none !important;
+  }
+  .cls-root :global(table) {
+    border: 1px solid var(--rule);
+  }
+  .cls-root :global(table th) {
+    font-size: 0.625rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.14em !important;
+    color: var(--ink-3) !important;
+    background: var(--paper) !important;
+  }
+  .cls-root :global(table td) {
+    color: var(--ink) !important;
+  }
+  .cls-root :global(tr.bg-blue-50),
+  .cls-root :global(tr:has(.text-blue-50)) {
+    background: rgba(163, 11, 30, 0.05) !important;
+  }
+  /* Pos badges: tornem a editorial — número gran sense gradient */
+  .cls-root :global(td .rounded-full) {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: var(--ink) !important;
+    font-weight: 800 !important;
+    font-size: 1.5rem !important;
+    width: auto !important;
+    height: auto !important;
+    letter-spacing: -0.025em;
+  }
+  /* Status badges (Tu, Repte actiu, etc.) — fons paper amb borde editorial */
+  .cls-root :global(span.rounded-full) {
+    background: transparent !important;
+    border: 1px solid var(--rule-strong) !important;
+    color: var(--ink-2) !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0.18rem 0.5rem !important;
+    font-size: 0.625rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  /* Tints específics per significat */
+  .cls-root :global(span.from-amber-400),
+  .cls-root :global(span.from-amber-500) {
+    color: var(--accent) !important;
+    border-color: var(--accent) !important;
+  }
+  .cls-root :global(span.from-red-500),
+  .cls-root :global(span.from-red-600) {
+    color: var(--accent) !important;
+    border-color: var(--accent) !important;
+  }
+  .cls-root :global(span.from-orange-400),
+  .cls-root :global(span.from-orange-500) {
+    color: var(--amber) !important;
+    border-color: var(--amber) !important;
+  }
+  .cls-root :global(span.from-emerald-500),
+  .cls-root :global(span.from-emerald-600),
+  .cls-root :global(span.from-green-500),
+  .cls-root :global(span.from-green-600) {
+    color: var(--green) !important;
+    border-color: var(--green) !important;
+  }
+  /* Botó Reptar */
+  .cls-root :global(button.from-green-500),
+  .cls-root :global(button.from-green-600) {
+    background: transparent !important;
+    border: 1px solid var(--green) !important;
+    color: var(--green) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+    font-weight: 700 !important;
+    padding: 0.4rem 0.85rem !important;
+  }
+  .cls-root :global(button.from-green-500:hover),
+  .cls-root :global(button.from-green-600:hover) {
+    background: var(--green) !important;
+    color: white !important;
+  }
+  .cls-root :global(button.bg-slate-200) {
+    background: transparent !important;
+    border: 1px solid var(--rule-strong) !important;
+    color: var(--ink-3) !important;
+    border-radius: 0 !important;
+  }
+  /* Mitjanes */
+  .cls-root :global(.bg-emerald-50) {
+    background: var(--paper) !important;
+    border: 1px solid var(--rule) !important;
+    border-radius: 0 !important;
+  }
+  .cls-root :global(.text-emerald-700) {
+    color: var(--green) !important;
+    font-weight: 700 !important;
+  }
+  .cls-root :global(.bg-amber-50) {
+    background: var(--paper) !important;
+    border: 1px solid var(--rule) !important;
+    border-radius: 0 !important;
+  }
+  .cls-root :global(.text-amber-700) {
+    color: var(--amber) !important;
+    font-weight: 700 !important;
+  }
+  /* Llegendes */
+  .cls-root :global(.bg-slate-50),
+  .cls-root :global([class*='from-blue-50']) {
+    background: var(--paper) !important;
+    border: 1px solid var(--rule) !important;
+    border-radius: 0 !important;
+  }
+  .cls-root :global(.text-slate-600),
+  .cls-root :global(.text-slate-700),
+  .cls-root :global(.text-slate-900) {
+    color: var(--ink-2) !important;
+  }
+  .cls-root :global(.text-blue-800),
+  .cls-root :global(.text-blue-900) {
+    color: var(--ink) !important;
+  }
+</style>

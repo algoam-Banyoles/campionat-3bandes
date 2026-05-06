@@ -121,7 +121,7 @@
 	}
 </script>
 
-<div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+<div class="hcap-component-root rounded-lg border border-gray-200 bg-white shadow-sm">
 	<!-- Capçalera amb navegació i stats de la setmana -->
 	<div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
 		<button
@@ -252,3 +252,54 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	.hcap-component-root {
+		background: var(--paper-elevated) !important;
+		border: 1px solid var(--rule) !important;
+		border-radius: 0 !important;
+		box-shadow: none !important;
+	}
+	.hcap-component-root :global(.bg-white) { background: var(--paper-elevated) !important; }
+	.hcap-component-root :global(.bg-gray-50),
+	.hcap-component-root :global(.bg-gray-100) { background: var(--paper) !important; }
+
+	.hcap-component-root :global(.bg-blue-50) { background: var(--paper) !important; border-color: var(--blue) !important; }
+	.hcap-component-root :global(.bg-blue-100) { background: var(--paper) !important; }
+	.hcap-component-root :global(.bg-green-50) { background: var(--paper) !important; border-color: var(--green) !important; }
+	.hcap-component-root :global(.bg-green-100) { background: var(--paper) !important; }
+	.hcap-component-root :global(.bg-amber-50) { background: var(--paper) !important; border-color: var(--amber) !important; }
+	.hcap-component-root :global(.bg-amber-100) { background: var(--paper) !important; }
+	.hcap-component-root :global(.bg-orange-100) { background: var(--paper) !important; }
+	.hcap-component-root :global(.bg-purple-100) { background: var(--paper) !important; }
+
+	.hcap-component-root :global(.text-blue-600),
+	.hcap-component-root :global(.text-blue-700) { color: var(--blue) !important; }
+	.hcap-component-root :global(.text-green-600),
+	.hcap-component-root :global(.text-green-700) { color: var(--green) !important; }
+	.hcap-component-root :global(.text-orange-700) { color: #c2410c !important; }
+	.hcap-component-root :global(.text-purple-700) { color: var(--sec-handicap) !important; }
+	.hcap-component-root :global(.text-gray-200),
+	.hcap-component-root :global(.text-gray-300) { color: var(--rule-strong) !important; }
+	.hcap-component-root :global(.text-gray-400),
+	.hcap-component-root :global(.text-gray-500) { color: var(--ink-soft) !important; }
+	.hcap-component-root :global(.text-gray-700),
+	.hcap-component-root :global(.text-gray-800) { color: var(--ink) !important; }
+
+	.hcap-component-root :global(.border-blue-200) { border-color: var(--blue) !important; }
+	.hcap-component-root :global(.border-green-200) { border-color: var(--green) !important; }
+	.hcap-component-root :global(.border-amber-200) { border-color: var(--amber) !important; }
+	.hcap-component-root :global(.border-gray-50),
+	.hcap-component-root :global(.border-gray-100),
+	.hcap-component-root :global(.border-gray-200) { border-color: var(--rule) !important; }
+
+	.hcap-component-root :global(.rounded),
+	.hcap-component-root :global(.rounded-sm),
+	.hcap-component-root :global(.rounded-md),
+	.hcap-component-root :global(.rounded-lg) { border-radius: 0 !important; }
+	.hcap-component-root :global(.shadow-sm),
+	.hcap-component-root :global(.shadow) { box-shadow: none !important; }
+
+	.hcap-component-root :global(table),
+	.hcap-component-root :global(button) { font-family: var(--font-sans); }
+</style>

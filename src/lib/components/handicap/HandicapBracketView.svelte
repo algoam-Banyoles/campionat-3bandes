@@ -26,7 +26,34 @@
 	const MATCH_H = 82; // px – alçada de la targeta (header 18 + P1 + div + P2 + info 17)
 	const SLOT_H = 108; // px – unitat base (MATCH_H + 26px per etiqueta sota)
 	const COL_W = 155; // px – amplada de cada columna de ronda
+	const STUB_W = 64; // px – amplada d'una columna col·lapsada (stub) a mòbil
 	const GAP = 22; // px – separació entre columnes (on van els connectors)
+
+	// ── Detecció de mòbil ─────────────────────────────────────────────────────
+
+	let viewportW = 1200;
+	$: isMobile = viewportW > 0 && viewportW < 768;
+
+	// Conjunts de rondes que l'usuari ha expandit manualment (override del col·lapse automàtic)
+	let expandedW = new Set<number>();
+	let expandedL = new Set<number>();
+	let expandedGF = new Set<number>();
+
+	function toggleW(r: number) {
+		expandedW = expandedW.has(r)
+			? new Set([...expandedW].filter((x) => x !== r))
+			: new Set([...expandedW, r]);
+	}
+	function toggleL(r: number) {
+		expandedL = expandedL.has(r)
+			? new Set([...expandedL].filter((x) => x !== r))
+			: new Set([...expandedL, r]);
+	}
+	function toggleGF(r: number) {
+		expandedGF = expandedGF.has(r)
+			? new Set([...expandedGF].filter((x) => x !== r))
+			: new Set([...expandedGF, r]);
+	}
 
 	// ── Computed ──────────────────────────────────────────────────────────────
 
@@ -42,12 +69,67 @@
 	$: totalWH = Math.max(numR1 * SLOT_H, 2 * SLOT_H); // alçada bracket guanyadors + GF
 	$: totalLH = Math.max((numR1 / 2) * SLOT_H, 2 * SLOT_H); // alçada bracket perdedors
 
-	// Nombre total de columnes de la secció guanyadors + gran final
-	$: wColCount = wRounds.length + gfRounds.length;
-	$: wSectionW = wColCount * (COL_W + GAP) + COL_W;
+	// Una ronda és "completa" quan totes les seves partides no-bye estan jugades/walkover.
+	function isRoundComplete(matches: MatchView[]): boolean {
+		const nonBye = matches.filter((m) => m.estat !== 'bye');
+		return nonBye.length > 0 && nonBye.every((m) => m.estat === 'jugada' || m.estat === 'walkover');
+	}
 
-	$: lColCount = lRounds.length;
-	$: lSectionW = lColCount * (COL_W + GAP) + COL_W;
+	// Rondes col·lapsades: només a mòbil, rondes completes que l'usuari NO ha expandit explícitament.
+	$: hiddenW = new Set(
+		isMobile
+			? wRounds.filter((r) => isRoundComplete(getMatchesBT('winners', r)) && !expandedW.has(r))
+			: []
+	);
+	$: hiddenL = new Set(
+		isMobile
+			? lRounds.filter((r) => isRoundComplete(getMatchesBT('losers', r)) && !expandedL.has(r))
+			: []
+	);
+	$: hiddenGF = new Set(
+		isMobile
+			? gfRounds.filter((r) => isRoundComplete(getMatchesBT('grand_final', r)) && !expandedGF.has(r))
+			: []
+	);
+
+	// Layout amb amplades variables (stubs per a rondes col·lapsades)
+	$: wgfLayout = (() => {
+		const wList: Array<{ r: number; x: number; w: number; hidden: boolean }> = [];
+		const gfList: Array<{ r: number; x: number; w: number; hidden: boolean }> = [];
+		let x = 0;
+		for (const r of wRounds) {
+			const h = hiddenW.has(r);
+			const w = h ? STUB_W : COL_W;
+			wList.push({ r, x, w, hidden: h });
+			x += w + GAP;
+		}
+		for (const r of gfRounds) {
+			const h = hiddenGF.has(r);
+			const w = h ? STUB_W : COL_W;
+			gfList.push({ r, x, w, hidden: h });
+			x += w + GAP;
+		}
+		return { wList, gfList, totalW: x - GAP + COL_W };
+	})();
+
+	$: lLayout = (() => {
+		const list: Array<{ r: number; x: number; w: number; hidden: boolean }> = [];
+		let x = 0;
+		for (const r of lRounds) {
+			const h = hiddenL.has(r);
+			const w = h ? STUB_W : COL_W;
+			list.push({ r, x, w, hidden: h });
+			x += w + GAP;
+		}
+		return { list, totalW: x - GAP + COL_W };
+	})();
+
+	$: wRoundX = new Map(wgfLayout.wList.map((it) => [it.r, it]));
+	$: gfRoundX = new Map(wgfLayout.gfList.map((it) => [it.r, it]));
+	$: lRoundX = new Map(lLayout.list.map((it) => [it.r, it]));
+
+	$: wSectionW = wgfLayout.totalW;
+	$: lSectionW = lLayout.totalW;
 
 	// ── Helpers de posicionament ───────────────────────────────────────────────
 
@@ -94,10 +176,6 @@
 			slotToLMatch.set(m.slot2.id, m);
 		}
 
-		// Mapa ronda losers → índex de columna
-		const lRoundToColIdx = new Map<number, number>();
-		lRounds.forEach((lr, i) => lRoundToColIdx.set(lr, i));
-
 		// Agrupa les partides font per la seva partida destí (dins losers)
 		const destGroups = new Map<string, MatchView[]>();
 		for (const m of lMatches) {
@@ -111,16 +189,22 @@
 
 		for (const [destId, sources] of destGroups) {
 			const destMatch = lMatches.find((m) => m.id === destId)!;
-			const destColIdx = lRoundToColIdx.get(destMatch.ronda)!;
-			const destColX = destColIdx * (COL_W + GAP);
+			// Saltem connector si la ronda destí està col·lapsada
+			if (hiddenL.has(destMatch.ronda)) continue;
+			const destLayout = lRoundX.get(destMatch.ronda);
+			if (!destLayout) continue;
+			const destColX = destLayout.x;
 			const destY = matchTopL(destMatch.ronda, destMatch.matchPos) + MATCH_H / 2;
 
 			if (sources.length === 2) {
 				// Dues partides s'uneixen (ronda de consolidació) → estil bracket
 				const [m1, m2] = [...sources].sort((a, b) => a.matchPos - b.matchPos);
-				const srcColIdx = lRoundToColIdx.get(m1.ronda)!;
-				const srcColX = srcColIdx * (COL_W + GAP);
-				const midX = srcColX + COL_W + GAP / 2;
+				if (hiddenL.has(m1.ronda)) continue; // si l'origen és col·lapsat, salta
+				const srcLayout = lRoundX.get(m1.ronda);
+				if (!srcLayout) continue;
+				const srcColX = srcLayout.x;
+				const srcRight = srcColX + srcLayout.w;
+				const midX = srcRight + (destColX - srcRight) / 2;
 
 				const y1 = matchTopL(m1.ronda, m1.matchPos) + MATCH_H / 2;
 				const y2 = matchTopL(m2.ronda, m2.matchPos) + MATCH_H / 2;
@@ -128,23 +212,26 @@
 				const won2 = m2.estat === 'jugada' || m2.estat === 'walkover' || m2.estat === 'bye';
 				const bothWon = won1 && won2;
 
-				lines.push({ x1: srcColX + COL_W, y1, x2: midX, y2: y1, won: won1 });
-				lines.push({ x1: srcColX + COL_W, y1: y2, x2: midX, y2, won: won2 });
+				lines.push({ x1: srcRight, y1, x2: midX, y2: y1, won: won1 });
+				lines.push({ x1: srcRight, y1: y2, x2: midX, y2, won: won2 });
 				lines.push({ x1: midX, y1, x2: midX, y2, won: bothWon });
 				lines.push({ x1: midX, y1: destY, x2: destColX, y2: destY, won: bothWon });
 			} else if (sources.length === 1) {
 				// Una sola partida avança (l'altra plaça ve del bracket guanyadors) → L-shape
 				const m = sources[0];
-				const srcColIdx = lRoundToColIdx.get(m.ronda)!;
-				const srcColX = srcColIdx * (COL_W + GAP);
-				const midX = srcColX + COL_W + GAP / 2;
+				if (hiddenL.has(m.ronda)) continue;
+				const srcLayout = lRoundX.get(m.ronda);
+				if (!srcLayout) continue;
+				const srcColX = srcLayout.x;
+				const srcRight = srcColX + srcLayout.w;
+				const midX = srcRight + (destColX - srcRight) / 2;
 				const srcY = matchTopL(m.ronda, m.matchPos) + MATCH_H / 2;
 				const won = m.estat === 'jugada' || m.estat === 'walkover' || m.estat === 'bye';
 
 				if (Math.abs(srcY - destY) < 1) {
-					lines.push({ x1: srcColX + COL_W, y1: srcY, x2: destColX, y2: srcY, won });
+					lines.push({ x1: srcRight, y1: srcY, x2: destColX, y2: srcY, won });
 				} else {
-					lines.push({ x1: srcColX + COL_W, y1: srcY, x2: midX, y2: srcY, won });
+					lines.push({ x1: srcRight, y1: srcY, x2: midX, y2: srcY, won });
 					lines.push({ x1: midX, y1: srcY, x2: midX, y2: destY, won });
 					lines.push({ x1: midX, y1: destY, x2: destColX, y2: destY, won });
 				}
@@ -160,9 +247,17 @@
 
 		for (let ri = 0; ri < wRounds.length - 1; ri++) {
 			const r = wRounds[ri];
-			const colX = ri * (COL_W + GAP);
-			const midX = colX + COL_W + GAP / 2;
-			const nextColX = (ri + 1) * (COL_W + GAP);
+			const nextR = wRounds[ri + 1];
+			// Si alguna de les dues rondes adjacents està col·lapsada, no dibuixem el connector
+			if (hiddenW.has(r) || hiddenW.has(nextR)) continue;
+
+			const cur = wRoundX.get(r);
+			const next = wRoundX.get(nextR);
+			if (!cur || !next) continue;
+			const colX = cur.x;
+			const colRight = colX + cur.w;
+			const nextColX = next.x;
+			const midX = colRight + (nextColX - colRight) / 2;
 
 			const roundMatches = getMatchesBT('winners', r).sort((a, b) => a.matchPos - b.matchPos);
 
@@ -175,7 +270,7 @@
 				const won1 = m1.estat === 'jugada' || m1.estat === 'walkover' || m1.estat === 'bye';
 
 				if (!m2) {
-					lines.push({ x1: colX + COL_W, y1: c1y, x2: nextColX, y2: c1y, won: won1 });
+					lines.push({ x1: colRight, y1: c1y, x2: nextColX, y2: c1y, won: won1 });
 					continue;
 				}
 
@@ -184,8 +279,8 @@
 				const midY = (c1y + c2y) / 2;
 				const bothWon = won1 && won2;
 
-				lines.push({ x1: colX + COL_W, y1: c1y, x2: midX, y2: c1y, won: won1 });
-				lines.push({ x1: colX + COL_W, y1: c2y, x2: midX, y2: c2y, won: won2 });
+				lines.push({ x1: colRight, y1: c1y, x2: midX, y2: c1y, won: won1 });
+				lines.push({ x1: colRight, y1: c2y, x2: midX, y2: c2y, won: won2 });
 				lines.push({ x1: midX, y1: c1y, x2: midX, y2: c2y, won: bothWon });
 				lines.push({ x1: midX, y1: midY, x2: nextColX, y2: midY, won: bothWon });
 			}
@@ -193,19 +288,30 @@
 
 		// W-Final → GF-R1 (línia horitzontal al centre)
 		if (gfRounds.length > 0 && wRounds.length > 0) {
-			const wFinalColX = (wRounds.length - 1) * (COL_W + GAP);
-			const gfColX = wRounds.length * (COL_W + GAP);
-			const cy = totalWH / 2;
-			const wFinalMatch = getMatchesBT('winners', wRounds[wRounds.length - 1])[0];
-			const won = wFinalMatch?.estat === 'jugada' || wFinalMatch?.estat === 'bye';
-			lines.push({ x1: wFinalColX + COL_W, y1: cy, x2: gfColX, y2: cy, won });
+			const wFinalR = wRounds[wRounds.length - 1];
+			const gfR1 = gfRounds[0];
+			if (!hiddenW.has(wFinalR) && !hiddenGF.has(gfR1)) {
+				const wFinal = wRoundX.get(wFinalR);
+				const gf1 = gfRoundX.get(gfR1);
+				if (wFinal && gf1) {
+					const cy = totalWH / 2;
+					const wFinalMatch = getMatchesBT('winners', wFinalR)[0];
+					const won = wFinalMatch?.estat === 'jugada' || wFinalMatch?.estat === 'bye';
+					lines.push({ x1: wFinal.x + wFinal.w, y1: cy, x2: gf1.x, y2: cy, won });
 
-			// GF-R1 → GF-R2
-			if (gfRounds.length > 1) {
-				const gfR2ColX = (wRounds.length + 1) * (COL_W + GAP);
-				const gfR1Match = getMatchesBT('grand_final', 1)[0];
-				const gfWon = gfR1Match?.estat === 'jugada';
-				lines.push({ x1: gfColX + COL_W, y1: cy, x2: gfR2ColX, y2: cy, won: gfWon });
+					// GF-R1 → GF-R2
+					if (gfRounds.length > 1) {
+						const gfR2 = gfRounds[1];
+						if (!hiddenGF.has(gfR2)) {
+							const gf2 = gfRoundX.get(gfR2);
+							if (gf2) {
+								const gfR1Match = getMatchesBT('grand_final', 1)[0];
+								const gfWon = gfR1Match?.estat === 'jugada';
+								lines.push({ x1: gf1.x + gf1.w, y1: cy, x2: gf2.x, y2: cy, won: gfWon });
+							}
+						}
+					}
+				}
 			}
 		}
 
@@ -351,6 +457,9 @@
 	}
 </script>
 
+<svelte:window bind:innerWidth={viewportW} />
+
+<div class="hcap-bracket-root">
 <!-- ── Bracket de Guanyadors + Gran Final ─────────────────────────────────── -->
 {#if showWinners && wMatches.length > 0}
 	<div class="mb-6 bracket-section-winners">
@@ -380,14 +489,38 @@
 				</svg>
 
 				<!-- Columnes winners -->
-				{#each wRounds as r, ri}
-					{@const colX = ri * (COL_W + GAP)}
+				{#each wgfLayout.wList as item}
+					{@const r = item.r}
+					{@const colX = item.x}
+					{#if item.hidden}
+						{@const matches = getMatchesBT('winners', r)}
+						{@const nonBye = matches.filter((m) => m.estat !== 'bye')}
+						<button
+							type="button"
+							class="hcap-stub absolute"
+							on:click={() => toggleW(r)}
+							style="left: {colX}px; top: 0; width: {item.w}px; height: {totalWH + 32}px;"
+							title="Mostrar {wRoundLabel(r)} ({nonBye.length} jugades)"
+						>
+							<span class="hcap-stub-label">{wRoundLabel(r)}</span>
+							<span class="hcap-stub-count">{nonBye.length} ✓</span>
+							<span class="hcap-stub-cta">Mostrar</span>
+						</button>
+					{:else}
 					<!-- Capçalera columna -->
 					<div
 						class="absolute text-center text-[11px] font-semibold text-gray-500"
 						style="left: {colX}px; top: 0; width: {COL_W}px;"
 					>
 						{wRoundLabel(r)}
+						{#if isMobile && isRoundComplete(getMatchesBT('winners', r))}
+							<button
+								type="button"
+								class="hcap-collapse-btn"
+								on:click={() => toggleW(r)}
+								title="Col·lapsar {wRoundLabel(r)}"
+							>−</button>
+						{/if}
 					</div>
 					<!-- Partides -->
 					{#each getMatchesBT('winners', r) as match}
@@ -482,17 +615,41 @@
 							</button>
 						</div>
 					{/each}
+					{/if}
 				{/each}
 
 				<!-- Columnes Gran Final -->
 				{#if filter === 'all' || filter === 'grand_final'}
-					{#each gfRounds as gfR, gfi}
-						{@const colX = (wRounds.length + gfi) * (COL_W + GAP)}
+					{#each wgfLayout.gfList as gfItem}
+						{@const gfR = gfItem.r}
+						{@const colX = gfItem.x}
+						{#if gfItem.hidden}
+							{@const gfNonBye = getMatchesBT('grand_final', gfR).filter((m) => m.estat !== 'bye')}
+							<button
+								type="button"
+								class="hcap-stub absolute"
+								on:click={() => toggleGF(gfR)}
+								style="left: {colX}px; top: 0; width: {gfItem.w}px; height: {totalWH + 32}px;"
+								title="Mostrar {gfR === 1 ? 'Gran Final' : 'Reset'}"
+							>
+								<span class="hcap-stub-label">{gfR === 1 ? '🏆 GF' : '🔁 Reset'}</span>
+								<span class="hcap-stub-count">{gfNonBye.length} ✓</span>
+								<span class="hcap-stub-cta">Mostrar</span>
+							</button>
+						{:else}
 						<div
 							class="absolute text-center text-[11px] font-semibold text-purple-600"
 							style="left: {colX}px; top: 0; width: {COL_W}px;"
 						>
 							{gfR === 1 ? '🏆 Gran Final' : '🔁 Reset'}
+							{#if isMobile && isRoundComplete(getMatchesBT('grand_final', gfR))}
+								<button
+									type="button"
+									class="hcap-collapse-btn"
+									on:click={() => toggleGF(gfR)}
+									title="Col·lapsar"
+								>−</button>
+							{/if}
 						</div>
 						{#each getMatchesBT('grand_final', gfR) as match}
 							<div
@@ -571,6 +728,7 @@
 								</button>
 							</div>
 						{/each}
+						{/if}
 					{/each}
 				{/if}
 			</div>
@@ -605,13 +763,36 @@
 					{/each}
 				</svg>
 
-				{#each lRounds as lr, lri}
-					{@const colX = lri * (COL_W + GAP)}
+				{#each lLayout.list as lItem}
+					{@const lr = lItem.r}
+					{@const colX = lItem.x}
+					{#if lItem.hidden}
+						{@const lNonBye = getMatchesBT('losers', lr).filter((m) => m.estat !== 'bye')}
+						<button
+							type="button"
+							class="hcap-stub hcap-stub-losers absolute"
+							on:click={() => toggleL(lr)}
+							style="left: {colX}px; top: 0; width: {lItem.w}px; height: {totalLH + 32}px;"
+							title="Mostrar {lRoundLabel(lr)} ({lNonBye.length} jugades)"
+						>
+							<span class="hcap-stub-label">{lRoundLabel(lr)}</span>
+							<span class="hcap-stub-count">{lNonBye.length} ✓</span>
+							<span class="hcap-stub-cta">Mostrar</span>
+						</button>
+					{:else}
 					<div
 						class="absolute text-center text-[11px] font-semibold text-orange-500"
 						style="left: {colX}px; top: 0; width: {COL_W}px;"
 					>
 						{lRoundLabel(lr)}
+						{#if isMobile && isRoundComplete(getMatchesBT('losers', lr))}
+							<button
+								type="button"
+								class="hcap-collapse-btn"
+								on:click={() => toggleL(lr)}
+								title="Col·lapsar {lRoundLabel(lr)}"
+							>−</button>
+						{/if}
 					</div>
 					{#each getMatchesBT('losers', lr) as match}
 						{@const gBye = isGuaranteedBye(match)}
@@ -723,6 +904,7 @@
 							</button>
 						</div>
 					{/each}
+					{/if}
 				{/each}
 			</div>
 		</div>
@@ -750,7 +932,228 @@
 	{/if}
 </div>
 
+</div>
+
 <style>
+	.hcap-bracket-root {
+		font-family: var(--font-sans);
+		color: var(--ink);
+	}
+	/* Section titles (Bracket de Guanyadors / Perdedors) */
+	.hcap-bracket-root :global(h3.uppercase) {
+		font-size: 0.6875rem !important;
+		font-weight: 600 !important;
+		letter-spacing: 0.16em !important;
+		text-transform: uppercase !important;
+		color: var(--ink-3) !important;
+	}
+	/* Bracket scroll containers (cartes blanques amb shadow) */
+	.hcap-bracket-root :global(.bracket-scroll) {
+		background: var(--paper-elevated) !important;
+		border: 1px solid var(--rule) !important;
+		border-radius: 0 !important;
+		box-shadow: none !important;
+		/* Momentum + snap horitzontal a mòbil per fer l'scroll més natural */
+		-webkit-overflow-scrolling: touch;
+		scroll-behavior: smooth;
+		scroll-snap-type: x proximity;
+	}
+	/* Match cards i botons del bracket */
+	.hcap-bracket-root :global(button.bg-white),
+	.hcap-bracket-root :global(.bg-white) {
+		background: var(--paper-elevated) !important;
+	}
+	.hcap-bracket-root :global(.bg-blue-50),
+	.hcap-bracket-root :global(button.bg-blue-50) {
+		background: var(--paper) !important;
+		border-color: var(--blue) !important;
+	}
+	.hcap-bracket-root :global(.bg-green-50),
+	.hcap-bracket-root :global(button.bg-green-50) {
+		background: var(--paper) !important;
+		border-color: var(--green) !important;
+	}
+	.hcap-bracket-root :global(.bg-orange-50),
+	.hcap-bracket-root :global(button.bg-orange-50) {
+		background: var(--paper) !important;
+		border-color: var(--amber) !important;
+	}
+	.hcap-bracket-root :global(.bg-yellow-50),
+	.hcap-bracket-root :global(button.bg-yellow-50) {
+		background: var(--paper) !important;
+		border-color: var(--amber) !important;
+	}
+	.hcap-bracket-root :global(.bg-red-50) {
+		background: var(--paper) !important;
+		border-color: var(--accent) !important;
+	}
+	.hcap-bracket-root :global(.border-blue-400),
+	.hcap-bracket-root :global(.border-blue-300) {
+		border-color: var(--blue) !important;
+	}
+	.hcap-bracket-root :global(.border-green-400),
+	.hcap-bracket-root :global(.border-green-300) {
+		border-color: var(--green) !important;
+	}
+	.hcap-bracket-root :global(.border-orange-400),
+	.hcap-bracket-root :global(.border-orange-300) {
+		border-color: var(--amber) !important;
+	}
+	.hcap-bracket-root :global(.border-yellow-400),
+	.hcap-bracket-root :global(.border-yellow-300) {
+		border-color: var(--amber) !important;
+	}
+	.hcap-bracket-root :global(.border-gray-300),
+	.hcap-bracket-root :global(.border-gray-200),
+	.hcap-bracket-root :global(.border-gray-100) {
+		border-color: var(--rule-strong) !important;
+	}
+	/* Text colors */
+	.hcap-bracket-root :global(.text-gray-500),
+	.hcap-bracket-root :global(.text-gray-600) { color: var(--ink-3) !important; }
+	.hcap-bracket-root :global(.text-gray-700),
+	.hcap-bracket-root :global(.text-gray-800),
+	.hcap-bracket-root :global(.text-gray-900) { color: var(--ink) !important; }
+	.hcap-bracket-root :global(.text-blue-600),
+	.hcap-bracket-root :global(.text-blue-700),
+	.hcap-bracket-root :global(.text-blue-800),
+	.hcap-bracket-root :global(.text-blue-900) { color: var(--blue) !important; }
+	.hcap-bracket-root :global(.text-green-600),
+	.hcap-bracket-root :global(.text-green-700),
+	.hcap-bracket-root :global(.text-green-800) { color: var(--green) !important; }
+	.hcap-bracket-root :global(.text-orange-600),
+	.hcap-bracket-root :global(.text-orange-700),
+	.hcap-bracket-root :global(.text-orange-800),
+	.hcap-bracket-root :global(.text-amber-700) { color: var(--amber) !important; }
+	.hcap-bracket-root :global(.text-yellow-600),
+	.hcap-bracket-root :global(.text-yellow-700),
+	.hcap-bracket-root :global(.text-yellow-800) { color: var(--amber) !important; }
+	.hcap-bracket-root :global(.text-red-600),
+	.hcap-bracket-root :global(.text-red-700) { color: var(--accent) !important; }
+	.hcap-bracket-root :global(.text-purple-600),
+	.hcap-bracket-root :global(.text-purple-700) { color: var(--sec-handicap) !important; }
+	/* Connector SVG lines: usar tinta editorial per al connector */
+	.hcap-bracket-root :global(svg line) {
+		stroke: var(--rule-strong);
+	}
+	/* Cantos i ombres */
+	.hcap-bracket-root :global(.rounded),
+	.hcap-bracket-root :global(.rounded-sm),
+	.hcap-bracket-root :global(.rounded-md),
+	.hcap-bracket-root :global(.rounded-lg),
+	.hcap-bracket-root :global(.rounded-xl),
+	.hcap-bracket-root :global(.rounded-full) { border-radius: 0 !important; }
+	.hcap-bracket-root :global(.shadow),
+	.hcap-bracket-root :global(.shadow-sm),
+	.hcap-bracket-root :global(.shadow-md),
+	.hcap-bracket-root :global(.shadow-lg) { box-shadow: none !important; }
+	/* Ring (per highlight de cerca) */
+	.hcap-bracket-root :global(.ring-2.ring-yellow-400) {
+		box-shadow: 0 0 0 2px var(--amber) !important;
+	}
+
+	/* ── Stub de ronda col·lapsada ─────────────────────────────────── */
+	.hcap-bracket-root :global(.hcap-stub) {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.4rem;
+		padding: 0.5rem 0.25rem;
+		background: var(--paper);
+		border: 1px dashed var(--rule-strong);
+		cursor: pointer;
+		font-family: var(--font-sans);
+		color: var(--ink-soft);
+		writing-mode: vertical-rl;
+		text-orientation: mixed;
+		transition: background 0.15s ease, border-color 0.15s ease;
+	}
+	.hcap-bracket-root :global(.hcap-stub:hover) {
+		background: var(--paper-elevated);
+		border-color: var(--ink);
+		color: var(--ink);
+	}
+	.hcap-bracket-root :global(.hcap-stub-label) {
+		font-size: 0.75rem;
+		font-weight: 700;
+		letter-spacing: 0.03em;
+		color: var(--ink);
+	}
+	.hcap-bracket-root :global(.hcap-stub-count) {
+		font-size: 0.625rem;
+		font-weight: 600;
+		color: var(--green);
+		letter-spacing: 0.04em;
+	}
+	.hcap-bracket-root :global(.hcap-stub-cta) {
+		font-size: 0.625rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.12em;
+		color: var(--ink-3);
+	}
+	.hcap-bracket-root :global(.hcap-stub-losers .hcap-stub-label) {
+		color: var(--amber);
+	}
+
+	/* Botó "−" per col·lapsar a mòbil al costat del títol de ronda */
+	.hcap-bracket-root :global(.hcap-collapse-btn) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 18px;
+		height: 18px;
+		margin-left: 0.25rem;
+		background: transparent;
+		border: 1px solid var(--rule-strong);
+		color: var(--ink-3);
+		font-size: 0.875rem;
+		font-weight: 700;
+		line-height: 1;
+		cursor: pointer;
+		vertical-align: middle;
+	}
+	.hcap-bracket-root :global(.hcap-collapse-btn:hover) {
+		background: var(--paper);
+		color: var(--ink);
+	}
+
+	/* ── Mobile: simplifica scroll del bracket ─────────────────────── */
+	@media (max-width: 767px) {
+		.hcap-bracket-root :global(.bracket-scroll) {
+			padding: 0.5rem !important;
+			/* Edge-to-edge: aprofita tota l'amplada de la pantalla */
+			margin-left: -1rem;
+			margin-right: -1rem;
+			border-left: none !important;
+			border-right: none !important;
+			/* Indicador visual de més contingut a la dreta */
+			background-image: linear-gradient(
+				to right,
+				transparent 0%,
+				transparent calc(100% - 24px),
+				color-mix(in srgb, var(--ink) 8%, transparent) 100%
+			);
+			background-attachment: local, scroll;
+		}
+		/* Cada carta de partida fa de "snap point" → swipe natural per ronda */
+		.hcap-bracket-root :global(.bracket-scroll button) {
+			scroll-snap-align: start;
+			scroll-margin-left: 0.5rem;
+		}
+		/* Compacta els títols Bracket de Guanyadors/Perdedors */
+		.hcap-bracket-root :global(h3.uppercase) {
+			margin-bottom: 0.4rem !important;
+			padding-left: 0.25rem;
+		}
+		/* Redueix la separació entre seccions winners/losers */
+		.hcap-bracket-root :global(.bracket-section-winners),
+		.hcap-bracket-root :global(.bracket-section-losers) {
+			margin-bottom: 1rem !important;
+		}
+	}
+
 	@media print {
 		/* Eliminar scroll horitzontal: mostrar tot el contingut del bracket */
 		.bracket-scroll {

@@ -16,12 +16,17 @@
 </script>
 
 <svelte:head>
-	<title>Reset Campionat - Admin</title>
+	<title>Reset del campionat</title>
 </svelte:head>
 
-<div class="container mx-auto p-6 max-w-2xl">
-	<div class="bg-white rounded-lg shadow-lg p-8">
-		<h1 class="text-3xl font-bold text-red-600 mb-6">⚠️ Reset del Campionat</h1>
+<div class="rc-root">
+	<header class="rc-mast">
+		<div class="editorial-eyebrow">Operació destructiva</div>
+		<h1 class="rc-title">Reset del campionat</h1>
+		<p class="rc-sub">Esborra reptes, partides, rànquing i historial del campionat actual.</p>
+	</header>
+
+	<div class="rc-card">
 		
 		<div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
 			<div class="flex">
@@ -157,3 +162,83 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	.rc-root {
+		max-width: 760px;
+		margin: 0 auto;
+		padding: 1.75rem 1.25rem 4rem;
+		font-family: var(--font-sans, sans-serif);
+		color: var(--ink, #1a1814);
+	}
+	.rc-mast {
+		margin-bottom: 1.5rem;
+		padding-bottom: 1.1rem;
+		border-bottom: 2px solid var(--accent, #a30b1e);
+	}
+	.editorial-eyebrow {
+		font-size: 0.625rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.16em;
+		color: var(--accent, #a30b1e);
+	}
+	.rc-title {
+		margin: 0.4rem 0 0.4rem;
+		font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+		font-weight: 800;
+		letter-spacing: -0.022em;
+		line-height: 1.1;
+		color: var(--accent, #a30b1e);
+	}
+	.rc-sub {
+		margin: 0;
+		font-size: 0.9375rem;
+		color: var(--ink-2, #4a443e);
+		max-width: 56ch;
+	}
+	.rc-card {
+		background: var(--paper-elevated, #fff);
+		border: 1px solid var(--accent, #a30b1e);
+		padding: 1.5rem;
+	}
+
+	.rc-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+	.rc-root :global(.bg-red-50),
+	.rc-root :global(.bg-red-100) { background: color-mix(in srgb, var(--accent, #a30b1e) 8%, var(--paper-elevated, #fff)) !important; border-color: var(--accent, #a30b1e) !important; }
+	.rc-root :global(.bg-red-600),
+	.rc-root :global(.bg-red-700) {
+		background: var(--accent, #a30b1e) !important;
+		color: var(--paper, #fbfaf6) !important;
+	}
+	.rc-root :global(.bg-yellow-50),
+	.rc-root :global(.bg-yellow-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+	.rc-root :global(.text-red-400),
+	.rc-root :global(.text-red-500),
+	.rc-root :global(.text-red-600),
+	.rc-root :global(.text-red-700),
+	.rc-root :global(.text-red-800) { color: var(--accent, #a30b1e) !important; }
+	.rc-root :global(.text-yellow-700),
+	.rc-root :global(.text-yellow-800) { color: var(--amber, #b8860b) !important; }
+	.rc-root :global(.text-gray-500),
+	.rc-root :global(.text-gray-600),
+	.rc-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+	.rc-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+	.rc-root :global(.border-gray-200),
+	.rc-root :global(.border-red-400) { border-color: var(--accent, #a30b1e) !important; }
+	.rc-root :global(.rounded),
+	.rc-root :global(.rounded-md),
+	.rc-root :global(.rounded-lg),
+	.rc-root :global(.rounded-full) { border-radius: 0 !important; }
+	.rc-root :global(.shadow),
+	.rc-root :global(.shadow-sm),
+	.rc-root :global(.shadow-md),
+	.rc-root :global(.shadow-lg) { box-shadow: none !important; }
+	.rc-root :global(input),
+	.rc-root :global(textarea) {
+		background: var(--paper-elevated, #fff) !important;
+		border: 1px solid var(--rule-strong, #b8b3a8) !important;
+		border-radius: 0 !important;
+		font-family: var(--font-sans, sans-serif);
+	}
+</style>

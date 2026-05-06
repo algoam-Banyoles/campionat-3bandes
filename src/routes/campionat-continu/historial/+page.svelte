@@ -188,13 +188,20 @@
 </script>
 
 <svelte:head>
-  <title>Historial</title>
+  <title>Historial — Campionat Continu</title>
 </svelte:head>
 
-<h1 class="text-2xl font-semibold mb-4">Historial</h1>
+<div class="hist-root">
 
-<section class="mb-8">
-  <h2 class="text-xl font-semibold mb-2">Moviments de posició</h2>
+<header class="page-mast">
+  <div>
+    <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">Campionat continu</div>
+    <h1 class="page-title">Historial</h1>
+  </div>
+</header>
+
+<section class="hist-section">
+  <h2 class="section-title">Moviments de posició</h2>
   {#if loadingChanges && changes.length === 0}
     <Loader />
   {:else if errorChanges}
@@ -273,8 +280,8 @@
   {/if}
 </section>
 
-<section>
-  <h2 class="text-xl font-semibold mb-2">Reptes</h2>
+<section class="hist-section">
+  <h2 class="section-title">Reptes</h2>
   {#if loadingChallenges && challenges.length === 0}
     <Loader />
   {:else if errorChallenges}
@@ -339,9 +346,116 @@
   {/if}
 </section>
 
+</div>
+
 <style>
-  table th,
-  table td {
-    border-color: rgb(203 213 225);
+  .hist-root {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    font-family: var(--font-sans);
+    color: var(--ink);
+  }
+
+  .page-mast {
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .editorial-eyebrow {
+    font-size: 0.75rem; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--sec-continu);
+  }
+  .page-title {
+    font-weight: 800; font-size: 2rem;
+    letter-spacing: -0.025em; line-height: 1.05;
+    margin: 0; color: var(--ink);
+  }
+
+  .hist-section {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    padding: 1.25rem 1.5rem;
+  }
+  .section-title {
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: -0.022em;
+    margin: 0 0 1rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 2px solid var(--ink);
+    color: var(--ink);
+  }
+
+  /* Filtres */
+  .hist-section :global(select),
+  .hist-section :global(input[type='text']),
+  .hist-section :global(input[type='date']) {
+    background: var(--paper-elevated) !important;
+    border: 1px solid var(--rule-strong) !important;
+    border-radius: 0 !important;
+    color: var(--ink) !important;
+    padding: 0.45rem 0.75rem !important;
+    font-family: var(--font-sans);
+    min-height: 40px;
+  }
+  .hist-section :global(select:focus),
+  .hist-section :global(input:focus) {
+    outline: 2px solid var(--ink) !important;
+    border-color: var(--ink) !important;
+  }
+
+  /* Botó "Neteja filtres" */
+  .hist-section :global(button.bg-slate-200) {
+    background: transparent !important;
+    border: 1px solid var(--rule-strong) !important;
+    border-radius: 0 !important;
+    color: var(--ink) !important;
+    font-weight: 600;
+    min-height: 40px;
+  }
+  .hist-section :global(button.bg-slate-200:hover) {
+    border-color: var(--ink) !important;
+  }
+  /* Botó "Carrega'n més" */
+  .hist-section :global(button.bg-slate-900) {
+    background: var(--ink) !important;
+    border: 1px solid var(--ink) !important;
+    border-radius: 0 !important;
+    color: var(--paper) !important;
+    font-weight: 600;
+    min-height: 44px;
+  }
+
+  /* Taules */
+  .hist-section :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid var(--rule);
+  }
+  .hist-section :global(table th) {
+    font-size: 0.625rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.14em !important;
+    color: var(--ink-3) !important;
+    background: var(--paper) !important;
+    padding: 0.75rem !important;
+    border-bottom: 1px solid var(--rule);
+  }
+  .hist-section :global(table td) {
+    padding: 0.75rem !important;
+    border-bottom: 1px solid var(--rule);
+    color: var(--ink) !important;
+    font-size: 0.875rem;
+  }
+  .hist-section :global(table tr:hover td) {
+    background: var(--paper);
+  }
+  .hist-section :global(.text-blue-600) {
+    color: var(--blue) !important;
+    text-decoration: none !important;
+    border-bottom: 1px solid var(--blue);
+    padding-bottom: 1px;
   }
 </style>

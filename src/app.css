@@ -1,3 +1,6 @@
+/* Sistema de disseny editorial (tokens + utilitats). Veure CLAUDE.md. */
+@import './styles/design-tokens.css';
+
 /* Import mobile and gesture styles */
 @import './styles/mobile.css';
 @import './styles/gestures.css';
@@ -254,8 +257,6 @@
     padding: 6px 10px !important;
   }
 }
-
-/* Portrait orientation notification removed - now handled by OrientationBanner component */
 
 /* Landscape orientation adjustments */
 @media (max-width: 768px) and (orientation: landscape) {

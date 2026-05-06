@@ -4,6 +4,13 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { showError } from '$lib/stores/toastStore';
 	import { showConfirm } from '$lib/stores/confirmDialogStore';
+	import { effectiveIsAdmin } from '$lib/stores/viewMode';
+	import { formatarNomJugador } from '$lib/utils/playerUtils';
+
+	function nomComplet(nom: string | null | undefined, cognoms: string | null | undefined): string {
+		const raw = `${nom ?? ''} ${cognoms ?? ''}`.trim();
+		return raw ? formatarNomJugador(raw) : '';
+	}
 
 	type MitjanaHistorica = {
 		id: number;
@@ -26,9 +33,9 @@
 	let mitjanes: MitjanaHistorica[] = [];
 	let socis: Soci[] = [];
 
-	// Client-side pagination
+	// Client-side pagination (límit alt perquè es vegin totes les temporades alhora)
 	let currentPage: number = 1;
-	let pageLimit: number = 200;
+	let pageLimit: number = 10000;
 	let totalCount: number | null = null;
 	let loading = false;
 	let searchTerm = '';
@@ -106,15 +113,45 @@
 			mitjanes = processedMitjanes;
 			socis = socisList || [];
 
-			// Extract unique filters
-			modalitats = [...new Set(mitjanes.map(m => m.modalitat))].sort();
-			years = [...new Set(mitjanes.map(m => m.year))].sort((a, b) => b - a);
+			// Carregar TOTS els filtres disponibles (no només els de la pàgina actual).
+			await loadAllFilters();
 
 		} catch (error) {
 			console.error('Error loading data:', error);
 			showError('Error carregant les dades. Comprova la consola per més detalls.');
 		} finally {
 			loading = false;
+		}
+	}
+
+	/**
+	 * Llista totes les modalitats i anys disponibles a la taula `mitjanes_historiques`,
+	 * independentment de la pàgina actual. Així el desplegable "Any" mostra totes les
+	 * temporades, no només les que apareixen en els 200 registres carregats.
+	 */
+	async function loadAllFilters() {
+		const { data, error: filtersError } = await supabase
+			.from('mitjanes_historiques')
+			.select('year, modalitat')
+			.order('year', { ascending: false })
+			.limit(20000);
+
+		if (filtersError) {
+			console.warn('Error loading filters:', filtersError);
+			// Fallback: usar les dades carregades
+			modalitats = [...new Set(mitjanes.map((m) => m.modalitat))].sort();
+			years = [...new Set(mitjanes.map((m) => m.year))].sort((a, b) => b - a);
+			return;
+		}
+
+		const all = data ?? [];
+		modalitats = [...new Set(all.map((r) => r.modalitat).filter(Boolean))].sort();
+		years = [...new Set(all.map((r) => r.year as number).filter((y) => typeof y === 'number'))]
+			.sort((a, b) => b - a);
+
+		// Garantim que sempre hi hagi una modalitat seleccionada (no té sentit veure-les barrejades)
+		if (!selectedModalitat && modalitats.length > 0) {
+			selectedModalitat = modalitats[0];
 		}
 	}
 
@@ -134,6 +171,7 @@
 	}
 
 	async function saveAssignment(mitjanaId: number) {
+		if (!$effectiveIsAdmin) return;
 		if (!tempSociId) return;
 
 		saving = true;
@@ -156,6 +194,7 @@
 	}
 
 	async function removeAssignment(mitjanaId: number) {
+		if (!$effectiveIsAdmin) return;
 		const ok = await showConfirm({
 			title: 'Desassignar soci',
 			message: 'Estàs segur que vols desassignar aquest soci?',
@@ -252,10 +291,10 @@ async function gotoPage(p: number) {
 	// Filtrar i ordenar mitjanes
 	$: filteredAndSortedMitjanes = sortMitjanes(
 		mitjanes.filter(m => {
+			const q = searchTerm.toLowerCase();
 			const matchesSearch = !searchTerm ||
-				m.soci_id?.toString().includes(searchTerm) ||
-				m.nom_soci?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				m.cognoms_soci?.toLowerCase().includes(searchTerm.toLowerCase());
+				m.nom_soci?.toLowerCase().includes(q) ||
+				m.cognoms_soci?.toLowerCase().includes(q);
 
 			const matchesModalitat = !selectedModalitat || m.modalitat === selectedModalitat;
 			const matchesYear = !selectedYear || m.year.toString() === selectedYear;
@@ -275,56 +314,47 @@ async function gotoPage(p: number) {
 </script>
 
 <svelte:head>
-	<title>Gestió Mitjanes Històriques - Admin</title>
+	<title>Mitjanes Històriques</title>
 </svelte:head>
 
-<div class="container mx-auto p-4">
-	<div class="mb-6">
-		<h1 class="text-3xl font-bold text-gray-900 mb-2">Gestió Mitjanes Històriques</h1>
-		<p class="text-gray-600">Assigna o corregeix les mitjanes històriques als socis corresponents</p>
-	</div>
+<div class="mh-root">
+	<header class="mh-mast">
+		<div class="editorial-eyebrow">Foment Martinenc · Secció billar</div>
+		<h1 class="mh-title">Mitjanes històriques</h1>
+		<p class="mh-sub">Registre de mitjanes per soci, modalitat i temporada.</p>
+	</header>
 
-	<!-- Estadístiques -->
-	<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-		<div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-			<div class="text-2xl font-bold text-blue-600">{stats.total}</div>
-			<div class="text-sm text-blue-800">Total mitjanes</div>
-		</div>
-		<div class="bg-green-50 border border-green-200 rounded-lg p-4">
-			<div class="text-2xl font-bold text-green-600">{stats.assigned}</div>
-			<div class="text-sm text-green-800">Assignades</div>
-		</div>
-		<div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
-			<div class="text-2xl font-bold text-orange-600">{stats.unassigned}</div>
-			<div class="text-sm text-orange-800">No assignades</div>
-		</div>
-	</div>
 
 	<!-- Filtres -->
-	<div class="bg-white rounded-lg shadow p-4 mb-6">
-		<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+	<div class="bg-white rounded-lg shadow p-4 mb-6 space-y-4">
+		<!-- Modalitats: pills (cap "totes" — sempre cal triar-ne una) -->
+		<div>
+			<span class="block text-sm font-medium text-gray-700 mb-2">Modalitat</span>
+			<div class="flex flex-wrap gap-2">
+				{#each modalitats as modalitat}
+					<button
+						type="button"
+						on:click={() => selectedModalitat = modalitat}
+						class="modality-pill"
+						class:active={selectedModalitat === modalitat}
+					>
+						{modalitat}
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		<!-- Cerca + any + reset -->
+		<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 			<div>
-				<label for="search" class="block text-sm font-medium text-gray-700 mb-1">Cerca</label>
+				<label for="search" class="block text-sm font-medium text-gray-700 mb-1">Cerca per nom</label>
 				<input
 					type="text"
 					id="search"
 					bind:value={searchTerm}
-					placeholder="ID soci, nom o cognoms..."
+					placeholder="Nom o cognoms…"
 					class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 				/>
-			</div>
-			<div>
-				<label for="modalitat" class="block text-sm font-medium text-gray-700 mb-1">Modalitat</label>
-				<select
-					id="modalitat"
-					bind:value={selectedModalitat}
-					class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-				>
-					<option value="">Totes les modalitats</option>
-					{#each modalitats as modalitat}
-						<option value={modalitat}>{modalitat}</option>
-					{/each}
-				</select>
 			</div>
 			<div>
 				<label for="year" class="block text-sm font-medium text-gray-700 mb-1">Any</label>
@@ -343,8 +373,8 @@ async function gotoPage(p: number) {
 				<button
 					on:click={() => {
 						searchTerm = '';
-						selectedModalitat = '';
 						selectedYear = '';
+						// La modalitat sempre roman seleccionada — netejar-la no té sentit
 					}}
 					class="w-full px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
 				>
@@ -446,10 +476,7 @@ async function gotoPage(p: number) {
 					<thead class="bg-gray-50">
 						<tr>
 							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-								ID Soci
-							</th>
-							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-								Soci Assignat
+								Soci
 							</th>
 							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
 								Any
@@ -468,25 +495,22 @@ async function gotoPage(p: number) {
 					<tbody class="bg-white divide-y divide-gray-200">
 						{#each filteredAndSortedMitjanes as mitjana (mitjana.id)}
 							<tr class:bg-orange-50={!mitjana.soci_id}>
-								<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-									{mitjana.soci_id || 'No assignat'}
-								</td>
 								<td class="px-6 py-4 whitespace-nowrap">
 									{#if editingId === mitjana.id}
 										<select
 											bind:value={tempSociId}
 											class="max-w-xs px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 										>
-											<option value="">Selecciona un soci...</option>
+											<option value="">Selecciona un soci…</option>
 											{#each socis as soci}
 												<option value={soci.numero_soci.toString()}>
-													{soci.numero_soci} - {soci.cognoms}, {soci.nom}
+													{nomComplet(soci.nom, soci.cognoms)}
 												</option>
 											{/each}
 										</select>
 									{:else if mitjana.nom_soci && mitjana.cognoms_soci}
 										<div class="text-sm text-gray-900 font-medium">
-											{mitjana.cognoms_soci}, {mitjana.nom_soci}
+											{nomComplet(mitjana.nom_soci, mitjana.cognoms_soci)}
 										</div>
 									{:else}
 										<span class="text-sm text-orange-600 font-medium">No assignat</span>
@@ -504,40 +528,44 @@ async function gotoPage(p: number) {
 									{mitjana.mitjana.toFixed(3)}
 								</td>
 								<td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-									{#if editingId === mitjana.id}
-										<div class="flex space-x-2">
-											<button
-												on:click={() => saveAssignment(mitjana.id)}
-												disabled={saving || !tempSociId}
-												class="text-green-600 hover:text-green-900 disabled:text-gray-400"
-											>
-												{saving ? 'Guardant...' : 'Guardar'}
-											</button>
-											<button
-												on:click={cancelEditing}
-												disabled={saving}
-												class="text-gray-600 hover:text-gray-900 disabled:text-gray-400"
-											>
-												Cancel·lar
-											</button>
-										</div>
-									{:else}
-										<div class="flex space-x-2">
-											<button
-												on:click={() => startEditing(mitjana)}
-												class="text-blue-600 hover:text-blue-900"
-											>
-												{mitjana.soci_id ? 'Editar' : 'Assignar'}
-											</button>
-											{#if mitjana.soci_id}
+									{#if $effectiveIsAdmin}
+										{#if editingId === mitjana.id}
+											<div class="flex space-x-2">
 												<button
-													on:click={() => removeAssignment(mitjana.id)}
-													class="text-red-600 hover:text-red-900"
+													on:click={() => saveAssignment(mitjana.id)}
+													disabled={saving || !tempSociId}
+													class="text-green-600 hover:text-green-900 disabled:text-gray-400"
 												>
-													Desassignar
+													{saving ? 'Guardant...' : 'Guardar'}
 												</button>
-											{/if}
-										</div>
+												<button
+													on:click={cancelEditing}
+													disabled={saving}
+													class="text-gray-600 hover:text-gray-900 disabled:text-gray-400"
+												>
+													Cancel·lar
+												</button>
+											</div>
+										{:else}
+											<div class="flex space-x-2">
+												<button
+													on:click={() => startEditing(mitjana)}
+													class="text-blue-600 hover:text-blue-900"
+												>
+													{mitjana.soci_id ? 'Editar' : 'Assignar'}
+												</button>
+												{#if mitjana.soci_id}
+													<button
+														on:click={() => removeAssignment(mitjana.id)}
+														class="text-red-600 hover:text-red-900"
+													>
+														Desassignar
+													</button>
+												{/if}
+											</div>
+										{/if}
+									{:else}
+										<span class="text-xs text-gray-400">—</span>
 									{/if}
 								</td>
 							</tr>
@@ -568,3 +596,171 @@ async function gotoPage(p: number) {
 		{/if}
 	{/if}
 </div>
+
+<style>
+	.mh-root {
+		max-width: 1180px;
+		margin: 0 auto;
+		padding: 1.75rem 1.25rem 4rem;
+		font-family: var(--font-sans, sans-serif);
+		color: var(--ink, #1a1814);
+	}
+	.mh-mast {
+		margin-bottom: 1.75rem;
+		padding-bottom: 1.1rem;
+		border-bottom: 2px solid var(--ink, #1a1814);
+	}
+	.mh-title {
+		margin: 0.4rem 0 0.4rem;
+		font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+		font-weight: 800;
+		letter-spacing: -0.022em;
+		line-height: 1.1;
+		color: var(--ink, #1a1814);
+	}
+	.mh-sub {
+		margin: 0;
+		font-size: 0.9375rem;
+		color: var(--ink-2, #4a443e);
+		max-width: 56ch;
+	}
+	.editorial-eyebrow {
+		font-size: 0.625rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.16em;
+		color: var(--ink-3, #807a72);
+	}
+
+	/* Estadístiques editorials */
+	.mh-stats {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+		gap: 0.75rem;
+		margin-bottom: 1.5rem;
+	}
+	.mh-stat {
+		padding: 0.95rem 1.1rem;
+		background: var(--paper-elevated, #ffffff);
+		border: 1px solid var(--rule, #e6e3dc);
+	}
+	.mh-stat-eyebrow {
+		font-size: 0.625rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.16em;
+		color: var(--ink-3, #807a72);
+	}
+	.mh-stat-value {
+		margin: 0.25rem 0 0.15rem;
+		font-size: 1.75rem;
+		font-weight: 800;
+		letter-spacing: -0.02em;
+		line-height: 1;
+		color: var(--ink, #1a1814);
+	}
+	.mh-stat-label {
+		font-size: 0.8125rem;
+		color: var(--ink-2, #4a443e);
+	}
+	.mh-stat-ok { border-left: 3px solid var(--green, #1f7a3a); }
+	.mh-stat-ok .mh-stat-value { color: var(--green, #1f7a3a); }
+	.mh-stat-warn { border-left: 3px solid var(--amber, #b8860b); }
+	.mh-stat-warn .mh-stat-value { color: var(--amber, #b8860b); }
+
+	.tabular-nums { font-variant-numeric: tabular-nums; }
+
+	/* Modality pills */
+	.modality-pill {
+		background: transparent;
+		border: 1px solid var(--rule-strong, #b8b3a8);
+		color: var(--ink-2, #4a443e);
+		padding: 0.4rem 0.85rem;
+		font-family: var(--font-sans, sans-serif);
+		font-weight: 600;
+		font-size: 0.875rem;
+		letter-spacing: -0.005em;
+		cursor: pointer;
+		min-height: 36px;
+	}
+	.modality-pill:hover { color: var(--ink, #1a1814); border-color: var(--ink, #1a1814); }
+	.modality-pill.active {
+		background: var(--ink, #1a1814);
+		color: var(--paper, #fbfaf6);
+		border-color: var(--ink, #1a1814);
+	}
+
+	/* Overrides Tailwind dins de .mh-root */
+	.mh-root :global(.bg-white) {
+		background: var(--paper-elevated, #fff) !important;
+	}
+	.mh-root :global(.bg-gray-50) {
+		background: var(--paper, #fbfaf6) !important;
+	}
+	.mh-root :global(.bg-orange-50) {
+		background: var(--paper, #fbfaf6) !important;
+	}
+	.mh-root :global(.shadow),
+	.mh-root :global(.shadow-sm),
+	.mh-root :global(.shadow-md) { box-shadow: none !important; }
+	.mh-root :global(.rounded),
+	.mh-root :global(.rounded-sm),
+	.mh-root :global(.rounded-md),
+	.mh-root :global(.rounded-lg),
+	.mh-root :global(.rounded-full) { border-radius: 0 !important; }
+
+	.mh-root :global(.bg-blue-100) {
+		background: var(--paper, #fbfaf6) !important;
+		color: var(--blue, #1f4a99) !important;
+		border: 1px solid var(--blue, #1f4a99) !important;
+	}
+	.mh-root :global(.text-blue-800),
+	.mh-root :global(.text-blue-600) { color: var(--blue, #1f4a99) !important; }
+	.mh-root :global(.text-orange-600) { color: var(--amber, #b8860b) !important; }
+	.mh-root :global(.text-gray-500),
+	.mh-root :global(.text-gray-600) { color: var(--ink-3, #807a72) !important; }
+	.mh-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+	.mh-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+	.mh-root :global(.text-green-600),
+	.mh-root :global(.text-green-900) { color: var(--green, #1f7a3a) !important; }
+	.mh-root :global(.text-red-600),
+	.mh-root :global(.text-red-900) { color: var(--accent, #a30b1e) !important; }
+
+	.mh-root :global(.border-gray-200),
+	.mh-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+
+	/* Botons "Netejar filtres" i d'ordenació */
+	.mh-root :global(button.bg-gray-500) {
+		background: var(--ink-2, #4a443e) !important;
+		color: var(--paper, #fbfaf6) !important;
+		border-radius: 0 !important;
+	}
+	.mh-root :global(button.bg-blue-100) {
+		background: var(--paper, #fbfaf6) !important;
+		color: var(--ink, #1a1814) !important;
+		border: 1px solid var(--ink, #1a1814) !important;
+	}
+
+	.mh-root :global(input),
+	.mh-root :global(select),
+	.mh-root :global(textarea) {
+		background: var(--paper-elevated, #fff) !important;
+		border: 1px solid var(--rule-strong, #b8b3a8) !important;
+		border-radius: 0 !important;
+		font-family: var(--font-sans, sans-serif);
+	}
+	.mh-root :global(input:focus),
+	.mh-root :global(select:focus) {
+		outline: 2px solid var(--ink, #1a1814);
+		outline-offset: -1px;
+	}
+
+	.mh-root :global(table) { font-family: var(--font-sans, sans-serif); }
+	.mh-root :global(thead.bg-gray-50) {
+		background: var(--paper, #fbfaf6) !important;
+		border-bottom: 1px solid var(--ink, #1a1814) !important;
+	}
+	.mh-root :global(tr.bg-orange-50) {
+		background: color-mix(in srgb, var(--amber, #b8860b) 8%, var(--paper-elevated, #fff)) !important;
+	}
+</style>

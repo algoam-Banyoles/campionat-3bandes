@@ -88,19 +88,15 @@
   }
 </script>
 
-<div class="min-h-screen bg-gray-50 py-8">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="mb-6">
-      <a href="/admin" class="text-blue-600 hover:text-blue-800 flex items-center gap-2 mb-4">
-        ← Tornar a l'administració
-      </a>
-      <h1 class="text-3xl font-bold text-gray-900">Editor de Contingut</h1>
-      {#if lastUpdated}
-        <p class="text-sm text-gray-500 mt-2">
-          Última actualització: {lastUpdated.toLocaleString('ca-ES')}
-        </p>
-      {/if}
-    </div>
+<div class="ce-root">
+  <header class="ce-mast">
+    <a href="/admin" class="ce-back">← Tornar a l'administració</a>
+    <div class="editorial-eyebrow">Continguts</div>
+    <h1 class="ce-title">Editor de pàgina principal</h1>
+    {#if lastUpdated}
+      <p class="ce-sub">Última actualització: {lastUpdated.toLocaleString('ca-ES')}</p>
+    {/if}
+  </header>
 
     {#if !$adminChecked}
       <div class="flex justify-center items-center h-64">
@@ -171,5 +167,87 @@
         </div>
       </div>
     {/if}
-  </div>
 </div>
+
+<style>
+  .ce-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .ce-mast {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .ce-back {
+    display: inline-block;
+    color: var(--ink-2, #4a443e);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .ce-back:hover { color: var(--ink, #1a1814); }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .ce-title {
+    margin: 0.4rem 0 0.4rem;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .ce-sub {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--ink-3, #807a72);
+  }
+
+  .ce-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .ce-root :global(.bg-gray-50),
+  .ce-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .ce-root :global(.bg-blue-50),
+  .ce-root :global(.bg-blue-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--blue, #1f4a99) !important; }
+  .ce-root :global(.bg-blue-600),
+  .ce-root :global(.bg-blue-700) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .ce-root :global(.text-gray-500),
+  .ce-root :global(.text-gray-600),
+  .ce-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+  .ce-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+  .ce-root :global(.text-blue-600),
+  .ce-root :global(.text-blue-800) { color: var(--ink, #1a1814) !important; }
+  .ce-root :global(.border-gray-200),
+  .ce-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+  .ce-root :global(.rounded),
+  .ce-root :global(.rounded-md),
+  .ce-root :global(.rounded-lg),
+  .ce-root :global(.rounded-xl) { border-radius: 0 !important; }
+  .ce-root :global(.shadow),
+  .ce-root :global(.shadow-sm),
+  .ce-root :global(.shadow-md) { box-shadow: none !important; }
+  .ce-root :global(input),
+  .ce-root :global(textarea),
+  .ce-root :global(select) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .ce-root :global(input:focus),
+  .ce-root :global(textarea:focus),
+  .ce-root :global(select:focus) {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: -1px;
+  }
+</style>

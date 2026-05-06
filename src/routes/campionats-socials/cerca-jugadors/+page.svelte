@@ -2,6 +2,7 @@
   import { searchActivePlayers, getPlayerAverageHistory, searchPlayerInClassifications } from '$lib/api/socialLeagues';
   import PlayerAverageEvolution from '$lib/components/campionats-socials/PlayerAverageEvolution.svelte';
   import { debounce } from 'lodash-es';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   type SearchActivePlayer = Awaited<ReturnType<typeof searchActivePlayers>>[number];
   type ClassificationEntry = {
@@ -214,7 +215,7 @@
                   class="w-full text-left border border-gray-200 rounded-lg p-3 hover:bg-blue-50 hover:border-blue-300 transition-colors {selectedPlayer?.numero_soci === player.numero_soci ? 'bg-blue-50 border-blue-400' : ''}"
                 >
                   <div class="font-medium text-gray-900 text-sm">
-                    {player.nom} {player.cognoms}
+                    {formatarNomJugador(`${player.nom ?? ''} ${player.cognoms ?? ''}`.trim())}
                   </div>
                 </button>
               {/each}
@@ -241,7 +242,7 @@
             <div class="flex items-center justify-between">
               <div>
                 <h2 class="text-2xl font-bold text-gray-900">
-                  {selectedPlayer.nom} {selectedPlayer.cognoms}
+                  {formatarNomJugador(`${selectedPlayer.nom ?? ''} ${selectedPlayer.cognoms ?? ''}`.trim())}
                 </h2>
               </div>
               <button

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   const dispatch = createEventDispatcher();
 
@@ -671,7 +672,7 @@
           <div class="text-sm space-y-1">
             {#each Array.from(previousChampions.values()) as champion}
               <div class="flex items-center space-x-2">
-                <span class="font-medium text-yellow-800">{champion.nom} {champion.cognoms}</span>
+                <span class="font-medium text-yellow-800">{formatarNomJugador(`${champion.nom ?? ''} ${champion.cognoms ?? ''}`.trim())}</span>
                 <span class="text-xs bg-yellow-200 px-2 py-1 rounded">
                   {champion.posicio === 1 ? '🏆 Campió' : '🥈 Subcampió'} - {champion.categoria_nom}
                 </span>

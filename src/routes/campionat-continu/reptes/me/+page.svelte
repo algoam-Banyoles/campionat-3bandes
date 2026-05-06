@@ -346,12 +346,21 @@ async function saveSchedule(r: Challenge) {
 </script>
 
 <svelte:head>
-  <title>Els meus reptes</title>
+  <title>Els meus reptes — Campionat Continu</title>
 </svelte:head>
 
-<h1 class="text-2xl font-semibold mb-4">Els meus reptes</h1>
-<div class="rounded border border-blue-300 bg-blue-50 text-blue-900 p-3 mb-4 text-sm">
-  Tens {settings.dies_acceptar_repte} dies per acceptar un repte i {settings.dies_jugar_despres_acceptar} dies per jugar-lo un cop acceptat.
+<div class="me-root">
+
+<header class="page-mast">
+  <div>
+    <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">Campionat continu</div>
+    <h1 class="page-title">Els meus reptes</h1>
+  </div>
+</header>
+
+<div class="info-callout">
+  Tens <strong>{settings.dies_acceptar_repte}</strong> dies per acceptar un repte
+  i <strong>{settings.dies_jugar_despres_acceptar}</strong> dies per jugar-lo un cop acceptat.
 </div>
 
 {#if loading}
@@ -558,7 +567,7 @@ async function saveSchedule(r: Challenge) {
               {#if canSetResult(r)}
                 <a
                   class="rounded bg-slate-900 text-white px-3 py-1 h-9"
-                  href={`/admin/reptes/${r.id}/resultat`}
+                  href={`/campionat-continu/gestio-reptes/${r.id}/resultat`}
                 >Posar resultat</a>
               {/if}
                 </div>
@@ -571,3 +580,112 @@ async function saveSchedule(r: Challenge) {
     </div>
   {/if}
 {/if}
+
+</div>
+
+<style>
+  .me-root {
+    display: flex; flex-direction: column; gap: 1.25rem;
+    font-family: var(--font-sans); color: var(--ink);
+  }
+  .page-mast {
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .editorial-eyebrow {
+    font-size: 0.75rem; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--sec-continu);
+  }
+  .page-title {
+    font-weight: 800; font-size: 2rem;
+    letter-spacing: -0.025em; margin: 0;
+    color: var(--ink);
+  }
+  .info-callout {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--blue);
+    padding: 0.85rem 1rem;
+    color: var(--ink-2);
+    font-size: 0.9375rem;
+  }
+  .info-callout strong { color: var(--ink); font-weight: 700; }
+
+  /* Overrides Tailwind */
+  .me-root :global(.bg-blue-50) {
+    background: var(--paper-elevated) !important;
+    border: 1px solid var(--blue) !important;
+    border-radius: 0 !important;
+    color: var(--ink) !important;
+  }
+  .me-root :global(.bg-red-50) {
+    background: var(--paper-elevated) !important;
+    border: 1px solid var(--accent) !important;
+    border-radius: 0 !important;
+    color: var(--accent) !important;
+  }
+  .me-root :global(.bg-yellow-50),
+  .me-root :global(.bg-green-50),
+  .me-root :global(.bg-slate-50),
+  .me-root :global(.bg-gray-50) {
+    background: var(--paper) !important;
+    border: 1px solid var(--rule) !important;
+    border-radius: 0 !important;
+  }
+  .me-root :global(.text-slate-500),
+  .me-root :global(.text-slate-600),
+  .me-root :global(.text-slate-700),
+  .me-root :global(.text-slate-900),
+  .me-root :global(.text-gray-500),
+  .me-root :global(.text-gray-600) { color: var(--ink-2) !important; }
+  .me-root :global(.text-blue-700),
+  .me-root :global(.text-blue-800),
+  .me-root :global(.text-blue-900) { color: var(--ink) !important; }
+  .me-root :global(.text-red-700),
+  .me-root :global(.text-red-800) { color: var(--accent) !important; }
+  .me-root :global(.text-green-700),
+  .me-root :global(.text-green-800) { color: var(--green) !important; }
+  .me-root :global(button.bg-green-600),
+  .me-root :global(button[class*="bg-green"]) {
+    background: var(--green) !important;
+    color: white !important;
+    border: 1px solid var(--green) !important;
+    border-radius: 0 !important;
+    font-weight: 600;
+  }
+  .me-root :global(button.bg-red-600),
+  .me-root :global(button[class*="bg-red"]) {
+    background: var(--accent) !important;
+    color: white !important;
+    border: 1px solid var(--accent) !important;
+    border-radius: 0 !important;
+    font-weight: 600;
+  }
+  .me-root :global(button.bg-blue-600),
+  .me-root :global(button[class*="bg-blue"]) {
+    background: var(--ink) !important;
+    color: var(--paper) !important;
+    border: 1px solid var(--ink) !important;
+    border-radius: 0 !important;
+    font-weight: 600;
+  }
+  .me-root :global(input),
+  .me-root :global(select) {
+    background: var(--paper-elevated) !important;
+    border: 1px solid var(--rule-strong) !important;
+    border-radius: 0 !important;
+    color: var(--ink) !important;
+  }
+  .me-root :global(input:focus),
+  .me-root :global(select:focus) {
+    outline: 2px solid var(--ink) !important;
+    border-color: var(--ink) !important;
+  }
+  .me-root :global(.rounded),
+  .me-root :global(.rounded-lg),
+  .me-root :global(.rounded-md),
+  .me-root :global(.rounded-xl) {
+    border-radius: 0 !important;
+  }
+</style>

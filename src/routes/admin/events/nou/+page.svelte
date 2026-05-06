@@ -340,22 +340,16 @@
 </script>
 
 <svelte:head>
-  <title>Nou Event - Administració</title>
+  <title>Crear nou event</title>
 </svelte:head>
 
-<div class="max-w-4xl mx-auto p-4">
-  <div class="mb-6">
-    <div class="flex items-center space-x-4">
-      <a
-        href="/admin/events"
-        class="text-gray-600 hover:text-gray-900"
-      >
-        ← Tornar a Events
-      </a>
-    </div>
-    <h1 class="text-2xl font-semibold text-gray-900 mt-4">Crear Nou Event</h1>
-    <p class="text-gray-600 mt-1">Configura un nou campionat o competició</p>
-  </div>
+<div class="evnou-root">
+  <header class="evnou-mast">
+    <a href="/admin/events" class="evnou-back">← Tornar a events</a>
+    <div class="editorial-eyebrow">Calendari general · Nou event</div>
+    <h1 class="evnou-title">Crear nou event</h1>
+    <p class="evnou-sub">Configura un nou campionat o competició: tipus, modalitat, temporada i dates.</p>
+  </header>
 
   {#if error}
     <Banner type="error" message={error} class="mb-6" />
@@ -858,3 +852,99 @@
     </div>
   </form>
 </div>
+
+<style>
+  .evnou-root {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .evnou-mast {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .evnou-back {
+    display: inline-block;
+    color: var(--ink-2, #4a443e);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .evnou-back:hover { color: var(--ink, #1a1814); }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .evnou-title {
+    margin: 0.4rem 0 0.4rem;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .evnou-sub {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ink-2, #4a443e);
+    max-width: 56ch;
+  }
+
+  .evnou-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .evnou-root :global(.bg-gray-50),
+  .evnou-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .evnou-root :global(.bg-blue-50),
+  .evnou-root :global(.bg-blue-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--blue, #1f4a99) !important; }
+  .evnou-root :global(.bg-yellow-50),
+  .evnou-root :global(.bg-yellow-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+  .evnou-root :global(.bg-red-50),
+  .evnou-root :global(.bg-red-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--accent, #a30b1e) !important; }
+  .evnou-root :global(.bg-green-50),
+  .evnou-root :global(.bg-green-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--green, #1f7a3a) !important; }
+  .evnou-root :global(.bg-blue-600),
+  .evnou-root :global(.bg-blue-700) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .evnou-root :global(.text-gray-500),
+  .evnou-root :global(.text-gray-600),
+  .evnou-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+  .evnou-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+  .evnou-root :global(.text-blue-600),
+  .evnou-root :global(.text-blue-800) { color: var(--blue, #1f4a99) !important; }
+  .evnou-root :global(.text-yellow-700),
+  .evnou-root :global(.text-yellow-800) { color: var(--amber, #b8860b) !important; }
+  .evnou-root :global(.text-red-600),
+  .evnou-root :global(.text-red-800) { color: var(--accent, #a30b1e) !important; }
+  .evnou-root :global(.border-gray-200),
+  .evnou-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+  .evnou-root :global(.rounded),
+  .evnou-root :global(.rounded-md),
+  .evnou-root :global(.rounded-lg),
+  .evnou-root :global(.rounded-xl),
+  .evnou-root :global(.rounded-2xl),
+  .evnou-root :global(.rounded-full) { border-radius: 0 !important; }
+  .evnou-root :global(.shadow),
+  .evnou-root :global(.shadow-sm),
+  .evnou-root :global(.shadow-md) { box-shadow: none !important; }
+  .evnou-root :global(input),
+  .evnou-root :global(select),
+  .evnou-root :global(textarea) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .evnou-root :global(input:focus),
+  .evnou-root :global(select:focus),
+  .evnou-root :global(textarea:focus) {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: -1px;
+  }
+</style>

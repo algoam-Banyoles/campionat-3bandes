@@ -219,8 +219,13 @@
 	});
 </script>
 
-<div class="mx-auto max-w-3xl p-4">
-	<h1 class="mb-6 text-2xl font-bold text-gray-900">Campionat Handicap 3 Bandes</h1>
+<div class="hcap-root">
+	<header class="page-mast">
+		<div>
+			<div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">Hàndicap</div>
+			<h1 class="page-title">Campionat Hàndicap · 3 Bandes</h1>
+		</div>
+	</header>
 
 	<div class="mb-6 rounded-lg border border-purple-200 bg-white p-4 shadow-sm">
 		<h2 class="mb-1 text-lg font-semibold text-purple-800">Eliminacio doble</h2>
@@ -328,3 +333,100 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	.hcap-root {
+		max-width: 56rem;
+		margin: 0 auto;
+		padding: 1rem;
+		display: flex; flex-direction: column; gap: 1.25rem;
+		font-family: var(--font-sans); color: var(--ink);
+	}
+	.page-mast { padding-bottom: 1rem; border-bottom: 2px solid var(--ink); }
+	.editorial-eyebrow {
+		font-size: 0.75rem; font-weight: 600;
+		letter-spacing: 0.16em; text-transform: uppercase;
+		color: var(--sec-handicap);
+	}
+	.page-title {
+		font-weight: 800; font-size: 2rem;
+		letter-spacing: -0.025em; line-height: 1.05;
+		margin: 0; color: var(--ink);
+	}
+	/* Tailwind overrides */
+	.hcap-root :global(.bg-white),
+	.hcap-root :global(.bg-purple-50),
+	.hcap-root :global(.bg-blue-50),
+	.hcap-root :global(.bg-yellow-50),
+	.hcap-root :global(.bg-yellow-100),
+	.hcap-root :global(.bg-green-50),
+	.hcap-root :global(.bg-red-50),
+	.hcap-root :global(.bg-gray-50),
+	.hcap-root :global(.bg-slate-50) {
+		background: var(--paper-elevated) !important;
+		border: 1px solid var(--rule) !important;
+		border-radius: 0 !important;
+		box-shadow: none !important;
+	}
+	.hcap-root :global(.bg-yellow-100) {
+		border-color: var(--amber) !important;
+	}
+	.hcap-root :global(.text-purple-700),
+	.hcap-root :global(.text-purple-800),
+	.hcap-root :global(.text-purple-900) {
+		color: var(--sec-handicap) !important;
+	}
+	.hcap-root :global(.text-yellow-600),
+	.hcap-root :global(.text-yellow-700),
+	.hcap-root :global(.text-yellow-900),
+	.hcap-root :global(.text-amber-700) {
+		color: var(--amber) !important;
+	}
+	.hcap-root :global(.text-green-600),
+	.hcap-root :global(.text-green-700),
+	.hcap-root :global(.text-green-800) {
+		color: var(--green) !important;
+	}
+	.hcap-root :global(.text-red-600),
+	.hcap-root :global(.text-red-700),
+	.hcap-root :global(.text-red-800) {
+		color: var(--accent) !important;
+	}
+	.hcap-root :global(.text-gray-500),
+	.hcap-root :global(.text-gray-600),
+	.hcap-root :global(.text-slate-500),
+	.hcap-root :global(.text-slate-600) {
+		color: var(--ink-2) !important;
+	}
+	.hcap-root :global(.text-gray-900),
+	.hcap-root :global(.text-slate-900) {
+		color: var(--ink) !important;
+	}
+	.hcap-root :global(button.bg-purple-600),
+	.hcap-root :global(button[class*="bg-purple"]) {
+		background: var(--sec-handicap) !important;
+		color: white !important;
+		border: 1px solid var(--sec-handicap) !important;
+		border-radius: 0 !important;
+		font-weight: 600 !important;
+	}
+	.hcap-root :global(button.bg-blue-600),
+	.hcap-root :global(button[class*="bg-blue-"]) {
+		background: var(--ink) !important;
+		color: var(--paper) !important;
+		border: 1px solid var(--ink) !important;
+		border-radius: 0 !important;
+		font-weight: 600 !important;
+	}
+	.hcap-root :global(.rounded),
+	.hcap-root :global(.rounded-lg),
+	.hcap-root :global(.rounded-md),
+	.hcap-root :global(.rounded-xl),
+	.hcap-root :global(.rounded-full) { border-radius: 0 !important; }
+	.hcap-root :global(.shadow),
+	.hcap-root :global(.shadow-sm),
+	.hcap-root :global(.shadow-md) { box-shadow: none !important; }
+	.hcap-root :global(a) {
+		color: var(--blue);
+	}
+</style>

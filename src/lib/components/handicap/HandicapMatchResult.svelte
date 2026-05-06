@@ -114,7 +114,7 @@
 	}
 </script>
 
-<div class="space-y-4">
+<div class="space-y-4 hcap-component-root">
 	<!-- Jugadors -->
 	<div class="rounded border border-gray-200 overflow-hidden text-sm">
 		<!-- Jugador 1 -->
@@ -272,3 +272,96 @@
 		</button>
 	</div>
 </div>
+
+<style>
+	.hcap-component-root :global(.bg-white) { background: var(--paper-elevated) !important; }
+	.hcap-component-root :global(.bg-gray-50),
+	.hcap-component-root :global(.bg-slate-50) { background: var(--paper) !important; }
+	.hcap-component-root :global(.bg-blue-50) {
+		background: var(--paper) !important;
+		border-color: var(--blue) !important;
+	}
+	.hcap-component-root :global(.bg-green-50) {
+		background: var(--paper) !important;
+		border-color: var(--green) !important;
+	}
+	.hcap-component-root :global(.bg-yellow-50) {
+		background: var(--paper) !important;
+		border-color: var(--amber) !important;
+	}
+	.hcap-component-root :global(.bg-red-50) {
+		background: var(--paper) !important;
+		border-color: var(--accent) !important;
+	}
+	.hcap-component-root :global(.bg-purple-50) {
+		background: var(--paper) !important;
+		border-color: var(--sec-handicap) !important;
+	}
+	.hcap-component-root :global(.border-gray-100),
+	.hcap-component-root :global(.border-gray-200),
+	.hcap-component-root :global(.border-gray-300) { border-color: var(--rule) !important; }
+	.hcap-component-root :global(.text-gray-400),
+	.hcap-component-root :global(.text-gray-500) { color: var(--ink-3) !important; }
+	.hcap-component-root :global(.text-gray-600),
+	.hcap-component-root :global(.text-gray-700) { color: var(--ink-2) !important; }
+	.hcap-component-root :global(.text-gray-800),
+	.hcap-component-root :global(.text-gray-900) { color: var(--ink) !important; }
+	.hcap-component-root :global(.text-blue-600),
+	.hcap-component-root :global(.text-blue-700) { color: var(--blue) !important; }
+	.hcap-component-root :global(.text-green-600),
+	.hcap-component-root :global(.text-green-700) { color: var(--green) !important; }
+	.hcap-component-root :global(.text-red-600),
+	.hcap-component-root :global(.text-red-700) { color: var(--accent) !important; }
+	.hcap-component-root :global(.text-amber-700),
+	.hcap-component-root :global(.text-yellow-600),
+	.hcap-component-root :global(.text-yellow-700) { color: var(--amber) !important; }
+	.hcap-component-root :global(.text-purple-600),
+	.hcap-component-root :global(.text-purple-700) { color: var(--sec-handicap) !important; }
+	.hcap-component-root :global(button.bg-blue-600),
+	.hcap-component-root :global(button[class*="bg-blue"]) {
+		background: var(--ink) !important;
+		color: var(--paper) !important;
+		border: 1px solid var(--ink) !important;
+		border-radius: 0 !important;
+		font-weight: 600 !important;
+	}
+	.hcap-component-root :global(button.bg-green-600),
+	.hcap-component-root :global(button[class*="bg-green"]) {
+		background: var(--green) !important;
+		color: white !important;
+		border: 1px solid var(--green) !important;
+		border-radius: 0 !important;
+		font-weight: 600 !important;
+	}
+	.hcap-component-root :global(button.bg-purple-600),
+	.hcap-component-root :global(button[class*="bg-purple"]) {
+		background: var(--sec-handicap) !important;
+		color: white !important;
+		border: 1px solid var(--sec-handicap) !important;
+		border-radius: 0 !important;
+		font-weight: 600 !important;
+	}
+	.hcap-component-root :global(input),
+	.hcap-component-root :global(select),
+	.hcap-component-root :global(textarea) {
+		background: var(--paper-elevated) !important;
+		border: 1px solid var(--rule-strong) !important;
+		border-radius: 0 !important;
+		color: var(--ink) !important;
+	}
+	.hcap-component-root :global(input:focus),
+	.hcap-component-root :global(select:focus),
+	.hcap-component-root :global(textarea:focus) {
+		outline: 2px solid var(--ink) !important;
+		border-color: var(--ink) !important;
+	}
+	.hcap-component-root :global(.rounded),
+	.hcap-component-root :global(.rounded-sm),
+	.hcap-component-root :global(.rounded-md),
+	.hcap-component-root :global(.rounded-lg),
+	.hcap-component-root :global(.rounded-xl),
+	.hcap-component-root :global(.rounded-full) { border-radius: 0 !important; }
+	.hcap-component-root :global(.shadow),
+	.hcap-component-root :global(.shadow-sm),
+	.hcap-component-root :global(.shadow-md) { box-shadow: none !important; }
+</style>

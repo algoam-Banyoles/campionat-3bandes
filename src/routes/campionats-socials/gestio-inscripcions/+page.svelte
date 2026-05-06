@@ -1,10 +1,17 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { user } from '$lib/stores/auth';
   import { supabase } from '$lib/supabaseClient';
+  import { adminChecked, isAdmin } from '$lib/stores/adminAuth';
+
+  // Guard: només admins. Si la comprovació ha acabat i no és admin, redirigeix.
+  $: if ($adminChecked && !$isAdmin) {
+    goto('/campionats-socials');
+  }
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
   import DragDropInscriptions from '$lib/components/campionats-socials/DragDropInscriptions.svelte';
   import AutoCategoryAssignment from '$lib/components/campionats-socials/AutoCategoryAssignment.svelte';
   import CategorySetup from '$lib/components/campionats-socials/CategorySetup.svelte';
@@ -16,6 +23,11 @@
   import { formatSupabaseError } from '$lib/ui/alerts';
   import { loadSocisWithAverages, assignPlayersToCategories, formatAssignmentSummary } from '$lib/services/inscriptionsService';
   import { showConfirm } from '$lib/stores/confirmDialogStore';
+  import { showInfo } from '$lib/stores/toastStore';
+  import {
+    subscribeToInscriptionUpdates,
+    markInscriptionLocallyMutated
+  } from '$lib/services/realtimeInscriptionsService';
 
   let loading = true;
   let error: string | null = null;
@@ -167,6 +179,40 @@
     return result;
   })();
 
+  // Realtime: subscripció a canvis d'inscripcions per a col·laboració
+  // entre admins concurrents. Es re-crea quan canvia selectedEventId.
+  let unsubscribeRealtime: (() => void) | null = null;
+  $: {
+    if (unsubscribeRealtime) {
+      unsubscribeRealtime();
+      unsubscribeRealtime = null;
+    }
+    if (selectedEventId) {
+      unsubscribeRealtime = subscribeToInscriptionUpdates(
+        supabase,
+        selectedEventId,
+        async (e) => {
+          if (e.isLocalEcho) {
+            // Refresc silenciós; les funcions locals ja recarreguen sovint
+            await loadInscriptions();
+            return;
+          }
+          // Mostrar toast informatiu segons el tipus de canvi
+          if (e.type === 'created') showInfo('Una nova inscripció s\'ha afegit');
+          else if (e.type === 'category_changed') showInfo('Un altre admin ha mogut un jugador de categoria');
+          else if (e.type === 'withdrawn') showInfo('Un jugador ha estat marcat com a retirat');
+          else if (e.type === 'reinstated') showInfo('Un jugador retirat ha estat reincorporat');
+          else if (e.type === 'restrictions_changed') showInfo('Restriccions/preferències actualitzades');
+          else if (e.type === 'deleted') showInfo('Una inscripció ha estat eliminada');
+          await loadInscriptions();
+        }
+      );
+    }
+  }
+  onDestroy(() => {
+    if (unsubscribeRealtime) unsubscribeRealtime();
+  });
+
   onMount(async () => {
     const u = $user;
     if (!u?.email) {
@@ -268,15 +314,13 @@
 
   async function updateInscriptionCategory(inscriptionId: string, categoryId: string | null) {
     try {
-  
+      markInscriptionLocallyMutated(inscriptionId);
       const { error } = await supabase
         .from('inscripcions')
         .update({ categoria_assignada_id: categoryId })
         .eq('id', inscriptionId);
 
       if (error) throw error;
-
-      // Reload inscriptions
       await loadInscriptions();
     } catch (e) {
       error = formatSupabaseError(e);
@@ -285,15 +329,13 @@
 
   async function updateInscriptionStatus(inscriptionId: string, field: 'confirmat' | 'pagat', value: boolean) {
     try {
-  
+      markInscriptionLocallyMutated(inscriptionId);
       const { error } = await supabase
         .from('inscripcions')
         .update({ [field]: value })
         .eq('id', inscriptionId);
 
       if (error) throw error;
-
-      // Reload inscriptions
       await loadInscriptions();
     } catch (e) {
       error = formatSupabaseError(e);
@@ -310,15 +352,13 @@
     if (!ok) return;
 
     try {
-  
+      markInscriptionLocallyMutated(inscriptionId);
       const { error } = await supabase
         .from('inscripcions')
         .delete()
         .eq('id', inscriptionId);
 
       if (error) throw error;
-
-      // Reload inscriptions
       await loadInscriptions();
     } catch (e) {
       error = formatSupabaseError(e);
@@ -362,15 +402,13 @@
     const { inscriptionId, categoryId } = event.detail;
 
     try {
-  
+      markInscriptionLocallyMutated(inscriptionId);
       const { error } = await supabase
         .from('inscripcions')
         .update({ categoria_assignada_id: categoryId })
         .eq('id', inscriptionId);
 
       if (error) throw error;
-
-      // Reload inscriptions
       await loadInscriptions();
 
     } catch (e) {
@@ -735,22 +773,16 @@
 </script>
 
 <svelte:head>
-  <title>Inscripcions Socials - Admin</title>
+  <title>Gestió d'inscripcions — campionats socials</title>
 </svelte:head>
 
-<div class="max-w-7xl mx-auto p-4">
-  <div class="mb-6">
-    <div class="flex items-center space-x-4">
-      <a
-        href="/admin"
-        class="text-gray-600 hover:text-gray-900"
-      >
-        ← Tornar a Admin
-      </a>
-    </div>
-    <h1 class="text-2xl font-semibold text-gray-900 mt-2">Inscripcions - Campionats Socials</h1>
-    <p class="text-gray-600 mt-1">Gestiona les inscripcions dels campionats socials i eliminatòries</p>
-  </div>
+<div class="gis-root">
+  <header class="gis-mast">
+    <a href="/campionats-socials" class="gis-back">← Tornar a campionats socials</a>
+    <div class="editorial-eyebrow">Campionats socials · Administració</div>
+    <h1 class="gis-title">Gestió d'inscripcions</h1>
+    <p class="gis-sub">Inscripcions per categoria, drag-and-drop, generació de calendari i retirades.</p>
+  </header>
 
   {#if loading}
     <Loader />
@@ -905,8 +937,7 @@
                 <div class="bg-gray-50 p-4 rounded-lg">
                   <h4 class="font-medium text-gray-900 mb-2">Soci Seleccionat:</h4>
                   <p class="text-sm text-gray-600">
-                    <strong>{selectedSoci.nom} {selectedSoci.cognoms}</strong>
-                    (Soci #{selectedSoci.numero_soci})
+                    <strong>{formatarNomJugador(`${selectedSoci.nom ?? ''} ${selectedSoci.cognoms ?? ''}`.trim())}</strong>
                   </p>
                   {#if selectedSoci.email}
                     <p class="text-sm text-gray-500">{selectedSoci.email}</p>
@@ -1252,15 +1283,12 @@
                       <div class="flex items-center">
                         <div>
                           <div class="text-sm font-medium text-gray-900 flex items-center gap-2">
-                            {inscription.socis.nom} {inscription.socis.cognoms}
+                            {formatarNomJugador(`${inscription.socis.nom ?? ''} ${inscription.socis.cognoms ?? ''}`.trim())}
                             {#if inscription.estat_jugador === 'retirat'}
                               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
                                 Retirat
                               </span>
                             {/if}
-                          </div>
-                          <div class="text-sm text-gray-500">
-                            Soci #{inscription.socis.numero_soci}
                           </div>
                           {#if inscription.estat_jugador === 'retirat' && inscription.motiu_retirada}
                             <div class="text-xs text-red-600 mt-1">
@@ -1427,3 +1455,148 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .gis-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .gis-mast {
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .gis-back {
+    display: inline-block;
+    color: var(--ink-2, #4a443e);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .gis-back:hover { color: var(--ink, #1a1814); }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .gis-title {
+    margin: 0.4rem 0 0.4rem;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .gis-sub {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ink-2, #4a443e);
+    max-width: 56ch;
+  }
+
+  /* Overrides Tailwind dins .gis-root */
+  .gis-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .gis-root :global(.bg-gray-50),
+  .gis-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .gis-root :global(.bg-gray-700),
+  .gis-root :global(.bg-gray-800),
+  .gis-root :global(.bg-slate-900) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .gis-root :global(.bg-blue-50),
+  .gis-root :global(.bg-blue-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--blue, #1f4a99) !important; }
+  .gis-root :global(.bg-blue-600),
+  .gis-root :global(.bg-blue-700) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .gis-root :global(.bg-green-50),
+  .gis-root :global(.bg-green-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--green, #1f7a3a) !important; }
+  .gis-root :global(.bg-green-600),
+  .gis-root :global(.bg-green-700) {
+    background: var(--green, #1f7a3a) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .gis-root :global(.bg-red-50),
+  .gis-root :global(.bg-red-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--accent, #a30b1e) !important; }
+  .gis-root :global(.bg-red-600),
+  .gis-root :global(.bg-red-700) {
+    background: var(--accent, #a30b1e) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .gis-root :global(.bg-yellow-50),
+  .gis-root :global(.bg-yellow-100),
+  .gis-root :global(.bg-amber-50),
+  .gis-root :global(.bg-amber-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+  .gis-root :global(.bg-purple-50),
+  .gis-root :global(.bg-purple-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--ink-2, #4a443e) !important; }
+  .gis-root :global(.bg-orange-50),
+  .gis-root :global(.bg-orange-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+  .gis-root :global(.bg-teal-50),
+  .gis-root :global(.bg-teal-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--green, #1f7a3a) !important; }
+  .gis-root :global(.bg-indigo-50),
+  .gis-root :global(.bg-indigo-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--blue, #1f4a99) !important; }
+
+  .gis-root :global(.text-gray-400),
+  .gis-root :global(.text-gray-500),
+  .gis-root :global(.text-gray-600),
+  .gis-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+  .gis-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+  .gis-root :global(.text-blue-600),
+  .gis-root :global(.text-blue-700),
+  .gis-root :global(.text-blue-800) { color: var(--blue, #1f4a99) !important; }
+  .gis-root :global(.text-green-600),
+  .gis-root :global(.text-green-700),
+  .gis-root :global(.text-green-800) { color: var(--green, #1f7a3a) !important; }
+  .gis-root :global(.text-red-600),
+  .gis-root :global(.text-red-700),
+  .gis-root :global(.text-red-800) { color: var(--accent, #a30b1e) !important; }
+  .gis-root :global(.text-yellow-700),
+  .gis-root :global(.text-yellow-800),
+  .gis-root :global(.text-amber-700),
+  .gis-root :global(.text-amber-800),
+  .gis-root :global(.text-orange-700),
+  .gis-root :global(.text-orange-800) { color: var(--amber, #b8860b) !important; }
+  .gis-root :global(.text-purple-700),
+  .gis-root :global(.text-purple-800),
+  .gis-root :global(.text-indigo-700),
+  .gis-root :global(.text-indigo-800) { color: var(--ink-2, #4a443e) !important; }
+
+  .gis-root :global(.border-gray-200),
+  .gis-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+  .gis-root :global(.rounded),
+  .gis-root :global(.rounded-md),
+  .gis-root :global(.rounded-lg),
+  .gis-root :global(.rounded-xl),
+  .gis-root :global(.rounded-2xl),
+  .gis-root :global(.rounded-full) { border-radius: 0 !important; }
+  .gis-root :global(.shadow),
+  .gis-root :global(.shadow-sm),
+  .gis-root :global(.shadow-md),
+  .gis-root :global(.shadow-lg) { box-shadow: none !important; }
+  .gis-root :global(input),
+  .gis-root :global(select),
+  .gis-root :global(textarea) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .gis-root :global(input:focus),
+  .gis-root :global(select:focus),
+  .gis-root :global(textarea:focus) {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: -1px;
+  }
+  .gis-root :global(table) { font-family: var(--font-sans, sans-serif); }
+  .gis-root :global(thead.bg-gray-50) {
+    background: var(--paper, #fbfaf6) !important;
+    border-bottom: 1px solid var(--ink, #1a1814) !important;
+  }
+</style>

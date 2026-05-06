@@ -74,6 +74,7 @@
 	}
 </script>
 
+<div class="hcap-component-root">
 {#if mode === 'individual'}
 	<!-- ── Mode individual: selecció interactiva ─────────────── -->
 	<div>
@@ -211,3 +212,49 @@
 		</div>
 	{/if}
 {/if}
+</div>
+
+<style>
+	.hcap-component-root :global(.bg-white) { background: var(--paper-elevated) !important; }
+	.hcap-component-root :global(.bg-gray-50),
+	.hcap-component-root :global(.bg-gray-100) { background: var(--paper) !important; color: var(--ink-soft) !important; }
+	.hcap-component-root :global(.bg-gray-200) { background: var(--rule) !important; }
+
+	.hcap-component-root :global(.bg-green-100),
+	.hcap-component-root :global(.bg-green-200) { background: var(--paper) !important; color: var(--green) !important; border: 1px solid var(--green) !important; }
+	.hcap-component-root :global(.bg-yellow-100),
+	.hcap-component-root :global(.bg-yellow-200) { background: var(--paper) !important; color: var(--amber) !important; border: 1px solid var(--amber) !important; }
+	.hcap-component-root :global(.bg-orange-100),
+	.hcap-component-root :global(.bg-orange-200) { background: var(--paper) !important; color: #c2410c !important; border: 1px solid #c2410c !important; }
+	.hcap-component-root :global(.bg-red-100),
+	.hcap-component-root :global(.bg-red-200) { background: var(--paper) !important; color: var(--accent) !important; border: 1px solid var(--accent) !important; }
+	.hcap-component-root :global(.bg-amber-50) { background: var(--paper) !important; border: 1px solid var(--amber) !important; }
+	.hcap-component-root :global(.bg-purple-100),
+	.hcap-component-root :global(.bg-purple-200) { background: var(--paper) !important; color: var(--sec-handicap) !important; border: 1px solid var(--sec-handicap) !important; }
+
+	.hcap-component-root :global(.text-green-800) { color: var(--green) !important; }
+	.hcap-component-root :global(.text-yellow-700),
+	.hcap-component-root :global(.text-amber-600),
+	.hcap-component-root :global(.text-amber-800) { color: var(--amber) !important; }
+	.hcap-component-root :global(.text-orange-800) { color: #c2410c !important; }
+	.hcap-component-root :global(.text-red-800) { color: var(--accent) !important; }
+	.hcap-component-root :global(.text-purple-800) { color: var(--sec-handicap) !important; }
+	.hcap-component-root :global(.text-gray-400),
+	.hcap-component-root :global(.text-gray-500),
+	.hcap-component-root :global(.text-gray-600) { color: var(--ink-soft) !important; }
+	.hcap-component-root :global(.text-gray-700) { color: var(--ink) !important; }
+
+	.hcap-component-root :global(.border-gray-200),
+	.hcap-component-root :global(.border-gray-300) { border-color: var(--rule) !important; }
+	.hcap-component-root :global(.border-purple-500) { border-color: var(--sec-handicap) !important; }
+	.hcap-component-root :global(.border-amber-300) { border-color: var(--amber) !important; }
+
+	.hcap-component-root :global(.rounded),
+	.hcap-component-root :global(.rounded-sm),
+	.hcap-component-root :global(.rounded-md),
+	.hcap-component-root :global(.rounded-lg),
+	.hcap-component-root :global(.rounded-xl) { border-radius: 0 !important; }
+
+	.hcap-component-root :global(table) { font-family: var(--font-sans); }
+	.hcap-component-root :global(button) { font-family: var(--font-sans); }
+</style>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   const dispatch = createEventDispatcher();
 
@@ -108,7 +109,7 @@
 
   function getPlayerName(player: any): string {
     if (!player) return 'Desconegut';
-    return `${player.nom} ${player.cognoms || ''}`.trim();
+    return formatarNomJugador(`${player.nom ?? ''} ${player.cognoms ?? ''}`.trim());
   }
 
   function getCategoryName(match: any): string {
@@ -183,61 +184,43 @@
   }
 </script>
 
-<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 pt-20">
-  <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col">
-    <!-- Header -->
-    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-      <div class="flex items-center justify-between">
-        <div>
-          <h3 class="text-xl font-bold text-gray-900">Partides Antigues sense Resultats</h3>
-          <p class="text-sm text-gray-600 mt-1">
-            Selecciona les partides que vols convertir a "Pendent de programar"
-          </p>
-        </div>
-        <button
-          type="button"
-          on:click={close}
-          class="text-gray-400 hover:text-gray-600 transition-colors"
-          title="Tancar"
-          aria-label="Tancar modal"
-        >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
+<div class="modal-root">
+  <div class="modal-overlay" on:click={close} role="presentation"></div>
+  <div class="modal-card modal-card-lg">
+    <div class="modal-head">
+      <div>
+        <div class="editorial-eyebrow">Partides antigues</div>
+        <h3 class="modal-title">Reciclar a "pendent de programar"</h3>
+        <div class="modal-sub">Selecciona les partides programades en el passat sense resultat per a tornar-les a la cua de pendents.</div>
       </div>
+      <button
+        type="button"
+        on:click={close}
+        class="modal-close"
+        title="Tancar"
+        aria-label="Tancar modal"
+      >×</button>
     </div>
 
-    <!-- Content -->
-    <div class="flex-1 overflow-y-auto p-6">
+    <div class="modal-body">
       {#if loading}
-        <div class="flex items-center justify-center py-12">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-          <p class="ml-3 text-gray-600">Carregant partides antigues...</p>
-        </div>
+        <div class="state-empty">Carregant partides antigues…</div>
       {:else if error}
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p class="text-red-800">{error}</p>
-        </div>
+        <div class="state-empty error-state">{error}</div>
       {:else if oldMatches.length === 0}
-        <div class="text-center py-12">
-          <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          <p class="text-gray-600 text-lg">No hi ha partides antigues sense resultats</p>
-          <p class="text-gray-500 text-sm mt-2">Totes les partides programades en el passat tenen resultats o ja estan pendents</p>
+        <div class="state-empty">
+          <div class="state-title">No hi ha partides antigues sense resultats</div>
+          <div class="state-sub">Totes les partides programades en el passat tenen resultats o ja estan pendents.</div>
         </div>
       {:else}
-        <!-- Filtres -->
-        <div class="mb-4 space-y-3 bg-gray-50 p-4 rounded-lg">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <!-- Filtre per categoria -->
-            <div>
-              <label for="old-filter-category" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+        <div class="filters">
+          <div class="form-grid form-grid-2">
+            <div class="form-field">
+              <label for="old-filter-category">Categoria</label>
               <select
                 id="old-filter-category"
                 bind:value={selectedCategoryFilter}
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                class="filter-input"
               >
                 <option value="all">Totes les categories</option>
                 {#each categories as category}
@@ -245,122 +228,253 @@
                 {/each}
               </select>
             </div>
-
-            <!-- Cerca per nom -->
-            <div>
-              <label for="old-search-player" class="block text-sm font-medium text-gray-700 mb-1">Cerca jugador</label>
+            <div class="form-field">
+              <label for="old-search-player">Cerca jugador</label>
               <input
                 id="old-search-player"
                 type="text"
                 bind:value={searchText}
-                placeholder="Nom del jugador..."
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                placeholder="Nom del jugador…"
+                class="filter-input"
               />
             </div>
           </div>
 
-          <div class="flex items-center justify-between">
-            <div class="text-sm text-gray-600">
+          <div class="filter-row-meta">
+            <span class="filter-meta tabular-nums">
               Mostrant {filteredMatches.length} de {oldMatches.length} partides
-            </div>
-            <div class="flex gap-2">
-              <button
-                on:click={selectAll}
-                class="px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
-              >
-                Seleccionar Totes ({filteredMatches.length})
+            </span>
+            <div class="filter-actions">
+              <button on:click={selectAll} class="btn-link-action">
+                Seleccionar totes ({filteredMatches.length})
               </button>
-              <button
-                on:click={deselectAll}
-                class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-              >
-                Deseleccionar Totes
+              <span class="filter-sep">·</span>
+              <button on:click={deselectAll} class="btn-link-action btn-link-muted">
+                Deseleccionar
               </button>
             </div>
           </div>
         </div>
 
-        <!-- Llista de partides -->
         {#if filteredMatches.length === 0}
-          <div class="text-center py-8">
-            <p class="text-gray-500">No hi ha partides que coincideixin amb els filtres</p>
-          </div>
+          <div class="state-empty">No hi ha partides que coincideixin amb els filtres.</div>
         {:else}
-          <div class="space-y-2">
+          <ul class="match-list">
             {#each filteredMatches as match}
-              <button
-                on:click={() => toggleMatch(match.id)}
-                class="w-full text-left p-4 border-2 rounded-lg transition-all {
-                  selectedMatches.has(match.id)
-                    ? 'border-purple-500 bg-purple-50'
-                    : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                }"
-              >
-                <div class="flex items-center justify-between">
-                  <div class="flex-1">
-                    <div class="flex items-center gap-3 mb-2">
-                      <span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-semibold rounded">
-                        {getCategoryName(match)}
-                      </span>
-                      <span class="px-2 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded">
-                        {formatDate(match.data_programada)}
-                      </span>
-                      {#if match.hora_inici}
-                        <span class="text-sm text-gray-600">
-                          {match.hora_inici}
-                        </span>
-                      {/if}
-                      {#if match.taula_assignada}
-                        <span class="text-sm text-gray-600">
-                          Billar {match.taula_assignada}
-                        </span>
-                      {/if}
-                    </div>
-                    <div class="font-semibold text-gray-900">
-                      {getPlayerName(match.jugador1)} vs {getPlayerName(match.jugador2)}
-                    </div>
+              <li>
+                <button
+                  on:click={() => toggleMatch(match.id)}
+                  class="match-item"
+                  class:active={selectedMatches.has(match.id)}
+                >
+                  <div class="match-tags">
+                    <span class="tag tag-cat">{getCategoryName(match)}</span>
+                    <span class="tag tag-date tabular-nums">{formatDate(match.data_programada)}</span>
+                    {#if match.hora_inici}
+                      <span class="tag-meta tabular-nums">{match.hora_inici}</span>
+                    {/if}
+                    {#if match.taula_assignada}
+                      <span class="tag-meta">Billar {match.taula_assignada}</span>
+                    {/if}
+                  </div>
+                  <div class="match-vs">
+                    <span class="match-player">{getPlayerName(match.jugador1)}</span>
+                    <span class="match-sep">vs</span>
+                    <span class="match-player">{getPlayerName(match.jugador2)}</span>
                   </div>
                   {#if selectedMatches.has(match.id)}
-                    <svg class="w-6 h-6 text-purple-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                    </svg>
+                    <span class="match-check" aria-hidden="true">✓</span>
                   {/if}
-                </div>
-              </button>
+                </button>
+              </li>
             {/each}
-          </div>
+          </ul>
         {/if}
       {/if}
     </div>
 
-    <!-- Footer -->
-    <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-      <div class="text-sm text-gray-600">
+    <div class="modal-actions">
+      <div class="actions-meta tabular-nums">
         {#if !loading && oldMatches.length > 0}
           {selectedMatches.size} {selectedMatches.size === 1 ? 'partida seleccionada' : 'partides seleccionades'}
         {/if}
       </div>
-      <div class="flex gap-3">
+      <div class="actions-buttons">
         <button
           on:click={close}
           disabled={converting}
-          class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+          class="btn-secondary"
         >
           Cancel·lar
         </button>
         <button
           on:click={confirmConversion}
           disabled={selectedMatches.size === 0 || converting}
-          class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
+          class="btn-primary"
         >
-          {#if converting}
-            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-            Convertint...
-          {:else}
-            Convertir a Pendent ({selectedMatches.size})
-          {/if}
+          {converting ? 'Convertint…' : `Convertir a pendent (${selectedMatches.size})`}
         </button>
       </div>
     </div>
   </div>
 </div>
+
+<style>
+  .modal-root { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+  .modal-overlay { position: absolute; inset: 0; background: rgba(26, 24, 20, 0.55); }
+  .modal-card {
+    position: relative; z-index: 10; max-width: 28rem; width: 100%;
+    background: var(--paper-elevated); border: 1px solid var(--rule);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+    max-height: 90vh; overflow-y: hidden;
+    font-family: var(--font-sans); color: var(--ink);
+    display: flex; flex-direction: column;
+  }
+  .modal-card-lg { max-width: 48rem; }
+  .modal-head {
+    padding: 1rem 1.5rem;
+    border-bottom: 2px solid var(--ink);
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;
+  }
+  .editorial-eyebrow {
+    font-size: 0.6875rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.16em;
+    color: var(--ink-3);
+  }
+  .modal-title {
+    font-weight: 800; font-size: 1.0625rem;
+    letter-spacing: -0.018em; margin: 0.25rem 0 0;
+  }
+  .modal-sub {
+    margin-top: 0.4rem;
+    font-size: 0.8125rem;
+    color: var(--ink-2);
+  }
+  .modal-close {
+    background: transparent; border: none; color: var(--ink-3);
+    font-size: 1.5rem; width: 2rem; height: 2rem; cursor: pointer;
+  }
+  .modal-close:hover { color: var(--ink); }
+
+  .modal-body {
+    padding: 1.25rem 1.5rem;
+    display: flex; flex-direction: column; gap: 1rem;
+    flex: 1; overflow-y: auto;
+  }
+
+  .state-empty {
+    padding: 1.5rem; background: var(--paper); border: 1px solid var(--rule);
+    text-align: center; color: var(--ink-2);
+  }
+  .state-empty.error-state { color: var(--accent); border-color: var(--accent); }
+  .state-title { font-weight: 700; font-size: 1.0625rem; color: var(--ink); }
+  .state-sub { margin-top: 0.4rem; font-size: 0.875rem; color: var(--ink-3); }
+
+  .filters {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 1rem;
+    display: flex; flex-direction: column; gap: 0.85rem;
+  }
+  .form-grid { display: grid; gap: 0.85rem; }
+  .form-grid-2 { grid-template-columns: 1fr 1fr; }
+  .form-field { display: flex; flex-direction: column; gap: 0.35rem; }
+  .form-field label { font-size: 0.75rem; font-weight: 600; color: var(--ink-2); }
+  .filter-input {
+    padding: 0.55rem 0.75rem;
+    background: var(--paper-elevated); border: 1px solid var(--rule-strong);
+    color: var(--ink); font-family: var(--font-sans);
+    font-size: 0.9375rem; min-height: 44px;
+  }
+  .filter-input:focus { outline: 2px solid var(--ink); outline-offset: 1px; border-color: var(--ink); }
+
+  .filter-row-meta {
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .filter-meta { font-size: 0.8125rem; color: var(--ink-3); }
+  .filter-actions { display: flex; gap: 0.5rem; align-items: center; }
+  .btn-link-action {
+    background: transparent; border: none; padding: 0;
+    color: var(--blue); font-family: var(--font-sans);
+    font-weight: 600; font-size: 0.8125rem;
+    cursor: pointer; border-bottom: 1px solid var(--blue); padding-bottom: 1px;
+  }
+  .btn-link-action:hover { color: var(--ink); border-color: var(--ink); }
+  .btn-link-action.btn-link-muted { color: var(--ink-3); border-color: var(--ink-3); }
+  .filter-sep { color: var(--ink-3); }
+
+  .match-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+  .match-item {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem;
+    text-align: left;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule-strong);
+    padding: 0.75rem 0.85rem;
+    cursor: pointer;
+    font-family: var(--font-sans);
+  }
+  .match-item:hover { border-color: var(--ink); background: var(--paper); }
+  .match-item.active { border-color: var(--ink); background: rgba(0,0,0,0.04); }
+  .match-tags {
+    grid-column: 1 / -1;
+    display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: baseline;
+    margin-bottom: 0.4rem;
+  }
+  .tag {
+    font-size: 0.625rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    border: 1px solid var(--rule-strong);
+    padding: 0.18rem 0.5rem;
+  }
+  .tag.tag-cat { color: var(--ink-2); }
+  .tag.tag-date { color: var(--accent); border-color: var(--accent); }
+  .tag-meta {
+    font-size: 0.75rem;
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+  .match-vs { display: inline-flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+  .match-player { font-weight: 700; color: var(--ink); letter-spacing: -0.012em; font-size: 0.9375rem; }
+  .match-sep {
+    font-size: 0.625rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-3);
+  }
+  .match-check {
+    grid-column: 2; grid-row: 2;
+    font-weight: 800; font-size: 1.25rem; color: var(--ink);
+    align-self: end;
+  }
+
+  .modal-actions {
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    padding: 1rem 1.5rem; border-top: 1px solid var(--rule);
+  }
+  .actions-meta { font-size: 0.8125rem; color: var(--ink-3); }
+  .actions-buttons { display: flex; gap: 0.5rem; }
+  .btn-secondary {
+    padding: 0.55rem 1rem; background: transparent;
+    border: 1px solid var(--rule-strong); color: var(--ink);
+    font-family: var(--font-sans); font-weight: 600; font-size: 0.875rem;
+    cursor: pointer; min-height: 44px;
+  }
+  .btn-secondary:hover { border-color: var(--ink); }
+  .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary {
+    padding: 0.55rem 1rem; background: var(--ink); border: 1px solid var(--ink);
+    color: var(--paper); font-family: var(--font-sans);
+    font-weight: 600; font-size: 0.875rem; cursor: pointer; min-height: 44px;
+  }
+  .btn-primary:hover { opacity: 0.92; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  @media (max-width: 640px) {
+    .form-grid-2 { grid-template-columns: 1fr; }
+    .filter-row-meta { flex-direction: column; align-items: flex-start; }
+    .modal-actions { flex-direction: column; align-items: stretch; }
+    .actions-buttons { justify-content: flex-end; }
+  }
+</style>

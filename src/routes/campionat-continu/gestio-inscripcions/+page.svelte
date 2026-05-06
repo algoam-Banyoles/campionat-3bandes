@@ -2,11 +2,18 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { user } from '$lib/stores/auth';
+  import { adminChecked, isAdmin } from '$lib/stores/adminAuth';
   import Banner from '$lib/components/general/Banner.svelte';
+
+  // Guard: només admins.
+  $: if ($adminChecked && !$isAdmin) {
+    goto('/campionat-continu/ranking');
+  }
   import Loader from '$lib/components/general/Loader.svelte';
   import PlayerSearcher from '$lib/components/general/UnifiedPlayerSearcher.svelte';
   import { formatSupabaseError } from '$lib/ui/alerts';
   import { showConfirm } from '$lib/stores/confirmDialogStore';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   let loading = true;
   let error: string | null = null;
@@ -260,14 +267,15 @@
 </script>
 
 <svelte:head>
-  <title>Gestió d'Inscripcions - Admin</title>
+  <title>Gestió d'inscripcions — rànquing continu</title>
 </svelte:head>
 
-<div class="max-w-7xl mx-auto p-4">
-  <div class="mb-6">
-    <h1 class="text-2xl font-semibold text-gray-900">Gestió d'Inscripcions</h1>
-    <p class="text-gray-600 mt-1">Administra les inscripcions dels esdeveniments</p>
-  </div>
+<div class="gi-root">
+  <header class="gi-mast">
+    <div class="editorial-eyebrow">Rànquing continu · Administració</div>
+    <h1>Gestió d'inscripcions</h1>
+    <p class="gi-sub">Administrar inscripcions als esdeveniments del rànquing continu.</p>
+  </header>
 
   {#if loading}
     <Loader />
@@ -346,8 +354,7 @@
               <div class="bg-gray-50 p-4 rounded-lg">
                 <h4 class="font-medium text-gray-900 mb-2">Jugador Seleccionat:</h4>
                 <p class="text-sm text-gray-600">
-                  <strong>{selectedPlayer.nom} {selectedPlayer.cognoms}</strong>
-                  (Soci #{selectedPlayer.numero_soci})
+                  <strong>{formatarNomJugador(`${selectedPlayer.nom ?? ''} ${selectedPlayer.cognoms ?? ''}`.trim())}</strong>
                 </p>
                 {#if selectedPlayer.email}
                   <p class="text-sm text-gray-500">{selectedPlayer.email}</p>
@@ -436,10 +443,10 @@
                       <div class="flex items-center">
                         <div>
                           <div class="text-sm font-medium text-gray-900">
-                            {inscription.socis.nom} {inscription.socis.cognoms}
+                            {formatarNomJugador(`${inscription.socis.nom ?? ''} ${inscription.socis.cognoms ?? ''}`.trim())}
                           </div>
                           <div class="text-sm text-gray-500">
-                            Soci #{inscription.socis.numero_soci} • {inscription.socis.email}
+                            {inscription.socis.email}
                           </div>
                         </div>
                       </div>
@@ -514,3 +521,106 @@
     {/if}
   {/if}
 </div>
+
+<style>
+  .gi-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .gi-mast {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .gi-mast .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .gi-mast h1 {
+    margin: 0.4rem 0 0.4rem;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .gi-sub {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ink-2, #4a443e);
+    max-width: 56ch;
+  }
+
+  .gi-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .gi-root :global(.bg-gray-50),
+  .gi-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .gi-root :global(.bg-blue-50),
+  .gi-root :global(.bg-blue-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--blue, #1f4a99) !important; }
+  .gi-root :global(.bg-green-50),
+  .gi-root :global(.bg-green-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--green, #1f7a3a) !important; }
+  .gi-root :global(.bg-yellow-50),
+  .gi-root :global(.bg-yellow-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+  .gi-root :global(.bg-red-50),
+  .gi-root :global(.bg-red-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--accent, #a30b1e) !important; }
+  .gi-root :global(.bg-blue-600),
+  .gi-root :global(.bg-blue-700) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .gi-root :global(.bg-red-600),
+  .gi-root :global(.bg-red-700) {
+    background: var(--accent, #a30b1e) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .gi-root :global(.text-gray-500),
+  .gi-root :global(.text-gray-600),
+  .gi-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+  .gi-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+  .gi-root :global(.text-blue-600),
+  .gi-root :global(.text-blue-700),
+  .gi-root :global(.text-blue-800) { color: var(--blue, #1f4a99) !important; }
+  .gi-root :global(.text-green-600),
+  .gi-root :global(.text-green-700),
+  .gi-root :global(.text-green-800) { color: var(--green, #1f7a3a) !important; }
+  .gi-root :global(.text-yellow-700),
+  .gi-root :global(.text-yellow-800) { color: var(--amber, #b8860b) !important; }
+  .gi-root :global(.text-red-600),
+  .gi-root :global(.text-red-700),
+  .gi-root :global(.text-red-800),
+  .gi-root :global(.text-red-900) { color: var(--accent, #a30b1e) !important; }
+  .gi-root :global(.border-gray-200),
+  .gi-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+  .gi-root :global(.rounded),
+  .gi-root :global(.rounded-md),
+  .gi-root :global(.rounded-lg),
+  .gi-root :global(.rounded-xl),
+  .gi-root :global(.rounded-2xl),
+  .gi-root :global(.rounded-full) { border-radius: 0 !important; }
+  .gi-root :global(.shadow),
+  .gi-root :global(.shadow-sm),
+  .gi-root :global(.shadow-md) { box-shadow: none !important; }
+  .gi-root :global(input),
+  .gi-root :global(select),
+  .gi-root :global(textarea) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .gi-root :global(input:focus),
+  .gi-root :global(select:focus),
+  .gi-root :global(textarea:focus) {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: -1px;
+  }
+  .gi-root :global(table) { font-family: var(--font-sans, sans-serif); }
+  .gi-root :global(thead.bg-gray-50) {
+    background: var(--paper, #fbfaf6) !important;
+    border-bottom: 1px solid var(--ink, #1a1814) !important;
+  }
+</style>

@@ -43,7 +43,8 @@
       links: [
         { href: '/campionats-socials?view=active', label: 'Veure Campionats Actius' },
         { href: '/campionats-socials?view=history', label: 'Historial de Campionats' },
-        { href: '/campionats-socials/cerca-jugadors', label: 'Buscar Jugadors' }
+        { href: '/campionats-socials/cerca-jugadors', label: 'Buscar Jugadors' },
+        { href: '/campionats-socials/comparador', label: 'Comparador de Jugadors' }
       ],
       userLinks: [
         { href: '/campionats-socials/inscripcions', label: 'Inscriure\'s a Campionats' }
@@ -93,9 +94,9 @@
         { href: '/admin/socis', label: 'Gestió de Socis' },
         { href: '/admin/events', label: 'Events' },
         { href: '/admin/categories', label: 'Categories' },
-        { href: '/admin/inscripcions', label: 'Inscripcions' },
-        { href: '/admin/inscripcions-socials', label: 'Inscripcions Socials' },
-        { href: '/admin/mitjanes-historiques', label: 'Mitjanes Històriques' }
+        { href: '/campionat-continu/gestio-inscripcions', label: 'Gestió Inscripcions Continu' },
+        { href: '/campionats-socials/gestio-inscripcions', label: 'Gestió Inscripcions Socials' },
+        { href: '/admin/audit-log', label: 'Registre d\'auditoria' }
       ],
       adminOnly: true
     }

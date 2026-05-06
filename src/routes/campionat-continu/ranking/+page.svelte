@@ -308,173 +308,404 @@
   }
 </script>
 
-<svelte:head><title>Rànquing</title></svelte:head>
+<svelte:head><title>Rànquing — Campionat Continu</title></svelte:head>
 
 <PullToRefresh onRefresh={handleRefresh}>
-<h1 class="text-xl font-semibold mb-4">Rànquing</h1>
-{#if $adminStore}
-  <button
-    class="mb-4 rounded border px-3 py-1 text-sm"
-    on:click={() => {
-      penalModal = true;
-      selA = selB = null;
-      penaltyError = null;
-    }}
-  >
-    Penalitzar desacord
-  </button>
-{/if}
+<div class="ranking-root">
+  <header class="page-mast">
+    <div>
+      <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">Campionat continu</div>
+      <h1 class="page-title">Rànquing</h1>
+    </div>
+    {#if $adminStore}
+      <button
+        class="btn-action"
+        on:click={() => {
+          penalModal = true;
+          selA = selB = null;
+          penaltyError = null;
+        }}
+      >
+        Penalitzar desacord
+      </button>
+    {/if}
+  </header>
 
-{#if loading}
-  <p class="text-slate-500">Carregant rànquing…</p>
-{:else if error}
-  <div class="mb-4 rounded border border-red-200 bg-red-50 p-3 text-red-700">Error: {error}</div>
-{:else if rows.length === 0}
-  <p class="text-slate-500">Encara no hi ha posicions al rànquing.</p>
-{:else}
-  <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
-    <table class="min-w-full">
-      <thead class="bg-gradient-to-r from-blue-50 to-slate-50 border-b border-slate-200">
-        <tr>
-          <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Pos.</th>
-          <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Jugador</th>
-          <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Evolució</th>
-          {#if mySociNumero}
-            <th class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-left font-bold text-base sm:text-lg lg:text-xl xl:text-2xl text-slate-800">Accions</th>
-          {/if}
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-slate-100">
-        {#each rows as r, index}
-          {@const badge = badgeMap.get(r.soci_numero)}
-          {@const badgeView = getBadgeView(badge)}
-          {@const displayName = r.nom ? formatPlayerDisplayName(r.nom, r.cognoms) : 'Desconegut'}
-          {@const fullName = r.nom && r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom || 'Desconegut'}
-          {@const isTopThree = r.posicio <= 3}
-          {@const isCurrentUser = r.soci_numero === mySociNumero}
-          <tr class="hover:bg-slate-50 transition-colors duration-150" 
-              class:bg-yellow-50={r.moved} 
-              class:bg-blue-50={isCurrentUser}
-              class:border-l-4={isTopThree}
-              class:border-l-yellow-400={r.posicio === 1}
-              class:border-l-gray-400={r.posicio === 2}
-              class:border-l-orange-400={r.posicio === 3}>
-            <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-              <span class="text-sm sm:text-base lg:text-lg font-bold" class:text-yellow-600={r.posicio === 1} class:text-gray-600={r.posicio === 2} class:text-orange-600={r.posicio === 3}>
-                {r.posicio}
-              </span>
-            </td>
-            <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-              <div class="flex items-center gap-2 sm:gap-3">
-                <button
-                  class="text-blue-700 hover:text-blue-900 hover:underline text-base sm:text-lg lg:text-xl xl:text-2xl font-semibold transition-colors"
-                  on:click={() => openEvolution(r.soci_numero, fullName)}
-                  class:font-bold={isCurrentUser}
-                  class:text-blue-900={isCurrentUser}
-                  title={fullName}
-                >
-                  {displayName}
-                </button>
-
-                <!-- Badge només per identificar el jugador logat -->
-                {#if isCurrentUser}
-                  <span
-                    class="px-2 py-1 text-sm sm:text-base rounded-full bg-blue-100 text-blue-900 font-bold border-2 border-blue-300"
-                    title="Aquest ets tu"
-                  >
-                    <span class="hidden sm:inline">Tu</span>
-                    <span class="sm:hidden">👤</span>
-                  </span>
-                {/if}
-              </div>
-            </td>
-            <!-- Columna d'evolució: SEMPRE visible -->
-            <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-              <PlayerEvolutionBadges results={playerHistoryMap.get(r.soci_numero) || []} />
-            </td>
-            <!-- Columna d'accions: només si està logged in -->
+  {#if loading}
+    <div class="state-empty">Carregant rànquing…</div>
+  {:else if error}
+    <div class="state-empty error-state">Error: {error}</div>
+  {:else if rows.length === 0}
+    <div class="state-empty">Encara no hi ha posicions al rànquing.</div>
+  {:else}
+    <div class="ranking-table-wrap">
+      <table class="ranking-table">
+        <thead>
+          <tr>
+            <th class="col-pos">Pos</th>
+            <th class="col-left">Jugador</th>
+            <th class="col-left">Evolució</th>
             {#if mySociNumero}
-              <td class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-                {#if r.soci_numero !== mySociNumero}
-                  <button
-                    class="rounded-lg border-2 px-3 sm:px-4 py-2 text-sm sm:text-base lg:text-lg xl:text-xl font-bold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    class:border-green-500={r.canChallenge}
-                    class:bg-green-50={r.canChallenge}
-                    class:text-green-800={r.canChallenge}
-                    class:hover:bg-green-100={r.canChallenge}
-                    class:border-slate-300={!r.canChallenge}
-                    class:bg-slate-50={!r.canChallenge}
-                    class:text-slate-500={!r.canChallenge}
-                    disabled={!r.canChallenge}
-                    title={r.canChallenge ? 'Clic per reptar aquest jugador' : r.reason || 'No pots reptar aquest jugador'}
-                    on:click={() => reptar(r.soci_numero)}
-                  >
-                    <span class="hidden sm:inline">⚔️ Reptar</span>
-                    <span class="sm:hidden">⚔️</span>
-                  </button>
-                {/if}
-              </td>
+              <th class="col-actions">Accions</th>
             {/if}
           </tr>
-        {/each}
-      </tbody>
-    </table>
-  </div>
-  {#if modalPlayer}
-    <PlayerEvolutionModal
-      sociNumero={modalPlayer.sociNumero}
-      playerName={modalPlayer.name}
-      on:close={() => (modalPlayer = null)}
-    />
-  {/if}
-  {#if penalModal}
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div class="w-full max-w-sm rounded bg-white p-4">
-        <h2 class="mb-2 font-semibold">Penalitzar desacord</h2>
-        {#if penaltyError}
-          <div class="mb-2 rounded border border-red-200 bg-red-50 p-2 text-red-700">
-            {penaltyError}
+        </thead>
+        <tbody>
+          {#each rows as r}
+            {@const badge = badgeMap.get(r.soci_numero)}
+            {@const badgeView = getBadgeView(badge)}
+            {@const displayName = r.nom ? formatPlayerDisplayName(r.nom, r.cognoms) : 'Desconegut'}
+            {@const fullName = r.nom && r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom || 'Desconegut'}
+            {@const isCurrentUser = r.soci_numero === mySociNumero}
+            <tr
+              class:row-moved={r.moved}
+              class:row-mine={isCurrentUser}
+              class:row-top1={r.posicio === 1}
+              class:row-top2={r.posicio === 2}
+              class:row-top3={r.posicio === 3}
+            >
+              <td class="col-pos">
+                <span class="pos-num tabular-nums">{r.posicio.toString().padStart(2, '0')}</span>
+              </td>
+              <td class="col-left">
+                <div class="player-cell">
+                  <button
+                    class="player-name-btn"
+                    on:click={() => openEvolution(r.soci_numero, fullName)}
+                    class:is-mine={isCurrentUser}
+                    title={fullName}
+                  >
+                    {displayName}
+                  </button>
+                  {#if isCurrentUser}
+                    <span class="badge-mine" title="Aquest ets tu">Tu</span>
+                  {/if}
+                </div>
+              </td>
+              <td class="col-left">
+                <PlayerEvolutionBadges results={playerHistoryMap.get(r.soci_numero) || []} />
+              </td>
+              {#if mySociNumero}
+                <td class="col-actions">
+                  {#if r.soci_numero !== mySociNumero}
+                    <button
+                      class="btn-challenge"
+                      class:can={r.canChallenge}
+                      disabled={!r.canChallenge}
+                      title={r.canChallenge ? 'Clic per reptar aquest jugador' : r.reason || 'No pots reptar aquest jugador'}
+                      on:click={() => reptar(r.soci_numero)}
+                    >
+                      Reptar →
+                    </button>
+                  {/if}
+                </td>
+              {/if}
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+
+    {#if modalPlayer}
+      <PlayerEvolutionModal
+        sociNumero={modalPlayer.sociNumero}
+        playerName={modalPlayer.name}
+        on:close={() => (modalPlayer = null)}
+      />
+    {/if}
+
+    {#if penalModal}
+      <div class="modal-root">
+        <div class="modal-overlay" on:click={() => (penalModal = false)} role="presentation"></div>
+        <div class="modal-card">
+          <div class="modal-head">
+            <div>
+              <div class="editorial-eyebrow">Admin</div>
+              <h2 class="modal-title">Penalitzar desacord</h2>
+            </div>
           </div>
-        {/if}
-        <div class="mb-2">
-          <label class="block text-sm mb-1" for="penal-a">Posició A</label>
-          <select id="penal-a" bind:value={selA} class="w-full rounded border p-1">
-            <option value={null} disabled selected>Selecciona posició</option>
-            {#each rows as r}
-              {@const displayName = r.nom ? formatPlayerDisplayName(r.nom, r.cognoms) : 'Desconegut'}
-              {@const fullName = r.nom && r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom || 'Desconegut'}
-              <option value={r.posicio} title={fullName}>
-                {r.posicio} - {displayName}
-              </option>
-            {/each}
-          </select>
-        </div>
-        <div class="mb-2">
-          <label class="block text-sm mb-1" for="penal-b">Posició B</label>
-          <select id="penal-b" bind:value={selB} class="w-full rounded border p-1">
-            <option value={null} disabled selected>Selecciona posició</option>
-            {#each rows as r}
-              {@const displayName = r.nom ? formatPlayerDisplayName(r.nom, r.cognoms) : 'Desconegut'}
-              {@const fullName = r.nom && r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom || 'Desconegut'}
-              <option value={r.posicio} title={fullName}>
-                {r.posicio} - {displayName}
-              </option>
-            {/each}
-          </select>
-        </div>
-        <p class="mb-2 text-sm text-slate-500">Han de ser consecutives</p>
-        <div class="flex justify-end gap-2">
-          <button class="px-3 py-1" on:click={() => (penalModal = false)}>Cancel·lar</button>
-          <button
-            class="rounded border px-3 py-1 disabled:opacity-50"
-            on:click={applyPenalty}
-            disabled={!selA || !selB || Math.abs(selA - selB) !== 1 || penaltyBusy}
-          >
-            {penaltyBusy ? 'Aplicant…' : 'Aplicar penalització'}
-          </button>
+          <div class="modal-body">
+            {#if penaltyError}
+              <div class="msg-error">{penaltyError}</div>
+            {/if}
+            <div class="form-field">
+              <label for="penal-a">Posició A</label>
+              <select id="penal-a" bind:value={selA} class="filter-input">
+                <option value={null} disabled selected>Selecciona posició</option>
+                {#each rows as r}
+                  {@const displayName = r.nom ? formatPlayerDisplayName(r.nom, r.cognoms) : 'Desconegut'}
+                  {@const fullName = r.nom && r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom || 'Desconegut'}
+                  <option value={r.posicio} title={fullName}>
+                    {r.posicio} — {displayName}
+                  </option>
+                {/each}
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="penal-b">Posició B</label>
+              <select id="penal-b" bind:value={selB} class="filter-input">
+                <option value={null} disabled selected>Selecciona posició</option>
+                {#each rows as r}
+                  {@const displayName = r.nom ? formatPlayerDisplayName(r.nom, r.cognoms) : 'Desconegut'}
+                  {@const fullName = r.nom && r.cognoms ? `${r.nom} ${r.cognoms}` : r.nom || 'Desconegut'}
+                  <option value={r.posicio} title={fullName}>
+                    {r.posicio} — {displayName}
+                  </option>
+                {/each}
+              </select>
+            </div>
+            <p class="modal-note">Han de ser posicions consecutives.</p>
+          </div>
+          <div class="modal-actions">
+            <button class="btn-secondary" on:click={() => (penalModal = false)}>Cancel·lar</button>
+            <button
+              class="btn-primary btn-danger"
+              on:click={applyPenalty}
+              disabled={!selA || !selB || Math.abs(selA - selB) !== 1 || penaltyBusy}
+            >
+              {penaltyBusy ? 'Aplicant…' : 'Aplicar penalització'}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    {/if}
   {/if}
-{/if}
+</div>
 </PullToRefresh>
+
+<style>
+  .ranking-root {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    font-family: var(--font-sans);
+    color: var(--ink);
+  }
+
+  /* Mast-head */
+  .page-mast {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--ink);
+    flex-wrap: wrap;
+  }
+  .editorial-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--sec-continu);
+  }
+  .page-title {
+    font-weight: 800;
+    font-size: 2rem;
+    letter-spacing: -0.025em;
+    line-height: 1.05;
+    margin: 0;
+    color: var(--ink);
+  }
+  .btn-action {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--rule-strong);
+    padding: 0.5rem 0.9rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    min-height: 40px;
+  }
+  .btn-action:hover { border-color: var(--ink); }
+
+  /* Estats */
+  .state-empty {
+    padding: 1.75rem 2rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    text-align: center;
+  }
+  .state-empty.error-state { color: var(--accent); border-color: var(--accent); }
+
+  /* Taula del rànquing */
+  .ranking-table-wrap {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    overflow-x: auto;
+  }
+  .ranking-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .ranking-table th {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-3);
+    padding: 0.85rem;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+    background: var(--paper);
+  }
+  .ranking-table th.col-left { text-align: left; }
+  .ranking-table th.col-pos { text-align: left; width: 4rem; padding-left: 1.25rem; }
+  .ranking-table th.col-actions { text-align: right; }
+  .ranking-table td {
+    padding: 0.85rem;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.9375rem;
+    color: var(--ink);
+    vertical-align: middle;
+  }
+  .ranking-table td.col-pos { padding-left: 1.25rem; }
+  .ranking-table td.col-actions { text-align: right; }
+  .ranking-table tr:last-child td { border-bottom: none; }
+  .ranking-table tr:hover { background: var(--paper); }
+
+  /* Estats de fila */
+  .ranking-table tr.row-moved {
+    background: linear-gradient(90deg, rgba(163, 107, 28, 0.1), transparent 60%);
+  }
+  .ranking-table tr.row-mine {
+    background: linear-gradient(90deg, rgba(163, 11, 30, 0.05), transparent 65%);
+  }
+  .ranking-table tr.row-top1 td.col-pos .pos-num { color: var(--accent); }
+  .ranking-table tr.row-top2 td.col-pos .pos-num { color: var(--ink); }
+  .ranking-table tr.row-top3 td.col-pos .pos-num { color: var(--amber); }
+
+  .pos-num {
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    line-height: 1;
+  }
+
+  .player-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .player-name-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 1.0625rem;
+    color: var(--ink);
+    letter-spacing: -0.014em;
+    text-align: left;
+    border-bottom: 1px solid transparent;
+  }
+  .player-name-btn:hover { border-bottom-color: var(--ink); }
+  .player-name-btn.is-mine { color: var(--accent); }
+  .badge-mine {
+    display: inline-block;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 0.18rem 0.45rem;
+  }
+
+  .btn-challenge {
+    background: transparent;
+    border: 1px solid var(--rule);
+    color: var(--ink-3);
+    padding: 0.45rem 0.85rem;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 0.8125rem;
+    letter-spacing: -0.005em;
+    cursor: pointer;
+    min-height: 40px;
+  }
+  .btn-challenge.can {
+    color: var(--green);
+    border-color: var(--green);
+  }
+  .btn-challenge.can:hover {
+    background: var(--green);
+    color: white;
+  }
+  .btn-challenge:disabled { cursor: not-allowed; opacity: 0.4; }
+
+  /* Modal */
+  .modal-root { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+  .modal-overlay { position: absolute; inset: 0; background: rgba(26, 24, 20, 0.55); }
+  .modal-card {
+    position: relative; z-index: 10; max-width: 26rem; width: 100%;
+    background: var(--paper-elevated); border: 1px solid var(--rule);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+    max-height: 90vh; overflow-y: auto;
+    font-family: var(--font-sans); color: var(--ink);
+  }
+  .modal-head {
+    padding: 1rem 1.5rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .modal-title {
+    font-weight: 800; font-size: 1.125rem;
+    letter-spacing: -0.018em; margin: 0.25rem 0 0;
+  }
+  .modal-body {
+    padding: 1.25rem 1.5rem;
+    display: flex; flex-direction: column; gap: 1rem;
+  }
+  .form-field { display: flex; flex-direction: column; gap: 0.35rem; }
+  .form-field label { font-size: 0.75rem; font-weight: 600; color: var(--ink-2); }
+  .filter-input {
+    padding: 0.55rem 0.75rem;
+    background: var(--paper-elevated); border: 1px solid var(--rule-strong);
+    color: var(--ink); font-family: var(--font-sans);
+    font-size: 0.9375rem; min-height: 44px;
+  }
+  .filter-input:focus { outline: 2px solid var(--ink); outline-offset: 1px; border-color: var(--ink); }
+  .modal-note { margin: 0; font-size: 0.8125rem; color: var(--ink-3); }
+  .msg-error {
+    padding: 0.65rem 0.85rem;
+    color: var(--accent);
+    border-left: 3px solid var(--accent);
+    background: rgba(163, 11, 30, 0.05);
+    font-size: 0.875rem;
+  }
+  .modal-actions {
+    display: flex; justify-content: flex-end; gap: 0.5rem;
+    padding: 1rem 1.5rem; border-top: 1px solid var(--rule);
+  }
+  .btn-secondary {
+    padding: 0.55rem 1rem; background: transparent;
+    border: 1px solid var(--rule-strong); color: var(--ink);
+    font-family: var(--font-sans); font-weight: 600; font-size: 0.875rem;
+    cursor: pointer; min-height: 44px;
+  }
+  .btn-secondary:hover { border-color: var(--ink); }
+  .btn-primary {
+    padding: 0.55rem 1rem;
+    background: var(--ink); border: 1px solid var(--ink);
+    color: var(--paper); font-family: var(--font-sans);
+    font-weight: 600; font-size: 0.875rem; cursor: pointer; min-height: 44px;
+  }
+  .btn-primary:hover { opacity: 0.92; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary.btn-danger {
+    background: var(--accent); border-color: var(--accent);
+  }
+
+  @media (max-width: 640px) {
+    .page-title { font-size: 1.625rem; }
+    .ranking-table th, .ranking-table td { padding: 0.6rem 0.5rem; }
+    .ranking-table th.col-pos, .ranking-table td.col-pos { padding-left: 0.85rem; }
+    .pos-num { font-size: 1.25rem; }
+    .player-name-btn { font-size: 0.9375rem; }
+  }
+</style>

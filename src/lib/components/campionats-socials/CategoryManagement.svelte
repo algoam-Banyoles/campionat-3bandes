@@ -3,6 +3,7 @@
   import { supabase } from '$lib/supabaseClient';
   import { showError, showWarning } from '$lib/stores/toastStore';
   import { showConfirm } from '$lib/stores/confirmDialogStore';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   const dispatch = createEventDispatcher();
 
@@ -344,7 +345,7 @@
                     {@const sociInfo = inscription.socis || { nom: 'Desconegut', cognoms: '' }}
                     <div class="flex items-center justify-between bg-white border border-gray-200 rounded px-2 py-1 group">
                       <span class="text-xs text-gray-700">
-                        {sociInfo.nom} {sociInfo.cognoms}
+                        {formatarNomJugador(`${sociInfo.nom ?? ''} ${sociInfo.cognoms ?? ''}`.trim())}
                       </span>
                       <select
                         class="text-xs border border-gray-200 rounded px-1 py-0.5 bg-gray-50 opacity-50 group-hover:opacity-100 focus:opacity-100 transition-opacity cursor-pointer"

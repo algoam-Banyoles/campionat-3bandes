@@ -1,8 +1,10 @@
 <script lang="ts">
   import { supabase } from '$lib/supabaseClient';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import PlayerResultsModal from './PlayerResultsModal.svelte';
   import SociFoto from '$lib/components/admin/SociFoto.svelte';
+  import { subscribeToMatchUpdates } from '$lib/services/realtimeMatchesService';
+  import { showInfo } from '$lib/stores/toastStore';
 
   export let event: any = null;
   export let showDetails: boolean = false;
@@ -13,11 +15,16 @@
   let error: string | null = null;
   let selectedCategory = 'all';
   let lastMatchDate: Date | null = null;
+  let lastRefreshedAt: Date | null = null;
   let expandedCategories: Set<string> = new Set();
 
   // Modal state
   let isModalOpen = false;
   let selectedPlayer: any = null;
+
+  // Realtime: unsubscribe function de la subscripció a canvis de partides.
+  // Es re-creem cada cop que canvia l'event (veure efecte reactiu més avall).
+  let unsubscribeRealtime: (() => void) | null = null;
 
   onMount(() => {
     if (event?.id) {
@@ -25,6 +32,36 @@
       loadClassifications();
     }
   });
+
+  onDestroy(() => {
+    if (unsubscribeRealtime) {
+      unsubscribeRealtime();
+      unsubscribeRealtime = null;
+    }
+  });
+
+  /**
+   * Subscriu a canvis de partides per recarregar classificacions
+   * automàticament quan un altre client introdueix un resultat.
+   * Es re-crea cada cop que l'event canvia.
+   */
+  $: {
+    if (unsubscribeRealtime) {
+      unsubscribeRealtime();
+      unsubscribeRealtime = null;
+    }
+    if (event?.id) {
+      unsubscribeRealtime = subscribeToMatchUpdates(supabase, event.id, (e) => {
+        if (e.type === 'result_recorded' || e.type === 'result_modified') {
+          // Si el canvi ve de l'usuari local, recarreguem en silenci
+          if (!e.isLocalEcho) {
+            showInfo('Nou resultat introduït — actualitzant classificacions...');
+          }
+          loadClassifications();
+        }
+      });
+    }
+  }
 
   // Expand all categories by default when classifications first load
   let hasInitialized = false;
@@ -34,6 +71,33 @@
     );
     hasInitialized = true;
   }
+
+  /**
+   * Format relatiu en català: "fa 3 segons", "fa 2 minuts", "fa 1 hora",
+   * o data absoluta si fa més d'un dia.
+   */
+  function formatRelativeTime(d: Date | null, now: Date): string {
+    if (!d) return 'mai';
+    const diffMs = now.getTime() - d.getTime();
+    const sec = Math.floor(diffMs / 1000);
+    if (sec < 5) return 'ara mateix';
+    if (sec < 60) return `fa ${sec} segons`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `fa ${min} minut${min === 1 ? '' : 's'}`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `fa ${hr} hor${hr === 1 ? 'a' : 'es'}`;
+    return d.toLocaleDateString('ca-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+
+  // Tick reactive cada 30s perquè el "fa N minuts" es vagi actualitzant.
+  let tick = Date.now();
+  let tickInterval: ReturnType<typeof setInterval> | null = null;
+  onMount(() => {
+    tickInterval = setInterval(() => (tick = Date.now()), 30000);
+    return () => {
+      if (tickInterval) clearInterval(tickInterval);
+    };
+  });
 
   function toggleCategory(categoryId: string) {
     if (expandedCategories.has(categoryId)) {
@@ -106,6 +170,7 @@
         lastMatchDate = null;
       }
 
+      lastRefreshedAt = new Date();
     } catch (e) {
       console.error('❌ Error loading classifications:', e);
       error = 'Error carregant les classificacions';
@@ -152,15 +217,6 @@
     if (position === 2) return '🥈';
     if (position === 3) return '🥉';
     return position.toString();
-  }
-
-  function calculateWinPercentage(won: number, total: number) {
-    if (total === 0) return 0;
-    return Math.round((won / total) * 100);
-  }
-
-  function calculateGoalDifference(made: number, received: number) {
-    return made - received;
   }
 
   function openPlayerModal(classification: any) {
@@ -215,309 +271,236 @@
     : sortedCategories.filter((c: any) => c.id === selectedCategory);
 </script>
 
-<div class="space-y-6">
+<div class="classifications-root">
 
-  <!-- Header and filters -->
-  <div class="bg-white border border-gray-200 rounded-lg p-6">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
-      <h3 class="text-lg font-medium text-gray-900 flex items-center mb-4 sm:mb-0">
-        <span class="mr-2">🏆</span>
-        Classificacions
-        {#if event}
-          <span class="ml-2 text-sm font-normal text-gray-600">
-            - Temporada {event.temporada}
-          </span>
-        {/if}
-      </h3>
-
-      <!-- Category filter -->
-      <select
-        bind:value={selectedCategory}
-        class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-      >
+  <!-- ────────── Header editorial ────────── -->
+  <div class="cls-head">
+    <div>
+      <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">
+        Classificacions{#if event} · Temporada {event.temporada}{/if}
+      </div>
+      <h2 class="cls-title">{event?.nom || 'Campionat'}</h2>
+    </div>
+    <div class="cls-controls">
+      <select bind:value={selectedCategory} class="cls-select" aria-label="Filtrar categoria">
         <option value="all">Totes les categories</option>
         {#each sortedCategories as category}
           <option value={category.id}>{category.nom}</option>
         {/each}
       </select>
     </div>
-
-    {#if event}
-      <p class="text-sm text-gray-600">
-        Classificacions actualitzades de la temporada {event.temporada} per al campionat: <strong>{event.nom}</strong>
-      </p>
-    {/if}
   </div>
 
+  <!-- Banner de freshness -->
+  {#if classifications.length > 0 || lastRefreshedAt}
+    {@const now = new Date(tick)}
+    <div class="cls-freshness">
+      <span class="freshness-dot" title="Actualització automàtica activa" aria-hidden="true"></span>
+      <span class="freshness-text">
+        Actualitzat <strong>{formatRelativeTime(lastRefreshedAt, now)}</strong>
+        {#if lastMatchDate}
+          · darrer resultat <strong>{formatRelativeTime(lastMatchDate, now)}</strong>
+        {/if}
+      </span>
+      <button
+        type="button"
+        on:click={loadClassifications}
+        disabled={loading}
+        class="freshness-refresh"
+        title="Refrescar manualment"
+      >
+        {loading ? '⟳ Refrescant…' : '↻ Refrescar'}
+      </button>
+    </div>
+  {/if}
+
   {#if loading}
-    <div class="text-center py-12">
-      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      <p class="mt-2 text-gray-600">Carregant classificacions...</p>
-    </div>
+    <div class="state-empty">Carregant classificacions…</div>
   {:else if error}
-    <div class="bg-red-50 border border-red-200 rounded-lg p-6">
-      <h3 class="text-lg font-medium text-red-800 mb-2">Error</h3>
-      <p class="text-red-600">{error}</p>
-    </div>
+    <div class="state-empty error-state">{error}</div>
   {:else if filteredCategories.length === 0}
-    <div class="text-center py-12">
-      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
-      </svg>
-      <h3 class="mt-2 text-sm font-medium text-gray-900">No hi ha classificacions disponibles</h3>
-      <p class="mt-1 text-sm text-gray-500">Les classificacions apareixeran aquí quan es juguin partides.</p>
+    <div class="state-empty">
+      No hi ha classificacions disponibles. Apareixeran aquí quan es juguin partides.
     </div>
   {:else}
     <!-- Classifications by category -->
     {#each filteredCategories as category (category.id)}
       {@const categoryClassifications = classificationsByCategory[category.id] || []}
 
-      <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <!-- Category header - Clickable to expand/collapse -->
+      <article class="cat-block">
+        <!-- Category header editorial -->
         <button
           on:click={() => toggleCategory(category.id)}
-          class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 hover:from-blue-700 hover:to-indigo-700 transition-colors"
+          class="cat-header"
+          aria-expanded={expandedCategories.has(category.id)}
         >
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div class="text-white text-2xl">
-                {#if expandedCategories.has(category.id)}
-                  ▼
-                {:else}
-                  ▶
-                {/if}
-              </div>
-              <div class="text-left">
-                <h4 class="text-xl font-bold text-white">{category.nom}</h4>
-                <p class="text-blue-100 text-sm">
-                  {category.distancia_caramboles || 0} caramboles
-                </p>
-              </div>
+          <span class="cat-toggle-icon" aria-hidden="true">{expandedCategories.has(category.id) ? '−' : '+'}</span>
+          <div class="cat-name-block">
+            <div class="cat-name">{category.nom}</div>
+            <div class="cat-meta">
+              Distància <strong>{category.distancia_caramboles || 0}</strong> caramboles
             </div>
-            <div class="text-right">
-              <div class="text-2xl font-bold text-white">
-                {categoryClassifications.length}
-              </div>
-              <div class="text-blue-100 text-sm">classificats</div>
-            </div>
+          </div>
+          <div class="cat-count-block">
+            <div class="cat-count tabular-nums">{categoryClassifications.length}</div>
+            <div class="cat-count-label">jugadors</div>
           </div>
         </button>
 
         {#if expandedCategories.has(category.id)}
           {#if categoryClassifications.length === 0}
-            <div class="p-6 text-center">
-              <p class="text-gray-500">No hi ha classificacions disponibles per aquesta categoria.</p>
+            <div class="state-empty" style="margin: 0; border: none;">
+              No hi ha classificacions per a aquesta categoria.
             </div>
           {:else}
-            <!-- Desktop Table View -->
-            <div class="hidden md:block overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-300">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                    Pos.
-                  </th>
-                  <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                    Jugador
-                  </th>
-                  <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                    PJ
-                  </th>
-                  <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                    Punts
-                  </th>
-                  <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                    Caramboles
-                  </th>
-                  <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                    Entrades
-                  </th>
-                  <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                    Mitjana
-                  </th>
-                  <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                    Millor Mitjana
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-200 bg-white">
-                {#each categoryClassifications as classification (classification.soci_numero + classification.categoria_id)}
-                  {@const isDisqualified = classification.eliminat_per_incompareixences === true}
-                  <tr class="hover:bg-gray-50 {classification.posicio <= 3 ? 'bg-gradient-to-r from-yellow-50 to-orange-50' : ''}">
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
-                      <div class="flex items-center justify-center">
-                        <span class="flex items-center justify-center w-8 h-8 rounded-full border-2 {getPositionColor(classification.posicio)} font-bold text-sm">
-                          {getPositionIcon(classification.posicio)}
-                        </span>
-                      </div>
-                    </td>
-                    <td class="px-3 py-4 text-sm">
-                      <div class="flex items-center gap-2">
-                        <SociFoto
-                          numeroSoci={classification.soci_numero}
-                          size="xs"
-                          alt="{classification.soci_nom ?? ''} {classification.soci_cognoms ?? ''}"
-                        />
-                        <button
-                          on:click={() => openPlayerModal(classification)}
-                          class="font-medium hover:text-blue-600 transition-colors cursor-pointer underline decoration-transparent hover:decoration-blue-600"
-                          class:text-gray-900={classification.estat_jugador !== 'retirat'}
-                          class:text-gray-500={classification.estat_jugador === 'retirat'}
-                          class:line-through={classification.estat_jugador === 'retirat'}
-                          title="Veure resultats de {formatPlayerName(classification)}"
-                        >
-                          {formatPlayerName(classification)}
-                        </button>
-                        {#if classification.estat_jugador === 'retirat'}
-                          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800" title={classification.motiu_retirada || (isDisqualified ? 'Desqualificat' : 'Retirat')}>
-                            {isDisqualified ? 'DQF' : 'Retirat'}
-                          </span>
-                        {/if}
-                      </div>
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center">
-                      <span class="font-medium text-gray-700">
-                        {classification.partides_jugades}
-                      </span>
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center">
-                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {classification.punts}
-                      </span>
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center">
-                      <span class="font-medium text-gray-700">
-                        {classification.caramboles_totals ?? '-'}
-                      </span>
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center">
-                      <span class="font-medium text-gray-700">
-                        {classification.entrades_totals ?? '-'}
-                      </span>
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center">
-                      <span class="font-medium text-purple-600">
-                        {classification.mitjana_general != null ? Number(classification.mitjana_general).toFixed(3) : '-'}
-                      </span>
-                    </td>
-                    <td class="px-3 py-4 text-sm text-center">
-                      <span class="font-medium text-purple-600">
-                        {classification.millor_mitjana != null ? Number(classification.millor_mitjana).toFixed(3) : '-'}
-                      </span>
-                    </td>
+            <!-- Desktop Table View — editorial -->
+            <div class="cls-table-wrap">
+              <table class="cls-table">
+                <thead>
+                  <tr>
+                    <th class="col-pos">Pos</th>
+                    <th class="col-player col-left">Jugador</th>
+                    <th class="col-num">PJ</th>
+                    <th class="col-num col-pts-head">Punts</th>
+                    <th class="col-num">Caramboles</th>
+                    <th class="col-num">Entrades</th>
+                    <th class="col-num">Mitjana</th>
+                    <th class="col-num">Millor mitj.</th>
                   </tr>
-                {/each}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {#each categoryClassifications as classification (classification.soci_numero + classification.categoria_id)}
+                    {@const isDisqualified = classification.eliminat_per_incompareixences === true}
+                    <tr class:top3={classification.posicio <= 3} class:retired={classification.estat_jugador === 'retirat'}>
+                      <td class="col-pos">
+                        <span class="pos-num tabular-nums">{classification.posicio.toString().padStart(2, '0')}</span>
+                      </td>
+                      <td class="col-player col-left">
+                        <div class="player-cell">
+                          <SociFoto
+                            numeroSoci={classification.soci_numero}
+                            size="xs"
+                            alt="{classification.soci_nom ?? ''} {classification.soci_cognoms ?? ''}"
+                          />
+                          <button
+                            on:click={() => openPlayerModal(classification)}
+                            class="player-name-btn"
+                            class:retired-name={classification.estat_jugador === 'retirat'}
+                            title="Veure resultats de {formatPlayerName(classification)}"
+                          >
+                            <span class="player-name-text">{formatPlayerName(classification)}</span>
+                          </button>
+                          {#if classification.estat_jugador === 'retirat'}
+                            <span class="retired-badge" title={classification.motiu_retirada || (isDisqualified ? 'Desqualificat' : 'Retirat')}>
+                              {isDisqualified ? 'DQF' : 'Retirat'}
+                            </span>
+                          {/if}
+                        </div>
+                      </td>
+                      <td class="col-num tabular-nums">{classification.partides_jugades}</td>
+                      <td class="col-num col-pts-data tabular-nums">{classification.punts}</td>
+                      <td class="col-num tabular-nums">{classification.caramboles_totals ?? '—'}</td>
+                      <td class="col-num tabular-nums">{classification.entrades_totals ?? '—'}</td>
+                      <td class="col-num tabular-nums">
+                        {classification.mitjana_general != null ? Number(classification.mitjana_general).toFixed(3) : '—'}
+                      </td>
+                      <td class="col-num tabular-nums">
+                        {classification.millor_mitjana != null ? Number(classification.millor_mitjana).toFixed(3) : '—'}
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
             </div>
 
-            <!-- Mobile Compact List View -->
-            <div class="md:hidden space-y-1">
+            <!-- Mobile compact list — editorial -->
+            <div class="cls-mobile">
               {#each categoryClassifications as classification (classification.soci_numero + classification.categoria_id)}
                 {@const isDisqualified = classification.eliminat_per_incompareixences === true}
-                <div class="bg-white border-l-4 {classification.posicio <= 3 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300'} rounded-r-lg shadow-sm overflow-hidden">
-                  <!-- Compact Header -->
-                  <div class="flex items-center justify-between px-1.5 py-1">
-                    <div class="flex items-center space-x-1.5 flex-1 min-w-0">
-                      <span class="flex items-center justify-center w-7 h-7 rounded-full {getPositionColor(classification.posicio)} font-bold text-sm flex-shrink-0">
-                        {classification.posicio <= 3 ? getPositionIcon(classification.posicio) : classification.posicio}
+                <article class="cls-mob-row" class:top3={classification.posicio <= 3} class:retired={classification.estat_jugador === 'retirat'}>
+                  <div class="cls-mob-head">
+                    <div class="cls-mob-pos tabular-nums">{classification.posicio.toString().padStart(2, '0')}</div>
+                    <button
+                      on:click={() => openPlayerModal(classification)}
+                      class="cls-mob-name-btn"
+                      title="Veure resultats de {formatPlayerName(classification)}"
+                    >
+                      <SociFoto
+                        numeroSoci={classification.soci_numero}
+                        size="xs"
+                        alt="{classification.soci_nom ?? ''} {classification.soci_cognoms ?? ''}"
+                      />
+                      <span class="cls-mob-name">{formatPlayerName(classification)}</span>
+                      {#if classification.estat_jugador === 'retirat'}
+                        <span class="retired-badge" title={classification.motiu_retirada || (isDisqualified ? 'Desqualificat' : 'Retirat')}>
+                          {isDisqualified ? 'DQF' : 'R'}
+                        </span>
+                      {/if}
+                    </button>
+                    <div class="cls-mob-pts">
+                      <span class="cls-mob-pts-num tabular-nums">{classification.punts}</span>
+                      <span class="cls-mob-pts-lbl">punts</span>
+                    </div>
+                  </div>
+                  <div class="cls-mob-stats">
+                    <div>
+                      <span class="cls-mob-stat-num tabular-nums">{classification.partides_jugades}</span>
+                      <span class="cls-mob-stat-lbl">PJ</span>
+                    </div>
+                    <div>
+                      <span class="cls-mob-stat-num tabular-nums">{classification.caramboles_totals ?? '—'}</span>
+                      <span class="cls-mob-stat-lbl">Car.</span>
+                    </div>
+                    <div>
+                      <span class="cls-mob-stat-num tabular-nums">{classification.entrades_totals ?? '—'}</span>
+                      <span class="cls-mob-stat-lbl">Ent.</span>
+                    </div>
+                    <div>
+                      <span class="cls-mob-stat-num tabular-nums">
+                        {classification.mitjana_general != null ? Number(classification.mitjana_general).toFixed(3) : '—'}
                       </span>
-                      <div class="min-w-0 flex-1">
-                        <button
-                          on:click={() => openPlayerModal(classification)}
-                          class="font-semibold text-base leading-tight truncate flex items-center gap-1 hover:text-blue-600 transition-colors cursor-pointer w-full text-left"
-                          class:text-gray-900={classification.estat_jugador !== 'retirat'}
-                          class:text-gray-500={classification.estat_jugador === 'retirat'}
-                          class:line-through={classification.estat_jugador === 'retirat'}
-                          title="Veure resultats de {formatPlayerName(classification)}"
-                        >
-                          {formatPlayerName(classification)}
-                          {#if classification.estat_jugador === 'retirat'}
-                              <span class="text-[10px] bg-red-100 text-red-800 px-1 rounded flex-shrink-0" title={classification.motiu_retirada || (isDisqualified ? 'Desqualificat' : 'Retirat')}>
-                                {isDisqualified ? 'DQF' : 'R'}
-                              </span>
-                          {/if}
-                        </button>
-                      </div>
-                    </div>
-                    <div class="text-right flex-shrink-0 ml-1.5">
-                      <div class="text-2xl font-bold text-blue-600 leading-none">{classification.punts}</div>
-                      <div class="text-[10px] text-gray-500 uppercase">pts</div>
+                      <span class="cls-mob-stat-lbl">Mitj.</span>
                     </div>
                   </div>
-
-                  <!-- Compact Stats Row -->
-                  <div class="grid grid-cols-4 gap-0.5 px-1.5 pb-0.5 text-center">
-                    <div>
-                      <div class="text-sm font-bold text-gray-900">{classification.partides_jugades}</div>
-                      <div class="text-[10px] text-gray-500 uppercase">Part</div>
-                    </div>
-                    <div>
-                      <div class="text-sm font-bold text-green-600">{classification.caramboles_totals ?? '-'}</div>
-                      <div class="text-[10px] text-gray-500 uppercase">Car</div>
-                    </div>
-                    <div>
-                      <div class="text-sm font-bold text-purple-600">{classification.entrades_totals ?? '-'}</div>
-                      <div class="text-[10px] text-gray-500 uppercase">Ent</div>
-                    </div>
-                    <div>
-                      <div class="text-sm font-bold text-indigo-600">{classification.mitjana_general != null ? Number(classification.mitjana_general).toFixed(3) : '-'}</div>
-                      <div class="text-[10px] text-gray-500 uppercase">Mitj</div>
-                    </div>
-                  </div>
-
-                  <!-- Best Average in Footer -->
-                  <div class="bg-gradient-to-r from-purple-50 to-indigo-50 px-1.5 py-0.5 flex justify-between items-center border-t border-gray-200">
-                    <span class="text-xs text-gray-600">Millor Mitjana</span>
-                    <span class="text-base font-bold text-purple-700">{classification.millor_mitjana != null ? Number(classification.millor_mitjana).toFixed(3) : '-'}</span>
-                  </div>
-                </div>
+                </article>
               {/each}
             </div>
 
           {#if showDetails}
-            <!-- Category statistics -->
+            <!-- Category statistics — editorial stat-strip -->
             {@const totalPartides = categoryClassifications.reduce((sum, c) => sum + (c.partides_jugades ?? 0), 0) / 2}
             {@const totalCaramboles = categoryClassifications.reduce((sum, c) => sum + (c.caramboles_totals ?? 0), 0)}
             {@const totalEntrades = categoryClassifications.reduce((sum, c) => sum + (c.entrades_totals ?? 0), 0)}
             {@const mitjanaCategoria = totalEntrades > 0 ? (totalCaramboles / totalEntrades) : 0}
 
-            <div class="bg-gradient-to-r from-gray-50 to-blue-50 px-6 py-4 border-t border-gray-200">
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div class="text-center">
-                  <div class="font-bold text-2xl text-blue-700">
-                    {Math.floor(totalPartides)}
-                  </div>
-                  <div class="text-gray-600 font-medium">Total Partides</div>
+            <div class="cls-stats-strip">
+              <div>
+                <div class="cls-stat-num tabular-nums">{Math.floor(totalPartides)}</div>
+                <div class="cls-stat-lbl">Partides</div>
+              </div>
+              <div>
+                <div class="cls-stat-num tabular-nums">{totalCaramboles}</div>
+                <div class="cls-stat-lbl">Caramboles</div>
+              </div>
+              <div>
+                <div class="cls-stat-num tabular-nums">{mitjanaCategoria.toFixed(3)}</div>
+                <div class="cls-stat-lbl">Mitjana cat.</div>
+              </div>
+              <div>
+                <div class="cls-stat-num cls-stat-date">
+                  {#if lastMatchDate}
+                    {lastMatchDate.toLocaleDateString('ca-ES', { day: 'numeric', month: 'short' })}
+                  {:else}
+                    —
+                  {/if}
                 </div>
-                <div class="text-center">
-                  <div class="font-bold text-2xl text-green-700">
-                    {totalCaramboles}
-                  </div>
-                  <div class="text-gray-600 font-medium">Total Caramboles</div>
-                </div>
-                <div class="text-center">
-                  <div class="font-bold text-2xl text-purple-700">
-                    {mitjanaCategoria.toFixed(3)}
-                  </div>
-                  <div class="text-gray-600 font-medium">Mitjana Categoria</div>
-                </div>
-                <div class="text-center">
-                  <div class="font-bold text-lg text-gray-700">
-                    {#if lastMatchDate}
-                      {lastMatchDate.toLocaleDateString('ca-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    {:else}
-                      Sense partides
-                    {/if}
-                  </div>
-                  <div class="text-gray-600 font-medium">Última Actualització</div>
-                </div>
+                <div class="cls-stat-lbl">Última partida</div>
               </div>
             </div>
           {/if}
           {/if}
         {/if}
-      </div>
+      </article>
     {/each}
 
     {#if selectedCategory === 'all' && filteredCategories.length > 1}
@@ -528,39 +511,27 @@
       {@const totalEntrades = classifications.reduce((sum, c) => sum + (c.entrades_totals ?? 0), 0)}
       {@const mitjanaGeneral = totalEntrades > 0 ? (totalCaramboles / totalEntrades) : 0}
 
-      <div class="bg-white border border-gray-200 rounded-lg p-6">
-        <h4 class="text-lg font-medium text-gray-900 mb-4 flex items-center">
-          <span class="mr-2">📊</span>
-          Resum General del Campionat
-        </h4>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="text-center">
-            <div class="text-2xl font-bold text-blue-600">
-              {totalJugadors}
-            </div>
-            <div class="text-sm text-gray-500">Total Jugadors Inscrits</div>
+      <section class="cls-summary">
+        <div class="editorial-eyebrow" style="margin-bottom: 0.65rem;">Resum general del campionat</div>
+        <div class="cls-summary-strip">
+          <div>
+            <div class="cls-stat-num tabular-nums">{totalJugadors}</div>
+            <div class="cls-stat-lbl">Jugadors inscrits</div>
           </div>
-          <div class="text-center">
-            <div class="text-2xl font-bold text-green-600">
-              {Math.floor(totalPartides)}
-            </div>
-            <div class="text-sm text-gray-500">Total Partides Jugades</div>
+          <div>
+            <div class="cls-stat-num tabular-nums">{Math.floor(totalPartides)}</div>
+            <div class="cls-stat-lbl">Partides jugades</div>
           </div>
-          <div class="text-center">
-            <div class="text-2xl font-bold text-purple-600">
-              {totalCaramboles}
-            </div>
-            <div class="text-sm text-gray-500">Total Caramboles Fetes</div>
+          <div>
+            <div class="cls-stat-num tabular-nums">{totalCaramboles}</div>
+            <div class="cls-stat-lbl">Caramboles totals</div>
           </div>
-          <div class="text-center">
-            <div class="text-2xl font-bold text-indigo-600">
-              {mitjanaGeneral.toFixed(3)}
-            </div>
-            <div class="text-sm text-gray-500">Mitjana General Campionat</div>
+          <div>
+            <div class="cls-stat-num tabular-nums">{mitjanaGeneral.toFixed(3)}</div>
+            <div class="cls-stat-lbl">Mitjana general</div>
           </div>
         </div>
-      </div>
+      </section>
     {/if}
   {/if}
 </div>
@@ -577,3 +548,414 @@
     selectedPlayer = null;
   }}
 />
+
+<style>
+  .classifications-root {
+    width: 100%;
+    font-family: var(--font-sans);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  /* ── Header ───────────────────────────────────────── */
+  .cls-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--ink);
+    flex-wrap: wrap;
+  }
+  .cls-title {
+    font-weight: 800;
+    font-size: 1.875rem;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    margin: 0;
+    line-height: 1.1;
+    font-variation-settings: 'opsz' 32;
+  }
+  .cls-controls { display: flex; align-items: center; gap: 0.65rem; }
+  .cls-select {
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ink);
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule-strong);
+    padding: 0.5rem 0.75rem;
+    min-height: 44px;
+    cursor: pointer;
+  }
+
+  /* ── Banner de freshness ──────────────────────────── */
+  .cls-freshness {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.55rem 0.85rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    font-size: 0.8125rem;
+    color: var(--ink-2);
+    flex-wrap: wrap;
+  }
+  .freshness-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse-dot 2s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .freshness-text { flex: 1; }
+  .freshness-text strong { color: var(--ink); font-weight: 700; }
+  .freshness-refresh {
+    background: transparent;
+    border: 1px solid var(--rule-strong);
+    padding: 0.4rem 0.7rem;
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--ink-2);
+    cursor: pointer;
+    letter-spacing: -0.005em;
+  }
+  .freshness-refresh:hover { color: var(--ink); border-color: var(--ink); }
+  .freshness-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── Estats buits ─────────────────────────────────── */
+  .state-empty {
+    padding: 1.5rem 1.75rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    font-size: 0.9375rem;
+  }
+  .state-empty.error-state { color: var(--accent); }
+
+  /* ── Cat-block (cada categoria) ───────────────────── */
+  .cat-block {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    overflow: hidden;
+  }
+  .cat-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: var(--paper-elevated);
+    border: none;
+    border-bottom: 1px solid var(--rule);
+    cursor: pointer;
+    text-align: left;
+    color: var(--ink);
+    font-family: var(--font-sans);
+    transition: background 0.15s ease;
+  }
+  .cat-header:hover { background: var(--paper); }
+  .cat-toggle-icon {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--ink-3);
+    width: 1.5rem;
+    text-align: center;
+    line-height: 1;
+  }
+  .cat-name-block { flex: 1; }
+  .cat-name {
+    font-weight: 800;
+    font-size: 1.375rem;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .cat-meta {
+    margin-top: 0.25rem;
+    font-size: 0.8125rem;
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .cat-meta strong { color: var(--ink-2); font-weight: 700; }
+  .cat-count-block { text-align: right; }
+  .cat-count {
+    font-weight: 800;
+    font-size: 1.625rem;
+    letter-spacing: -0.025em;
+    line-height: 1;
+  }
+  .cat-count-label {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3);
+    margin-top: 0.25rem;
+  }
+
+  /* ── Taula desktop ────────────────────────────────── */
+  .cls-table-wrap { overflow-x: auto; }
+  .cls-table { width: 100%; border-collapse: collapse; }
+  .cls-table th {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-3);
+    text-align: right;
+    padding: 0.875rem 0.6rem;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+    background: var(--paper);
+  }
+  .cls-table th.col-left { text-align: left; }
+  .cls-table th.col-pos { width: 4rem; padding-left: 1.25rem; }
+  .cls-table th.col-player { padding-left: 0; }
+  .cls-table th.col-pts-head { color: var(--ink); }
+  .cls-table td {
+    padding: 0.85rem 0.6rem;
+    border-bottom: 1px solid var(--rule);
+    text-align: right;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--ink-2);
+    vertical-align: middle;
+  }
+  .cls-table td.col-pos {
+    text-align: left;
+    padding-left: 1.25rem;
+  }
+  .cls-table td.col-left { text-align: left; padding-left: 0; }
+  .cls-table tr:last-child td { border-bottom: none; }
+  .cls-table tr:hover { background: rgba(0,0,0,0.02); }
+  .cls-table tr.top3 .pos-num { color: var(--accent); }
+  .cls-table tr.retired { opacity: 0.55; }
+  .pos-num {
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .player-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .player-name-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+    font-family: var(--font-sans);
+  }
+  .player-name-btn:hover .player-name-text {
+    border-bottom-color: var(--ink);
+  }
+  .player-name-text {
+    font-weight: 700;
+    font-size: 1.0625rem;
+    color: var(--ink);
+    letter-spacing: -0.014em;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s ease;
+  }
+  .retired-name .player-name-text { text-decoration: line-through; color: var(--ink-3); }
+  .retired-badge {
+    display: inline-block;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 0.15rem 0.4rem;
+    margin-left: 0.4rem;
+  }
+  .col-pts-data { font-weight: 800; color: var(--ink); font-size: 1.125rem; letter-spacing: -0.02em; }
+
+  /* ── Mobile compact ───────────────────────────────── */
+  .cls-mobile { display: none; }
+  .cls-mob-row {
+    border-bottom: 1px solid var(--rule);
+    padding: 0.85rem 1rem;
+    background: var(--paper-elevated);
+  }
+  .cls-mob-row:last-child { border-bottom: none; }
+  .cls-mob-row.top3 .cls-mob-pos { color: var(--accent); }
+  .cls-mob-row.retired { opacity: 0.55; }
+  .cls-mob-row.retired .cls-mob-name { text-decoration: line-through; }
+  .cls-mob-head {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+  .cls-mob-pos {
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    line-height: 1;
+    width: 2.25rem;
+    flex-shrink: 0;
+  }
+  .cls-mob-name-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-sans);
+    color: var(--ink);
+    min-width: 0;
+  }
+  .cls-mob-name {
+    font-weight: 700;
+    font-size: 0.9375rem;
+    letter-spacing: -0.012em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+  .cls-mob-pts {
+    flex-shrink: 0;
+    text-align: right;
+    line-height: 1;
+  }
+  .cls-mob-pts-num {
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    display: block;
+  }
+  .cls-mob-pts-lbl {
+    font-size: 0.5625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-3);
+    margin-top: 2px;
+    display: block;
+  }
+  .cls-mob-stats {
+    margin-top: 0.6rem;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.25rem;
+    text-align: center;
+  }
+  .cls-mob-stat-num {
+    display: block;
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: var(--ink);
+    letter-spacing: -0.012em;
+  }
+  .cls-mob-stat-lbl {
+    display: block;
+    font-size: 0.5625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-3);
+    margin-top: 2px;
+  }
+
+  /* ── Stats strip ──────────────────────────────────── */
+  .cls-stats-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--rule);
+    background: var(--paper);
+  }
+  .cls-stats-strip > div {
+    padding: 1rem 1.25rem;
+    border-right: 1px solid var(--rule);
+  }
+  .cls-stats-strip > div:last-child { border-right: none; }
+  .cls-stat-num {
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .cls-stat-num.cls-stat-date { font-size: 1.0625rem; }
+  .cls-stat-lbl {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3);
+    margin-top: 0.4rem;
+  }
+
+  /* ── Resum general ────────────────────────────────── */
+  .cls-summary {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    padding: 1.25rem 1.5rem 0;
+  }
+  .cls-summary-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .cls-summary-strip > div {
+    padding: 1rem 0 1.25rem;
+    border-right: 1px solid var(--rule);
+    padding-left: 1.25rem;
+  }
+  .cls-summary-strip > div:first-child { padding-left: 0; }
+  .cls-summary-strip > div:last-child { border-right: none; }
+
+  /* ── Responsive ───────────────────────────────────── */
+  @media (max-width: 768px) {
+    .cls-head { gap: 0.75rem; align-items: flex-start; flex-direction: column; }
+    .cls-controls { width: 100%; }
+    .cls-select { width: 100%; }
+    .cls-table-wrap { display: none; }
+    .cls-mobile { display: block; }
+    .cls-stats-strip,
+    .cls-summary-strip {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .cls-stats-strip > div:nth-child(2),
+    .cls-summary-strip > div:nth-child(2) { border-right: none; }
+    .cls-stats-strip > div:nth-child(1),
+    .cls-stats-strip > div:nth-child(2),
+    .cls-summary-strip > div:nth-child(1),
+    .cls-summary-strip > div:nth-child(2) { border-bottom: 1px solid var(--rule); }
+    .cat-header { padding: 0.85rem 1rem; }
+    .cat-name { font-size: 1.125rem; }
+  }
+
+  /* ── High contrast ────────────────────────────────── */
+  :global(.high-contrast) .cat-block,
+  :global(.high-contrast) .state-empty,
+  :global(.high-contrast) .cls-summary {
+    background: #ffffff !important;
+    border-color: #000000 !important;
+  }
+  :global(.high-contrast) .pos-num,
+  :global(.high-contrast) .cls-mob-pos {
+    color: #000000 !important;
+  }
+</style>

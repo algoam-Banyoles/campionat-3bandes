@@ -251,31 +251,60 @@ export interface MatchEditInput {
 /**
  * Guarda l'edició d'una partida fent abans una comprovació de conflicte
  * (mateix billar, mateixa data i hora). Si hi ha col·lisió llança error.
+ *
+ * Regla d'integritat: data, hora i billar van sempre junts.
+ *  - Si `estat === 'pendent_programar'`, els tres camps queden a NULL.
+ *  - Si l'estat és qualsevol altre, els tres camps són obligatoris.
+ *  Així evitem registres incoherents (data programada però sense billar,
+ *  o billar fixat però sense hora, etc.).
  */
 export async function saveMatchEdit(
   supabase: SupabaseClient,
   matchId: string,
   input: MatchEditInput
 ): Promise<void> {
+  const isUnprogrammed = input.estat === 'pendent_programar';
+
+  const hasDate = !!input.data_programada;
+  const hasTime = !!input.hora_inici;
+  const hasTable = input.taula_assignada != null && !Number.isNaN(input.taula_assignada);
+
+  if (!isUnprogrammed) {
+    const missing: string[] = [];
+    if (!hasDate) missing.push('data');
+    if (!hasTime) missing.push('hora');
+    if (!hasTable) missing.push('billar');
+    if (missing.length > 0) {
+      throw new Error(
+        `Per programar la partida cal especificar ${missing.join(', ')}. ` +
+        `Si encara no es coneix la programació, marca-la com a "Pendent programar".`
+      );
+    }
+  }
+
   const updates: Record<string, unknown> = {
     estat: input.estat,
-    taula_assignada: input.taula_assignada,
     observacions_junta: input.observacions_junta || null
   };
 
-  if (input.data_programada && input.hora_inici) {
+  if (isUnprogrammed) {
+    updates.data_programada = null;
+    updates.hora_inici = null;
+    updates.taula_assignada = null;
+  } else {
     updates.data_programada = `${input.data_programada}T${input.hora_inici}:00`;
     updates.hora_inici = input.hora_inici;
+    updates.taula_assignada = input.taula_assignada;
   }
 
-  // Comprovar conflicte de billar abans de desar
-  if (updates.data_programada && updates.hora_inici && updates.taula_assignada) {
+  // Comprovar conflicte de billar abans de desar (només si està programada)
+  if (!isUnprogrammed) {
     const dia = (updates.data_programada as string).split('T')[0];
     const { data: conflict } = await supabase
       .from('calendari_partides')
       .select('id')
-      .eq('hora_inici', updates.hora_inici)
-      .eq('taula_assignada', updates.taula_assignada)
+      .eq('hora_inici', updates.hora_inici as string)
+      .eq('taula_assignada', updates.taula_assignada as number)
       .neq('id', matchId)
       .or('partida_anullada.is.null,partida_anullada.eq.false')
       .not(

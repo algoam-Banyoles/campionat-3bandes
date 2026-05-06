@@ -20,80 +20,162 @@
 </script>
 
 {#if match}
-  <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-    <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-auto">
-      <div class="bg-red-50 border-b border-red-200 px-6 py-4">
-        <h3 class="text-xl font-bold text-red-900 flex items-center">
-          <span class="mr-2">⚠️</span> Registrar Incompareixença
-        </h3>
+  <div class="modal-root" role="dialog" aria-modal="true">
+    <div class="modal-overlay" on:click={handleClose} role="presentation"></div>
+    <div class="modal-card modal-card-lg modal-card-danger">
+      <div class="modal-head">
+        <div>
+          <div class="editorial-eyebrow danger">Incompareixença</div>
+          <h3 class="modal-title">Quin jugador no s'ha presentat?</h3>
+        </div>
       </div>
 
-      <div class="p-6">
-        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-          <p class="text-sm text-yellow-800 font-medium mb-2">
-            ℹ️ Informació sobre incompareixences:
-          </p>
-          <ul class="text-sm text-yellow-800 list-disc list-inside space-y-1">
-            <li>El jugador que <strong>no s'ha presentat</strong> rebrà: 0 punts, 50 entrades</li>
-            <li>El jugador que <strong>s'ha presentat</strong> rebrà: 2 punts, 0 entrades</li>
-            <li>Si un jugador té <strong>2 incompareixences</strong>, serà eliminat automàticament del campionat</li>
-            <li>Totes les partides pendents del jugador eliminat quedaran <strong>anul·lades</strong></li>
+      <div class="modal-body">
+        <div class="info-callout">
+          <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">Conseqüències</div>
+          <ul class="info-list">
+            <li>El jugador que <strong>no s'ha presentat</strong>: 0 punts, 50 entrades.</li>
+            <li>El jugador que <strong>s'ha presentat</strong>: 2 punts, 0 entrades.</li>
+            <li>Amb <strong>2 incompareixences</strong>, eliminació automàtica del campionat.</li>
+            <li>Les partides pendents del jugador eliminat queden <strong>anul·lades</strong>.</li>
           </ul>
         </div>
 
-        <div class="mb-6">
-          <h4 class="font-medium text-gray-900 mb-4 text-center">Quin jugador NO s'ha presentat?</h4>
+        <div class="player-pick-grid">
+          <button
+            type="button"
+            on:click={() => selectPlayer(1)}
+            class="player-pick"
+            disabled={saving}
+          >
+            <div class="pick-eyebrow">Jugador 1</div>
+            <div class="pick-name">{formatPlayerName(match.jugador1)}</div>
+            <div class="pick-cta">Marcar incompareixença →</div>
+          </button>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button
-              type="button"
-              on:click={() => selectPlayer(1)}
-              class="p-6 border-2 border-red-300 rounded-lg hover:bg-red-50 hover:border-red-500 transition-colors disabled:opacity-50"
-              disabled={saving}
-            >
-              <div class="text-center">
-                <div class="text-3xl mb-2">👤</div>
-                <div class="font-bold text-lg text-gray-900 mb-1">Jugador 1</div>
-                <div class="text-base text-gray-700">
-                  {formatPlayerName(match.jugador1)}
-                </div>
-                <div class="mt-3 text-sm text-red-600 font-medium">
-                  ⚠️ Marcar incompareixença
-                </div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              on:click={() => selectPlayer(2)}
-              class="p-6 border-2 border-red-300 rounded-lg hover:bg-red-50 hover:border-red-500 transition-colors disabled:opacity-50"
-              disabled={saving}
-            >
-              <div class="text-center">
-                <div class="text-3xl mb-2">👤</div>
-                <div class="font-bold text-lg text-gray-900 mb-1">Jugador 2</div>
-                <div class="text-base text-gray-700">
-                  {formatPlayerName(match.jugador2)}
-                </div>
-                <div class="mt-3 text-sm text-red-600 font-medium">
-                  ⚠️ Marcar incompareixença
-                </div>
-              </div>
-            </button>
-          </div>
+          <button
+            type="button"
+            on:click={() => selectPlayer(2)}
+            class="player-pick"
+            disabled={saving}
+          >
+            <div class="pick-eyebrow">Jugador 2</div>
+            <div class="pick-name">{formatPlayerName(match.jugador2)}</div>
+            <div class="pick-cta">Marcar incompareixença →</div>
+          </button>
         </div>
 
-        <div class="bg-gray-50 border-t border-gray-200 -mx-6 -mb-6 px-6 py-4 flex justify-end">
+        <div class="modal-actions">
           <button
             type="button"
             on:click={handleClose}
-            class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 font-medium"
+            class="btn-secondary"
             disabled={saving}
           >
-            ❌ Cancel·lar
+            Cancel·lar
           </button>
         </div>
       </div>
     </div>
   </div>
 {/if}
+
+<style>
+  .modal-root { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+  .modal-overlay { position: absolute; inset: 0; background: rgba(26, 24, 20, 0.55); }
+  .modal-card {
+    position: relative; z-index: 10; max-width: 28rem; width: 100%;
+    background: var(--paper-elevated); border: 1px solid var(--rule);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+    max-height: 90vh; overflow-y: auto;
+    font-family: var(--font-sans); color: var(--ink);
+  }
+  .modal-card-lg { max-width: 38rem; }
+  .modal-card-danger { border-top: 3px solid var(--accent); }
+  .modal-head { padding: 1rem 1.5rem; border-bottom: 2px solid var(--ink); }
+  .editorial-eyebrow {
+    font-size: 0.6875rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.16em;
+    color: var(--ink-3);
+  }
+  .editorial-eyebrow.danger { color: var(--accent); }
+  .modal-title {
+    font-weight: 800; font-size: 1.25rem;
+    letter-spacing: -0.022em; margin: 0.25rem 0 0;
+  }
+  .modal-body {
+    padding: 1.25rem 1.5rem 1.5rem;
+    display: flex; flex-direction: column; gap: 1.25rem;
+  }
+
+  .info-callout {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--amber);
+    padding: 0.85rem 1rem;
+  }
+  .info-list {
+    list-style: none; padding: 0; margin: 0;
+    display: flex; flex-direction: column; gap: 0.4rem;
+    font-size: 0.875rem; color: var(--ink-2); line-height: 1.5;
+  }
+  .info-list li {
+    position: relative; padding-left: 1rem;
+  }
+  .info-list li::before {
+    content: ''; position: absolute; left: 0; top: 0.55rem;
+    width: 5px; height: 5px; background: var(--amber);
+  }
+  .info-list strong { color: var(--ink); font-weight: 700; }
+
+  .player-pick-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  .player-pick {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule-strong);
+    padding: 1.25rem 1rem;
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--font-sans);
+  }
+  .player-pick:hover {
+    border-color: var(--accent);
+    background: rgba(163, 11, 30, 0.03);
+  }
+  .player-pick:disabled { opacity: 0.5; cursor: not-allowed; }
+  .pick-eyebrow {
+    font-size: 0.625rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.16em;
+    color: var(--ink-3); margin-bottom: 0.4rem;
+  }
+  .pick-name {
+    font-weight: 800; font-size: 1.0625rem;
+    letter-spacing: -0.014em; color: var(--ink);
+    margin-bottom: 0.65rem;
+  }
+  .pick-cta {
+    font-size: 0.75rem; font-weight: 700;
+    color: var(--accent); border-bottom: 1px solid var(--accent);
+    display: inline-block; padding-bottom: 1px;
+  }
+
+  .modal-actions {
+    display: flex; justify-content: flex-end; gap: 0.5rem;
+    padding-top: 0.85rem; border-top: 1px solid var(--rule);
+  }
+  .btn-secondary {
+    padding: 0.55rem 1rem; background: transparent;
+    border: 1px solid var(--rule-strong); color: var(--ink);
+    font-family: var(--font-sans); font-weight: 600; font-size: 0.875rem;
+    cursor: pointer; min-height: 44px;
+  }
+  .btn-secondary:hover { border-color: var(--ink); }
+  .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  @media (max-width: 640px) {
+    .player-pick-grid { grid-template-columns: 1fr; }
+  }
+</style>

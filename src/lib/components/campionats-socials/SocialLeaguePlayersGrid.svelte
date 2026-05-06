@@ -225,221 +225,451 @@
   }
 </script>
 
-<div class="space-y-6">
+<div class="players-root">
   {#if loading}
-    <div class="text-center py-12">
-      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      <p class="mt-2 text-gray-600">Carregant jugadors...</p>
-    </div>
+    <div class="state-empty">Carregant jugadors…</div>
   {:else if error}
-    <div class="bg-red-50 border border-red-200 rounded-lg p-6">
-      <h3 class="text-lg font-medium text-red-800 mb-2">Error</h3>
-      <p class="text-red-600">{error}</p>
-    </div>
+    <div class="state-empty error-state">{error}</div>
   {:else if inscriptions.length === 0}
-    <div class="text-center py-12">
-      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-      </svg>
-      <h3 class="mt-2 text-sm font-medium text-gray-900">No hi ha jugadors inscrits</h3>
-      <p class="mt-1 text-sm text-gray-500">Els jugadors apareixeran aquí quan es facin les inscripcions.</p>
+    <div class="state-empty">
+      <div class="state-title">No hi ha jugadors inscrits</div>
+      <div class="state-sub">Els jugadors apareixeran aquí quan es facin les inscripcions.</div>
     </div>
   {:else}
-    <!-- Si les categories encara es carreguen, mostrar tots els jugadors temporalment -->
     {#if finalCategories.length === 0 && inscriptions.length > 0}
-      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div class="text-center mb-4 pb-3 border-b border-blue-200">
-          <h3 class="text-lg font-bold text-gray-900">📋 Tots els Jugadors Inscrits</h3>
-          <p class="text-sm text-blue-600 font-medium">
-            Carregant categories...
-          </p>
-          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mt-2">
-            {inscriptions.length} jugadors
-          </span>
-        </div>
-
-        <div class="space-y-2 max-h-96 overflow-y-auto">
+      <article class="cat-block loading-block">
+        <header class="cat-block-head">
+          <div>
+            <div class="editorial-eyebrow" style="margin-bottom: 0.3rem;">Carregant categories</div>
+            <h3 class="cat-name">Tots els jugadors inscrits</h3>
+          </div>
+          <div class="cat-count tabular-nums">{inscriptions.length} jugadors</div>
+        </header>
+        <div class="players-list players-list-scroll">
           {#each inscriptions as inscription (inscription.id)}
             {@const soci = inscription.socis}
             {@const nomComplet = soci ? `${soci.nom} ${soci.cognoms}` : `Soci #${inscription.soci_numero}`}
             {@const nomFormatat = formatarNomJugador(nomComplet)}
             {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
-            <div class="flex items-center justify-between py-1">
-              <div class="flex items-center">
-                <div class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">
-                  {inicialNom}
-                </div>
-                <span class="text-sm font-medium text-gray-900">
-                  {nomFormatat}
-                </span>
-              </div>
+            <div class="player-row">
+              <span class="avatar">{inicialNom}</span>
+              <span class="player-name">{nomFormatat}</span>
             </div>
           {/each}
         </div>
-      </div>
+      </article>
     {:else}
-    <!-- Categories compactes amb jugadors -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {#each sortedCategories as category (category.id)}
-        {@const playersInCategory = getPlayersInCategory(category.id)}
-        {#if playersInCategory.length > 0}
-          <div class="bg-white border-2 border-gray-200 rounded-lg p-3 hover:shadow-lg transition-shadow">
-            <!-- Capçalera de categoria -->
-            <div class="text-center mb-3 pb-2 border-b border-gray-200">
-              <h3 class="text-sm font-bold text-gray-900 truncate">{category.nom}</h3>
-              <p class="text-xs text-blue-600 font-medium">
-                {category.distancia_caramboles} car. • {playersInCategory.length} jug.
-              </p>
-            </div>
+      <div class="players-grid">
+        {#each sortedCategories as category (category.id)}
+          {@const playersInCategory = getPlayersInCategory(category.id)}
+          {#if playersInCategory.length > 0}
+            <article class="cat-block">
+              <header class="cat-block-head">
+                <div>
+                  <div class="editorial-eyebrow" style="margin-bottom: 0.3rem;">Categoria</div>
+                  <h3 class="cat-name">{category.nom}</h3>
+                  <div class="cat-meta">
+                    <span class="tabular-nums">{category.distancia_caramboles}</span> caramboles
+                  </div>
+                </div>
+                <div class="cat-count tabular-nums">{playersInCategory.length}</div>
+              </header>
+              <div class="players-list">
+                {#each playersInCategory as inscription (inscription.id)}
+                  {@const soci = inscription.socis}
+                  {@const nomCompletJugador = soci ? `${soci.nom} ${soci.cognoms}` : `Soci #${inscription.soci_numero}`}
+                  {@const nomFormatat = formatarNomJugador(nomCompletJugador)}
+                  {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
+                  {@const isWithdrawn = inscription.estat_jugador === 'retirat'}
+                  {@const isDisqualified = inscription.eliminat_per_incompareixences === true}
+                  <div class="player-row" class:retired={isWithdrawn}>
+                    <span class="avatar">{inicialNom}</span>
+                    <span class="player-name">{nomFormatat}</span>
+                    {#if isWithdrawn}
+                      <span class="retired-badge">{isDisqualified ? 'DQF' : 'R'}</span>
+                    {/if}
+                    {#if canWithdraw && !isWithdrawn}
+                      <button
+                        type="button"
+                        on:click={() => openWithdrawalDialog(inscription)}
+                        class="withdraw-btn"
+                        title="Retirar del campionat"
+                        aria-label="Retirar {nomFormatat} del campionat"
+                      >×</button>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            </article>
+          {/if}
+        {/each}
 
-            <!-- Llista de jugadors compacta -->
-            <div class="space-y-2">
-              {#each playersInCategory as inscription (inscription.id)}
+        {#if playersWithoutCategory.length > 0}
+          <article class="cat-block cat-block-warn">
+            <header class="cat-block-head">
+              <div>
+                <div class="editorial-eyebrow warn" style="margin-bottom: 0.3rem;">Pendent assignació</div>
+                <h3 class="cat-name">Sense categoria</h3>
+              </div>
+              <div class="cat-count tabular-nums">{playersWithoutCategory.length}</div>
+            </header>
+            <div class="players-list">
+              {#each playersWithoutCategory as inscription (inscription.id)}
                 {@const soci = inscription.socis}
-                {@const nomCompletJugador = soci ? `${soci.nom} ${soci.cognoms}` : `Soci #${inscription.soci_numero}`}
-                {@const nomFormatat = formatarNomJugador(nomCompletJugador)}
+                {@const nomCompletSenseCategoria = soci ? `${soci.nom} ${soci.cognoms}` : `Soci #${inscription.soci_numero}`}
+                {@const nomFormatat = formatarNomJugador(nomCompletSenseCategoria)}
                 {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
                 {@const isWithdrawn = inscription.estat_jugador === 'retirat'}
                 {@const isDisqualified = inscription.eliminat_per_incompareixences === true}
-                <div class="flex items-center py-1" class:opacity-60={isWithdrawn}>
-                  <div class="flex items-center gap-1 flex-1 min-w-0">
-                    <div class="w-6 h-6 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" class:bg-blue-500={!isWithdrawn} class:bg-gray-400={isWithdrawn}>
-                      {inicialNom}
-                    </div>
-                    <span class="text-xs truncate" class:text-gray-900={!isWithdrawn} class:text-gray-500={isWithdrawn} class:line-through={isWithdrawn}>
-                      {nomFormatat}
-                    </span>
-                    {#if isWithdrawn}
-                      <span class="text-[10px] text-red-600 font-bold flex-shrink-0">{isDisqualified ? 'DQF' : 'R'}</span>
-                    {/if}
-                  </div>
+                <div class="player-row" class:retired={isWithdrawn}>
+                  <span class="avatar avatar-warn">{inicialNom}</span>
+                  <span class="player-name">{nomFormatat}</span>
+                  {#if isWithdrawn}
+                    <span class="retired-badge">{isDisqualified ? 'DQF' : 'Retirat'}</span>
+                  {/if}
                   {#if canWithdraw && !isWithdrawn}
                     <button
                       type="button"
                       on:click={() => openWithdrawalDialog(inscription)}
-                      class="ml-1 flex-shrink-0 text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded p-1 transition-colors"
+                      class="withdraw-btn"
                       title="Retirar del campionat"
                       aria-label="Retirar {nomFormatat} del campionat"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6"></path>
-                      </svg>
-                    </button>
+                    >×</button>
                   {/if}
                 </div>
               {/each}
             </div>
-          </div>
+          </article>
         {/if}
-      {/each}
-
-      <!-- Jugadors sense categoria (si n'hi ha) -->
-      {#if playersWithoutCategory.length > 0}
-        <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
-          <div class="text-center mb-4 pb-3 border-b border-yellow-300">
-            <h3 class="text-lg font-bold text-gray-900">⚠️ Sense Categoria</h3>
-            <p class="text-sm text-orange-600 font-medium">
-              Pendent assignació
-            </p>
-            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800 mt-2">
-              {playersWithoutCategory.length} jugadors
-            </span>
-          </div>
-
-          <div class="space-y-2">
-            {#each playersWithoutCategory as inscription (inscription.id)}
-              {@const soci = inscription.socis}
-              {@const nomCompletSenseCategoria = soci ? `${soci.nom} ${soci.cognoms}` : `Soci #${inscription.soci_numero}`}
-              {@const nomFormatat = formatarNomJugador(nomCompletSenseCategoria)}
-              {@const inicialNom = soci?.nom ? soci.nom.charAt(0).toUpperCase() : '?'}
-              {@const isWithdrawn = inscription.estat_jugador === 'retirat'}
-              {@const isDisqualified = inscription.eliminat_per_incompareixences === true}
-              <div class="flex items-center justify-between py-1" class:opacity-60={isWithdrawn}>
-                <div class="flex items-center gap-2 min-w-0">
-                  <div class="w-8 h-8 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" class:bg-yellow-500={!isWithdrawn} class:bg-gray-400={isWithdrawn}>
-                    {inicialNom}
-                  </div>
-                  <span class="text-sm font-medium truncate" class:text-gray-900={!isWithdrawn} class:text-gray-500={isWithdrawn} class:line-through={isWithdrawn}>
-                    {nomFormatat}
-                  </span>
-                  {#if isWithdrawn}
-                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 flex-shrink-0">
-                      {isDisqualified ? 'DQF' : 'Retirat'}
-                    </span>
-                  {/if}
-                </div>
-                {#if canWithdraw && !isWithdrawn}
-                  <button
-                    type="button"
-                    on:click={() => openWithdrawalDialog(inscription)}
-                    class="ml-2 flex-shrink-0 text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded p-1 transition-colors"
-                    title="Retirar del campionat"
-                    aria-label="Retirar {nomFormatat} del campionat"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6"></path>
-                    </svg>
-                  </button>
-                {/if}
-              </div>
-            {/each}
-          </div>
-        </div>
-      {/if}
-    </div>
+      </div>
     {/if}
   {/if}
 </div>
 
 {#if withdrawalDialogOpen && selectedInscriptionForWithdrawal}
-  <div class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
-      <h3 class="text-lg font-medium text-gray-900 mb-4">
-        Retirar jugador del campionat
-      </h3>
+  <div class="modal-root">
+    <div class="modal-overlay" on:click={closeWithdrawalDialog} role="presentation"></div>
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h3 class="modal-title">Retirar jugador del campionat</h3>
+      </div>
+      <div class="modal-body">
+        <div class="match-info">
+          <div class="match-info-eyebrow">Jugador</div>
+          <div class="match-info-player">
+            {selectedInscriptionForWithdrawal.socis?.nom ?? ''} {selectedInscriptionForWithdrawal.socis?.cognoms ?? ''}
+          </div>
+        </div>
 
-      <div class="mb-4">
-        <p class="text-sm text-gray-700 mb-2">
-          <strong>Jugador:</strong>
-          {selectedInscriptionForWithdrawal.socis?.nom ?? ''} {selectedInscriptionForWithdrawal.socis?.cognoms ?? ''}
-        </p>
-        <p class="text-sm text-gray-600">
+        <p class="modal-note">
           El jugador es marcarà com a <strong>retirat</strong>. Les seves partides pendents s'anul·laran;
           les ja jugades es conservaran a la classificació.
         </p>
-      </div>
 
-      <div class="mb-4">
-        <label for="players-grid-withdrawal-reason" class="block text-sm font-medium text-gray-700 mb-2">
-          Motiu de la retirada *
-        </label>
-        <textarea
-          id="players-grid-withdrawal-reason"
-          bind:value={withdrawalReason}
-          rows="3"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-          placeholder="Ex: Problemes de salut, manca de temps, etc."
-        ></textarea>
-      </div>
+        <div class="form-field">
+          <label for="players-grid-withdrawal-reason">Motiu de la retirada *</label>
+          <textarea
+            id="players-grid-withdrawal-reason"
+            bind:value={withdrawalReason}
+            rows="3"
+            class="filter-input"
+            placeholder="Ex: Problemes de salut, manca de temps, etc."
+          ></textarea>
+        </div>
 
-      <div class="flex justify-end space-x-3">
-        <button
-          type="button"
-          on:click={closeWithdrawalDialog}
-          disabled={processingWithdrawal}
-          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
-        >
-          Cancel·lar
-        </button>
-        <button
-          type="button"
-          on:click={withdrawPlayer}
-          disabled={processingWithdrawal || !withdrawalReason.trim()}
-          class="px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {processingWithdrawal ? 'Retirant...' : 'Confirmar retirada'}
-        </button>
+        <div class="modal-actions">
+          <button
+            type="button"
+            on:click={closeWithdrawalDialog}
+            disabled={processingWithdrawal}
+            class="btn-secondary"
+          >
+            Cancel·lar
+          </button>
+          <button
+            type="button"
+            on:click={withdrawPlayer}
+            disabled={processingWithdrawal || !withdrawalReason.trim()}
+            class="btn-primary btn-danger"
+          >
+            {processingWithdrawal ? 'Retirant…' : 'Confirmar retirada'}
+          </button>
+        </div>
       </div>
     </div>
   </div>
 {/if}
+
+<style>
+  .players-root {
+    width: 100%;
+    font-family: var(--font-sans);
+    color: var(--ink);
+  }
+
+  /* Estats */
+  .state-empty {
+    padding: 1.75rem 2rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    text-align: center;
+  }
+  .state-empty.error-state { color: var(--accent); border-color: var(--accent); }
+  .state-title { font-weight: 700; font-size: 1.0625rem; color: var(--ink); }
+  .state-sub { margin-top: 0.4rem; font-size: 0.875rem; color: var(--ink-3); }
+
+  /* Grid de cards de categoria */
+  .players-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+  }
+  .cat-block {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    display: flex;
+    flex-direction: column;
+  }
+  .cat-block-warn { border-top: 3px solid var(--amber); }
+  .cat-block-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .cat-name {
+    font-weight: 800;
+    font-size: 1.125rem;
+    letter-spacing: -0.018em;
+    margin: 0;
+    line-height: 1.15;
+  }
+  .cat-meta {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .cat-count {
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    line-height: 1;
+  }
+
+  /* Llista de jugadors */
+  .players-list {
+    display: flex;
+    flex-direction: column;
+    padding: 0.4rem 0;
+  }
+  .players-list-scroll {
+    max-height: 24rem;
+    overflow-y: auto;
+  }
+  .player-row {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.875rem;
+  }
+  .player-row:last-child { border-bottom: none; }
+  .player-row.retired { opacity: 0.55; }
+  .player-row.retired .player-name { text-decoration: line-through; }
+  .avatar {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 1px solid var(--rule-strong);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8125rem;
+    color: var(--ink-2);
+    flex-shrink: 0;
+  }
+  .avatar.avatar-warn {
+    background: rgba(163, 107, 28, 0.1);
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+  .player-name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.012em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .retired-badge {
+    flex-shrink: 0;
+    padding: 0.1rem 0.35rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+  }
+  .withdraw-btn {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid var(--rule-strong);
+    color: var(--ink-3);
+    width: 1.6rem;
+    height: 1.6rem;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .withdraw-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* Modal */
+  .modal-root {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(26, 24, 20, 0.55);
+  }
+  .modal-card {
+    position: relative;
+    z-index: 10;
+    max-width: 28rem;
+    width: 100%;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-head {
+    padding: 1rem 1.5rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .modal-title {
+    font-weight: 800;
+    font-size: 1.125rem;
+    letter-spacing: -0.022em;
+    margin: 0;
+  }
+  .modal-body {
+    padding: 1.25rem 1.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .match-info {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 0.85rem 1rem;
+  }
+  .match-info-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3);
+    margin-bottom: 0.4rem;
+  }
+  .match-info-player {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--ink);
+  }
+  .modal-note {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+    line-height: 1.55;
+  }
+  .modal-note strong { color: var(--ink); font-weight: 700; }
+  .form-field { display: flex; flex-direction: column; gap: 0.4rem; }
+  .form-field label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+  .filter-input {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule-strong);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    resize: vertical;
+  }
+  .filter-input:focus {
+    outline: 2px solid var(--ink);
+    outline-offset: 1px;
+    border-color: var(--ink);
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--rule);
+  }
+  .btn-secondary {
+    padding: 0.55rem 1rem;
+    background: transparent;
+    border: 1px solid var(--rule-strong);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .btn-secondary:hover { border-color: var(--ink); }
+  .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary {
+    padding: 0.55rem 1rem;
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    color: var(--paper);
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .btn-primary:hover { opacity: 0.92; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary.btn-danger {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .players-grid { grid-template-columns: 1fr; }
+  }
+</style>

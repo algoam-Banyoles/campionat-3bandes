@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { showError } from '$lib/stores/toastStore';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   const dispatch = createEventDispatcher();
 
@@ -740,11 +741,10 @@
                     {/if}
                   </div>
                   <div class="text-sm text-gray-600">
-                    Soci #{assignment.sociInfo.numero_soci}
                     {#if assignment.sociInfo.historicalAverage !== null}
-                      • Mitjana: {assignment.sociInfo.historicalAverage.toFixed(2)}
+                      Mitjana: {assignment.sociInfo.historicalAverage.toFixed(2)}
                     {:else}
-                      • Sense mitjana històrica
+                      Sense mitjana històrica
                     {/if}
                   </div>
                 </div>
@@ -802,10 +802,7 @@
               <div class="flex items-center justify-between">
                 <div class="flex-1">
                   <div class="font-medium text-gray-900">
-                    {player.sociInfo.nom} {player.sociInfo.cognoms}
-                  </div>
-                  <div class="text-sm text-gray-600">
-                    Soci #{player.sociInfo.numero_soci}
+                    {formatarNomJugador(`${player.sociInfo.nom ?? ''} ${player.sociInfo.cognoms ?? ''}`.trim())}
                   </div>
                   {#if player.sociInfo.oldestAverage}
                     <div class="text-sm text-amber-600 mt-1">
@@ -889,7 +886,7 @@
                     <label for="promo-{promo.player.numero_soci}" class="flex-1 cursor-pointer">
                       <div class="flex items-center gap-2">
                         <div class="font-medium text-gray-900">
-                          {promo.player.nom} {promo.player.cognoms}
+                          {formatarNomJugador(`${promo.player.nom ?? ''} ${promo.player.cognoms ?? ''}`.trim())}
                         </div>
                         {#if promo.position === 1}
                           <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
@@ -900,9 +897,6 @@
                             🥈 Segon
                           </span>
                         {/if}
-                      </div>
-                      <div class="text-sm text-gray-600 mt-1">
-                        Soci #{promo.player.numero_soci}
                       </div>
                       <div class="text-sm text-gray-700 mt-2">
                         {promo.reason}

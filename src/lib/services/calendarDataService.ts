@@ -105,100 +105,98 @@ export async function loadCalendarData(
     throw matchError;
   }
 
-  // 3. Partides no programades (només autenticats)
+  // 3. Partides no programades (visibles per a tots: autenticats i anònims)
   let unprogrammedRaw: any[] = [];
   const withdrawnSocis = new Set<number>();
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (user) {
-    try {
-      // Jugadors retirats per a excloure
-      const { data: inscriptionsData, error: inscriptionsError } = await supabase.rpc(
-        'get_inscripcions_with_socis',
-        { p_event_id: eventId }
-      );
-      if (!inscriptionsError && Array.isArray(inscriptionsData)) {
-        for (const item of inscriptionsData as any[]) {
-          if (
-            (item.estat_jugador === 'retirat' || item.eliminat_per_incompareixences) &&
-            typeof item.soci_numero === 'number'
-          ) {
-            withdrawnSocis.add(item.soci_numero);
-          }
+  // Carregar jugadors retirats/desqualificats per a excloure (RPC accessible a anon)
+  try {
+    const { data: inscriptionsData, error: inscriptionsError } = await supabase.rpc(
+      'get_inscripcions_with_socis',
+      { p_event_id: eventId }
+    );
+    if (!inscriptionsError && Array.isArray(inscriptionsData)) {
+      for (const item of inscriptionsData as any[]) {
+        if (
+          (item.estat_jugador === 'retirat' || item.eliminat_per_incompareixences) &&
+          typeof item.soci_numero === 'number'
+        ) {
+          withdrawnSocis.add(item.soci_numero);
         }
       }
-
-      // Partides pendents
-      const { data, error } = await supabase
-        .from('calendari_partides')
-        .select('*')
-        .eq('event_id', eventId)
-        .eq('estat', 'pendent_programar')
-        .is('caramboles_jugador1', null)
-        .is('caramboles_jugador2', null)
-        .is('data_programada', null);
-
-      if (error) {
-        console.warn('Could not load unprogrammed matches:', error);
-      } else if (data) {
-        unprogrammedRaw = data;
-      }
-
-      // Lookup noms i categories per a partides no programades
-      if (unprogrammedRaw.length > 0) {
-        // Filtrar retirats
-        if (withdrawnSocis.size > 0) {
-          unprogrammedRaw = unprogrammedRaw.filter(
-            (m: any) =>
-              !withdrawnSocis.has(m.jugador1_soci_numero ?? -1) &&
-              !withdrawnSocis.has(m.jugador2_soci_numero ?? -1)
-          );
-        }
-
-        const sociNumbers = Array.from(
-          new Set(
-            [
-              ...unprogrammedRaw.map((m: any) => m.jugador1_soci_numero),
-              ...unprogrammedRaw.map((m: any) => m.jugador2_soci_numero)
-            ].filter((n: any) => typeof n === 'number')
-          )
-        ) as number[];
-
-        if (sociNumbers.length > 0) {
-          const { data: socisData } = await supabase
-            .from('socis')
-            .select('numero_soci, nom, cognoms')
-            .in('numero_soci', sociNumbers);
-          if (socisData) {
-            for (const soci of socisData as any[]) {
-              const inicialNom = soci.nom ? soci.nom.trim().charAt(0).toUpperCase() : '';
-              const primerCognom = soci.cognoms ? soci.cognoms.trim().split(' ')[0] : '';
-              playersMap.set(soci.numero_soci, { nom: inicialNom, cognoms: primerCognom });
-            }
-          }
-        }
-
-        const categoriaIds = Array.from(
-          new Set(unprogrammedRaw.map((m: any) => m.categoria_id).filter(Boolean))
-        ) as string[];
-        if (categoriaIds.length > 0) {
-          const { data: categoriesData } = await supabase
-            .from('categories')
-            .select('id, nom')
-            .in('id', categoriaIds);
-          if (categoriesData) {
-            for (const c of categoriesData as any[]) {
-              categoriesMap.set(c.id, c.nom);
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Error loading unprogrammed matches for authenticated user:', err);
     }
+  } catch (err) {
+    console.warn('Error loading withdrawn players info:', err);
+  }
+
+  // Partides pendents (per a tots els usuaris)
+  try {
+    const { data, error } = await supabase
+      .from('calendari_partides')
+      .select('*')
+      .eq('event_id', eventId)
+      .eq('estat', 'pendent_programar')
+      .is('caramboles_jugador1', null)
+      .is('caramboles_jugador2', null)
+      .is('data_programada', null);
+
+    if (error) {
+      console.warn('Could not load unprogrammed matches:', error);
+    } else if (data) {
+      unprogrammedRaw = data;
+    }
+
+    // Lookup noms i categories per a partides no programades
+    if (unprogrammedRaw.length > 0) {
+      // Filtrar retirats (si disponible)
+      if (withdrawnSocis.size > 0) {
+        unprogrammedRaw = unprogrammedRaw.filter(
+          (m: any) =>
+            !withdrawnSocis.has(m.jugador1_soci_numero ?? -1) &&
+            !withdrawnSocis.has(m.jugador2_soci_numero ?? -1)
+        );
+      }
+
+      const sociNumbers = Array.from(
+        new Set(
+          [
+            ...unprogrammedRaw.map((m: any) => m.jugador1_soci_numero),
+            ...unprogrammedRaw.map((m: any) => m.jugador2_soci_numero)
+          ].filter((n: any) => typeof n === 'number')
+        )
+      ) as number[];
+
+      if (sociNumbers.length > 0) {
+        const { data: socisData } = await supabase
+          .from('socis')
+          .select('numero_soci, nom, cognoms')
+          .in('numero_soci', sociNumbers);
+        if (socisData) {
+          for (const soci of socisData as any[]) {
+            const inicialNom = soci.nom ? soci.nom.trim().charAt(0).toUpperCase() : '';
+            const primerCognom = soci.cognoms ? soci.cognoms.trim().split(' ')[0] : '';
+            playersMap.set(soci.numero_soci, { nom: inicialNom, cognoms: primerCognom });
+          }
+        }
+      }
+
+      const categoriaIds = Array.from(
+        new Set(unprogrammedRaw.map((m: any) => m.categoria_id).filter(Boolean))
+      ) as string[];
+      if (categoriaIds.length > 0) {
+        const { data: categoriesData } = await supabase
+          .from('categories')
+          .select('id, nom')
+          .in('id', categoriaIds);
+        if (categoriesData) {
+          for (const c of categoriesData as any[]) {
+            categoriesMap.set(c.id, c.nom);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Error loading unprogrammed matches:', err);
   }
 
   // 4. Transformar partides RPC a format esperat

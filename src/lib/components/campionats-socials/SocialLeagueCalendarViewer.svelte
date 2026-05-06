@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onDestroy } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { user } from '$lib/stores/auth';
   import { formatSupabaseError } from '$lib/ui/alerts';
@@ -17,7 +17,6 @@
   import CalendarPrintHeader from './CalendarPrintHeader.svelte';
   import {
     toLocalDateStr,
-    getDayOfWeekCode,
     formatDate,
     generateAvailableDates as svcGenerateAvailableDates,
     generateTimelineData as svcGenerateTimelineData,
@@ -38,6 +37,7 @@
     loadCalendarData as svcLoadCalendarData,
     loadSociByEmail as svcLoadSociByEmail
   } from '$lib/services/calendarDataService';
+  import { subscribeToMatchUpdates, markLocallyMutated } from '$lib/services/realtimeMatchesService';
   import { downloadAsFile, sanitizeFilename } from '$lib/utils/downloadFile';
   import {
     saveMatchResult as svcSaveMatchResult,
@@ -52,7 +52,7 @@
     type PendingMatchSummary
   } from '$lib/services/calendarMutationsService';
   import CalendarIncompareixencaPreflight from './CalendarIncompareixencaPreflight.svelte';
-  import { showSuccess, showError, showWarning } from '$lib/stores/toastStore';
+  import { showSuccess, showError, showWarning, showInfo } from '$lib/stores/toastStore';
   import { showConfirm } from '$lib/stores/confirmDialogStore';
 
   const dispatch = createEventDispatcher();
@@ -131,7 +131,6 @@
   // Filtres
   let selectedCategory = '';
   let selectedDate = '';
-  let selectedWeek = '';
   let playerSearch = '';
   let selectedPlayerId: string | null = null; // ID del jugador seleccionat (filtratge exacte)
   let playerSuggestions = [];
@@ -205,6 +204,38 @@
   $: if (eventId) {
     loadCalendarData();
   }
+
+  // Subscripció Realtime: refresc automàtic quan altres clients toquen partides.
+  // Es re-crea cada cop que canvia eventId i s'allibera al destruir el component.
+  let unsubscribeRealtime: (() => void) | null = null;
+  $: {
+    if (unsubscribeRealtime) {
+      unsubscribeRealtime();
+      unsubscribeRealtime = null;
+    }
+    if (eventId) {
+      unsubscribeRealtime = subscribeToMatchUpdates(supabase, eventId, async (e) => {
+        // Si el canvi ve de l'usuari local, suprimim el toast (la lògica
+        // de mutació ja recarrega les dades) per evitar feedback duplicat.
+        if (e.type === 'result_recorded' && !e.isLocalEcho) {
+          const localMatch = matches.find(m => m.id === e.matchId);
+          const players = localMatch
+            ? `${formatPlayerName(localMatch.jugador1)} vs ${formatPlayerName(localMatch.jugador2)}`
+            : 'una partida';
+          showInfo(`Nou resultat: ${players}`);
+          await loadCalendarData();
+        } else if (
+          !e.isLocalEcho &&
+          (e.type === 'rescheduled' || e.type === 'cancelled' || e.type === 'result_modified')
+        ) {
+          await loadCalendarData();
+        }
+      });
+    }
+  }
+  onDestroy(() => {
+    if (unsubscribeRealtime) unsubscribeRealtime();
+  });
 
   // Generar dates disponibles per la vista timeline
   $: availableDates = generateAvailableDates(matches);
@@ -305,21 +336,18 @@
     return svcGenerateTimelineData(currentMatches, config, currentDates);
   }
 
-  function getEstatStyle(estat: string) {
-    const option = estatOptions.find(opt => opt.value === estat);
-    return option?.color || 'bg-gray-100 text-gray-800';
-  }
-
   // Filtrar dades
   $: filteredMatches = matches.filter(match => {
-    // Filtrar partides passades - només mostrar partides futures o d'avui
+    // Mostrar partides passades NOMÉS si no s'han jugat (sense resultat)
+    // Per a que es mostrin al llistat de partides pendent de programar
     if (match.data_programada) {
       const matchDate = new Date(match.data_programada);
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Resetear a inici del dia
 
-      // Si la partida és anterior a avui, no la mostrem
-      if (matchDate < today) return false;
+      const isPlayed = match.caramboles_jugador1 != null && match.caramboles_jugador2 != null;
+      // Si és anterior a avui i JA s'ha jugat, no la mostrem
+      if (matchDate < today && isPlayed) return false;
     }
 
     // Filtrar per jugador: prioritzar ID si hi ha jugador seleccionat, sinó text
@@ -344,12 +372,16 @@
   });
 
   $: filteredTimeline = timelineData.filter(slot => {
-    // Filtrar slots de dates passades - només mostrar dates futures o d'avui
+    // Mostrar slots de dates passades NOMÉS si la partida no s'ha jugat
     const slotDate = new Date(slot.dateStr);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (slotDate < today) return false;
+    if (slot.match) {
+      const isPlayed = slot.match.caramboles_jugador1 != null && slot.match.caramboles_jugador2 != null;
+      // Si és anterior a avui i JA s'ha jugat, no la mostrem
+      if (slotDate < today && isPlayed) return false;
+    }
 
     // Filtrar per jugador: prioritzar ID si hi ha jugador seleccionat, sinó text
     if (showOnlyMyMatches && myPlayerData) {
@@ -374,13 +406,39 @@
 
 
   // Separar partits programats i no programats
-  $: programmedMatches = filteredMatches.filter(match => match.data_programada && !['pendent_programar'].includes(match.estat));
+  // Programats: tenen data futura (avui o posterior) i no estan en pendent_programar
+  $: programmedMatches = filteredMatches.filter(match => {
+    if (!match.data_programada) return false;
+    if (match.estat === 'pendent_programar') return false;
+    // Una partida amb data passada que NO té resultat s'ha de tornar a programar
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const matchDate = new Date(match.data_programada);
+    const isPlayed = match.caramboles_jugador1 != null && match.caramboles_jugador2 != null;
+    if (matchDate < today && !isPlayed) return false; // passada sense resultat → no programada
+    return true;
+  });
   $: {
-    unprogrammedMatches = filteredMatches.filter(match =>
-      (!match.data_programada || match.estat === 'pendent_programar') &&
-      match.caramboles_jugador1 == null &&
-      match.caramboles_jugador2 == null
-    );
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    unprogrammedMatches = filteredMatches.filter(match => {
+      // Si la partida ja s'ha jugat, no és pendent
+      const isPlayed = match.caramboles_jugador1 != null && match.caramboles_jugador2 != null;
+      if (isPlayed) return false;
+
+      // Marcada explícitament com a pendent
+      if (match.estat === 'pendent_programar') return true;
+
+      // Sense data programada
+      if (!match.data_programada) return true;
+
+      // Data programada anterior a avui (no jugada) → cal reprogramar-la
+      const matchDate = new Date(match.data_programada);
+      if (matchDate < today) return true;
+
+      return false;
+    });
 
     // Ordenar per categoria
     unprogrammedMatches.sort((a, b) => {
@@ -401,9 +459,13 @@
   
   // Comptar slots amb partits del jugador cercat
   $: playerMatchSlots = filteredTimeline.filter(slot => slot.match).length;
-    
-  // Verificar si s'han generat slots
-  $: hasValidSlots = filteredTimeline.length > 0;
+
+  // Llista completa de partides no jugades de l'event (sense filtres ni
+  // talls de "futur/passat"). L'usem com a fallback quan una partida està
+  // programada però amb dades incoherents i no apareix enlloc més.
+  $: allUnplayedMatches = matches.filter(
+    m => m.caramboles_jugador1 == null && m.caramboles_jugador2 == null
+  );
 
   // Agrupar per categoria (vista categoria)
   $: matchesByCategory = groupByCategory(programmedMatches);
@@ -529,6 +591,7 @@
         entrades: resultForm.entrades,
         observacions: resultForm.observacions
       });
+      markLocallyMutated(resultMatch.id);
 
       closeResultModal();
       await loadCalendarData();
@@ -601,6 +664,7 @@
     try {
       preflightLoading = true;
       const result = await svcRegisterNoShow(supabase, incompareixencaMatch.id, jugadorQueFalta);
+      markLocallyMutated(incompareixencaMatch.id);
 
       cancelIncompareixencaPreflight();
       closeIncompareixencaModal();
@@ -649,6 +713,7 @@
     try {
       loading = true;
       await svcMarkAsUnprogrammed(supabase, match);
+      markLocallyMutated(match.id);
       await loadCalendarData();
       dispatch('matchUpdated');
       showSuccess('Partida convertida a no programada');
@@ -708,6 +773,7 @@
         estat: editForm.estat,
         observacions_junta: editForm.observacions_junta
       });
+      markLocallyMutated(editingMatch.id);
 
       cancelEditing();
       await loadCalendarData();
@@ -815,6 +881,8 @@
 
     try {
       await svcSwapMatchSchedule(supabase, match1, match2);
+      markLocallyMutated(match1.id);
+      markLocallyMutated(match2.id);
       await loadCalendarData();
 
       selectedMatches.clear();
@@ -851,6 +919,36 @@
 <svelte:window on:click={handleClickOutside} />
 
 <style>
+  /* ── Editorial wrapper styles ───────────────────────── */
+  .cal-root {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    font-family: var(--font-sans);
+    color: var(--ink);
+  }
+  .cal-controls {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    padding: 1.25rem 1.5rem;
+  }
+  .cal-state {
+    padding: 1.5rem 1.75rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    font-size: 0.9375rem;
+    text-align: center;
+  }
+  .cal-state-error {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  @media (max-width: 640px) {
+    .cal-controls { padding: 1rem; }
+  }
+
   @media print {
     /* Amagar TOT el contingut de la pàgina */
     :global(body *) {
@@ -1098,12 +1196,12 @@
   /* Estils responsius del calendari (mòbil/tauleta/pantalla) — moguts a CalendarTimelineView */
 </style>
 
-<div class="space-y-6 main-calendar-container">
+<div class="cal-root main-calendar-container">
   <!-- Encapçalament professional per a impressió -->
   <CalendarPrintHeader eventName={eventData?.nom} temporada={eventData?.temporada} />
 
-  <!-- Header amb controls -->
-  <div class="bg-white border border-gray-200 rounded-lg p-6 print-header-hide">
+  <!-- Header editorial amb controls -->
+  <div class="cal-controls print-header-hide">
     <CalendarHeaderControls
       totalMatches={matches.length}
       publishedCount={programmedMatches.filter(m => m.estat === 'publicat').length}
@@ -1143,18 +1241,13 @@
 
   <!-- Missatges d'error -->
   {#if error}
-    <div class="bg-red-50 border border-red-200 rounded-lg p-4 print-header-hide">
-      <div class="text-red-800">{error}</div>
-    </div>
+    <div class="cal-state cal-state-error print-header-hide">{error}</div>
   {/if}
 
   <!-- Loading -->
   {#if !isDataReady}
-    <div class="bg-white border border-gray-200 rounded-lg p-8 text-center print-header-hide">
-      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      <p class="mt-2 text-gray-600">
-        {loading ? 'Carregant calendari...' : 'Esperant dades del calendari...'}
-      </p>
+    <div class="cal-state print-header-hide">
+      {loading ? 'Carregant calendari…' : 'Esperant dades del calendari…'}
     </div>
   {:else if viewMode === 'category'}
     <!-- Vista per Categories -->
@@ -1194,10 +1287,12 @@
   <!-- Partides No Programades -->
   <CalendarUnprogrammedMatches
     matches={unprogrammedMatches}
+    {allUnplayedMatches}
     {isAdmin}
     {categoryNames}
     {estatOptions}
     on:program={(e) => startEditing(e.detail.match)}
+    on:openResult={(e) => openResultModal(e.detail.match)}
   />
 </div>
 

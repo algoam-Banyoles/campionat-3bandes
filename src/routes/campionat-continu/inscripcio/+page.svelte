@@ -273,10 +273,17 @@
 </script>
 
 <svelte:head>
-  <title>Inscripcio</title>
+  <title>Inscripció — Campionat Continu</title>
 </svelte:head>
 
-<h1 class="text-2xl font-semibold mb-4">Inscripcio</h1>
+<div class="inscr-root">
+
+<header class="page-mast">
+  <div>
+    <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">Campionat continu</div>
+    <h1 class="page-title">Inscripció</h1>
+  </div>
+</header>
 
 {#if $user}
   {#if checking}
@@ -376,6 +383,89 @@
     <div class="mt-4 rounded border border-green-200 bg-green-50 p-3 text-green-700">{ok}</div>
   {/if}
 {:else}
-  <p>Cal iniciar sessio per inscriure's.</p>
+  <div class="state-empty">Cal iniciar sessió per inscriure's.</div>
 {/if}
 
+</div>
+
+<style>
+  .inscr-root {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    font-family: var(--font-sans);
+    color: var(--ink);
+  }
+  .page-mast {
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .editorial-eyebrow {
+    font-size: 0.75rem; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--sec-continu);
+  }
+  .page-title {
+    font-weight: 800; font-size: 2rem;
+    letter-spacing: -0.025em; line-height: 1.05;
+    margin: 0; color: var(--ink);
+  }
+  .state-empty {
+    padding: 1.5rem 1.75rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    text-align: center;
+  }
+
+  /* Overrides Tailwind dins del root */
+  .inscr-root :global(.bg-blue-50) {
+    background: var(--paper-elevated) !important;
+    border: 1px solid var(--rule) !important;
+    border-left: 3px solid var(--blue) !important;
+    border-radius: 0 !important;
+  }
+  .inscr-root :global(.bg-green-50) {
+    background: var(--paper-elevated) !important;
+    border: 1px solid var(--green) !important;
+    border-radius: 0 !important;
+  }
+  .inscr-root :global(.bg-red-50) {
+    background: var(--paper-elevated) !important;
+    border: 1px solid var(--accent) !important;
+    border-radius: 0 !important;
+  }
+  .inscr-root :global(.text-blue-700),
+  .inscr-root :global(.text-blue-800) { color: var(--ink) !important; font-weight: 600; }
+  .inscr-root :global(.text-green-700) { color: var(--green) !important; }
+  .inscr-root :global(.text-red-700) { color: var(--accent) !important; }
+  .inscr-root :global(.text-gray-500),
+  .inscr-root :global(.text-gray-700),
+  .inscr-root :global(.text-slate-500) { color: var(--ink-3) !important; }
+  .inscr-root :global(input),
+  .inscr-root :global(select) {
+    background: var(--paper-elevated) !important;
+    border: 1px solid var(--rule-strong) !important;
+    border-radius: 0 !important;
+    color: var(--ink) !important;
+    min-height: 44px;
+  }
+  .inscr-root :global(input:focus),
+  .inscr-root :global(select:focus) {
+    outline: 2px solid var(--ink) !important;
+    border-color: var(--ink) !important;
+  }
+  .inscr-root :global(button.bg-blue-600),
+  .inscr-root :global(button.bg-slate-800) {
+    background: var(--ink) !important;
+    color: var(--paper) !important;
+    border: 1px solid var(--ink) !important;
+    border-radius: 0 !important;
+    font-weight: 600;
+    min-height: 44px;
+  }
+  .inscr-root :global(button.bg-blue-600:hover),
+  .inscr-root :global(button.bg-slate-800:hover) {
+    opacity: 0.92;
+  }
+</style>

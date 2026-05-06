@@ -21,11 +21,10 @@
   onMount(async () => {
     loading = true;
     try {
-      // Paral·lelitzem les dues queries: són independents, una no espera l'altra.
+      // Paral·lelitzem les dues queries: són independents.
       await Promise.all([refreshCalendarData(), loadPageContent()]);
       if (cancelled) return;
 
-      // Obtenir esdeveniments d'avui i demà
       const today = new Date();
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
@@ -33,13 +32,10 @@
       const todayEvents = getEventsForDate(today);
       const tomorrowEvents = getEventsForDate(tomorrow);
 
-      // Combinar i marcar cada esdeveniment amb la seva data
       upcomingEvents = [
         ...todayEvents.map(e => ({ ...e, isToday: true })),
         ...tomorrowEvents.map(e => ({ ...e, isToday: false }))
       ];
-
-      console.log('📅 Properes activitats carregades:', upcomingEvents.length, '(avui:', todayEvents.length, ', demà:', tomorrowEvents.length, ')');
     } catch (error) {
       console.error('❌ Error carregant esdeveniments:', error);
     } finally {
@@ -86,258 +82,848 @@
   function formatTime(date: Date): string {
     return date.toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' });
   }
+
+  function eventTagLabel(event: any): string {
+    if (event.type === 'challenge') {
+      const sub = event.subtype as string | undefined;
+      if (sub?.startsWith('campionat-social')) return 'Social';
+      if (sub?.startsWith('handicap')) return 'Hàndicap';
+      return 'Continu';
+    }
+    return 'General';
+  }
 </script>
 
 
-<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 lg:space-y-8">
-  <!-- Capçalera de benvinguda -->
-  {#if mainContent.title || mainContent.content}
-    <div class="text-center mb-6 lg:mb-8">
-      {#if mainContent.title}
-        <h1 class="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 px-2 leading-tight">{mainContent.title}</h1>
-      {/if}
-      {#if mainContent.content}
-        <div class="text-sm sm:text-base lg:text-lg text-gray-600 px-2 prose prose-sm max-w-none">{@html mainContent.content}</div>
-      {/if}
-    </div>
-  {:else}
-    <div class="text-center mb-6 lg:mb-8">
-      <h1 class="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 px-2 leading-tight">Secció de Billar del Foment Martinenc</h1>
-      <p class="text-sm sm:text-base lg:text-lg text-gray-600 px-2">Informació general i calendari d'activitats</p>
-    </div>
-  {/if}
-
-  <!-- Properes activitats -->
-  <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
-    <h2 class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
-      <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-      </svg>
-      Properes activitats
-    </h2>
-
-    <div class="bg-gray-50 rounded-lg p-4 sm:p-6">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-        <h3 class="text-sm sm:text-base lg:text-lg font-semibold text-gray-700">Avui i demà</h3>
-        <a href="/general/calendari" class="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-medium whitespace-nowrap">→ Veure calendari complet</a>
+<div class="home stack-xl">
+  <!-- ────────── Hero ────────── -->
+  <header class="hero">
+    <div class="editorial-eyebrow strong">Foment Martinenc · Secció Billar</div>
+    <h1 class="display">
+      {mainContent.title || 'Benvinguts a la Secció de Billar'}
+    </h1>
+    {#if mainContent.content}
+      <div class="lede-cols prose prose-sm max-w-none">{@html mainContent.content}</div>
+    {:else}
+      <div class="lede-cols">
+        <p>
+          La Secció de Billar del Foment Martinenc és un espai dedicat a la pràctica i promoció
+          del billar. Oferim instal·lacions modernes i un ambient familiar per a jugadors de
+          tots els nivells.
+        </p>
+        <p>
+          Per poder jugar — ja sigui de manera amistosa com als nostres campionats — cal ser
+          soci del Foment Martinenc i de la secció. Contacta amb nosaltres per a més informació
+          sobre com fer-te soci i començar a competir.
+        </p>
       </div>
+    {/if}
+  </header>
 
-      <div class="space-y-3">
-        {#if loading}
-          <div class="bg-white rounded-lg p-4 sm:p-6 border border-gray-200">
-            <div class="flex items-center text-gray-600">
-              <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span class="text-xs sm:text-sm">Carregant activitats...</span>
-            </div>
+  <!-- ────────── Properes activitats ────────── -->
+  <section>
+    <div class="section-head">
+      <h2>Properes activitats</h2>
+      <a class="link" href="/general/calendari">Calendari complet →</a>
+    </div>
+
+    {#if loading}
+      <div class="state-empty">Carregant activitats…</div>
+    {:else if upcomingEvents.length === 0}
+      <div class="state-empty">No hi ha activitats programades per avui ni demà. Consulta el calendari complet per veure pròximes activitats.</div>
+    {:else}
+      {@const todayList = upcomingEvents.filter(e => e.isToday)}
+      {@const tomorrowList = upcomingEvents.filter(e => !e.isToday)}
+
+      {#if todayList.length > 0}
+        <article class="day-block">
+          <div class="day-marker">
+            Avui
+            <span class="date tabular-nums">
+              {new Date().toLocaleDateString('ca-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </span>
           </div>
-        {:else if upcomingEvents.length === 0}
-          <div class="bg-white rounded-lg p-4 sm:p-6 border border-gray-200 text-center">
-            <svg class="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-            </svg>
-            <h4 class="text-sm sm:text-base font-medium text-gray-900 mb-1">No hi ha activitats programades</h4>
-            <p class="text-xs sm:text-sm text-gray-500">Consulta el calendari complet per veure pròximes activitats</p>
-          </div>
-        {:else}
-          {#each upcomingEvents as event}
-            <div class="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
-              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div class="flex items-start gap-2 flex-1 min-w-0">
-                  {#if event.type === 'challenge' && event.subtype?.startsWith('campionat-social')}
-                    <svg class="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                    </svg>
-                  {:else}
-                    <svg class="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                  {/if}
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm sm:text-base font-medium text-gray-900 truncate">{event.title}</p>
-                    <p class="text-xs text-gray-500 mt-0.5">
-                      {event.isToday ? 'Avui' : 'Demà'}
-                    </p>
-                  </div>
-                </div>
-                <div class="text-xs sm:text-sm text-gray-500 font-medium whitespace-nowrap">
-                  {formatTime(event.start)}
-                </div>
+          <div class="events">
+            {#each todayList as event}
+              <div class="event-row">
+                <div class="event-time tabular-nums">{formatTime(event.start)}</div>
+                <div class="event-title">{event.title}</div>
+                <div class="event-tag">{eventTagLabel(event)}</div>
               </div>
-            </div>
-          {/each}
-        {/if}
-
-        <div class="text-center text-xs sm:text-sm text-gray-500 mt-4 px-2">
-          <p>📅 Consulta el calendari complet per veure tornejos, competicions i esdeveniments</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Horaris i Normativa -->
-  <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
-    <h2 class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
-      <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-      </svg>
-      Horaris i Normativa
-    </h2>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-      <!-- Horari d'obertura -->
-      <div class="bg-blue-50 rounded-lg p-3 sm:p-4">
-        <h3 class="text-sm sm:text-base lg:text-lg font-semibold text-blue-900 mb-2 sm:mb-3 flex items-center">
-          🕒 {horarisContent.title || "Horari d'obertura de la Secció"}
-        </h3>
-        {#if horarisContent.content}
-          <div class="space-y-2 text-xs sm:text-sm text-blue-800 prose prose-sm max-w-none prose-p:my-1 prose-strong:text-blue-900">{@html horarisContent.content}</div>
-        {:else}
-          <div class="space-y-2 text-xs sm:text-sm text-blue-800">
-            <p><strong>Dilluns, dimecres, dijous, dissabte i diumenge:</strong> 9:00 – 21:30</p>
-            <p><strong>Dimarts i divendres:</strong> 10:30 – 21:30</p>
-            <div class="mt-3 text-xs text-blue-700 bg-blue-100 p-2 rounded">
-              <p>L'horari d'obertura pot canviar en funció dels horaris d'obertura del Bar del Foment.</p>
-              <p class="mt-1">L'horari d'atenció al públic del FOMENT és de <strong>DILLUNS A DIVENDRES de 9:00 A 13:00 i de 16:00 A 20:00</strong>.</p>
-              <p class="mt-1">Les seccions poden tenir activitat fora d'aquest horari si el bar està obert, excepte <strong>AGOST i FESTIUS</strong>, quan el FOMENT resta oficialment tancat.</p>
-              <p class="mt-1">La secció romandrà tancada els dies de <strong>TANCAMENT OFICIAL</strong> del FOMENT.</p>
-            </div>
+            {/each}
           </div>
-        {/if}
-      </div>
+        </article>
+      {/if}
 
-      <!-- Normes obligatòries -->
-      <div class="bg-green-50 rounded-lg p-4">
-        <h3 class="text-lg font-semibold text-green-900 mb-3">
-          🚨 {normesObligatories.title || 'OBLIGATORI'}
-        </h3>
-        {#if normesObligatories.content}
-          <div class="text-sm text-green-800 prose prose-sm max-w-none prose-p:my-1">{@html normesObligatories.content}</div>
-        {:else}
-          <p class="text-sm text-green-800">
-            Netejar el billar i les boles abans de començar cada partida amb el material que la Secció posa a disposició de tots els socis.
-          </p>
-        {/if}
-      </div>
+      {#if tomorrowList.length > 0}
+        <article class="day-block">
+          <div class="day-marker">
+            Demà
+            <span class="date tabular-nums">
+              {(() => { const t = new Date(); t.setDate(t.getDate() + 1); return t.toLocaleDateString('ca-ES', { weekday: 'long', day: 'numeric', month: 'long' }); })()}
+            </span>
+          </div>
+          <div class="events">
+            {#each tomorrowList as event}
+              <div class="event-row">
+                <div class="event-time tabular-nums">{formatTime(event.start)}</div>
+                <div class="event-title">{event.title}</div>
+                <div class="event-tag">{eventTagLabel(event)}</div>
+              </div>
+            {/each}
+          </div>
+        </article>
+      {/if}
+    {/if}
+  </section>
+
+  <!-- ────────── Horari d'obertura ────────── -->
+  <section>
+    <div class="section-head">
+      <h2>{horarisContent.title || "Horari d'obertura"}</h2>
+      <span class="editorial-eyebrow">Subjecte als horaris del bar</span>
     </div>
 
-    <!-- Prohibicions -->
-    <div class="bg-red-50 rounded-lg p-4 mt-6">
-      <h3 class="text-lg font-semibold text-red-900 mb-3">
-        🚫 {prohibicions.title || 'PROHIBIT'}
-      </h3>
-      {#if prohibicions.content}
-        <div class="text-sm text-red-800 prose prose-sm max-w-none prose-ul:my-1 prose-li:my-0.5">{@html prohibicions.content}</div>
+    <div class="schedule-block">
+      {#if horarisContent.content}
+        <div class="schedule-cms prose prose-sm max-w-none">{@html horarisContent.content}</div>
       {:else}
-        <ul class="list-disc list-inside space-y-1 text-sm text-red-800">
-          <li>Jugar a fantasia</li>
-          <li>Menjar mentre s'està jugant</li>
-          <li>Posar begudes sobre cap element del billar</li>
+        <div class="schedule-cols">
+          <div>
+            <div class="editorial-eyebrow" style="margin-bottom: 0.65rem;">Horari</div>
+            <table class="schedule-table">
+              <tbody>
+                <tr>
+                  <td class="day">Dilluns, dimecres, dijous, dissabte i diumenge</td>
+                  <td class="hours tabular-nums">9:00 – 21:30</td>
+                </tr>
+                <tr>
+                  <td class="day">Dimarts i divendres</td>
+                  <td class="hours tabular-nums">10:30 – 21:30</td>
+                </tr>
+                <tr>
+                  <td class="day muted">Agost i festius oficials</td>
+                  <td class="hours muted">Tancat</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <div class="editorial-eyebrow" style="margin-bottom: 0.65rem;">Aclariments</div>
+            <p class="schedule-note-body">
+              L'horari d'atenció al públic del Foment és de <strong>dilluns a divendres de 9:00 a 13:00 i de 16:00 a 20:00</strong>.
+              Les seccions poden tenir activitat fora d'aquest horari si el bar està obert.
+              La secció romandrà tancada els dies de tancament oficial del Foment.
+            </p>
+          </div>
+        </div>
+      {/if}
+    </div>
+  </section>
+
+  <!-- ────────── OBLIGATORI ────────── -->
+  <section>
+    <div class="rule-callout">
+      <div class="editorial-eyebrow success" style="margin-bottom: 0.4rem;">Obligatori</div>
+      <h2>{normesObligatories.title || 'Abans de cada partida'}</h2>
+      {#if normesObligatories.content}
+        <div class="prose prose-sm max-w-none rule-body">{@html normesObligatories.content}</div>
+      {:else}
+        <ul class="rule-list">
+          <li>Netejar el <strong>billar i les boles</strong> amb el material que la Secció posa a disposició dels socis.</li>
         </ul>
       {/if}
     </div>
+  </section>
 
-    <!-- Normes de joc -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mt-4 sm:mt-6">
-      <!-- Inscripció -->
-      <div class="bg-yellow-50 rounded-lg p-3 sm:p-4">
-        <h3 class="text-base sm:text-lg font-semibold text-yellow-900 mb-2 sm:mb-3">
-          📝 {normesInscripcio.title || 'Inscripció a les partides'}
-        </h3>
-        {#if normesInscripcio.content}
-          <div class="text-sm text-yellow-800 prose prose-sm max-w-none prose-ul:my-1 prose-li:my-0.5 prose-strong:text-yellow-900">{@html normesInscripcio.content}</div>
-        {:else}
-          <ul class="list-disc list-inside space-y-1 text-sm text-yellow-800">
-            <li>Apunta't a la pissarra única de <strong>PARTIDES SOCIALS</strong></li>
-            <li>Els companys no cal que s'apuntin; si ho fan, que sigui al costat del primer jugador</li>
-          </ul>
-        {/if}
-      </div>
-
-      <!-- Assignació de taula -->
-      <div class="bg-purple-50 rounded-lg p-4">
-        <h3 class="text-lg font-semibold text-purple-900 mb-3">
-          🗂 {normesAssignacio.title || 'Assignació de taula'}
-        </h3>
-        {#if normesAssignacio.content}
-          <div class="text-sm text-purple-800 prose prose-sm max-w-none prose-ul:my-1 prose-li:my-0.5">{@html normesAssignacio.content}</div>
-        {:else}
-          <ul class="list-disc list-inside space-y-1 text-sm text-purple-800">
-            <li>Quan hi hagi una taula lliure, ratlla el teu nom i juga</li>
-            <li>Si vols una taula concreta ocupada, passa el torn fins que s'alliberi</li>
-          </ul>
-        {/if}
-      </div>
-
-      <!-- Temps de joc -->
-      <div class="bg-orange-50 rounded-lg p-4">
-        <h3 class="text-lg font-semibold text-orange-900 mb-3">
-          ⏳ {normesTemps.title || 'Temps de joc'}
-        </h3>
-        {#if normesTemps.content}
-          <div class="text-sm text-orange-800 prose prose-sm max-w-none prose-ul:my-1 prose-li:my-0.5 prose-strong:text-orange-900">{@html normesTemps.content}</div>
-        {:else}
-          <ul class="list-disc list-inside space-y-1 text-sm text-orange-800">
-            <li><strong>Màxim 1 hora</strong> per partida (sol o en grup)</li>
-            <li><strong>PROHIBIT</strong> posar monedes per allargar el temps, encara que hi hagi taules lliures</li>
-          </ul>
-        {/if}
-      </div>
-
-      <!-- Tornar a jugar -->
-      <div class="bg-indigo-50 rounded-lg p-4">
-        <h3 class="text-lg font-semibold text-indigo-900 mb-3">
-          🔄 {normesRepetir.title || 'Tornar a jugar'}
-        </h3>
-        {#if normesRepetir.content}
-          <div class="text-sm text-indigo-800 prose prose-sm max-w-none prose-p:my-1">{@html normesRepetir.content}</div>
-        {:else}
-          <p class="text-sm text-indigo-800">
-            Només pots repetir si no hi ha ningú apuntat i hi ha una taula lliure.
-          </p>
-        {/if}
-      </div>
-    </div>
-  </div>
-
-  <!-- Serveis al Soci -->
-  <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
-    <h2 class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
-      <svg class="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-      </svg>
-      {serveisSoci.title || 'Serveis al Soci'}
-    </h2>
-
-    <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-4 sm:p-6">
-      {#if serveisSoci.content}
-        <div class="prose prose-sm sm:prose max-w-none prose-headings:text-indigo-900 prose-p:text-gray-700 prose-ul:text-gray-700 prose-li:text-gray-700">{@html serveisSoci.content}</div>
+  <!-- ────────── PROHIBIT ────────── -->
+  <section>
+    <div class="rule-callout danger">
+      <div class="editorial-eyebrow danger" style="margin-bottom: 0.4rem;">Prohibit</div>
+      <h2>{prohibicions.title || 'No es pot'}</h2>
+      {#if prohibicions.content}
+        <div class="prose prose-sm max-w-none rule-body">{@html prohibicions.content}</div>
       {:else}
-        <div class="text-center py-6">
-          <svg class="w-12 h-12 mx-auto text-indigo-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-          </svg>
-          <p class="text-sm sm:text-base text-gray-600">Contingut en preparació</p>
-          <p class="text-xs sm:text-sm text-gray-500 mt-2">Aviat trobaràs aquí informació sobre els serveis disponibles per als socis</p>
-        </div>
+        <ul class="rule-list">
+          <li>Jugar a fantasia.</li>
+          <li>Menjar mentre s'està jugant.</li>
+          <li>Posar begudes sobre cap element del billar.</li>
+          <li>Posar monedes per allargar el temps, encara que hi hagi billars lliures.</li>
+        </ul>
       {/if}
     </div>
-  </div>
+  </section>
 
-  <!-- Accés ràpid -->
-  <div class="bg-gray-50 rounded-lg p-4 sm:p-6">
-    <h2 class="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Accés ràpid</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-      <a href="/campionat-continu/ranking" class="bg-white rounded-lg p-3 sm:p-4 text-center hover:shadow-md transition-shadow">
-        <div class="text-xl sm:text-2xl mb-2">🏆</div>
-        <div class="text-sm sm:text-base font-medium text-gray-700">Campionat Continu</div>
+  <!-- ────────── Normativa de joc (4 sub-blocs) ────────── -->
+  <section>
+    <div class="section-head">
+      <h2>Normativa de joc</h2>
+      <span class="editorial-eyebrow">Partides socials lliures</span>
+    </div>
+
+    <div class="rules-grid">
+      <article class="rule-cell">
+        <div class="editorial-eyebrow">Inscripció a partides</div>
+        <h3>{normesInscripcio.title || 'Pissarra única'}</h3>
+        {#if normesInscripcio.content}
+          <div class="prose prose-sm max-w-none rule-body">{@html normesInscripcio.content}</div>
+        {:else}
+          <ul>
+            <li>Apunta't a la pissarra única de <strong>Partides Socials</strong>.</li>
+            <li>Els companys no cal que s'apuntin; si ho fan, que sigui al costat del primer jugador.</li>
+          </ul>
+        {/if}
+      </article>
+
+      <article class="rule-cell">
+        <div class="editorial-eyebrow">Assignació de billar</div>
+        <h3>{normesAssignacio.title || 'Quan hi hagi un lliure'}</h3>
+        {#if normesAssignacio.content}
+          <div class="prose prose-sm max-w-none rule-body">{@html normesAssignacio.content}</div>
+        {:else}
+          <ul>
+            <li>Quan hi hagi un billar lliure, ratlla el teu nom i juga.</li>
+            <li>Si vols un billar concret ocupat, passa el torn fins que s'alliberi.</li>
+          </ul>
+        {/if}
+      </article>
+
+      <article class="rule-cell">
+        <div class="editorial-eyebrow">Temps de joc</div>
+        <h3>{normesTemps.title || 'Màxim una hora'}</h3>
+        {#if normesTemps.content}
+          <div class="prose prose-sm max-w-none rule-body">{@html normesTemps.content}</div>
+        {:else}
+          <ul>
+            <li><strong>Màxim 1 hora</strong> per partida (sol o en grup).</li>
+            <li>Si hi ha algú esperant, cal alliberar el billar puntualment.</li>
+          </ul>
+        {/if}
+      </article>
+
+      <article class="rule-cell">
+        <div class="editorial-eyebrow">Tornar a jugar</div>
+        <h3>{normesRepetir.title || 'Només si no hi ha cua'}</h3>
+        {#if normesRepetir.content}
+          <div class="prose prose-sm max-w-none rule-body">{@html normesRepetir.content}</div>
+        {:else}
+          <ul>
+            <li>Pots repetir només si no hi ha ningú apuntat i hi ha un billar lliure.</li>
+          </ul>
+        {/if}
+      </article>
+    </div>
+  </section>
+
+  <!-- ────────── Serveis al Soci ────────── -->
+  {#if serveisSoci.title || serveisSoci.content}
+    <section>
+      <div class="section-head">
+        <h2>{serveisSoci.title || 'Serveis al Soci'}</h2>
+      </div>
+      <div class="schedule-block">
+        {#if serveisSoci.content}
+          <div class="prose prose-sm max-w-none">{@html serveisSoci.content}</div>
+        {:else}
+          <p class="state-empty-inline">Contingut en preparació.</p>
+        {/if}
+      </div>
+    </section>
+  {/if}
+
+  <!-- ────────── Accés ràpid ────────── -->
+  <section>
+    <h2 style="margin-bottom: 1.25rem;">Accés ràpid</h2>
+    <div class="quick-access">
+      <a class="qa-card" href="/campionats-socials" data-section="social">
+        <div class="qa-num">02 · Socials</div>
+        <div class="qa-title">Socials per categories</div>
+        <div class="qa-sub">Classificació, calendari i resultats</div>
+        <div class="qa-arrow">Veure classificació →</div>
       </a>
-      <a href="/campionats-socials" class="bg-white rounded-lg p-3 sm:p-4 text-center hover:shadow-md transition-shadow">
-        <div class="text-xl sm:text-2xl mb-2">👥</div>
-        <div class="text-sm sm:text-base font-medium text-gray-700">Campionats Socials</div>
+      <a class="qa-card" href="/campionat-continu/ranking" data-section="continu">
+        <div class="qa-num">03 · Continu</div>
+        <div class="qa-title">Rànquing permanent</div>
+        <div class="qa-sub">Reptes directes, 20 posicions</div>
+        <div class="qa-arrow">Veure el rànquing →</div>
+      </a>
+      <a class="qa-card" href="/handicap" data-section="handicap">
+        <div class="qa-num">04 · Hàndicap</div>
+        <div class="qa-title">Torneig d'eliminació</div>
+        <div class="qa-sub">1 per temporada · Quadre actual</div>
+        <div class="qa-arrow">Veure el quadre →</div>
+      </a>
+      <a class="qa-card" href="/general/calendari" data-section="general">
+        <div class="qa-num">01 · Calendari</div>
+        <div class="qa-title">Totes les activitats</div>
+        <div class="qa-sub">Vista setmanal i mensual</div>
+        <div class="qa-arrow">Obrir calendari →</div>
       </a>
     </div>
-  </div>
+  </section>
 </div>
+
+
+<style>
+  /* Estructura general */
+  .home {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding-bottom: 3rem;
+  }
+  .stack-xl > :global(* + *) { margin-top: 3.5rem; }
+
+  /* ── Hero ──────────────────────────────────────────── */
+  .hero {
+    padding: 2.5rem 0 1.75rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .hero h1.display {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 3.25rem;
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+    color: var(--ink);
+    margin: 0.5rem 0 1.75rem;
+    font-variation-settings: 'opsz' 32;
+  }
+  .hero .lede-cols {
+    column-count: 2;
+    column-gap: 2.75rem;
+    font-size: 1rem;
+    color: var(--ink-2);
+    font-weight: 500;
+    line-height: 1.6;
+    max-width: 68ch;
+  }
+  .hero .lede-cols :global(p) {
+    margin: 0 0 0.85rem;
+    break-inside: avoid;
+  }
+  .hero .lede-cols :global(p:last-child) {
+    margin-bottom: 0;
+  }
+  /* Neutralitza fons / colors heretats del CMS (mainContent.content). */
+  .hero .lede-cols :global(*) {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-radius: 0 !important;
+  }
+  .hero .lede-cols :global([class*='text-blue-']),
+  .hero .lede-cols :global([class*='text-gray-']),
+  .hero .lede-cols :global([class*='text-yellow-']),
+  .hero .lede-cols :global([class*='text-green-']),
+  .hero .lede-cols :global([class*='text-red-']),
+  .hero .lede-cols :global([class*='text-purple-']),
+  .hero .lede-cols :global([class*='text-indigo-']),
+  .hero .lede-cols :global([class*='text-orange-']) {
+    color: var(--ink-2) !important;
+  }
+  .hero .lede-cols :global(strong) {
+    color: var(--ink) !important;
+    font-weight: 700;
+  }
+  .hero .lede-cols :global(a) {
+    color: var(--blue);
+    text-decoration: none;
+    border-bottom: 1px solid var(--blue);
+  }
+
+  /* ── Section heads ─────────────────────────────────── */
+  h2 {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 1.75rem;
+    line-height: 1.15;
+    letter-spacing: -0.022em;
+    color: var(--ink);
+    margin: 0;
+    font-variation-settings: 'opsz' 32;
+  }
+  h3 {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 1.125rem;
+    line-height: 1.3;
+    letter-spacing: -0.014em;
+    color: var(--ink);
+    margin: 0;
+  }
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+  }
+  .section-head .link {
+    color: var(--foment-blue, var(--blue));
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    border-bottom: 1px solid var(--blue);
+    padding-bottom: 2px;
+    white-space: nowrap;
+  }
+
+  /* ── Properes activitats (day-block) ───────────────── */
+  .day-block {
+    display: grid;
+    grid-template-columns: 9rem 1fr;
+    gap: 2rem;
+    padding: 1.5rem 0;
+    border-top: 1px solid var(--rule);
+  }
+  .day-block:last-child {
+    border-bottom: 1px solid var(--rule);
+  }
+  .day-marker {
+    font-weight: 800;
+    font-size: 1.125rem;
+    letter-spacing: -0.014em;
+    line-height: 1.2;
+    color: var(--ink);
+  }
+  .day-marker .date {
+    display: block;
+    font-weight: 500;
+    font-size: 0.8125rem;
+    color: var(--ink-3);
+    margin-top: 0.3rem;
+    text-transform: capitalize;
+  }
+  .events {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .event-row {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr auto;
+    gap: 1rem;
+    align-items: baseline;
+  }
+  .event-time {
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: -0.012em;
+    color: var(--ink);
+  }
+  .event-title {
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--ink-2);
+  }
+  .event-tag {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-3);
+    padding: 0.18rem 0.45rem;
+    border: 1px solid var(--rule-strong);
+  }
+
+  /* ── Horari d'obertura (taula editorial) ─────────── */
+  .schedule-block {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    padding: 1.75rem 2rem;
+  }
+  /* Layout 2-col: horari | aclariments (només cas fallback amb estructura explícita) */
+  .schedule-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5rem;
+    align-items: start;
+  }
+  /* Cas CMS: contingut HTML lliure → CSS multicolumn perquè el browser distribueixi */
+  .schedule-cms {
+    column-count: 2;
+    column-gap: 2.5rem;
+  }
+  .schedule-cms :global(p),
+  .schedule-cms :global(div),
+  .schedule-cms :global(table) {
+    break-inside: avoid;
+  }
+  .schedule-cms :global(p:first-child) {
+    margin-top: 0;
+  }
+  .schedule-note-body {
+    font-size: 0.875rem;
+    color: var(--ink-2);
+    line-height: 1.55;
+    margin: 0;
+  }
+  .schedule-note-body :global(strong),
+  .schedule-note-body strong {
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .schedule-table tr {
+    border-bottom: 1px solid var(--rule);
+  }
+  .schedule-table tr:last-child {
+    border-bottom: none;
+  }
+  .schedule-table td {
+    padding: 0.7rem 0;
+    font-weight: 500;
+    font-size: 0.9375rem;
+    color: var(--ink);
+  }
+  .schedule-table td.day {
+    font-weight: 600;
+    width: 60%;
+  }
+  .schedule-table td.hours {
+    text-align: right;
+    font-weight: 700;
+    letter-spacing: -0.012em;
+  }
+  .schedule-table td.muted {
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .schedule-table td.hours.muted {
+    font-weight: 600;
+  }
+  .schedule-note {
+    margin: 1.25rem 0 0;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.8125rem;
+    color: var(--ink-2);
+    line-height: 1.55;
+  }
+  .schedule-note :global(strong) {
+    color: var(--ink);
+  }
+  /* Mòbil: horari i aclariments apilats verticalment */
+  @media (max-width: 900px) {
+    .schedule-cols {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+    .schedule-cms {
+      column-count: 1;
+    }
+  }
+  /* Neutralitza estils heretats del CMS (fons blaus, taronges, etc.) que xoquen
+     amb l'estètica editorial. El contingut ve de page_content i pot tenir
+     classes Tailwind antigues o styles inline incrustats. Reset total del fons
+     per a tots els descendents — després els tractem editorialment. */
+  .schedule-block :global(*) {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-radius: 0 !important;
+  }
+  /* Si dins del contingut hi ha un bloc divisori (div o aside) amb fons original,
+     ara que ja l'hem neutralitzat el tractem com a callout editorial subtil. */
+  .schedule-block :global(div[class*='bg-']),
+  .schedule-block :global(aside[class*='bg-']),
+  .schedule-block :global(div[style*='background']) {
+    border-left: 3px solid var(--rule-strong) !important;
+    padding: 0.85rem 1.1rem !important;
+    margin: 1rem 0 0 !important;
+    color: var(--ink-2) !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.55 !important;
+  }
+  /* Text colors heretats (text-blue-X, etc.) → tinta editorial */
+  .schedule-block :global([class*='text-blue-']),
+  .schedule-block :global([class*='text-yellow-']),
+  .schedule-block :global([class*='text-green-']),
+  .schedule-block :global([class*='text-red-']),
+  .schedule-block :global([class*='text-purple-']),
+  .schedule-block :global([class*='text-indigo-']),
+  .schedule-block :global([class*='text-orange-']) {
+    color: var(--ink-2) !important;
+  }
+  .schedule-block :global(strong) {
+    color: var(--ink) !important;
+    font-weight: 700;
+  }
+
+  /* ── Rule callouts (Obligatori / Prohibit) ────────── */
+  .rule-callout {
+    padding: 1.5rem 1.85rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    border-top: 3px solid var(--green);
+  }
+  .rule-callout.danger {
+    border-top-color: var(--accent);
+  }
+  .rule-callout h2 {
+    margin-bottom: 1rem;
+  }
+  .rule-list,
+  .rule-callout :global(ul) {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .rule-list li,
+  .rule-callout :global(li) {
+    position: relative;
+    padding-left: 1.25rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1.55;
+  }
+  .rule-list li + li,
+  .rule-callout :global(li + li) {
+    margin-top: 0.65rem;
+  }
+  .rule-list li::before,
+  .rule-callout :global(li)::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.65rem;
+    width: 6px;
+    height: 6px;
+    background: var(--green);
+  }
+  .rule-callout.danger .rule-list li::before,
+  .rule-callout.danger :global(li)::before {
+    background: var(--accent);
+  }
+  .rule-callout :global(strong) {
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .rule-body :global(p) {
+    margin: 0 0 0.8rem;
+  }
+  .rule-body :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  /* ── Normativa grid ─────────────────────────────────── */
+  .rules-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0;
+    border: 1px solid var(--rule);
+    background: var(--paper-elevated);
+  }
+  .rule-cell {
+    padding: 1.6rem 1.85rem;
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .rule-cell:nth-child(2n) {
+    border-right: none;
+  }
+  .rule-cell:nth-last-child(-n+2) {
+    border-bottom: none;
+  }
+  .rule-cell h3 {
+    margin: 0.4rem 0 0.85rem;
+  }
+  .rule-cell ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ink-2);
+  }
+  .rule-cell li {
+    position: relative;
+    padding-left: 1rem;
+    line-height: 1.55;
+  }
+  .rule-cell li + li {
+    margin-top: 0.55rem;
+  }
+  .rule-cell li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.6rem;
+    width: 4px;
+    height: 4px;
+    background: var(--ink-3);
+  }
+  .rule-cell strong,
+  .rule-cell :global(strong) {
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .rule-cell :global(ul) {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* ── Accés ràpid ────────────────────────────────────── */
+  .quick-access {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border: 1px solid var(--rule);
+    background: var(--paper-elevated);
+  }
+  .qa-card {
+    display: flex;
+    flex-direction: column;
+    padding: 1.85rem 1.6rem;
+    border-right: 1px solid var(--rule);
+    text-decoration: none;
+    color: var(--ink);
+    transition: background 0.15s ease;
+    min-height: 175px;
+  }
+  .qa-card:last-child {
+    border-right: none;
+  }
+  .qa-card:hover {
+    background: var(--paper);
+  }
+  .qa-num {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .qa-title {
+    font-weight: 800;
+    font-size: 1.375rem;
+    letter-spacing: -0.024em;
+    line-height: 1.05;
+    margin-top: 0.65rem;
+  }
+  .qa-sub {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ink-2);
+    margin-top: 0.55rem;
+  }
+  .qa-arrow {
+    margin-top: auto;
+    padding-top: 1.1rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--blue);
+  }
+  .qa-card[data-section='social']    { border-top: 3px solid var(--sec-social); }
+  .qa-card[data-section='continu']   { border-top: 3px solid var(--sec-continu); }
+  .qa-card[data-section='handicap']  { border-top: 3px solid var(--sec-handicap); }
+  .qa-card[data-section='general']   { border-top: 3px solid var(--sec-general); }
+
+  /* ── Empty / loading states ────────────────────────── */
+  .state-empty {
+    padding: 1.5rem 1.75rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    font-size: 0.9375rem;
+  }
+  .state-empty-inline {
+    margin: 0;
+    color: var(--ink-3);
+    font-size: 0.9375rem;
+  }
+
+  /* ── Responsiu ─────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .hero {
+      padding: 1.75rem 0 1.5rem;
+    }
+    .hero h1.display {
+      font-size: 2.5rem;
+      letter-spacing: -0.03em;
+      margin-bottom: 1.25rem;
+    }
+    .hero .lede-cols {
+      column-count: 1;
+    }
+    .day-block {
+      grid-template-columns: 1fr;
+      gap: 0.85rem;
+    }
+    .rules-grid {
+      grid-template-columns: 1fr;
+    }
+    .rule-cell {
+      border-right: none !important;
+    }
+    .rule-cell:not(:last-child) {
+      border-bottom: 1px solid var(--rule);
+    }
+    .quick-access {
+      grid-template-columns: 1fr 1fr;
+    }
+    .qa-card:nth-child(2n) {
+      border-right: none;
+    }
+    .qa-card:nth-child(1),
+    .qa-card:nth-child(2) {
+      border-bottom: 1px solid var(--rule);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .hero h1.display {
+      font-size: 2.1rem;
+    }
+    h2 {
+      font-size: 1.5rem;
+    }
+    .schedule-block {
+      padding: 1.25rem 1.25rem;
+    }
+    .rule-callout {
+      padding: 1.25rem 1.4rem;
+    }
+    .rule-cell {
+      padding: 1.25rem 1.4rem;
+    }
+    .quick-access {
+      grid-template-columns: 1fr;
+    }
+    .qa-card {
+      border-right: none !important;
+      border-bottom: 1px solid var(--rule);
+      min-height: auto;
+    }
+    .qa-card:last-child {
+      border-bottom: none;
+    }
+    .event-row {
+      grid-template-columns: 4rem 1fr;
+    }
+    .event-tag {
+      grid-column: 1 / -1;
+      justify-self: flex-start;
+    }
+  }
+
+  /* High-contrast compat */
+  :global(.high-contrast) .schedule-block,
+  :global(.high-contrast) .rule-callout,
+  :global(.high-contrast) .rules-grid,
+  :global(.high-contrast) .quick-access,
+  :global(.high-contrast) .qa-card,
+  :global(.high-contrast) .state-empty {
+    background: #ffffff !important;
+    border-color: #000000 !important;
+  }
+  :global(.high-contrast) .rule-callout {
+    border-top-color: var(--accent) !important;
+  }
+  :global(.high-contrast) .rule-callout:not(.danger) {
+    border-top-color: var(--green) !important;
+  }
+</style>

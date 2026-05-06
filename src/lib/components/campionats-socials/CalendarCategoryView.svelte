@@ -23,108 +23,102 @@
   }
 </script>
 
-<div class="print-category-hide">
+<div class="cat-view print-category-hide">
   {#if totalMatches === 0}
-    <div class="bg-white border border-gray-200 rounded-lg p-8 text-center">
-      <div class="text-gray-500">
-        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-        </svg>
-        <p class="mt-2">No hi ha partits programats</p>
-      </div>
-    </div>
+    <div class="state-empty">No hi ha partits programats.</div>
   {:else}
     {#each Array.from(matchesByCategory.entries()) as [categoryId, categoryMatches] (categoryId)}
-      <div class="bg-white border border-gray-200 rounded-lg p-6">
-        <h4 class="text-lg font-medium text-gray-900 mb-4">
-          {getCategoryName(categoryId)} ({categoryMatches.length} partits)
-        </h4>
+      <article class="cat-section">
+        <header class="cat-section-head">
+          <div>
+            <div class="cat-eyebrow">Categoria</div>
+            <h3 class="cat-section-title">{getCategoryName(categoryId)}</h3>
+          </div>
+          <div class="cat-count tabular-nums">{categoryMatches.length} partits</div>
+        </header>
 
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+        <div class="cat-table-wrap">
+          <table class="cat-table">
+            <thead>
               <tr>
                 {#if isAdmin && swapMode}
-                  <th class="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase print-hide">Sel.</th>
+                  <th class="col-narrow print-hide">Sel.</th>
                 {/if}
-                <th class="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
-                <th class="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Hora</th>
-                <th class="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">Billar</th>
-                <th class="px-2 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase">Enfrontament</th>
+                <th class="col-left">Data</th>
+                <th class="col-left">Hora</th>
+                <th class="col-left hide-sm">Billar</th>
+                <th class="col-left">Enfrontament</th>
                 {#if isAdmin}
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase print-hide">Accions</th>
+                  <th class="col-left print-hide">Accions</th>
                 {/if}
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody>
               {#each categoryMatches as match (match.id)}
-                <tr class="hover:bg-gray-50" class:bg-blue-50={swapMode && selectedMatches.has(match.id)}>
+                <tr class:row-selected={swapMode && selectedMatches.has(match.id)}>
                   {#if isAdmin && swapMode}
-                    <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-center print-hide">
+                    <td class="col-narrow print-hide">
                       <input
                         type="checkbox"
                         checked={selectedMatches.has(match.id)}
                         on:change={() => dispatch('toggleMatch', { matchId: match.id })}
-                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         disabled={!match.data_programada || !match.hora_inici}
                       />
                     </td>
                   {/if}
-                  <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-900">
-                    <div class="flex flex-col">
+                  <td>
+                    <div class="data-cell">
                       <span>{match.data_programada ? formatDate(new Date(match.data_programada)) : 'No programada'}</span>
-                      <span class="text-xs text-gray-500 sm:hidden">
-                        {match.hora_inici || '-'}
-                        {#if match.taula_assignada}• B{match.taula_assignada}{/if}
+                      <span class="data-cell-mobile">
+                        {match.hora_inici || '—'}
+                        {#if match.taula_assignada}· B{match.taula_assignada}{/if}
                       </span>
                     </div>
                   </td>
-                  <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-900">
-                    {match.hora_inici || '-'}
+                  <td class="tabular-nums">{match.hora_inici || '—'}</td>
+                  <td class="hide-sm">
+                    {#if match.taula_assignada}
+                      <span class="billiard-badge">B{match.taula_assignada}</span>
+                    {:else}
+                      <span class="muted">—</span>
+                    {/if}
                   </td>
-                  <td class="hidden sm:table-cell px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-900">
-                    {match.taula_assignada ? `B${match.taula_assignada}` : 'No assignada'}
-                  </td>
-                  <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-900">
-                    <div class="flex flex-col">
-                      <span class="font-medium">
-                        {formatPlayerName(match.jugador1)}
-                      </span>
-                      <span class="text-xs text-gray-500">vs</span>
-                      <span class="font-medium">
-                        {formatPlayerName(match.jugador2)}
-                      </span>
+                  <td>
+                    <div class="vs-cell">
+                      <span class="player">{formatPlayerName(match.jugador1)}</span>
+                      <span class="sep">vs</span>
+                      <span class="player">{formatPlayerName(match.jugador2)}</span>
                     </div>
                   </td>
                   {#if isAdmin}
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium print-hide">
-                      <div class="flex flex-col space-y-1">
+                    <td class="print-hide">
+                      <div class="actions-stack">
                         {#if match.estat !== 'jugada' && match.estat !== 'validat'}
                           <button
                             on:click={() => dispatch('openResult', { match })}
-                            class="text-green-600 hover:text-green-900 font-medium"
+                            class="action-link link-green"
                             title="Introduir resultat de la partida"
                           >
-                            📝 Resultat
+                            Resultat
                           </button>
                           <button
                             on:click={() => dispatch('openIncompareixenca', { match })}
-                            class="text-red-600 hover:text-red-900 font-medium text-xs"
+                            class="action-link link-red"
                             title="Marcar incompareixença"
                           >
-                            ⚠️ Incompareixença
+                            Incompareixença
                           </button>
                         {/if}
                         <button
                           on:click={() => dispatch('startEdit', { match })}
-                          class="text-blue-600 hover:text-blue-900"
+                          class="action-link link-blue"
                         >
                           Editar
                         </button>
                         {#if match.data_programada}
                           <button
                             on:click={() => dispatch('convertUnprogrammed', { match })}
-                            class="text-orange-600 hover:text-orange-900 text-xs"
+                            class="action-link link-amber"
                             title="Convertir a no programada"
                           >
                             No programar
@@ -138,7 +132,153 @@
             </tbody>
           </table>
         </div>
-      </div>
+      </article>
     {/each}
   {/if}
 </div>
+
+<style>
+  .cat-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    font-family: var(--font-sans);
+    color: var(--ink);
+  }
+  .state-empty {
+    padding: 1.5rem 1.75rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    font-size: 0.9375rem;
+    text-align: center;
+  }
+
+  .cat-section {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+  }
+  .cat-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .cat-eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 0.3rem;
+  }
+  .cat-section-title {
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: -0.018em;
+    margin: 0;
+    line-height: 1.15;
+  }
+  .cat-count {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+
+  .cat-table-wrap { overflow-x: auto; }
+  .cat-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .cat-table th {
+    padding: 0.75rem 0.85rem;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    white-space: nowrap;
+    background: var(--paper);
+  }
+  .cat-table th.col-left { text-align: left; }
+  .cat-table th.col-narrow { width: 3rem; text-align: center; }
+  .cat-table td {
+    padding: 0.75rem 0.85rem;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.9375rem;
+    color: var(--ink);
+    vertical-align: middle;
+  }
+  .cat-table tr:last-child td { border-bottom: none; }
+  .cat-table tr:hover { background: var(--paper); }
+  .cat-table tr.row-selected { background: rgba(31, 79, 139, 0.08); }
+  .col-narrow { text-align: center; }
+  .data-cell { display: flex; flex-direction: column; }
+  .data-cell-mobile {
+    display: none;
+    font-size: 0.75rem;
+    color: var(--ink-3);
+    margin-top: 0.15rem;
+  }
+  .billiard-badge {
+    display: inline-block;
+    padding: 0.18rem 0.5rem;
+    border: 1px solid var(--rule-strong);
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 0.875rem;
+    letter-spacing: -0.012em;
+  }
+  .muted { color: var(--ink-3); }
+  .vs-cell {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.3;
+  }
+  .vs-cell .player {
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.012em;
+  }
+  .vs-cell .sep {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3);
+    margin: 0.2rem 0;
+  }
+
+  .actions-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    align-items: flex-start;
+  }
+  .action-link {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 1px;
+  }
+  .link-green { color: var(--green); }
+  .link-red   { color: var(--accent); }
+  .link-blue  { color: var(--blue); }
+  .link-amber { color: var(--amber); font-size: 0.75rem; }
+  .action-link:hover { opacity: 0.8; }
+
+  @media (max-width: 640px) {
+    .cat-table th.hide-sm,
+    .cat-table td.hide-sm { display: none; }
+    .data-cell-mobile { display: inline; }
+    .cat-section-head { padding: 0.85rem 1rem; }
+    .cat-table th, .cat-table td { padding: 0.6rem 0.5rem; }
+  }
+</style>

@@ -220,10 +220,17 @@
   }
 </script>
 
-<h1 class="text-2xl font-semibold mb-3">Posar resultat</h1>
+<div class="result-root">
+
+<header class="page-mast">
+  <div>
+    <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">Campionat continu</div>
+    <h1 class="page-title">Posar resultat</h1>
+  </div>
+</header>
 
 {#if loading}
-  <p>Carregant…</p>
+  <div class="state-empty">Carregant…</div>
   {:else if error}
     <Banner type="error" message={error} />
   {:else if chal}
@@ -279,3 +286,64 @@
     </button>
   </form>
 {/if}
+
+</div>
+
+<style>
+  .result-root {
+    display: flex; flex-direction: column; gap: 1.25rem;
+    font-family: var(--font-sans); color: var(--ink);
+  }
+  .page-mast { padding-bottom: 1rem; border-bottom: 2px solid var(--ink); }
+  .editorial-eyebrow {
+    font-size: 0.75rem; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--sec-continu);
+  }
+  .page-title {
+    font-weight: 800; font-size: 2rem;
+    letter-spacing: -0.025em; margin: 0;
+  }
+  .state-empty {
+    padding: 1.25rem 1.5rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    text-align: center;
+  }
+  .result-root :global(button.bg-slate-900) {
+    background: var(--ink) !important;
+    color: var(--paper) !important;
+    border: 1px solid var(--ink) !important;
+    border-radius: 0 !important;
+    font-weight: 600;
+    min-height: 44px;
+    padding: 0.55rem 1rem !important;
+  }
+  .result-root :global(input),
+  .result-root :global(select) {
+    background: var(--paper-elevated) !important;
+    border: 1px solid var(--rule-strong) !important;
+    border-radius: 0 !important;
+    color: var(--ink) !important;
+  }
+  .result-root :global(input:focus),
+  .result-root :global(select:focus) {
+    outline: 2px solid var(--ink) !important;
+    border-color: var(--ink) !important;
+  }
+  .result-root :global(.text-slate-500),
+  .result-root :global(.text-slate-600) { color: var(--ink-2) !important; }
+  .result-root :global(.bg-slate-50),
+  .result-root :global(.bg-gray-50) {
+    background: var(--paper) !important;
+    border: 1px solid var(--rule) !important;
+    border-radius: 0 !important;
+  }
+  .result-root :global(.rounded),
+  .result-root :global(.rounded-lg),
+  .result-root :global(.rounded-md),
+  .result-root :global(.rounded-xl),
+  .result-root :global(.rounded-2xl),
+  .result-root :global(.rounded-full) { border-radius: 0 !important; }
+</style>

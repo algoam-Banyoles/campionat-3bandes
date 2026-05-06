@@ -1,11 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import { supabase } from '$lib/supabaseClient';
+  import { adminChecked, isAdmin } from '$lib/stores/adminAuth';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
   import { formatSupabaseError } from '$lib/ui/alerts';
   import { initAdminPage } from '$lib/utils/adminPage';
   import { showConfirm } from '$lib/stores/confirmDialogStore';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
+
+  // Guard: només admins.
+  $: if ($adminChecked && !$isAdmin) {
+    goto('/campionat-continu/llista-espera');
+  }
 
   let loading = true;
   let error: string | null = null;
@@ -190,14 +198,15 @@
 </script>
 
 <svelte:head>
-  <title>Llistes d'Espera - Admin</title>
+  <title>Gestió de llista d'espera</title>
 </svelte:head>
 
-<div class="max-w-7xl mx-auto p-4">
-  <div class="mb-6">
-    <h1 class="text-2xl font-semibold text-gray-900">Gestió de Llistes d'Espera</h1>
-    <p class="text-gray-600 mt-1">Administra les llistes d'espera dels esdeveniments</p>
-  </div>
+<div class="gle-root">
+  <header class="gle-mast">
+    <div class="editorial-eyebrow">Rànquing continu · Administració</div>
+    <h1 class="gle-title">Gestió de llista d'espera</h1>
+    <p class="gle-sub">Administra la llista d'espera de l'esdeveniment del rànquing continu en curs.</p>
+  </header>
 
   {#if loading}
     <Loader />
@@ -308,10 +317,10 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                       <div class="text-sm font-medium text-gray-900">
-                        {waiting.nom} {waiting.cognoms}
+                        {formatarNomJugador(`${waiting.nom ?? ''} ${waiting.cognoms ?? ''}`.trim())}
                       </div>
                       <div class="text-sm text-gray-500">
-                        Soci #{waiting.numero_soci} • {waiting.email}
+                        {waiting.email}
                       </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -370,3 +379,105 @@
     {/if}
   {/if}
 </div>
+
+<style>
+  .gle-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .gle-mast {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .gle-title {
+    margin: 0.4rem 0 0.4rem;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .gle-sub {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ink-2, #4a443e);
+    max-width: 56ch;
+  }
+
+  .gle-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .gle-root :global(.bg-gray-50),
+  .gle-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .gle-root :global(.bg-blue-50),
+  .gle-root :global(.bg-blue-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--blue, #1f4a99) !important; }
+  .gle-root :global(.bg-green-50),
+  .gle-root :global(.bg-green-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--green, #1f7a3a) !important; }
+  .gle-root :global(.bg-yellow-50),
+  .gle-root :global(.bg-yellow-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+  .gle-root :global(.bg-red-50),
+  .gle-root :global(.bg-red-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--accent, #a30b1e) !important; }
+  .gle-root :global(.bg-blue-600),
+  .gle-root :global(.bg-blue-700) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .gle-root :global(.bg-red-600),
+  .gle-root :global(.bg-red-700) {
+    background: var(--accent, #a30b1e) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .gle-root :global(.bg-green-600),
+  .gle-root :global(.bg-green-700) {
+    background: var(--green, #1f7a3a) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+
+  .gle-root :global(.text-gray-500),
+  .gle-root :global(.text-gray-600),
+  .gle-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+  .gle-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+  .gle-root :global(.text-blue-600),
+  .gle-root :global(.text-blue-700),
+  .gle-root :global(.text-blue-800) { color: var(--blue, #1f4a99) !important; }
+  .gle-root :global(.text-green-600),
+  .gle-root :global(.text-green-700),
+  .gle-root :global(.text-green-800) { color: var(--green, #1f7a3a) !important; }
+  .gle-root :global(.text-red-600),
+  .gle-root :global(.text-red-700),
+  .gle-root :global(.text-red-800) { color: var(--accent, #a30b1e) !important; }
+  .gle-root :global(.text-yellow-700),
+  .gle-root :global(.text-yellow-800) { color: var(--amber, #b8860b) !important; }
+
+  .gle-root :global(.border-gray-200),
+  .gle-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+  .gle-root :global(.rounded),
+  .gle-root :global(.rounded-md),
+  .gle-root :global(.rounded-lg),
+  .gle-root :global(.rounded-xl),
+  .gle-root :global(.rounded-2xl),
+  .gle-root :global(.rounded-full) { border-radius: 0 !important; }
+  .gle-root :global(.shadow),
+  .gle-root :global(.shadow-sm),
+  .gle-root :global(.shadow-md) { box-shadow: none !important; }
+  .gle-root :global(input),
+  .gle-root :global(select) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .gle-root :global(table) { font-family: var(--font-sans, sans-serif); }
+  .gle-root :global(thead.bg-gray-50) {
+    background: var(--paper, #fbfaf6) !important;
+    border-bottom: 1px solid var(--ink, #1a1814) !important;
+  }
+</style>

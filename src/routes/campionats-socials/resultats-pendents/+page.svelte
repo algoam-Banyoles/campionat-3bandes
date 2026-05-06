@@ -1,9 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import { supabase } from '$lib/supabaseClient';
   import { showSuccess, showError } from '$lib/stores/toastStore';
   import { showConfirm } from '$lib/stores/confirmDialogStore';
+  import { adminChecked, isAdmin } from '$lib/stores/adminAuth';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
+  function nomComplet(nom: string | null | undefined, cognoms: string | null | undefined): string {
+    const raw = `${nom ?? ''} ${cognoms ?? ''}`.trim();
+    return raw ? formatarNomJugador(raw) : '';
+  }
+
+  // Guard: només admins poden entrar resultats. Si la comprovació ha acabat i no és admin, redirigeix.
+  $: if ($adminChecked && !$isAdmin) {
+    goto('/campionats-socials');
+  }
 
   let selectedEvent: any = null;
   let categories: any[] = [];
@@ -278,8 +290,8 @@
     if (!incompareixencaMatch) return;
 
     const jugadorNom = jugadorQueFalta === 1
-      ? `${incompareixencaMatch.soci1?.nom} ${incompareixencaMatch.soci1?.cognoms}`
-      : `${incompareixencaMatch.soci2?.nom} ${incompareixencaMatch.soci2?.cognoms}`;
+      ? `${nomComplet(incompareixencaMatch.soci1?.nom, incompareixencaMatch.soci1?.cognoms)}`
+      : `${nomComplet(incompareixencaMatch.soci2?.nom, incompareixencaMatch.soci2?.cognoms)}`;
 
     const confirmation = await showConfirm({
       title: 'Marcar incompareixença',
@@ -341,11 +353,15 @@
 </script>
 
 <svelte:head>
-  <title>Resultats Campionats Socials - Admin</title>
+  <title>Resultats pendents</title>
 </svelte:head>
 
-<div class="container mx-auto px-4 py-8">
-  <h1 class="text-3xl font-bold text-gray-900 mb-8">Pujar Resultats - Campionats Socials</h1>
+<div class="rp-root">
+  <header class="rp-mast">
+    <div class="editorial-eyebrow">Campionats socials · Administració</div>
+    <h1 class="rp-title">Resultats pendents</h1>
+    <p class="rp-sub">Pujar resultats de partides pendents i marcar incompareixences.</p>
+  </header>
 
   <!-- Active Event Info and Category Selection -->
   {#if selectedEvent}
@@ -402,7 +418,7 @@
           </span>
           {#if selectedMatch}
             <span class="text-sm font-normal text-gray-600 ml-2">
-              • Seleccionada: {selectedMatch.soci1?.nom} {selectedMatch.soci1?.cognoms} vs {selectedMatch.soci2?.nom} {selectedMatch.soci2?.cognoms}
+              • Seleccionada: {nomComplet(selectedMatch.soci1?.nom, selectedMatch.soci1?.cognoms)} vs {nomComplet(selectedMatch.soci2?.nom, selectedMatch.soci2?.cognoms)}
             </span>
           {/if}
         </h2>
@@ -448,7 +464,7 @@
                 />
                 <div class="flex-1">
                   <div class="font-medium text-gray-900">
-                    {match.soci1?.nom} {match.soci1?.cognoms} vs {match.soci2?.nom} {match.soci2?.cognoms}
+                    {nomComplet(match.soci1?.nom, match.soci1?.cognoms)} vs {nomComplet(match.soci2?.nom, match.soci2?.cognoms)}
                   </div>
                   {#if match.data_programada}
                     <div class="text-sm text-gray-500">
@@ -496,7 +512,7 @@
         <!-- Jugador 1 -->
         <div class="bg-gray-50 rounded-lg p-4">
           <h3 class="font-semibold text-gray-900 mb-3">
-            {selectedMatch.soci1?.nom} {selectedMatch.soci1?.cognoms}
+            {nomComplet(selectedMatch.soci1?.nom, selectedMatch.soci1?.cognoms)}
           </h3>
           <div>
             <label for="caramboles_j1" class="block text-sm font-medium text-gray-700 mb-1">
@@ -515,7 +531,7 @@
         <!-- Jugador 2 -->
         <div class="bg-gray-50 rounded-lg p-4">
           <h3 class="font-semibold text-gray-900 mb-3">
-            {selectedMatch.soci2?.nom} {selectedMatch.soci2?.cognoms}
+            {nomComplet(selectedMatch.soci2?.nom, selectedMatch.soci2?.cognoms)}
           </h3>
           <div>
             <label for="caramboles_j2" class="block text-sm font-medium text-gray-700 mb-1">
@@ -571,8 +587,8 @@
             <h4 class="font-medium text-blue-900 mb-2">🏆 Guanyador:</h4>
             <p class="text-blue-800">
               {caramboles_jugador1 > caramboles_jugador2
-                ? `${selectedMatch.soci1?.nom} ${selectedMatch.soci1?.cognoms}`
-                : `${selectedMatch.soci2?.nom} ${selectedMatch.soci2?.cognoms}`}
+                ? `${nomComplet(selectedMatch.soci1?.nom, selectedMatch.soci1?.cognoms)}`
+                : `${nomComplet(selectedMatch.soci2?.nom, selectedMatch.soci2?.cognoms)}`}
             </p>
             <p class="text-sm text-blue-700">
               Guanyador: 2 punts • Perdedor: 0 punts
@@ -662,7 +678,6 @@
       </div>
     </div>
   {/if}
-</div>
 
 <!-- Modal d'Incompareixença -->
 {#if showIncompareixencaModal && incompareixencaMatch}
@@ -701,7 +716,7 @@
                 <div class="text-3xl mb-2">👤</div>
                 <div class="font-bold text-lg text-gray-900 mb-1">Jugador 1</div>
                 <div class="text-base text-gray-700">
-                  {incompareixencaMatch.soci1?.nom} {incompareixencaMatch.soci1?.cognoms}
+                  {nomComplet(incompareixencaMatch.soci1?.nom, incompareixencaMatch.soci1?.cognoms)}
                 </div>
                 <div class="mt-3 text-sm text-red-600 font-medium">
                   ⚠️ Marcar incompareixença
@@ -719,7 +734,7 @@
                 <div class="text-3xl mb-2">👤</div>
                 <div class="font-bold text-lg text-gray-900 mb-1">Jugador 2</div>
                 <div class="text-base text-gray-700">
-                  {incompareixencaMatch.soci2?.nom} {incompareixencaMatch.soci2?.cognoms}
+                  {nomComplet(incompareixencaMatch.soci2?.nom, incompareixencaMatch.soci2?.cognoms)}
                 </div>
                 <div class="mt-3 text-sm text-red-600 font-medium">
                   ⚠️ Marcar incompareixença
@@ -742,3 +757,122 @@
     </div>
   </div>
 {/if}
+</div>
+
+<style>
+  .rp-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .rp-mast {
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .rp-title {
+    margin: 0.4rem 0 0.4rem;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .rp-sub {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ink-2, #4a443e);
+    max-width: 56ch;
+  }
+
+  /* Overrides Tailwind dins .rp-root */
+  .rp-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .rp-root :global(.bg-gray-50),
+  .rp-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .rp-root :global(.bg-gray-500),
+  .rp-root :global(.bg-gray-600) {
+    background: var(--ink-2, #4a443e) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .rp-root :global(.bg-gray-700),
+  .rp-root :global(.bg-gray-800) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .rp-root :global(.bg-blue-50),
+  .rp-root :global(.bg-blue-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--blue, #1f4a99) !important; }
+  .rp-root :global(.bg-blue-600),
+  .rp-root :global(.bg-blue-700) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .rp-root :global(.bg-green-50),
+  .rp-root :global(.bg-green-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--green, #1f7a3a) !important; }
+  .rp-root :global(.bg-green-600),
+  .rp-root :global(.bg-green-700) {
+    background: var(--green, #1f7a3a) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .rp-root :global(.bg-red-50),
+  .rp-root :global(.bg-red-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--accent, #a30b1e) !important; }
+  .rp-root :global(.bg-red-600),
+  .rp-root :global(.bg-red-700) {
+    background: var(--accent, #a30b1e) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .rp-root :global(.bg-yellow-50),
+  .rp-root :global(.bg-yellow-100),
+  .rp-root :global(.bg-amber-50) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+  .rp-root :global(.text-gray-400),
+  .rp-root :global(.text-gray-500),
+  .rp-root :global(.text-gray-600),
+  .rp-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+  .rp-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+  .rp-root :global(.text-blue-600),
+  .rp-root :global(.text-blue-700),
+  .rp-root :global(.text-blue-800) { color: var(--blue, #1f4a99) !important; }
+  .rp-root :global(.text-green-600),
+  .rp-root :global(.text-green-700),
+  .rp-root :global(.text-green-800) { color: var(--green, #1f7a3a) !important; }
+  .rp-root :global(.text-red-600),
+  .rp-root :global(.text-red-700),
+  .rp-root :global(.text-red-800) { color: var(--accent, #a30b1e) !important; }
+  .rp-root :global(.text-yellow-700),
+  .rp-root :global(.text-yellow-800),
+  .rp-root :global(.text-amber-700),
+  .rp-root :global(.text-amber-800) { color: var(--amber, #b8860b) !important; }
+  .rp-root :global(.border-gray-200),
+  .rp-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+  .rp-root :global(.rounded),
+  .rp-root :global(.rounded-md),
+  .rp-root :global(.rounded-lg),
+  .rp-root :global(.rounded-xl),
+  .rp-root :global(.rounded-2xl),
+  .rp-root :global(.rounded-full) { border-radius: 0 !important; }
+  .rp-root :global(.shadow),
+  .rp-root :global(.shadow-sm),
+  .rp-root :global(.shadow-md),
+  .rp-root :global(.shadow-lg) { box-shadow: none !important; }
+  .rp-root :global(input),
+  .rp-root :global(select),
+  .rp-root :global(textarea) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .rp-root :global(input:focus),
+  .rp-root :global(select:focus),
+  .rp-root :global(textarea:focus) {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: -1px;
+  }
+</style>

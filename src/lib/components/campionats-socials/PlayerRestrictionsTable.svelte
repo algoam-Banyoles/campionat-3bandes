@@ -3,6 +3,7 @@
   import { supabase } from '$lib/supabaseClient';
   import PlayerRestrictionsEditor from '$lib/components/general/PlayerRestrictionsEditor.svelte';
   import { showError } from '$lib/stores/toastStore';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   const dispatch = createEventDispatcher();
 
@@ -184,10 +185,7 @@
                   <div class="flex items-center">
                     <div>
                       <div class="font-medium text-gray-900" class:line-through={status.code !== 'active'}>
-                        {sociInfo.nom} {sociInfo.cognoms}
-                      </div>
-                      <div class="text-gray-500">
-                        Soci #{sociInfo.numero_soci}
+                        {formatarNomJugador(`${sociInfo.nom ?? ''} ${sociInfo.cognoms ?? ''}`.trim())}
                       </div>
                     </div>
                   </div>

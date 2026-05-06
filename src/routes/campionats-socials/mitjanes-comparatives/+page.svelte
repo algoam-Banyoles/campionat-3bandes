@@ -1,38 +1,49 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
-	import { goto } from '$app/navigation';
-	import { isAdmin } from '$lib/stores/adminAuth';
+	import { formatarNomJugador } from '$lib/utils/playerUtils';
 
 	type JugadorMitjanes = {
 		soci_id: number;
 		nom: string;
 		cognoms: string;
-		numero_soci: number;
-		mitjana_any_1: number | null;  // Temporada fa dos anys
-		mitjana_any_2: number | null;  // Temporada anterior
+		mitjana_any_1: number | null; // any més antic dels dos
+		mitjana_any_2: number | null; // any més recent dels dos
 		millor_mitjana: number | null;
 	};
 
 	let jugadors: JugadorMitjanes[] = [];
 	let carregant = true;
 	let error = '';
-	let filtreModalitat = '3 BANDES';
+	let filtreModalitat = '';
 	let cercaNom = '';
 	let paginaActual = 1;
 	let itemsPerPagina = 50;
 
-	// Anys dinàmics
-	let anyActual = new Date().getFullYear();
-	let anyAnterior1 = anyActual - 2;  // Fa dos anys (23/24)
-	let anyAnterior2 = anyActual - 1;  // Any anterior (24/25)
+	// Els dos darrers anys disponibles al DB per la modalitat seleccionada
+	let anyAnterior1: number | null = null;
+	let anyAnterior2: number | null = null;
 
-	// Estadístiques
+	// Estadístiques i metadades
 	let totalJugadors = 0;
 	let modalitatsDisponibles: string[] = [];
 
+	function nomComplet(nom: string | null | undefined, cognoms: string | null | undefined): string {
+		const raw = `${nom ?? ''} ${cognoms ?? ''}`.trim();
+		return raw ? formatarNomJugador(raw) : '';
+	}
+
+	/** Format de temporada: el camp `year` és l'any final (ex: 2026 → "2025/2026"). */
+	function formatSeason(year: number | null | undefined): string {
+		if (year == null) return '—';
+		return `${year - 1}/${year}`;
+	}
+
 	onMount(async () => {
 		await carregarModalitats();
+		if (modalitatsDisponibles.length > 0 && !filtreModalitat) {
+			filtreModalitat = modalitatsDisponibles[0];
+		}
 		await carregarDades();
 	});
 
@@ -42,33 +53,58 @@
 			.select('modalitat');
 
 		if (metaData) {
-			modalitatsDisponibles = [...new Set(metaData.map(m => m.modalitat).filter(Boolean))].sort();
+			modalitatsDisponibles = [...new Set(metaData.map((m) => m.modalitat).filter(Boolean))].sort();
 		}
+	}
+
+	/** Cerca els dos darrers anys disponibles al DB per a la modalitat. */
+	async function detectarAnys(modalitat: string): Promise<[number | null, number | null]> {
+		const { data, error: yErr } = await supabase
+			.from('mitjanes_historiques')
+			.select('year')
+			.eq('modalitat', modalitat)
+			.order('year', { ascending: false })
+			.limit(20000);
+
+		if (yErr || !data) return [null, null];
+
+		const anys = [...new Set(data.map((r) => r.year as number))]
+			.filter((y) => typeof y === 'number')
+			.sort((a, b) => b - a);
+
+		const recent = anys[0] ?? null;
+		const previ = anys[1] ?? null;
+		return [previ, recent]; // ordre cronològic (any_1 = més antic, any_2 = més recent)
 	}
 
 	async function carregarDades() {
 		carregant = true;
 		error = '';
+		jugadors = [];
 
 		try {
-			// Obtenir jugadors que tenen mitjanes en almenys una de les dues temporades per la modalitat seleccionada
+			if (!filtreModalitat) {
+				carregant = false;
+				return;
+			}
+
+			// 1) Detectem dinàmicament els dos darrers anys disponibles per la modalitat
+			[anyAnterior1, anyAnterior2] = await detectarAnys(filtreModalitat);
+
+			if (anyAnterior1 == null && anyAnterior2 == null) {
+				carregant = false;
+				return;
+			}
+
+			const yearsToQuery = [anyAnterior1, anyAnterior2].filter((y): y is number => y != null);
+
+			// 2) Carrega mitjanes per la modalitat i els anys (sense join: PostgREST relationship
+			//    no està definida amb FK; fem el join al client com fa /mitjanes-historiques).
 			const { data: mitjanes, error: queryError } = await supabase
 				.from('mitjanes_historiques')
-				.select(`
-					soci_id,
-					year,
-					modalitat,
-					mitjana,
-					socis:soci_id (
-						id,
-						nom,
-						cognoms,
-						numero_soci
-					)
-				`)
+				.select('soci_id, year, modalitat, mitjana')
 				.eq('modalitat', filtreModalitat)
-				.in('year', [anyAnterior1, anyAnterior2])
-				.order('soci_id');
+				.in('year', yearsToQuery);
 
 			if (queryError) {
 				error = `Error carregant mitjanes: ${queryError.message}`;
@@ -76,20 +112,37 @@
 				return;
 			}
 
-			// Agrupar per jugador
+			// 3) Carrega tots els socis en una crida i fem el lookup local per numero_soci
+			const { data: socisList, error: socisError } = await supabase
+				.from('socis')
+				.select('numero_soci, nom, cognoms');
+
+			if (socisError) {
+				error = `Error carregant socis: ${socisError.message}`;
+				carregant = false;
+				return;
+			}
+
+			const socisMap = new Map<number, { nom: string; cognoms: string }>();
+			(socisList || []).forEach((s) => {
+				socisMap.set(s.numero_soci, { nom: s.nom, cognoms: s.cognoms });
+			});
+
+			// 4) Agrupa per jugador
 			const jugadorsMap = new Map<number, JugadorMitjanes>();
 
-			mitjanes?.forEach((m: any) => {
-				const soci = Array.isArray(m.socis) ? m.socis[0] : m.socis;
+			(mitjanes || []).forEach((m: any) => {
+				const sociId: number | null = m.soci_id;
+				if (sociId == null) return;
+				const soci = socisMap.get(sociId);
+				// Si el soci_id no té correspondència a la taula `socis`, l'ometem
 				if (!soci) return;
 
-				const sociId = m.soci_id;
 				if (!jugadorsMap.has(sociId)) {
 					jugadorsMap.set(sociId, {
 						soci_id: sociId,
-						nom: soci.nom,
-						cognoms: soci.cognoms,
-						numero_soci: soci.numero_soci,
+						nom: soci.nom ?? '',
+						cognoms: soci.cognoms ?? '',
 						mitjana_any_1: null,
 						mitjana_any_2: null,
 						millor_mitjana: null
@@ -97,40 +150,37 @@
 				}
 
 				const jugador = jugadorsMap.get(sociId)!;
-
-				if (m.year === anyAnterior1) {
-					jugador.mitjana_any_1 = m.mitjana;
-				} else if (m.year === anyAnterior2) {
-					jugador.mitjana_any_2 = m.mitjana;
-				}
+				if (m.year === anyAnterior1) jugador.mitjana_any_1 = m.mitjana;
+				else if (m.year === anyAnterior2) jugador.mitjana_any_2 = m.mitjana;
 			});
 
-			// Calcular millor mitjana i convertir a array
-			jugadors = Array.from(jugadorsMap.values()).map(j => {
-				const mitjanes = [j.mitjana_any_1, j.mitjana_any_2].filter(m => m !== null) as number[];
-				j.millor_mitjana = mitjanes.length > 0 ? Math.max(...mitjanes) : null;
+			// 5) Calcular millor mitjana
+			let llista = Array.from(jugadorsMap.values()).map((j) => {
+				const ms = [j.mitjana_any_1, j.mitjana_any_2].filter((m) => m !== null) as number[];
+				j.millor_mitjana = ms.length > 0 ? Math.max(...ms) : null;
 				return j;
 			});
 
-			// Filtrar per nom si cal
+			// 6) Filtrar per nom si cal
 			if (cercaNom) {
-				jugadors = jugadors.filter(j =>
-					j.nom?.toLowerCase().includes(cercaNom.toLowerCase()) ||
-					j.cognoms?.toLowerCase().includes(cercaNom.toLowerCase()) ||
-					j.numero_soci?.toString().includes(cercaNom)
+				const q = cercaNom.toLowerCase();
+				llista = llista.filter(
+					(j) =>
+						j.nom?.toLowerCase().includes(q) ||
+						j.cognoms?.toLowerCase().includes(q)
 				);
 			}
 
-			// Ordenar per millor mitjana (descendant)
-			jugadors.sort((a, b) => {
+			// 7) Ordenar per millor mitjana (desc)
+			llista.sort((a, b) => {
 				if (a.millor_mitjana === null && b.millor_mitjana === null) return 0;
 				if (a.millor_mitjana === null) return 1;
 				if (b.millor_mitjana === null) return -1;
 				return b.millor_mitjana - a.millor_mitjana;
 			});
 
+			jugadors = llista;
 			totalJugadors = jugadors.length;
-
 		} catch (e: any) {
 			error = `Error: ${e.message}`;
 		} finally {
@@ -150,9 +200,8 @@
 	}
 
 	function exportarCSV() {
-		const headers = ['Número Soci', 'Nom', 'Cognoms', `Mitjana ${anyAnterior1}`, `Mitjana ${anyAnterior2}`, 'Millor Mitjana'];
-		const csvData = jugadors.map(j => [
-			j.numero_soci || '',
+		const headers = ['Nom', 'Cognoms', `Mitjana ${formatSeason(anyAnterior1)}`, `Mitjana ${formatSeason(anyAnterior2)}`, 'Millor Mitjana'];
+		const csvData = jugadors.map((j) => [
 			j.nom || '',
 			j.cognoms || '',
 			j.mitjana_any_1?.toFixed(3) || '',
@@ -179,87 +228,56 @@
 	}
 </script>
 
-<div class="min-h-screen bg-gray-50">
-	<div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-		<!-- Header amb navegació -->
-		<div class="flex justify-between items-center mb-8">
-			<div>
+<div class="mc-root">
+	<div class="mc-inner">
+		<!-- Mast-head -->
+		<header class="mc-mast">
+			<div class="editorial-eyebrow">Foment Martinenc · Secció billar</div>
+			<div class="mc-mast-row">
+				<div>
+					<h1 class="mc-title">Comparativa de mitjanes</h1>
+					{#if anyAnterior1 != null && anyAnterior2 != null}
+						<p class="mc-sub">Comparació de les dues últimes temporades disponibles ({formatSeason(anyAnterior1)} i {formatSeason(anyAnterior2)}).</p>
+					{/if}
+				</div>
 				<button
-					class="flex items-center text-blue-600 hover:text-blue-800 mb-4"
-					on:click={() => goto('/admin')}
+					class="mc-export-btn"
+					on:click={exportarCSV}
+					disabled={jugadors.length === 0}
 				>
-					<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-					</svg>
-					Tornar a Administració
+					Exportar CSV
 				</button>
-				<h1 class="text-3xl font-bold text-gray-900">Mitjanes Comparatives</h1>
-				<p class="text-gray-600">Comparació de mitjanes de les dues temporades anteriors ({anyAnterior1} i {anyAnterior2})</p>
 			</div>
-			<button
-				class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center"
-				on:click={exportarCSV}
-				disabled={jugadors.length === 0}
-			>
-				<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-				</svg>
-				Exportar CSV
-			</button>
-		</div>
+		</header>
 
-		<!-- Estadístiques -->
-		<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-			<div class="bg-white rounded-lg shadow p-6">
-				<div class="flex items-center">
-					<div class="text-3xl font-bold text-blue-600">{totalJugadors}</div>
-					<div class="ml-2 text-sm text-gray-500">jugadors</div>
-				</div>
-				<div class="text-gray-600 mt-1">Total Jugadors</div>
-			</div>
-			<div class="bg-white rounded-lg shadow p-6">
-				<div class="flex items-center">
-					<div class="text-3xl font-bold text-green-600">{anyAnterior1}</div>
-					<div class="ml-2 text-sm text-gray-500">/ {anyAnterior2}</div>
-				</div>
-				<div class="text-gray-600 mt-1">Temporades Comparades</div>
-			</div>
-			<div class="bg-white rounded-lg shadow p-6">
-				<div class="flex items-center">
-					<div class="text-2xl font-bold text-purple-600">{filtreModalitat}</div>
-				</div>
-				<div class="text-gray-600 mt-1">Modalitat Seleccionada</div>
-			</div>
-		</div>
 
 		<!-- Filtres -->
-		<div class="bg-white rounded-lg shadow p-6 mb-8">
-			<h3 class="text-lg font-semibold mb-4">Filtres</h3>
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-				<div>
-					<label for="filtre-modalitat" class="block text-sm font-medium text-gray-700 mb-2">Modalitat</label>
-					<select
-						id="filtre-modalitat"
-						bind:value={filtreModalitat}
-						on:change={handleFilterChange}
-						class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-					>
-						{#each modalitatsDisponibles as modalitat}
-							<option value={modalitat}>{modalitat}</option>
-						{/each}
-					</select>
+		<div class="bg-white rounded-lg shadow p-6 mb-8 space-y-4">
+			<div>
+				<span class="block text-sm font-medium text-gray-700 mb-2">Modalitat</span>
+				<div class="flex flex-wrap gap-2">
+					{#each modalitatsDisponibles as modalitat}
+						<button
+							type="button"
+							on:click={() => { filtreModalitat = modalitat; handleFilterChange(); }}
+							class="modality-pill"
+							class:active={filtreModalitat === modalitat}
+						>
+							{modalitat}
+						</button>
+					{/each}
 				</div>
-				<div>
-					<label for="cerca-nom" class="block text-sm font-medium text-gray-700 mb-2">Cerca per nom o número</label>
-					<input
-						id="cerca-nom"
-						type="text"
-						bind:value={cercaNom}
-						on:input={handleFilterChange}
-						placeholder="Nom, cognoms o número soci..."
-						class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-					>
-				</div>
+			</div>
+			<div>
+				<label for="cerca-nom" class="block text-sm font-medium text-gray-700 mb-2">Cerca per nom</label>
+				<input
+					id="cerca-nom"
+					type="text"
+					bind:value={cercaNom}
+					on:input={handleFilterChange}
+					placeholder="Nom o cognoms…"
+					class="w-full md:max-w-md border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+				/>
 			</div>
 		</div>
 
@@ -284,20 +302,20 @@
 				</div>
 			{:else if jugadors.length === 0}
 				<div class="p-8 text-center text-gray-500">
-					No s'han trobat jugadors amb mitjanes per aquesta modalitat en les temporades {anyAnterior1} i {anyAnterior2}.
+					No s'han trobat jugadors amb mitjanes per aquesta modalitat en les temporades {formatSeason(anyAnterior1)} i {formatSeason(anyAnterior2)}.
 				</div>
 			{:else}
 				<div class="overflow-x-auto">
 					<table class="min-w-full divide-y divide-gray-200">
 						<thead class="bg-gray-50">
 							<tr>
-								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Número</th>
+								<th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-12">#</th>
 								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jugador</th>
 								<th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Mitjana {anyAnterior1}
+									Mitjana {formatSeason(anyAnterior1)}
 								</th>
 								<th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-									Mitjana {anyAnterior2}
+									Mitjana {formatSeason(anyAnterior2)}
 								</th>
 								<th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
 									Millor Mitjana
@@ -305,13 +323,13 @@
 							</tr>
 						</thead>
 						<tbody class="bg-white divide-y divide-gray-200">
-							{#each jugadorsPaginats as jugador}
+							{#each jugadorsPaginats as jugador, idx}
 								<tr class="hover:bg-gray-50">
-									<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-										{jugador.numero_soci}
+									<td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-right tabular-nums">
+										{(paginaActual - 1) * itemsPerPagina + idx + 1}
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-										<div class="font-medium">{jugador.nom} {jugador.cognoms}</div>
+										<div class="font-medium">{nomComplet(jugador.nom, jugador.cognoms)}</div>
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-sm text-center">
 										{#if jugador.mitjana_any_1 !== null}
@@ -405,3 +423,166 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	.mc-root {
+		background: var(--paper, #fbfaf6);
+		min-height: 100vh;
+	}
+	.mc-inner {
+		max-width: 1180px;
+		margin: 0 auto;
+		padding: 1.75rem 1.25rem 4rem;
+		font-family: var(--font-sans, sans-serif);
+		color: var(--ink, #1a1814);
+	}
+	.mc-mast {
+		margin-bottom: 1.75rem;
+		padding-bottom: 1.1rem;
+		border-bottom: 2px solid var(--ink, #1a1814);
+	}
+	.mc-mast-row {
+		margin-top: 0.4rem;
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-end;
+		gap: 1rem;
+		flex-wrap: wrap;
+	}
+	.mc-title {
+		margin: 0 0 0.4rem;
+		font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+		font-weight: 800;
+		letter-spacing: -0.022em;
+		line-height: 1.1;
+		color: var(--ink, #1a1814);
+	}
+	.mc-sub {
+		margin: 0;
+		font-size: 0.9375rem;
+		color: var(--ink-2, #4a443e);
+		max-width: 56ch;
+	}
+	.editorial-eyebrow {
+		font-size: 0.625rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.16em;
+		color: var(--ink-3, #807a72);
+	}
+	.mc-export-btn {
+		background: var(--paper-elevated, #fff);
+		color: var(--ink, #1a1814);
+		border: 1px solid var(--ink, #1a1814);
+		padding: 0.55rem 1rem;
+		font-family: var(--font-sans, sans-serif);
+		font-weight: 600;
+		font-size: 0.875rem;
+		cursor: pointer;
+		min-height: 40px;
+	}
+	.mc-export-btn:hover:not(:disabled) {
+		background: var(--ink, #1a1814);
+		color: var(--paper, #fbfaf6);
+	}
+	.mc-export-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+	.tabular-nums { font-variant-numeric: tabular-nums; }
+
+	.modality-pill {
+		background: transparent;
+		border: 1px solid var(--rule-strong, #b8b3a8);
+		color: var(--ink-2, #4a443e);
+		padding: 0.4rem 0.85rem;
+		font-family: var(--font-sans, sans-serif);
+		font-weight: 600;
+		font-size: 0.875rem;
+		letter-spacing: -0.005em;
+		cursor: pointer;
+		min-height: 36px;
+	}
+	.modality-pill:hover { color: var(--ink, #1a1814); border-color: var(--ink, #1a1814); }
+	.modality-pill.active {
+		background: var(--ink, #1a1814);
+		color: var(--paper, #fbfaf6);
+		border-color: var(--ink, #1a1814);
+	}
+
+	/* Overrides Tailwind dins .mc-root */
+	.mc-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+	.mc-root :global(.bg-gray-50) { background: var(--paper, #fbfaf6) !important; }
+	.mc-root :global(.shadow),
+	.mc-root :global(.shadow-sm),
+	.mc-root :global(.shadow-md) { box-shadow: none !important; }
+	.mc-root :global(.rounded),
+	.mc-root :global(.rounded-sm),
+	.mc-root :global(.rounded-md),
+	.mc-root :global(.rounded-lg),
+	.mc-root :global(.rounded-full) { border-radius: 0 !important; }
+
+	.mc-root :global(.bg-blue-100) {
+		background: var(--paper, #fbfaf6) !important;
+		border: 1px solid var(--blue, #1f4a99) !important;
+	}
+	.mc-root :global(.bg-green-100) {
+		background: var(--paper, #fbfaf6) !important;
+		border: 1px solid var(--green, #1f7a3a) !important;
+	}
+	.mc-root :global(.bg-purple-100) {
+		background: var(--paper, #fbfaf6) !important;
+		border: 1px solid var(--ink-2, #4a443e) !important;
+	}
+	.mc-root :global(.bg-red-100) {
+		background: var(--paper, #fbfaf6) !important;
+		border: 1px solid var(--accent, #a30b1e) !important;
+	}
+	.mc-root :global(.bg-blue-50) {
+		background: var(--paper-elevated, #fff) !important;
+		border-color: var(--ink, #1a1814) !important;
+		color: var(--ink, #1a1814) !important;
+	}
+	.mc-root :global(.bg-green-600),
+	.mc-root :global(.bg-green-700) {
+		background: var(--ink, #1a1814) !important;
+		color: var(--paper, #fbfaf6) !important;
+	}
+
+	.mc-root :global(.text-blue-600),
+	.mc-root :global(.text-blue-700),
+	.mc-root :global(.text-blue-800) { color: var(--blue, #1f4a99) !important; }
+	.mc-root :global(.text-green-600),
+	.mc-root :global(.text-green-700),
+	.mc-root :global(.text-green-800) { color: var(--green, #1f7a3a) !important; }
+	.mc-root :global(.text-purple-600),
+	.mc-root :global(.text-purple-700),
+	.mc-root :global(.text-purple-800) { color: var(--ink, #1a1814) !important; }
+	.mc-root :global(.text-gray-400),
+	.mc-root :global(.text-gray-500),
+	.mc-root :global(.text-gray-600) { color: var(--ink-3, #807a72) !important; }
+	.mc-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+	.mc-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+
+	.mc-root :global(.border-gray-200),
+	.mc-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+	.mc-root :global(.border-blue-500) { border-color: var(--ink, #1a1814) !important; }
+	.mc-root :global(.border-red-400) { border-color: var(--accent, #a30b1e) !important; }
+
+	.mc-root :global(input),
+	.mc-root :global(select),
+	.mc-root :global(textarea) {
+		background: var(--paper-elevated, #fff) !important;
+		border: 1px solid var(--rule-strong, #b8b3a8) !important;
+		border-radius: 0 !important;
+		font-family: var(--font-sans, sans-serif);
+	}
+	.mc-root :global(input:focus),
+	.mc-root :global(select:focus) {
+		outline: 2px solid var(--ink, #1a1814);
+		outline-offset: -1px;
+	}
+	.mc-root :global(table) { font-family: var(--font-sans, sans-serif); }
+	.mc-root :global(thead.bg-gray-50) {
+		background: var(--paper, #fbfaf6) !important;
+		border-bottom: 1px solid var(--ink, #1a1814) !important;
+	}
+</style>

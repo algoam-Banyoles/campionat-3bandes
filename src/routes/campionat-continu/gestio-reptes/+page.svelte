@@ -1,10 +1,16 @@
 <script lang="ts">
 
         import { onMount } from 'svelte';
+        import { goto } from '$app/navigation';
         import { user } from '$lib/stores/auth';
       import { supabase } from '$lib/supabaseClient';
       import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
       import Banner from '$lib/components/general/Banner.svelte';
+
+      // Guard: només admins.
+      $: if ($adminChecked && !$isAdmin) {
+        goto('/campionat-continu/reptes');
+      }
       import Loader from '$lib/components/general/Loader.svelte';
       import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
       import { authFetch } from '$lib/utils/http';
@@ -212,9 +218,14 @@
 
 </script>
 
-<svelte:head><title>Admin · Reptes</title></svelte:head>
+<svelte:head><title>Gestió de reptes</title></svelte:head>
 
-<h1 class="text-2xl font-semibold mb-4">Reptes (administració)</h1>
+<div class="gr-root">
+  <header class="gr-mast">
+    <div class="editorial-eyebrow">Rànquing continu · Administració</div>
+    <h1 class="gr-title">Gestió de reptes</h1>
+    <p class="gr-sub">Filtrar, programar, registrar resultats i aplicar penalitzacions als reptes.</p>
+  </header>
 
 {#if loading}
   <Loader />
@@ -270,7 +281,7 @@
                       class="inline-block rounded bg-indigo-700 text-white px-3 py-1 text-xs"
                       class:pointer-events-none={busy === r.id || !p.allowed}
                       class:opacity-60={busy === r.id || !p.allowed}
-                      href={p.allowed ? `/admin/reptes/${r.id}/programar` : undefined}
+                      href={p.allowed ? `/campionat-continu/gestio-reptes/${r.id}/programar` : undefined}
                       title={!p.allowed ? p.reason : undefined}
                     >Programar</a>
                     <button
@@ -283,7 +294,7 @@
                       class="inline-block rounded bg-indigo-700 text-white px-3 py-1 text-xs"
                       class:pointer-events-none={busy === r.id || !p.allowed}
                       class:opacity-60={busy === r.id || !p.allowed}
-                      href={p.allowed ? `/admin/reptes/${r.id}/programar` : undefined}
+                      href={p.allowed ? `/campionat-continu/gestio-reptes/${r.id}/programar` : undefined}
                       title={!p.allowed ? p.reason : undefined}
                     >Programar</a>
                     {#if !p.allowed && p.reason}
@@ -292,7 +303,7 @@
                     {#if canSetResult(r)}
                       <a
                         class="inline-block rounded bg-slate-900 text-white px-3 py-1 text-xs"
-                        href={`/admin/reptes/${r.id}/resultat`}
+                        href={`/campionat-continu/gestio-reptes/${r.id}/resultat`}
                       >Posar resultat</a>
                     {/if}
                   {/if}
@@ -307,7 +318,91 @@
   </div>
 
   <div class="mt-4">
-    <a href="/admin" class="text-sm underline text-slate-600">← Tornar al panell</a>
+    <a href="/campionat-continu/ranking" class="gr-back">← Tornar a la classificació</a>
   </div>
 {/if}
+</div>
+
+<style>
+  .gr-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .gr-mast {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .gr-title {
+    margin: 0.4rem 0 0.4rem;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .gr-sub {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ink-2, #4a443e);
+    max-width: 56ch;
+  }
+  .gr-back {
+    font-size: 0.875rem;
+    color: var(--ink-2, #4a443e);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s ease;
+  }
+  .gr-back:hover {
+    color: var(--ink, #1a1814);
+    border-color: var(--ink, #1a1814);
+  }
+
+  /* Tailwind overrides dins .gr-root */
+  .gr-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .gr-root :global(.bg-slate-100) { background: var(--paper, #fbfaf6) !important; border-bottom: 1px solid var(--ink, #1a1814) !important; }
+  .gr-root :global(.bg-slate-200) { background: var(--rule, #e6e3dc) !important; color: var(--ink-2, #4a443e) !important; }
+  .gr-root :global(.bg-slate-900) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .gr-root :global(.bg-blue-200) { background: var(--paper, #fbfaf6) !important; color: var(--blue, #1f4a99) !important; border: 1px solid var(--blue, #1f4a99) !important; }
+  .gr-root :global(.bg-yellow-200) { background: var(--paper, #fbfaf6) !important; color: var(--amber, #b8860b) !important; border: 1px solid var(--amber, #b8860b) !important; }
+  .gr-root :global(.bg-green-200) { background: var(--paper, #fbfaf6) !important; color: var(--green, #1f7a3a) !important; border: 1px solid var(--green, #1f7a3a) !important; }
+  .gr-root :global(.bg-orange-200) { background: var(--paper, #fbfaf6) !important; color: var(--amber, #b8860b) !important; border: 1px solid var(--amber, #b8860b) !important; }
+  .gr-root :global(.bg-red-200) { background: var(--paper, #fbfaf6) !important; color: var(--accent, #a30b1e) !important; border: 1px solid var(--accent, #a30b1e) !important; }
+  .gr-root :global(.text-slate-600),
+  .gr-root :global(.text-slate-700),
+  .gr-root :global(.text-slate-800) { color: var(--ink-2, #4a443e) !important; }
+  .gr-root :global(.text-blue-800) { color: var(--blue, #1f4a99) !important; }
+  .gr-root :global(.text-yellow-800) { color: var(--amber, #b8860b) !important; }
+  .gr-root :global(.text-green-800) { color: var(--green, #1f7a3a) !important; }
+  .gr-root :global(.text-orange-800) { color: var(--amber, #b8860b) !important; }
+  .gr-root :global(.text-red-800) { color: var(--accent, #a30b1e) !important; }
+  .gr-root :global(.rounded),
+  .gr-root :global(.rounded-sm),
+  .gr-root :global(.rounded-md),
+  .gr-root :global(.rounded-lg),
+  .gr-root :global(.rounded-full) { border-radius: 0 !important; }
+  .gr-root :global(input),
+  .gr-root :global(select) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .gr-root :global(table) { font-family: var(--font-sans, sans-serif); }
+  .gr-root :global(table th),
+  .gr-root :global(table td) { border-color: var(--rule, #e6e3dc); }
+</style>
 

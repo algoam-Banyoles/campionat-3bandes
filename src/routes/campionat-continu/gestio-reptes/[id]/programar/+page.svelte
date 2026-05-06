@@ -1,4 +1,10 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
+      // Guard: només admins.
+      $: if ($adminChecked && !$isAdmin) {
+        goto('/campionat-continu/reptes');
+      }
+
       import { onMount } from 'svelte';
     import { page } from '$app/stores';
     import { user } from '$lib/stores/auth';
@@ -143,7 +149,11 @@
   <title>Programar repte</title>
 </svelte:head>
 
-<h1 class="text-2xl font-semibold mb-4">Programar repte</h1>
+<div class="gr-sub-root">
+  <header class="gr-sub-mast">
+    <div class="editorial-eyebrow">Rànquing continu · Reptes</div>
+    <h1>Programar repte</h1>
+  </header>
 
 {#if loading}
   <p class="text-slate-500">Carregant…</p>
@@ -189,6 +199,59 @@
   {/if}
 
   <div class="mt-4">
-    <a href="/admin/reptes" class="text-blue-700">&larr; Torna</a>
+    <a href="/campionat-continu/gestio-reptes" class="text-blue-700">&larr; Torna</a>
   </div>
 {/if}
+</div>
+
+<style>
+  .gr-sub-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .gr-sub-mast {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .gr-sub-mast .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .gr-sub-mast h1 {
+    margin: 0.4rem 0 0;
+    font-size: clamp(1.5rem, 2vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .gr-sub-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .gr-sub-root :global(.bg-slate-100),
+  .gr-sub-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .gr-sub-root :global(.bg-slate-900) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .gr-sub-root :global(.text-slate-500),
+  .gr-sub-root :global(.text-slate-600),
+  .gr-sub-root :global(.text-slate-700) { color: var(--ink-2, #4a443e) !important; }
+  .gr-sub-root :global(.text-blue-700) { color: var(--ink, #1a1814) !important; border-bottom: 1px solid currentColor; }
+  .gr-sub-root :global(.rounded),
+  .gr-sub-root :global(.rounded-md),
+  .gr-sub-root :global(.rounded-lg),
+  .gr-sub-root :global(.rounded-xl) { border-radius: 0 !important; }
+  .gr-sub-root :global(input),
+  .gr-sub-root :global(select),
+  .gr-sub-root :global(textarea) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+</style>

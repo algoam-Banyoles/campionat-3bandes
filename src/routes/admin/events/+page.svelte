@@ -157,15 +157,18 @@
 </script>
 
 <svelte:head>
-  <title>Gestió d'Events - Administració</title>
+  <title>Events i competicions</title>
 </svelte:head>
 
-<div class="max-w-7xl mx-auto p-4">
-  <div class="flex justify-between items-center mb-6">
-    <div>
-      <h1 class="text-2xl font-semibold text-gray-900">Gestió d'Events</h1>
-      <p class="text-gray-600 mt-1">Administra tots els campionats i competicions</p>
-    </div>
+<div class="ev-root">
+  <header class="ev-mast">
+    <a href="/admin" class="ev-back">← Tornar a l'administració</a>
+    <div class="editorial-eyebrow">Calendari general</div>
+    <div class="ev-mast-row">
+      <div>
+        <h1 class="ev-title">Events i competicions</h1>
+        <p class="ev-sub">Cicle de vida de campionats: socials, continu i hàndicap.</p>
+      </div>
     <div class="flex space-x-3">
       <a
         href="/admin/events/nou"
@@ -177,7 +180,8 @@
         Nou Event
       </a>
     </div>
-  </div>
+    </div>
+  </header>
 
   {#if loading}
     <Loader />
@@ -384,3 +388,120 @@
     {/if}
   {/if}
 </div>
+
+<style>
+  .ev-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .ev-mast {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .ev-back {
+    display: inline-block;
+    color: var(--ink-2, #4a443e);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .ev-back:hover { color: var(--ink, #1a1814); }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .ev-mast-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 0.4rem;
+  }
+  .ev-title {
+    margin: 0 0 0.4rem;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .ev-sub {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ink-2, #4a443e);
+    max-width: 56ch;
+  }
+
+  .ev-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .ev-root :global(.bg-gray-50),
+  .ev-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .ev-root :global(.bg-blue-50),
+  .ev-root :global(.bg-blue-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--blue, #1f4a99) !important; }
+  .ev-root :global(.bg-green-50),
+  .ev-root :global(.bg-green-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--green, #1f7a3a) !important; }
+  .ev-root :global(.bg-yellow-50),
+  .ev-root :global(.bg-yellow-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+  .ev-root :global(.bg-red-50),
+  .ev-root :global(.bg-red-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--accent, #a30b1e) !important; }
+  .ev-root :global(.bg-blue-600),
+  .ev-root :global(.bg-blue-700) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .ev-root :global(.bg-red-600),
+  .ev-root :global(.bg-red-700) {
+    background: var(--accent, #a30b1e) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+
+  .ev-root :global(.text-gray-500),
+  .ev-root :global(.text-gray-600),
+  .ev-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+  .ev-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+  .ev-root :global(.text-blue-600),
+  .ev-root :global(.text-blue-800) { color: var(--blue, #1f4a99) !important; }
+  .ev-root :global(.text-green-600),
+  .ev-root :global(.text-green-800) { color: var(--green, #1f7a3a) !important; }
+  .ev-root :global(.text-red-600),
+  .ev-root :global(.text-red-800) { color: var(--accent, #a30b1e) !important; }
+  .ev-root :global(.text-yellow-700),
+  .ev-root :global(.text-yellow-800) { color: var(--amber, #b8860b) !important; }
+  .ev-root :global(.border-gray-200),
+  .ev-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+  .ev-root :global(.rounded),
+  .ev-root :global(.rounded-md),
+  .ev-root :global(.rounded-lg),
+  .ev-root :global(.rounded-xl),
+  .ev-root :global(.rounded-2xl),
+  .ev-root :global(.rounded-full) { border-radius: 0 !important; }
+  .ev-root :global(.shadow),
+  .ev-root :global(.shadow-sm),
+  .ev-root :global(.shadow-md) { box-shadow: none !important; }
+  .ev-root :global(input),
+  .ev-root :global(select),
+  .ev-root :global(textarea) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .ev-root :global(input:focus),
+  .ev-root :global(select:focus),
+  .ev-root :global(textarea:focus) {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: -1px;
+  }
+  .ev-root :global(table) { font-family: var(--font-sans, sans-serif); }
+  .ev-root :global(thead.bg-gray-50) {
+    background: var(--paper, #fbfaf6) !important;
+    border-bottom: 1px solid var(--ink, #1a1814) !important;
+  }
+</style>

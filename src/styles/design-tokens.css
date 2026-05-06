@@ -1,0 +1,77 @@
+/**
+ * Sistema de disseny editorial — Foment Martinenc, secció billar 3 bandes.
+ *
+ * Tokens additius: NO substitueixen el sistema actual (Tailwind defaults +
+ * accessible palette al `tailwind.config.cjs`). Els components nous o refets
+ * els usen via les utilitats Tailwind exposades a `tailwind.config.cjs`
+ * (bg-paper, text-ink, border-rule, etc.) o directament via `var(--ink)`.
+ *
+ * Veure CLAUDE.md § Direcció de disseny per a la guia d'aplicació.
+ */
+
+:root {
+  /* ── Paleta editorial ─────────────────────────────────── */
+  --paper:           #fbfaf6; /* fons base, "paper" càlid */
+  --paper-elevated:  #ffffff; /* cards, modals */
+  --ink:             #1a1814; /* text principal (negre càlid, no pur) */
+  --ink-2:           #5c574e; /* text secundari */
+  --ink-3:           #8a8478; /* metadata, eyebrows, labels */
+  --rule:            #e6e1d6; /* línies/bordes subtils càlids */
+  --rule-strong:     #c9c2b3; /* bordes destacats */
+
+  --accent:          #a30b1e; /* vermell Foment — únic acent dur */
+  --accent-dark:     #7a0816;
+  --green:           #2d6e3e; /* èxit, validat, victòria */
+  --blue:            #1f4f8b; /* informatiu, links */
+  --amber:           #a36b1c; /* warning, pendent */
+
+  /* Indicadors per secció (línies fines, no fons sencers) */
+  --sec-general:  #5c574e;
+  --sec-social:   #2d6e3e;
+  --sec-continu:  #1f4f8b;
+  --sec-handicap: #5b3a8b;
+  --sec-admin:    #a30b1e;
+
+  /* ── Tipografia ───────────────────────────────────────── */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ── Utilitats editorials ─────────────────────────────── */
+
+/* Eyebrow: petita etiqueta d'orientació en majúscules amb tracking ample */
+.editorial-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.editorial-eyebrow.strong  { color: var(--ink); }
+.editorial-eyebrow.danger  { color: var(--accent); }
+.editorial-eyebrow.success { color: var(--green); }
+.editorial-eyebrow.warn    { color: var(--amber); }
+
+/* Tabular nums: per a estadístiques alineades verticalment */
+.tabular-nums {
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* Mast-head: títol de pàgina amb regla inferior gruixuda (codi editorial) */
+.editorial-mast {
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid var(--ink);
+}
+
+/* Display headings amb tracking negatiu fort */
+.editorial-display {
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+  font-variation-settings: "opsz" 32;
+}
+.editorial-headline {
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  line-height: 1.15;
+  font-variation-settings: "opsz" 32;
+}

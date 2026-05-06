@@ -457,14 +457,16 @@
 </script>
 
 <svelte:head>
-  <title>Gestió de Socis - Administració</title>
+  <title>Socis del club</title>
 </svelte:head>
 
-<div class="max-w-7xl mx-auto p-4">
-  <div class="mb-6">
-    <h1 class="text-3xl font-semibold text-gray-900">Gestió de Socis</h1>
-    <p class="mt-2 text-gray-600">Gestiona els socis del club: alta, baixa, modificació i consulta.</p>
-  </div>
+<div class="sc-root">
+  <header class="sc-mast">
+    <a href="/admin" class="sc-back">← Tornar a l'administració</a>
+    <div class="editorial-eyebrow">Cens del club</div>
+    <h1 class="sc-title">Socis</h1>
+    <p class="sc-sub">Alta, baixa, modificació i consulta dels socis del Foment Martinenc.</p>
+  </header>
 
   <!-- Messages -->
   {#if error}
@@ -1198,3 +1200,123 @@
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
     </div>
   {/if}
+
+<style>
+  .sc-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .sc-mast {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .sc-back {
+    display: inline-block;
+    color: var(--ink-2, #4a443e);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .sc-back:hover { color: var(--ink, #1a1814); }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .sc-title {
+    margin: 0.4rem 0 0.4rem;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .sc-sub {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ink-2, #4a443e);
+    max-width: 56ch;
+  }
+
+  .sc-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .sc-root :global(.bg-gray-50),
+  .sc-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .sc-root :global(.bg-blue-50),
+  .sc-root :global(.bg-blue-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--blue, #1f4a99) !important; }
+  .sc-root :global(.bg-green-50),
+  .sc-root :global(.bg-green-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--green, #1f7a3a) !important; }
+  .sc-root :global(.bg-yellow-50),
+  .sc-root :global(.bg-yellow-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+  .sc-root :global(.bg-red-50),
+  .sc-root :global(.bg-red-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--accent, #a30b1e) !important; }
+  .sc-root :global(.bg-blue-600),
+  .sc-root :global(.bg-blue-700) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .sc-root :global(.bg-green-600),
+  .sc-root :global(.bg-green-700) {
+    background: var(--green, #1f7a3a) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .sc-root :global(.bg-red-600),
+  .sc-root :global(.bg-red-700) {
+    background: var(--accent, #a30b1e) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+
+  .sc-root :global(.text-gray-400),
+  .sc-root :global(.text-gray-500),
+  .sc-root :global(.text-gray-600),
+  .sc-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+  .sc-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+  .sc-root :global(.text-blue-600),
+  .sc-root :global(.text-blue-700),
+  .sc-root :global(.text-blue-800) { color: var(--blue, #1f4a99) !important; }
+  .sc-root :global(.text-green-600),
+  .sc-root :global(.text-green-700),
+  .sc-root :global(.text-green-800) { color: var(--green, #1f7a3a) !important; }
+  .sc-root :global(.text-red-600),
+  .sc-root :global(.text-red-700),
+  .sc-root :global(.text-red-800) { color: var(--accent, #a30b1e) !important; }
+  .sc-root :global(.text-yellow-700),
+  .sc-root :global(.text-yellow-800) { color: var(--amber, #b8860b) !important; }
+  .sc-root :global(.border-gray-200),
+  .sc-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+  .sc-root :global(.border-blue-500) { border-color: var(--blue, #1f4a99) !important; }
+  .sc-root :global(.rounded),
+  .sc-root :global(.rounded-md),
+  .sc-root :global(.rounded-lg),
+  .sc-root :global(.rounded-xl),
+  .sc-root :global(.rounded-2xl),
+  .sc-root :global(.rounded-full) { border-radius: 0 !important; }
+  .sc-root :global(.shadow),
+  .sc-root :global(.shadow-sm),
+  .sc-root :global(.shadow-md),
+  .sc-root :global(.shadow-lg) { box-shadow: none !important; }
+  .sc-root :global(input),
+  .sc-root :global(select),
+  .sc-root :global(textarea) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .sc-root :global(input:focus),
+  .sc-root :global(select:focus),
+  .sc-root :global(textarea:focus) {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: -1px;
+  }
+  .sc-root :global(table) { font-family: var(--font-sans, sans-serif); }
+  .sc-root :global(thead.bg-gray-50) {
+    background: var(--paper, #fbfaf6) !important;
+    border-bottom: 1px solid var(--ink, #1a1814) !important;
+  }
+</style>

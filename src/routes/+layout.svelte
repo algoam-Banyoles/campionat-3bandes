@@ -9,11 +9,10 @@
   import { setupFocusManagement } from "$lib/utils/focus-management";
   import Toasts from '$lib/components/general/Toasts.svelte';
   import ConfirmDialog from '$lib/components/general/ConfirmDialog.svelte';
-  import Nav from '$lib/components/general/Nav.svelte';
+  import Nav from '$lib/components/general/NavEditorial.svelte';
   import AccessibilityButton from "$lib/components/accessibility/AccessibilityButton.svelte";
   import AccessibilityModal from "$lib/components/accessibility/AccessibilityModal.svelte";
   import SkipLink from "$lib/components/accessibility/SkipLink.svelte";
-  import OrientationBanner from "$lib/components/general/OrientationBanner.svelte";
 
   let showInscripcio = false;
   let showAccessibilityModal = false;
@@ -173,9 +172,6 @@
 
 <SkipLink />
 
-<!-- Orientation banner for mobile devices -->
-<OrientationBanner />
-
 <!-- Accessibility button -->
 <AccessibilityButton on:open={openAccessibilityModal} />
 
@@ -190,11 +186,9 @@
 {:else}
   <Nav />
 
-  <div class="portrait:md:ml-56 landscape:ml-20 landscape:lg:ml-56">
-    <main id="main-content" class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-safe" tabindex="-1">
-      <slot />
-    </main>
-  </div>
+  <main id="main-content" class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 pb-safe" tabindex="-1">
+    <slot />
+  </main>
 
   <Toasts />
   <ConfirmDialog />

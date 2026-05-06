@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { searchActivePlayers } from '$lib/api/socialLeagues';
   import { debounce } from 'lodash-es';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   const dispatch = createEventDispatcher();
 
@@ -102,14 +103,11 @@
             <div class="flex items-center justify-between">
               <div>
                 <h4 class="font-medium text-gray-900">
-                  {player.nom} {player.cognoms}
+                  {formatarNomJugador(`${player.nom ?? ''} ${player.cognoms ?? ''}`.trim())}
                 </h4>
-                <p class="text-sm text-gray-600">
-                  Soci #{player.numero_soci}
-                  {#if player.email}
-                    • {player.email}
-                  {/if}
-                </p>
+                {#if player.email}
+                  <p class="text-sm text-gray-600">{player.email}</p>
+                {/if}
               </div>
               <div class="text-right">
                 {#if player.historicalAverage !== null}

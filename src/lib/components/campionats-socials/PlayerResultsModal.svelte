@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import SociFoto from '$lib/components/admin/SociFoto.svelte';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   export let isOpen = false;
   export let playerName = '';
@@ -178,29 +179,8 @@
     }
   }
 
-  function formatPlayerName(nom: string | undefined, cognoms: string | undefined, numeroSoci: number | undefined) {
-    if (!nom && !cognoms) return `Soci #${numeroSoci}`;
-
-    // Format: inicial(s) del nom + primer cognom (igual que a les classificacions)
-    // Si el nom té múltiples paraules (ex: "Jose Maria"), agafem inicials de totes
-    // Però del cognom només el primer (ex: "Campos Garcia" -> "Campos")
-    let inicials = '';
-    if (nom) {
-      const noms = nom.trim().split(/\s+/);
-      inicials = noms.map(n => n.charAt(0).toUpperCase() + '.').join('');
-    }
-
-    const primerCognom = cognoms ? cognoms.trim().split(/\s+/)[0] : '';
-
-    if (inicials && primerCognom) {
-      return `${inicials} ${primerCognom}`;
-    } else if (inicials) {
-      return inicials;
-    } else if (primerCognom) {
-      return primerCognom;
-    }
-
-    return `Soci #${numeroSoci}`;
+  function formatPlayerName(nom: string | undefined, cognoms: string | undefined, _numeroSoci?: number | undefined) {
+    return formatarNomJugador(`${nom ?? ''} ${cognoms ?? ''}`.trim()) || 'Sense nom';
   }
 
   function getPlayerInitials(nom: string | undefined): string {
@@ -532,7 +512,7 @@
   }
 
   .modal-content {
-    background: white;
+    background: var(--paper-elevated);
     border-radius: 16px;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     max-width: 800px;
@@ -547,19 +527,19 @@
     align-items: center;
     justify-content: space-between;
     padding: 24px 24px 0 24px;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--rule);
     margin-bottom: 24px;
     padding-bottom: 16px;
     position: sticky;
     top: 0;
-    background: white;
+    background: var(--paper-elevated);
     z-index: 10;
   }
 
   .modal-title {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #1f2937;
+    color: var(--ink);
     margin: 0;
   }
 
@@ -568,7 +548,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    color: #6b7280;
+    color: var(--ink-3);
     border-radius: 6px;
     transition: all 0.2s ease;
     min-height: 40px;
@@ -579,12 +559,12 @@
   }
 
   .close-button:hover {
-    background: #f3f4f6;
-    color: #374151;
+    background: var(--paper);
+    color: var(--ink-2);
   }
 
   .close-button:focus-visible {
-    outline: 2px solid #3b82f6;
+    outline: 2px solid var(--blue);
     outline-offset: 2px;
   }
 
@@ -599,8 +579,8 @@
 
   /* Compact Stats */
   .stats-compact {
-    background: linear-gradient(to right, #f9fafb, #f3f4f6);
-    border: 1px solid #e5e7eb;
+    background: linear-gradient(to right, var(--paper), var(--paper));
+    border: 1px solid var(--rule);
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 20px;
@@ -625,31 +605,31 @@
   .stat-number {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #1f2937;
+    color: var(--ink);
     line-height: 1;
   }
 
   .stat-text {
     font-size: 0.75rem;
     font-weight: 600;
-    color: #6b7280;
+    color: var(--ink-3);
     text-transform: uppercase;
   }
 
   .stat-win .stat-number {
-    color: #16a34a;
+    color: var(--green);
   }
 
   .stat-loss .stat-number {
-    color: #dc2626;
+    color: var(--accent);
   }
 
   .stat-draw .stat-number {
-    color: #f59e0b;
+    color: var(--amber);
   }
 
   .stat-primary .stat-number {
-    color: #7c3aed;
+    color: var(--blue);
   }
 
   .matches-section {
@@ -659,7 +639,7 @@
   .matches-title {
     font-size: 1.125rem;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--ink);
     margin-bottom: 16px;
   }
 
@@ -674,8 +654,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-left: 4px solid #e5e7eb;
-    background: white;
+    border-left: 4px solid var(--rule);
+    background: var(--paper-elevated);
     border-radius: 8px;
     padding: 12px 16px;
     transition: all 0.2s ease;
@@ -698,7 +678,7 @@
   }
 
   .match-card-compact.match-draw {
-    border-left-color: #f59e0b;
+    border-left-color: var(--amber);
     background: linear-gradient(to right, #fefce8, #ffffff);
   }
 
@@ -709,7 +689,7 @@
 
   .match-date-compact {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: var(--ink-3);
     font-weight: 500;
     margin-bottom: 2px;
   }
@@ -717,7 +697,7 @@
   .match-opponent-compact {
     font-size: 0.875rem;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--ink);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -752,13 +732,13 @@
   .score-compact {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #1f2937;
+    color: var(--ink);
     min-width: 32px;
     text-align: center;
   }
 
   .score-compact.score-winner {
-    color: #16a34a;
+    color: var(--green);
   }
 
   .score-sep {
@@ -769,7 +749,7 @@
 
   .match-entrades-compact {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: var(--ink-3);
     white-space: nowrap;
   }
 
@@ -799,21 +779,21 @@
   }
 
   .match-badge-compact.badge-draw {
-    background: #f59e0b;
+    background: var(--amber);
   }
 
   .modal-footer {
     padding: 16px 24px;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--rule);
     display: flex;
     justify-content: flex-end;
     position: sticky;
     bottom: 0;
-    background: white;
+    background: var(--paper-elevated);
   }
 
   .done-button {
-    background: #3b82f6;
+    background: var(--blue);
     color: white;
     border: none;
     padding: 12px 24px;
@@ -830,7 +810,7 @@
   }
 
   .done-button:focus-visible {
-    outline: 2px solid #3b82f6;
+    outline: 2px solid var(--blue);
     outline-offset: 2px;
   }
 

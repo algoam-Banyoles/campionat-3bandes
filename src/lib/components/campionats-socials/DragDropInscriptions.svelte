@@ -4,6 +4,7 @@
   import MovementPreviewModal from './MovementPreviewModal.svelte';
   import { lastMovementBatch } from '$lib/stores/movementUndoStore';
   import type { Category, CategoryMovement, InscripcioWithSoci, SociMin, UUID } from '$lib/types';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   const dispatch = createEventDispatcher();
 
@@ -277,10 +278,7 @@
               <div class="flex items-center justify-between">
                 <div>
                   <div class="font-medium text-gray-900">
-                    {soci.nom} {soci.cognoms}
-                  </div>
-                  <div class="text-sm text-gray-500">
-                    Soci #{soci.numero_soci}
+                    {formatarNomJugador(`${soci.nom ?? ''} ${soci.cognoms ?? ''}`.trim())}
                   </div>
                 </div>
                 <div class="text-right">
@@ -338,10 +336,7 @@
               <div class="flex items-center justify-between">
                 <div>
                   <div class="font-medium text-gray-900">
-                    {sociInfo.nom} {sociInfo.cognoms}
-                  </div>
-                  <div class="text-sm text-gray-500">
-                    Soci #{sociInfo.numero_soci}
+                    {formatarNomJugador(`${sociInfo.nom ?? ''} ${sociInfo.cognoms ?? ''}`.trim())}
                   </div>
                 </div>
                 <button
@@ -447,10 +442,7 @@
                     <div class="flex items-center justify-between">
                       <div>
                         <div class="text-sm font-medium text-gray-900">
-                          {sociInfo.nom} {sociInfo.cognoms}
-                        </div>
-                        <div class="text-xs text-gray-500">
-                          #{sociInfo.numero_soci}
+                          {formatarNomJugador(`${sociInfo.nom ?? ''} ${sociInfo.cognoms ?? ''}`.trim())}
                         </div>
                       </div>
                       <button

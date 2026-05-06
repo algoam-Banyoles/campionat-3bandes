@@ -80,27 +80,70 @@
 </script>
 
 <svelte:head>
-  <title>Evolució de {playerName}</title>
+  <title>Evolució de {playerName} — Campionat Continu</title>
 </svelte:head>
 
-<h1 class="text-xl font-semibold mb-4">Evolució de {playerName}</h1>
+<div class="evol-root">
+
+<header class="page-mast">
+  <div>
+    <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">Campionat continu</div>
+    <h1 class="page-title">Evolució de {playerName}</h1>
+  </div>
+</header>
 
 {#if loading}
-  <p class="text-slate-500">Carregant evolució…</p>
+  <div class="state-empty">Carregant evolució…</div>
 {:else if error}
-  <div class="mb-4 rounded border border-red-200 bg-red-50 p-3 text-red-700">Error: {error}</div>
+  <div class="state-empty error-state">Error: {error}</div>
 {:else if points.length === 0}
-  <p class="text-slate-500">No hi ha dades de rànquing.</p>
+  <div class="state-empty">No hi ha dades de rànquing.</div>
 {:else}
-  <svg viewBox={`0 0 ${width} ${height}`} class="w-full max-w-2xl">
-    <polyline
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      points={polyPoints}
-    />
-    {#each circles as c}
-      <circle cx={c.cx} cy={c.cy} r="3" fill="currentColor" />
-    {/each}
-  </svg>
+  <div class="chart-card">
+    <svg viewBox={`0 0 ${width} ${height}`} class="chart-svg">
+      <polyline
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        points={polyPoints}
+      />
+      {#each circles as c}
+        <circle cx={c.cx} cy={c.cy} r="3" fill="currentColor" />
+      {/each}
+    </svg>
+  </div>
 {/if}
+
+</div>
+
+<style>
+  .evol-root {
+    display: flex; flex-direction: column; gap: 1.25rem;
+    font-family: var(--font-sans); color: var(--ink);
+  }
+  .page-mast { padding-bottom: 1rem; border-bottom: 2px solid var(--ink); }
+  .editorial-eyebrow {
+    font-size: 0.75rem; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--sec-continu);
+  }
+  .page-title {
+    font-weight: 800; font-size: 1.625rem;
+    letter-spacing: -0.022em; margin: 0;
+  }
+  .state-empty {
+    padding: 1.25rem 1.5rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    text-align: center;
+  }
+  .state-empty.error-state { color: var(--accent); border-color: var(--accent); }
+  .chart-card {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    padding: 1.25rem;
+    color: var(--ink);
+  }
+  .chart-svg { width: 100%; max-width: 42rem; }
+</style>

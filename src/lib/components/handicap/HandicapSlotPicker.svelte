@@ -156,7 +156,7 @@
 	}
 </script>
 
-<div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+<div class="hcap-component-root rounded-lg border border-gray-200 bg-white shadow-sm">
 	<!-- Capçalera amb navegació setmanal -->
 	<div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
 		<button
@@ -268,3 +268,56 @@
 		</button>
 	</div>
 </div>
+
+<style>
+	.hcap-component-root {
+		background: var(--paper-elevated) !important;
+		border: 1px solid var(--rule) !important;
+		border-radius: 0 !important;
+		box-shadow: none !important;
+	}
+	.hcap-component-root :global(.bg-white) { background: var(--paper-elevated) !important; }
+	.hcap-component-root :global(.bg-gray-50),
+	.hcap-component-root :global(.bg-gray-100),
+	.hcap-component-root :global(.bg-gray-200) { background: var(--paper) !important; }
+
+	.hcap-component-root :global(.bg-blue-500) { background: var(--blue) !important; color: white !important; }
+	.hcap-component-root :global(.bg-blue-600) { background: var(--blue) !important; color: white !important; }
+	.hcap-component-root :global(.bg-blue-300),
+	.hcap-component-root :global(.ring-blue-300) { --tw-ring-color: var(--blue) !important; }
+
+	.hcap-component-root :global(.bg-green-500) { background: var(--green) !important; color: white !important; }
+	.hcap-component-root :global(.bg-green-600) { background: var(--green) !important; color: white !important; }
+
+	.hcap-component-root :global(.bg-yellow-400) { background: var(--amber) !important; color: white !important; }
+	.hcap-component-root :global(.bg-yellow-500) { background: var(--amber) !important; color: white !important; }
+
+	.hcap-component-root :global(.bg-red-200) {
+		background: color-mix(in srgb, var(--accent) 20%, var(--paper)) !important;
+		color: var(--accent) !important;
+	}
+
+	.hcap-component-root :global(.text-red-400) { color: var(--accent) !important; }
+	.hcap-component-root :global(.text-gray-200) { color: var(--rule) !important; }
+	.hcap-component-root :global(.text-gray-400),
+	.hcap-component-root :global(.text-gray-500),
+	.hcap-component-root :global(.text-gray-600) { color: var(--ink-soft) !important; }
+	.hcap-component-root :global(.text-gray-700) { color: var(--ink) !important; }
+
+	.hcap-component-root :global(.border-gray-100),
+	.hcap-component-root :global(.border-gray-200),
+	.hcap-component-root :global(.border-gray-300),
+	.hcap-component-root :global(.border-gray-50) { border-color: var(--rule) !important; }
+
+	.hcap-component-root :global(button) {
+		font-family: var(--font-sans);
+		border-radius: 0 !important;
+	}
+	.hcap-component-root :global(.rounded),
+	.hcap-component-root :global(.rounded-sm),
+	.hcap-component-root :global(.rounded-md),
+	.hcap-component-root :global(.rounded-lg) { border-radius: 0 !important; }
+	.hcap-component-root :global(.shadow-sm),
+	.hcap-component-root :global(.shadow),
+	.hcap-component-root :global(.shadow-md) { box-shadow: none !important; }
+</style>

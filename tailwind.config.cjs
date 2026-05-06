@@ -22,7 +22,39 @@ module.exports = {
           'purple': '#551a8b',
           'red': '#cc0000',
           'green': '#008000',
-        }
+        },
+        // Sistema de disseny editorial — tokens del Foment Martinenc.
+        // Veure src/styles/design-tokens.css i CLAUDE.md § Direcció de disseny.
+        // Pensats per a components nous: bg-paper, text-ink, border-rule, etc.
+        'paper':         'var(--paper)',
+        'paper-elevated':'var(--paper-elevated)',
+        'ink': {
+          DEFAULT: 'var(--ink)',
+          '2':     'var(--ink-2)',
+          '3':     'var(--ink-3)',
+        },
+        'rule': {
+          DEFAULT: 'var(--rule)',
+          'strong':'var(--rule-strong)',
+        },
+        'foment': {
+          DEFAULT: 'var(--accent)',       // vermell Foment
+          'dark':  'var(--accent-dark)',
+          'green': 'var(--green)',
+          'blue':  'var(--blue)',
+          'amber': 'var(--amber)',
+        },
+        'sec': {
+          'general':  'var(--sec-general)',
+          'social':   'var(--sec-social)',
+          'continu':  'var(--sec-continu)',
+          'handicap': 'var(--sec-handicap)',
+          'admin':    'var(--sec-admin)',
+        },
+      },
+      fontFamily: {
+        // Tipografia editorial: Inter variable. Veure app.html per la càrrega.
+        'sans': ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
       },
       spacing: {
         // Larger touch targets

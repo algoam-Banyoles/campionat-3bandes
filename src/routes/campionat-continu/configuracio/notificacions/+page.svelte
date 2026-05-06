@@ -88,17 +88,15 @@
   <meta name="description" content="Configura les teves preferències de notificacions push per reptes i partides programades" />
 </svelte:head>
 
-<div class="container mx-auto px-4 py-8">
-  <div class="max-w-4xl mx-auto">
-    <!-- Header -->
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-slate-900 mb-2">
-        Configuració de Notificacions
-      </h1>
-      <p class="text-slate-600">
-        Gestiona com i quan vols rebre notificacions sobre els teus reptes i partides.
-      </p>
-    </div>
+<div class="notif-root">
+  <div class="notif-inner">
+    <header class="page-mast">
+      <div>
+        <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">Campionat continu · Configuració</div>
+        <h1 class="page-title">Notificacions</h1>
+        <p class="page-lede">Gestiona com i quan vols rebre notificacions sobre els teus reptes i partides.</p>
+      </div>
+    </header>
 
     <!-- Navigation Tabs -->
     <div class="border-b border-slate-200 mb-8">
@@ -244,87 +242,172 @@
 </div>
 
 <style>
+  .notif-root {
+    width: 100%;
+    padding: 1.5rem 1rem;
+    font-family: var(--font-sans);
+    color: var(--ink);
+  }
+  .notif-inner {
+    max-width: 56rem;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .page-mast { padding-bottom: 1rem; border-bottom: 2px solid var(--ink); }
+  .editorial-eyebrow {
+    font-size: 0.75rem; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--sec-continu);
+  }
+  .page-title {
+    font-weight: 800; font-size: 2rem;
+    letter-spacing: -0.025em; line-height: 1.05;
+    margin: 0; color: var(--ink);
+  }
+  .page-lede {
+    margin: 0.4rem 0 0;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+  }
+
   .tab-button {
-    @apply flex items-center px-1 py-4 border-b-2 border-transparent text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-colors;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.85rem 0;
+    margin-right: 1.75rem;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--ink-3);
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 0.9375rem;
+    cursor: pointer;
+    min-height: 48px;
+    letter-spacing: -0.005em;
   }
-
+  .tab-button:hover { color: var(--ink-2); }
   .tab-button.active {
-    @apply text-blue-600 border-blue-500;
+    color: var(--ink);
+    font-weight: 700;
+    border-bottom-color: var(--ink);
   }
-
   .tab-button.disabled {
-    @apply opacity-50 cursor-not-allowed;
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 
   .notification-badge {
-    @apply ml-2 px-2 py-1 text-xs bg-red-500 text-white rounded-full;
+    margin-left: 0.55rem;
+    padding: 0.18rem 0.45rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    color: white;
+    background: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
   }
 
-  .tab-content {
-    @apply min-h-[400px];
-  }
+  .tab-content { min-height: 24rem; }
 
   .notification-history {
-    @apply space-y-6;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
   }
-
-  .history-header {
-    @apply mb-6;
-  }
+  .history-header { margin-bottom: 1rem; }
 
   .loading-state {
-    @apply flex items-center justify-center py-12 text-slate-600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1rem;
+    color: var(--ink-2);
   }
-
   .loading-spinner {
-    @apply w-8 h-8 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin mr-3;
+    width: 1.5rem; height: 1.5rem;
+    border: 2px solid var(--rule);
+    border-top-color: var(--ink);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin-right: 0.75rem;
   }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   .empty-state {
-    @apply text-center py-12;
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
   }
 
   .history-list {
-    @apply space-y-4;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
   }
-
   .history-item {
-    @apply flex gap-4 p-4 bg-white border border-slate-200 rounded-lg hover:shadow-sm transition-shadow;
+    display: flex;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
   }
-
   .history-item.unread {
-    @apply border-blue-200 bg-blue-50;
+    border-left: 3px solid var(--blue);
   }
-
-  .history-icon {
-    @apply text-2xl flex-shrink-0;
-  }
-
-  .history-content {
-    @apply flex-1 min-w-0;
-  }
-
+  .history-icon { font-size: 1.5rem; flex-shrink: 0; }
+  .history-content { flex: 1; min-width: 0; }
   .history-header-row {
-    @apply flex items-start justify-between gap-4 mb-2;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.4rem;
+    align-items: flex-start;
   }
-
   .history-title {
-    @apply font-semibold text-slate-900;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.012em;
   }
-
   .history-meta {
-    @apply flex flex-col items-end gap-1 text-xs text-slate-500 flex-shrink-0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+    font-size: 0.6875rem;
+    color: var(--ink-3);
+    flex-shrink: 0;
   }
-
   .history-type {
-    @apply px-2 py-1 bg-slate-100 text-slate-700 rounded-full;
+    padding: 0.18rem 0.5rem;
+    background: var(--paper);
+    border: 1px solid var(--rule-strong);
+    color: var(--ink-2);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 600;
   }
-
   .history-message {
-    @apply text-slate-600 mb-3;
+    color: var(--ink-2);
+    margin-bottom: 0.65rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
   }
-
   .mark-read-btn {
-    @apply text-sm text-blue-600 hover:text-blue-800 font-medium;
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: var(--blue);
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--blue);
+    padding-bottom: 1px;
   }
+  .mark-read-btn:hover { color: var(--ink); border-color: var(--ink); }
 </style>

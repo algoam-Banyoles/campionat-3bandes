@@ -88,7 +88,7 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-6 hcap-component-root">
 	<!-- Dates del torneig -->
 	<div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
 		<h3 class="mb-3 text-base font-semibold text-gray-900">Dates del Torneig</h3>
@@ -314,3 +314,69 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	.hcap-component-root :global(.bg-white) { background: var(--paper-elevated) !important; }
+	.hcap-component-root :global(.bg-gray-50),
+	.hcap-component-root :global(.bg-gray-100) { background: var(--paper) !important; }
+
+	.hcap-component-root :global(.bg-blue-50) { background: var(--paper) !important; border-color: var(--blue) !important; }
+	.hcap-component-root :global(.bg-green-50) { background: var(--paper) !important; }
+	.hcap-component-root :global(.bg-purple-50) { background: var(--paper) !important; }
+	.hcap-component-root :global(.bg-red-50) { background: var(--paper) !important; border: 1px solid var(--accent) !important; }
+
+	.hcap-component-root :global(.bg-purple-600) { background: var(--sec-handicap) !important; color: white !important; }
+	.hcap-component-root :global(.bg-red-600) { background: var(--accent) !important; color: white !important; border-radius: 0 !important; }
+	.hcap-component-root :global(.bg-red-700) { background: var(--accent) !important; }
+
+	.hcap-component-root :global(.text-blue-600),
+	.hcap-component-root :global(.text-blue-700),
+	.hcap-component-root :global(.text-blue-900) { color: var(--blue) !important; }
+	.hcap-component-root :global(.text-blue-500) { color: var(--blue) !important; }
+	.hcap-component-root :global(.text-green-700) { color: var(--green) !important; }
+	.hcap-component-root :global(.text-purple-600),
+	.hcap-component-root :global(.text-purple-700),
+	.hcap-component-root :global(.text-purple-800) { color: var(--sec-handicap) !important; }
+	.hcap-component-root :global(.text-red-500),
+	.hcap-component-root :global(.text-red-600),
+	.hcap-component-root :global(.text-red-700),
+	.hcap-component-root :global(.text-red-800) { color: var(--accent) !important; }
+	.hcap-component-root :global(.text-gray-400),
+	.hcap-component-root :global(.text-gray-500),
+	.hcap-component-root :global(.text-gray-600) { color: var(--ink-soft) !important; }
+	.hcap-component-root :global(.text-gray-700),
+	.hcap-component-root :global(.text-gray-900) { color: var(--ink) !important; }
+
+	.hcap-component-root :global(.border-blue-200),
+	.hcap-component-root :global(.focus\:border-blue-500) { border-color: var(--blue) !important; }
+	.hcap-component-root :global(.border-purple-600) { border-color: var(--sec-handicap) !important; }
+	.hcap-component-root :global(.border-gray-200),
+	.hcap-component-root :global(.border-gray-300) { border-color: var(--rule) !important; }
+
+	.hcap-component-root :global(input),
+	.hcap-component-root :global(select),
+	.hcap-component-root :global(textarea) {
+		background: var(--paper-elevated);
+		border: 1px solid var(--rule-strong);
+		border-radius: 0 !important;
+		font-family: var(--font-sans);
+	}
+	.hcap-component-root :global(input:focus),
+	.hcap-component-root :global(select:focus),
+	.hcap-component-root :global(textarea:focus) {
+		outline: 2px solid var(--ink);
+		outline-offset: -1px;
+	}
+	.hcap-component-root :global(button) { font-family: var(--font-sans); }
+
+	.hcap-component-root :global(.rounded),
+	.hcap-component-root :global(.rounded-sm),
+	.hcap-component-root :global(.rounded-md),
+	.hcap-component-root :global(.rounded-lg),
+	.hcap-component-root :global(.rounded-full) { border-radius: 0 !important; }
+	.hcap-component-root :global(.shadow-sm),
+	.hcap-component-root :global(.shadow) { box-shadow: none !important; }
+
+	.hcap-component-root :global(h3),
+	.hcap-component-root :global(h4) { font-family: var(--font-sans); letter-spacing: -0.005em; }
+</style>

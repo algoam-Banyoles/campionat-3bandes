@@ -273,15 +273,22 @@
   }
 </script>
 
-<h1 class="text-2xl font-semibold mb-4">Reptes</h1>
+<div class="reptes-root">
+
+<header class="page-mast">
+  <div>
+    <div class="editorial-eyebrow" style="margin-bottom: 0.4rem;">Campionat continu</div>
+    <h1 class="page-title">Reptes</h1>
+  </div>
+</header>
 
 {#if loading}
-  <p class="text-slate-500">Carregant reptes…</p>
+  <div class="state-empty">Carregant reptes…</div>
 {:else if error}
-  <div class="mb-4 rounded border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>
+  <div class="state-empty error-state">{error}</div>
 {:else}
-  <section class="mb-6">
-    <h2 class="text-xl font-semibold mb-2">Reptes actius</h2>
+  <section class="reptes-section">
+    <h2 class="section-title">Reptes actius</h2>
     {#if actius.length}
       <ul class="space-y-2">
         {#each actius as r}
@@ -404,8 +411,8 @@
     {/if}
   </section>
 
-  <section class="mb-6">
-    <h2 class="text-xl font-semibold mb-2">Darrers resultats</h2>
+  <section class="reptes-section">
+    <h2 class="section-title">Darrers resultats</h2>
     {#if recents.length}
       <ul class="space-y-2">
         {#each recents as m}
@@ -424,26 +431,196 @@
 {/if}
 
 {#if $user}
-  <div class="mt-6 flex flex-wrap gap-3">
-    <a
-      href="/campionat-continu/reptes/nou"
-      class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
-    >
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-      </svg>
-      <span>Nou repte</span>
+  <div class="actions-bar">
+    <a href="/campionat-continu/reptes/nou" class="btn-primary">
+      + Nou repte
     </a>
-    <a
-      href="/campionat-continu/reptes/me"
-      class="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium px-4 py-2 rounded-lg border border-slate-300 transition-colors"
-    >
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-      </svg>
-      <span>Els meus reptes</span>
+    <a href="/campionat-continu/reptes/me" class="btn-secondary">
+      Els meus reptes
     </a>
   </div>
 {:else}
-  <p class="text-slate-500 mt-4">Inicia sessió per poder crear reptes.</p>
+  <div class="state-empty">Inicia sessió per poder crear reptes.</div>
 {/if}
+
+</div>
+
+<style>
+  .reptes-root {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    font-family: var(--font-sans);
+    color: var(--ink);
+  }
+
+  /* Mast-head */
+  .page-mast {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .editorial-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--sec-continu);
+  }
+  .page-title {
+    font-weight: 800;
+    font-size: 2rem;
+    letter-spacing: -0.025em;
+    line-height: 1.05;
+    margin: 0;
+    color: var(--ink);
+  }
+
+  /* Estats */
+  .state-empty {
+    padding: 1.25rem 1.75rem;
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    text-align: center;
+  }
+  .state-empty.error-state { color: var(--accent); border-color: var(--accent); }
+
+  /* Seccions */
+  .reptes-section {
+    background: var(--paper-elevated);
+    border: 1px solid var(--rule);
+    padding: 1.25rem 1.5rem;
+  }
+  .section-title {
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: -0.022em;
+    margin: 0 0 1rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 2px solid var(--ink);
+    color: var(--ink);
+  }
+  /* Cards de repte i resultat — neutralitzar Tailwind antic dins de la secció */
+  .reptes-section :global(li) {
+    list-style: none;
+    border: 1px solid var(--rule) !important;
+    border-radius: 0 !important;
+    padding: 1rem !important;
+    background: var(--paper-elevated) !important;
+  }
+  .reptes-section :global(li + li) { margin-top: 0.5rem; }
+  .reptes-section :global(ul) { padding-left: 0; }
+  .reptes-section :global(.font-medium) {
+    font-weight: 700 !important;
+    color: var(--ink) !important;
+    letter-spacing: -0.012em;
+    font-size: 1rem;
+  }
+  .reptes-section :global(.font-semibold) {
+    font-weight: 700 !important;
+    color: var(--ink) !important;
+  }
+  .reptes-section :global(.text-slate-600),
+  .reptes-section :global(.text-slate-500),
+  .reptes-section :global(.text-slate-700) {
+    color: var(--ink-2) !important;
+  }
+  .reptes-section :global(.text-red-600),
+  .reptes-section :global(.text-red-700),
+  .reptes-section :global(.text-red-800) {
+    color: var(--accent) !important;
+  }
+  .reptes-section :global(input),
+  .reptes-section :global(select) {
+    background: var(--paper-elevated) !important;
+    border-color: var(--rule-strong) !important;
+    color: var(--ink) !important;
+    border-radius: 0 !important;
+    padding: 0.45rem 0.7rem !important;
+    min-height: 40px;
+  }
+  .reptes-section :global(input:focus),
+  .reptes-section :global(select:focus) {
+    outline: 2px solid var(--ink) !important;
+    border-color: var(--ink) !important;
+  }
+  /* Buttons dins de seccions: ink/green/red mapping */
+  .reptes-section :global(button.bg-green-600),
+  .reptes-section :global(button[class*="bg-green-"]) {
+    background: var(--green) !important;
+    color: white !important;
+    border-radius: 0 !important;
+    border: 1px solid var(--green) !important;
+    font-weight: 600 !important;
+  }
+  .reptes-section :global(button.bg-red-600),
+  .reptes-section :global(button[class*="bg-red-"]) {
+    background: var(--accent) !important;
+    color: white !important;
+    border-radius: 0 !important;
+    border: 1px solid var(--accent) !important;
+    font-weight: 600 !important;
+  }
+  .reptes-section :global(button.bg-blue-600),
+  .reptes-section :global(button[class*="bg-blue-"]) {
+    background: var(--ink) !important;
+    color: var(--paper) !important;
+    border-radius: 0 !important;
+    border: 1px solid var(--ink) !important;
+    font-weight: 600 !important;
+  }
+  .reptes-section :global(button.rounded.border) {
+    background: transparent !important;
+    border: 1px solid var(--rule-strong) !important;
+    color: var(--ink) !important;
+    border-radius: 0 !important;
+    font-weight: 600 !important;
+  }
+  /* Form contenidor dins resultat */
+  .reptes-section :global(form.bg-slate-50) {
+    background: var(--paper) !important;
+    border: 1px solid var(--rule) !important;
+    border-radius: 0 !important;
+  }
+
+  /* Actions bar (Nou repte / Els meus reptes) */
+  .actions-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .btn-primary, .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.6rem 1rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-decoration: none;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .btn-primary {
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--ink);
+  }
+  .btn-primary:hover { opacity: 0.92; }
+  .btn-secondary {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--rule-strong);
+  }
+  .btn-secondary:hover { border-color: var(--ink); }
+
+  @media (max-width: 640px) {
+    .page-title { font-size: 1.625rem; }
+    .reptes-section { padding: 1rem 1.1rem; }
+    .actions-bar { flex-direction: column; }
+    .btn-primary, .btn-secondary { justify-content: center; width: 100%; }
+  }
+</style>

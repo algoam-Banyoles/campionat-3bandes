@@ -121,14 +121,16 @@
 </script>
 
 <svelte:head>
-  <title>Configuració del Campionat</title>
+  <title>Paràmetres del rànquing continu</title>
 </svelte:head>
 
-<div class="mb-4">
-  <a href="/admin" class="text-blue-600 hover:text-blue-800">← Tornar a l'administració</a>
-</div>
-
-<h1 class="text-2xl font-semibold mb-6">Configuració del Campionat</h1>
+<div class="cf-root">
+  <header class="cf-mast">
+    <a href="/admin" class="cf-back">← Tornar a l'administració</a>
+    <div class="editorial-eyebrow">Rànquing continu · Configuració</div>
+    <h1 class="cf-title">Paràmetres del campionat</h1>
+    <p class="cf-sub">Caramboles, entrades, terminis, cooldowns i inactivitat.</p>
+  </header>
 
 {#if loading}
   <p class="text-slate-500">Carregant configuració…</p>
@@ -355,3 +357,89 @@
     </form>
   </div>
 {/if}
+</div>
+
+<style>
+  .cf-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .cf-mast {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .cf-back {
+    display: inline-block;
+    color: var(--ink-2, #4a443e);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .cf-back:hover { color: var(--ink, #1a1814); }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .cf-title {
+    margin: 0.4rem 0 0.4rem;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .cf-sub {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ink-2, #4a443e);
+    max-width: 56ch;
+  }
+  .cf-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .cf-root :global(.bg-slate-100),
+  .cf-root :global(.bg-slate-50),
+  .cf-root :global(.bg-gray-50),
+  .cf-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .cf-root :global(.bg-slate-900),
+  .cf-root :global(.bg-blue-600),
+  .cf-root :global(.bg-blue-700) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .cf-root :global(.text-slate-500),
+  .cf-root :global(.text-slate-600),
+  .cf-root :global(.text-slate-700),
+  .cf-root :global(.text-gray-500),
+  .cf-root :global(.text-gray-600),
+  .cf-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+  .cf-root :global(.text-blue-600),
+  .cf-root :global(.text-blue-800) { color: var(--ink, #1a1814) !important; }
+  .cf-root :global(.rounded),
+  .cf-root :global(.rounded-md),
+  .cf-root :global(.rounded-lg),
+  .cf-root :global(.rounded-xl),
+  .cf-root :global(.rounded-2xl) { border-radius: 0 !important; }
+  .cf-root :global(.shadow),
+  .cf-root :global(.shadow-sm),
+  .cf-root :global(.shadow-md) { box-shadow: none !important; }
+  .cf-root :global(input),
+  .cf-root :global(select),
+  .cf-root :global(textarea) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .cf-root :global(input:focus),
+  .cf-root :global(select:focus),
+  .cf-root :global(textarea:focus) {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: -1px;
+  }
+</style>

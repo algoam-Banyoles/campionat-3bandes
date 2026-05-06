@@ -38,24 +38,23 @@
 
 {#if open}
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6"
+    class="modal-backdrop"
     role="dialog"
     aria-modal="true"
     aria-labelledby="movement-preview-title"
   >
     <button
       type="button"
-      class="absolute inset-0 cursor-default"
+      class="backdrop-btn"
       aria-label="Tancar diàleg"
       on:click={close}
     ></button>
 
-    <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
-      <div class="px-6 py-4 border-b border-gray-200">
-        <h3 id="movement-preview-title" class="text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <span>🔀</span> Confirmar moviment intel·ligent
-        </h3>
-        <p class="text-sm text-gray-600 mt-1">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="editorial-eyebrow">Moviment intel·ligent</div>
+        <h3 id="movement-preview-title" class="modal-title">Confirmar moviment</h3>
+        <p class="modal-sub">
           {#if cascadeCount === 0}
             S'aplicarà 1 moviment.
           {:else}
@@ -64,39 +63,23 @@
         </p>
       </div>
 
-      <div class="flex-1 overflow-y-auto px-6 py-4">
+      <div class="modal-body">
         {#if movements.length === 0}
-          <p class="text-center text-gray-500 py-8">No hi ha moviments per aplicar.</p>
+          <p class="empty-state">No hi ha moviments per aplicar.</p>
         {:else}
-          <ol class="space-y-2">
+          <ol class="movement-list">
             {#each movements as m, i (m.inscriptionId + i)}
               {@const isMain = i === 0}
-              <li class="flex items-start gap-3 p-3 rounded-lg border"
-                class:border-blue-200={isMain}
-                class:bg-blue-50={isMain}
-                class:border-gray-200={!isMain}
-                class:bg-gray-50={!isMain}
-              >
-                <span class="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold"
-                  class:bg-blue-600={isMain}
-                  class:text-white={isMain}
-                  class:bg-gray-300={!isMain}
-                  class:text-gray-700={!isMain}
-                >
-                  {i + 1}
-                </span>
-                <div class="flex-1 min-w-0">
-                  <div class="font-medium text-gray-900">
-                    {m.playerName ?? 'Jugador'}
+              <li class="movement-item" class:main={isMain}>
+                <span class="movement-num">{i + 1}</span>
+                <div class="movement-content">
+                  <div class="movement-name">{m.playerName ?? 'Jugador'}</div>
+                  <div class="movement-categories">
+                    <span class="cat-from">{categoryName(m.previousCategoryId)}</span>
+                    <span class="cat-arrow">→</span>
+                    <span class="cat-to">{categoryName(m.categoryId)}</span>
                   </div>
-                  <div class="text-sm text-gray-700 mt-0.5">
-                    <span class="text-gray-500">{categoryName(m.previousCategoryId)}</span>
-                    <span class="mx-1.5 text-gray-400">→</span>
-                    <span class="font-medium text-gray-900">{categoryName(m.categoryId)}</span>
-                  </div>
-                  <div class="text-xs text-gray-500 mt-1">
-                    {m.reason}
-                  </div>
+                  <div class="movement-reason">{m.reason}</div>
                 </div>
               </li>
             {/each}
@@ -104,32 +87,175 @@
         {/if}
       </div>
 
-      <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3">
-        <button
-          type="button"
-          on:click={close}
-          disabled={processing}
-          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
-        >
+      <div class="modal-foot">
+        <button type="button" class="btn-secondary" on:click={close} disabled={processing}>
           Cancel·lar
         </button>
         <button
           type="button"
+          class="btn-primary"
           on:click={confirm}
           disabled={processing || movements.length === 0}
-          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50 inline-flex items-center gap-2"
         >
-          {#if processing}
-            <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25" />
-              <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" fill="currentColor" class="opacity-75" />
-            </svg>
-            Aplicant...
-          {:else}
-            Confirmar i aplicar
-          {/if}
+          {processing ? 'Aplicant…' : 'Confirmar i aplicar'}
         </button>
       </div>
     </div>
   </div>
 {/if}
+
+<style>
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 60;
+    padding: 1rem;
+  }
+  .backdrop-btn {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    border: none;
+    cursor: default;
+  }
+  .modal-card {
+    position: relative;
+    background: var(--paper-elevated, #fff);
+    border: 1px solid var(--rule, #e6e3dc);
+    width: 100%;
+    max-width: 36rem;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .modal-head {
+    padding: 1rem 1.3rem;
+    border-bottom: 1px solid var(--rule, #e6e3dc);
+  }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .modal-title {
+    margin: 0.3rem 0 0.4rem;
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink, #1a1814);
+  }
+  .modal-sub {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--ink-2, #4a443e);
+  }
+  .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem 1.3rem;
+  }
+  .empty-state {
+    text-align: center;
+    color: var(--ink-3, #807a72);
+    padding: 2rem 0;
+  }
+  .movement-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .movement-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--paper, #fbfaf6);
+    border: 1px solid var(--rule, #e6e3dc);
+  }
+  .movement-item.main {
+    background: var(--paper-elevated, #fff);
+    border-color: var(--ink, #1a1814);
+  }
+  .movement-num {
+    flex-shrink: 0;
+    width: 1.75rem;
+    height: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: var(--rule, #e6e3dc);
+    color: var(--ink-2, #4a443e);
+    font-variant-numeric: tabular-nums;
+  }
+  .movement-item.main .movement-num {
+    background: var(--ink, #1a1814);
+    color: var(--paper, #fbfaf6);
+  }
+  .movement-content { flex: 1; min-width: 0; }
+  .movement-name {
+    font-weight: 600;
+    color: var(--ink, #1a1814);
+    font-size: 0.9375rem;
+  }
+  .movement-categories {
+    margin-top: 0.2rem;
+    font-size: 0.875rem;
+    color: var(--ink-2, #4a443e);
+  }
+  .cat-from { color: var(--ink-3, #807a72); }
+  .cat-arrow {
+    margin: 0 0.4rem;
+    color: var(--ink-3, #807a72);
+  }
+  .cat-to {
+    font-weight: 600;
+    color: var(--ink, #1a1814);
+  }
+  .movement-reason {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--ink-3, #807a72);
+  }
+  .modal-foot {
+    padding: 0.95rem 1.3rem;
+    border-top: 1px solid var(--rule, #e6e3dc);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    background: var(--paper, #fbfaf6);
+  }
+  .btn-secondary, .btn-primary {
+    padding: 0.55rem 1rem;
+    font-family: var(--font-sans, sans-serif);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    border: 1px solid var(--ink, #1a1814);
+  }
+  .btn-secondary {
+    background: var(--paper-elevated, #fff);
+    color: var(--ink, #1a1814);
+  }
+  .btn-secondary:hover:not(:disabled) { background: var(--paper, #fbfaf6); }
+  .btn-primary {
+    background: var(--ink, #1a1814);
+    color: var(--paper, #fbfaf6);
+  }
+  .btn-primary:hover:not(:disabled) { opacity: 0.9; }
+  .btn-secondary:disabled, .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+</style>

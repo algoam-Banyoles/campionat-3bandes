@@ -1,7 +1,13 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { user } from '$lib/stores/auth';
   import { isAdmin as isAdminStore, adminChecked } from '$lib/stores/adminAuth';
+
+  // Guard: només admins.
+  $: if ($adminChecked && !$isAdminStore) {
+    goto('/campionat-continu/reptes');
+  }
   import { supabase } from '$lib/supabaseClient';
 import Banner from '$lib/components/general/Banner.svelte';
 import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
@@ -243,10 +249,14 @@ async function hasActiveChallenge(supabase: SupabaseClient, sociNumero: number) 
 </script>
 
 <svelte:head>
-  <title>Admin · Nou repte</title>
+  <title>Crear repte (admin)</title>
 </svelte:head>
 
-<h1 class="text-2xl font-semibold mb-4">Administració — Crear repte</h1>
+<div class="gr-sub-root">
+  <header class="gr-sub-mast">
+    <div class="editorial-eyebrow">Rànquing continu · Reptes</div>
+    <h1>Crear repte</h1>
+  </header>
 
 {#if loading}
   <p class="text-slate-500">Carregant…</p>
@@ -367,8 +377,76 @@ async function hasActiveChallenge(supabase: SupabaseClient, sociNumero: number) 
         <button class="rounded bg-slate-900 text-white px-4 py-2 disabled:opacity-60" disabled={busy} type="submit">
           {busy ? 'Creant…' : 'Crear repte'}
         </button>
-        <a class="rounded border px-4 py-2" href="/admin">Cancel·lar</a>
+        <a class="rounded border px-4 py-2" href="/campionat-continu/gestio-reptes">Cancel·lar</a>
       </div>
     </form>
   {/if}
 {/if}
+</div>
+
+<style>
+  .gr-sub-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .gr-sub-mast {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .gr-sub-mast .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .gr-sub-mast h1 {
+    margin: 0.4rem 0 0;
+    font-size: clamp(1.5rem, 2vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .gr-sub-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .gr-sub-root :global(.bg-slate-100),
+  .gr-sub-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .gr-sub-root :global(.bg-slate-900),
+  .gr-sub-root :global(.bg-blue-700),
+  .gr-sub-root :global(.bg-indigo-700) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .gr-sub-root :global(.bg-yellow-100),
+  .gr-sub-root :global(.bg-yellow-50) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+  .gr-sub-root :global(.bg-red-100),
+  .gr-sub-root :global(.bg-red-50) { background: var(--paper, #fbfaf6) !important; border-color: var(--accent, #a30b1e) !important; }
+  .gr-sub-root :global(.text-slate-500),
+  .gr-sub-root :global(.text-slate-600),
+  .gr-sub-root :global(.text-slate-700) { color: var(--ink-2, #4a443e) !important; }
+  .gr-sub-root :global(.text-yellow-700),
+  .gr-sub-root :global(.text-yellow-800) { color: var(--amber, #b8860b) !important; }
+  .gr-sub-root :global(.text-red-700),
+  .gr-sub-root :global(.text-red-800) { color: var(--accent, #a30b1e) !important; }
+  .gr-sub-root :global(.rounded),
+  .gr-sub-root :global(.rounded-md),
+  .gr-sub-root :global(.rounded-lg),
+  .gr-sub-root :global(.rounded-xl),
+  .gr-sub-root :global(.rounded-2xl) { border-radius: 0 !important; }
+  .gr-sub-root :global(input),
+  .gr-sub-root :global(select),
+  .gr-sub-root :global(textarea) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .gr-sub-root :global(input:focus),
+  .gr-sub-root :global(select:focus) {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: -1px;
+  }
+</style>

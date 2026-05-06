@@ -27,20 +27,18 @@
   }>();
 </script>
 
-<div class="flex items-center justify-between mb-4">
-  <div>
-    <h3 class="text-lg font-medium text-gray-900">Calendari de Partits</h3>
+<div class="ctrl-bar">
+  <div class="ctrl-title-block">
+    <div class="ctrl-eyebrow">Calendari de partits</div>
     {#if totalMatches > 0}
-      <div class="mt-1 text-sm text-gray-600">
+      <div class="ctrl-meta">
         {#if publishedCount > 0}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 mr-2">
-            📢 {publishedCount} publicats
-          </span>
+          <span class="ctrl-badge published">{publishedCount} publicats</span>
         {/if}
 
         {#if isFilteringByPlayer}
-          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-            🔍 Filtrant per: {playerSearch} | Partits trobats: {filteredMatchesCount}/{totalMatches} | Slots amb partits: {playerMatchSlots}
+          <span class="ctrl-badge filter">
+            Filtre <strong>{playerSearch}</strong> · {filteredMatchesCount}/{totalMatches} partits · {playerMatchSlots} slots
           </span>
         {/if}
       </div>
@@ -48,21 +46,16 @@
   </div>
 
   <!-- Botons d'acció admin -->
-  <div class="flex flex-wrap items-center gap-3">
+  <div class="ctrl-actions">
     {#if isAdmin && canPublish}
       <button
         type="button"
         on:click={() => dispatch('publish')}
-        class="no-print px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center gap-2 font-medium disabled:opacity-50"
+        class="btn-action btn-publish no-print"
         title="Publicar calendari al calendari general de la PWA"
         disabled={loading || publishing}
       >
-        {#if publishing}
-          <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-          Publicant...
-        {:else}
-          📢 Publicar
-        {/if}
+        {publishing ? 'Publicant…' : 'Publicar'}
       </button>
     {/if}
 
@@ -70,46 +63,39 @@
       <button
         type="button"
         on:click={() => dispatch('convertOldMatches')}
-        class="no-print px-4 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 flex items-center gap-2 font-medium disabled:opacity-50"
+        class="btn-action no-print"
         title="Convertir partides antigues sense resultats a pendent de programar"
         disabled={loading}
       >
-        🔄 Reciclar Antigues
+        Reciclar antigues
       </button>
     {/if}
 
     {#if isAdmin}
-      <div class="flex items-center gap-2">
+      <div class="swap-group">
         <button
           type="button"
           on:click={() => dispatch('toggleSwapMode')}
-          class="no-print px-4 py-2 text-sm rounded font-medium flex items-center justify-center gap-2"
-          class:bg-orange-600={swapMode}
-          class:text-white={swapMode}
-          class:hover:bg-orange-700={swapMode}
-          class:bg-orange-100={!swapMode}
-          class:text-orange-800={!swapMode}
-          class:hover:bg-orange-200={!swapMode}
+          class="btn-action btn-swap no-print"
+          class:active={swapMode}
           title="Activar/desactivar mode d'intercanvi de partides"
         >
-          🔄 <span class="hidden sm:inline">{swapMode ? 'Cancel·lar' : 'Intercanviar'}</span>
+          {swapMode ? 'Cancel·lar' : 'Intercanviar'}
         </button>
 
         {#if swapMode && selectedMatchesCount === 2}
           <button
             type="button"
             on:click={() => dispatch('confirmSwap')}
-            class="no-print px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 font-medium flex items-center justify-center gap-1"
+            class="btn-action btn-confirm no-print"
             title="Confirmar intercanvi de les partides seleccionades"
           >
-            ✅ <span class="hidden sm:inline">Confirmar</span>
+            Confirmar
           </button>
         {/if}
 
         {#if swapMode}
-          <span class="text-sm text-gray-600 font-medium">
-            {selectedMatchesCount}/2
-          </span>
+          <span class="swap-count tabular-nums">{selectedMatchesCount}/2</span>
         {/if}
       </div>
     {/if}
@@ -118,20 +104,117 @@
       <button
         type="button"
         on:click={() => dispatch('exportCSV')}
-        class="no-print px-4 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 items-center gap-2 font-medium flex"
+        class="btn-action no-print"
         title="Exportar calendari a CSV"
       >
-        📄 Exportar
+        Exportar CSV
       </button>
     {/if}
 
     <button
       type="button"
       on:click={() => dispatch('print')}
-      class="no-print hidden md:flex px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 items-center gap-2 font-medium"
+      class="btn-action btn-print no-print"
       title="Imprimir calendari cronològic"
     >
-      🖨️ Imprimir
+      Imprimir
     </button>
   </div>
 </div>
+
+<style>
+  .ctrl-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    font-family: var(--font-sans);
+  }
+  .ctrl-title-block { flex: 1; min-width: 0; }
+  .ctrl-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .ctrl-meta {
+    margin-top: 0.5rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .ctrl-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border: 1px solid var(--rule-strong);
+    color: var(--ink-2);
+    background: var(--paper);
+  }
+  .ctrl-badge.published {
+    border-color: var(--green);
+    color: var(--green);
+  }
+  .ctrl-badge.filter strong { color: var(--ink); font-weight: 700; }
+
+  .ctrl-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .btn-action {
+    background: var(--paper-elevated);
+    color: var(--ink);
+    border: 1px solid var(--rule-strong);
+    padding: 0.5rem 0.85rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: -0.005em;
+    cursor: pointer;
+    min-height: 40px;
+  }
+  .btn-action:hover { border-color: var(--ink); }
+  .btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-action.btn-publish {
+    background: var(--green);
+    color: white;
+    border-color: var(--green);
+  }
+  .btn-action.btn-publish:hover { opacity: 0.92; }
+  .btn-action.btn-swap.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .btn-action.btn-confirm {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .btn-action.btn-print {
+    display: none;
+  }
+  @media (min-width: 768px) {
+    .btn-action.btn-print { display: inline-flex; }
+  }
+  .swap-group {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .swap-count {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ink-2);
+    padding: 0 0.4rem;
+  }
+</style>

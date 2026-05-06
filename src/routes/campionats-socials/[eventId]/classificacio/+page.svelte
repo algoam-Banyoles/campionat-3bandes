@@ -3,14 +3,34 @@
   import { page } from '$app/stores';
   import { formatSupabaseError } from '$lib/ui/alerts';
   import { formatarNomJugador } from '$lib/utils/playerUtils';
+  import PlayerResultsModal from '$lib/components/campionats-socials/PlayerResultsModal.svelte';
+
+  const eventId = $page.params.eventId;
+  const fromHistory = $page.url.searchParams.get('from') === 'history';
 
   let loading = true;
   let error: string | null = null;
   let event: any = null;
   let classificacio: any[] = [];
 
-  const eventId = $page.params.eventId;
-  const fromHistory = $page.url.searchParams.get('from') === 'history';
+  // Modal de resultats per jugador (només per a classificacions calculades)
+  let isModalOpen = false;
+  let selectedPlayer: { name: string; numeroSoci: number | null; eventId: string; categoriaId: string | null } | null = null;
+
+  function openPlayerModal(participant: any, categoriaId: string | null) {
+    if (!participant?.isClassification) return;
+    const sociNumero = participant.soci_numero ?? participant.player?.numero_soci ?? null;
+    if (sociNumero == null) return;
+    const nom = participant.player?.nom ?? participant.socis?.nom ?? '';
+    const cognoms = participant.player?.cognoms ?? participant.socis?.cognoms ?? '';
+    selectedPlayer = {
+      name: formatarNomJugador(`${nom} ${cognoms}`.trim()),
+      numeroSoci: sociNumero,
+      eventId,
+      categoriaId
+    };
+    isModalOpen = true;
+  }
 
   const modalityNames = {
     'tres_bandes': '3 Bandes',
@@ -291,15 +311,24 @@
                       {participant.posicio || index + 1}
                     </td>
                     <td class="px-2 sm:px-4 lg:px-6 py-3 sm:py-4">
-                      <div class="text-sm sm:text-base font-medium text-gray-900 truncate max-w-32 sm:max-w-none">
-                        {#if participant.isClassification}
+                      {#if participant.isClassification}
+                        <button
+                          type="button"
+                          class="player-link"
+                          on:click={() => openPlayerModal(participant, categoryGroup.category?.id ?? null)}
+                          title="Veure resultats del jugador"
+                        >
                           {formatarNomJugador(`${participant.player?.nom ?? ''} ${participant.player?.cognoms ?? ''}`.trim() || 'Nom no disponible')}
-                        {:else if participant.socis}
+                        </button>
+                      {:else if participant.socis}
+                        <div class="text-sm sm:text-base font-medium text-gray-900 truncate max-w-32 sm:max-w-none">
                           {formatarNomJugador(`${participant.socis.nom} ${participant.socis.cognoms}`)}
-                        {:else}
+                        </div>
+                      {:else}
+                        <div class="text-sm sm:text-base font-medium text-gray-900 truncate max-w-32 sm:max-w-none">
                           Jugador desconegut
-                        {/if}
-                      </div>
+                        </div>
+                      {/if}
                     </td>
                     {#if participant.isClassification}
                       <td class="hidden sm:table-cell px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-sm sm:text-base text-gray-500">
@@ -385,3 +414,44 @@
     </div>
   {/if}
 </div>
+
+<PlayerResultsModal
+  bind:isOpen={isModalOpen}
+  playerName={selectedPlayer?.name || ''}
+  playerNumeroSoci={selectedPlayer?.numeroSoci ?? null}
+  eventId={selectedPlayer?.eventId ?? null}
+  categoriaId={selectedPlayer?.categoriaId ?? null}
+  on:close={() => {
+    isModalOpen = false;
+    selectedPlayer = null;
+  }}
+/>
+
+<style>
+  .player-link {
+    display: inline-block;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    color: var(--ink, #1a1814);
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s ease, color 0.15s ease;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .player-link:hover {
+    border-bottom-color: var(--ink, #1a1814);
+  }
+  .player-link:focus-visible {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: 2px;
+  }
+</style>
