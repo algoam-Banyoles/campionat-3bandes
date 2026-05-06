@@ -383,16 +383,17 @@
 </script>
 
 <svelte:head>
-  <title>Multimedia - Foment Martinenc</title>
+  <title>Multimèdia</title>
 </svelte:head>
 
-<div class="max-w-7xl mx-auto p-4">
-  <div class="mb-8">
-    <div class="flex items-center justify-between mb-4">
+<div class="mm-root">
+  <header class="mm-mast">
+    <div class="mm-mast-row">
       <div>
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Multimedia</h1>
-        <p class="text-lg text-gray-600">
-          Enllaços útils per al món del billar: canals en directe, tutorials, documents i més.
+        <div class="editorial-eyebrow">Recursos · Billar</div>
+        <h1 class="mm-title">Multimèdia</h1>
+        <p class="mm-sub">
+          Enllaços útils del món del billar: canals en directe, tutorials, documents i més.
         </p>
       </div>
       <div class="flex gap-2">
