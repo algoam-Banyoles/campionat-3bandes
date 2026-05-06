@@ -2,6 +2,8 @@
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import Banner from '$lib/components/general/Banner.svelte';
+  import { get } from 'svelte/store';
+  import { mySociNumero as mySociStore } from '$lib/stores/mySoci';
 
   type Row = {
     ordre: number;
@@ -22,15 +24,15 @@ let loading = true;
     try {
       const { supabase } = await import('$lib/supabaseClient');
 
-      // Usuari actual
-      const { data: auth } = await supabase.auth.getUser();
-      if (auth?.user?.email) {
-        const { data: soci } = await supabase
-          .from('socis')
-          .select('numero_soci')
-          .eq('email', auth.user.email)
-          .maybeSingle();
-        mySociNumero = soci?.numero_soci ?? null;
+      // Usuari actual — usem el store centralitzat
+      mySociNumero = get(mySociStore);
+      if (mySociNumero == null) {
+        await new Promise<void>((resolve) => {
+          const u = mySociStore.subscribe((v) => {
+            if (v != null) { mySociNumero = v; u(); resolve(); }
+          });
+          setTimeout(() => { u(); resolve(); }, 2000);
+        });
       }
 
       // Event actiu

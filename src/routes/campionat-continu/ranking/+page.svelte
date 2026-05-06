@@ -15,6 +15,7 @@
     import { formatPlayerDisplayName } from '$lib/utils/playerName';
     import PlayerEvolutionBadges from '$lib/components/campionat-continu/PlayerEvolutionBadges.svelte';
     import { getPlayerChallengeHistory, type ChallengeResult } from '$lib/stores/playerChallengeHistory';
+    import { mySociNumero as mySociStore } from '$lib/stores/mySoci';
 
   export let badges: VPlayerBadges[] = [];
   export let badgesLoaded = false;
@@ -83,17 +84,21 @@
         }
       });
 
-      // Auth & soci_numero
-      const { data: auth } = await supabase.auth.getUser();
-      if (auth?.user?.email) {
-        const { data: soci } = await supabase
-          .from('socis')
-          .select('numero_soci')
-          .eq('email', auth.user.email)
-          .maybeSingle();
-        if (soci) {
-          mySociNumero = soci.numero_soci;
-        }
+      // Auth & soci_numero — usem el store centralitzat (resol via socis.email)
+      mySociNumero = get(mySociStore);
+      // Si encara no està resolt (login recent), espera la propera emissió
+      if (mySociNumero == null) {
+        await new Promise<void>((resolve) => {
+          const u = mySociStore.subscribe((v) => {
+            if (v != null) {
+              mySociNumero = v;
+              u();
+              resolve();
+            }
+          });
+          // Timeout per no bloquejar si l'usuari no està loggat
+          setTimeout(() => { u(); resolve(); }, 2000);
+        });
       }
 
       // Event
