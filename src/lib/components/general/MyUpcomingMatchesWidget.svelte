@@ -1,20 +1,25 @@
 <script lang="ts">
   /**
-   * Widget de properes partides de l'usuari loggat.
+   * Widget de properes partides programades d'un jugador.
    *
-   * Llista les pròximes partides programades on l'usuari és jugador 1 o 2,
-   * a través de tot el `calendari_partides` (sense filtrar per event_id) i
-   * fins a un nombre màxim configurable. Pensat per posar a la home després
-   * del hero, només visible quan hi ha partides futures programades.
+   * Per defecte mostra les de l'usuari loggat (via store mySociNumero).
+   * Si `sociNumero` es passa explícitament, mostra les d'aquell soci.
    *
-   * Si no n'hi ha cap, el widget no es renderitza.
+   * Pensat per posar a la home (sense props, mostra "Les teves...") o al
+   * perfil de jugador (passant el sociNumero del propi perfil).
+   *
+   * Si no hi ha partides futures, el widget no es renderitza.
    */
-  import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { mySociNumero } from '$lib/stores/mySoci';
   import { formatarNomJugador } from '$lib/utils/playerUtils';
 
+  /** Nombre màxim de partides a mostrar. */
   export let limit = 5;
+  /** Si es passa, mostra les partides d'aquest soci (perfil aliè). Si no, usa l'usuari loggat. */
+  export let sociNumero: number | null = null;
+  /** Títol opcional (substitueix el default). */
+  export let title: string | null = null;
 
   type Match = {
     id: string;
@@ -36,8 +41,10 @@
   let matches: Match[] = [];
   let loading = false;
 
-  $: if ($mySociNumero != null) {
-    loadMatches($mySociNumero);
+  // Resol el soci_numero efectiu: la prop si es passa, sinó l'usuari loggat
+  $: effectiveSoci = sociNumero ?? $mySociNumero;
+  $: if (effectiveSoci != null) {
+    loadMatches(effectiveSoci);
   } else {
     matches = [];
   }
@@ -132,11 +139,11 @@
   }
 </script>
 
-{#if $mySociNumero != null && matches.length > 0}
+{#if effectiveSoci != null && matches.length > 0}
   <section class="ump-section">
     <header class="ump-head">
-      <div class="editorial-eyebrow">Per a tu</div>
-      <h2 class="ump-title">Les teves properes partides</h2>
+      <div class="editorial-eyebrow">{sociNumero != null ? 'Properes partides' : 'Per a tu'}</div>
+      <h2 class="ump-title">{title ?? (sociNumero != null ? 'Properes partides' : 'Les teves properes partides')}</h2>
     </header>
     <ol class="ump-list">
       {#each matches as m (m.id)}
@@ -149,7 +156,7 @@
           </div>
           <div class="ump-info">
             <div class="ump-opponent">
-              vs <strong>{opponentName(m, $mySociNumero)}</strong>
+              vs <strong>{opponentName(m, effectiveSoci)}</strong>
             </div>
             <div class="ump-meta">
               {#if m.event_nom}{m.event_nom}{/if}

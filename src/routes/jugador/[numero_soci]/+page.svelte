@@ -3,6 +3,7 @@
   import { page } from '$app/stores';
   import { supabase } from '$lib/supabaseClient';
   import { formatarNomJugador } from '$lib/utils/playerUtils';
+  import MyUpcomingMatchesWidget from '$lib/components/general/MyUpcomingMatchesWidget.svelte';
 
   type Soci = {
     numero_soci: number;
@@ -210,6 +211,9 @@
         </div>
       </div>
     </header>
+
+    <!-- Properes partides programades del jugador -->
+    <MyUpcomingMatchesWidget sociNumero={numeroSoci} limit={5} />
 
     <!-- Mitjanes històriques per modalitat -->
     {#if Object.keys(mitjanesByModalitat).length > 0}
