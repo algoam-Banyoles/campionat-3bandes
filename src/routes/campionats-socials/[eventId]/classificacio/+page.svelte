@@ -165,12 +165,12 @@
   <title>Classificació - {event?.nom || 'Campionat Social'}</title>
 </svelte:head>
 
-<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+<div class="cls-root">
   <div class="mb-6">
     <div class="flex items-center space-x-4 mb-2">
       <a
         href={fromHistory ? "/campionats-socials?view=history" : `/campionats-socials/${eventId}`}
-        class="text-gray-600 hover:text-gray-900"
+        class="cls-back"
       >
         ← {fromHistory ? "Tornar a l'historial" : "Tornar a l'event"}
       </a>
@@ -428,6 +428,27 @@
 />
 
 <style>
+  .cls-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .cls-back {
+    display: inline-block;
+    color: var(--ink-2, #4a443e);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .cls-back:hover {
+    color: var(--ink, #1a1814);
+    border-bottom-color: var(--ink, #1a1814);
+  }
+
   .player-link {
     display: inline-block;
     background: transparent;
@@ -453,5 +474,55 @@
   .player-link:focus-visible {
     outline: 2px solid var(--ink, #1a1814);
     outline-offset: 2px;
+  }
+
+  /* Overrides Tailwind dins .cls-root */
+  .cls-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .cls-root :global(.bg-gray-50),
+  .cls-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .cls-root :global(.bg-blue-50),
+  .cls-root :global(.bg-blue-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--blue, #1f4a99) !important; }
+  .cls-root :global(.bg-green-50),
+  .cls-root :global(.bg-green-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--green, #1f7a3a) !important; }
+  .cls-root :global(.bg-yellow-50),
+  .cls-root :global(.bg-yellow-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+  .cls-root :global(.bg-red-50),
+  .cls-root :global(.bg-red-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--accent, #a30b1e) !important; }
+  .cls-root :global(.bg-orange-50),
+  .cls-root :global(.bg-orange-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+  .cls-root :global(.text-gray-400),
+  .cls-root :global(.text-gray-500),
+  .cls-root :global(.text-gray-600),
+  .cls-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+  .cls-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+  .cls-root :global(.text-blue-600),
+  .cls-root :global(.text-blue-700),
+  .cls-root :global(.text-blue-800),
+  .cls-root :global(.text-blue-900) { color: var(--blue, #1f4a99) !important; }
+  .cls-root :global(.text-green-700),
+  .cls-root :global(.text-green-800),
+  .cls-root :global(.text-green-900) { color: var(--green, #1f7a3a) !important; }
+  .cls-root :global(.text-yellow-700),
+  .cls-root :global(.text-yellow-800) { color: var(--amber, #b8860b) !important; }
+  .cls-root :global(.text-red-600),
+  .cls-root :global(.text-red-700),
+  .cls-root :global(.text-red-800) { color: var(--accent, #a30b1e) !important; }
+  .cls-root :global(.text-orange-700),
+  .cls-root :global(.text-orange-800) { color: var(--amber, #b8860b) !important; }
+  .cls-root :global(.border-gray-200),
+  .cls-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+  .cls-root :global(.rounded),
+  .cls-root :global(.rounded-md),
+  .cls-root :global(.rounded-lg),
+  .cls-root :global(.rounded-xl),
+  .cls-root :global(.rounded-2xl),
+  .cls-root :global(.rounded-full) { border-radius: 0 !important; }
+  .cls-root :global(.shadow),
+  .cls-root :global(.shadow-sm),
+  .cls-root :global(.shadow-md) { box-shadow: none !important; }
+  .cls-root :global(table) { font-family: var(--font-sans, sans-serif); }
+  .cls-root :global(thead.bg-gray-50) {
+    background: var(--paper, #fbfaf6) !important;
+    border-bottom: 1px solid var(--ink, #1a1814) !important;
   }
 </style>
