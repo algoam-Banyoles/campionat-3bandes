@@ -111,5 +111,26 @@
     {:else}
       <canvas bind:this={canvasEl} class="w-full h-64"></canvas>
     {/if}
+    <div class="mt-3 pt-3 border-t border-gray-200">
+      <a href={`/jugador/${sociNumero}`} class="profile-link" on:click={close}>
+        Veure perfil complet del jugador →
+      </a>
+    </div>
   </div>
 </div>
+
+<style>
+  .profile-link {
+    display: inline-block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ink, #1a1814);
+    text-decoration: none;
+    border-bottom: 1px solid var(--ink, #1a1814);
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .profile-link:hover {
+    color: var(--accent, #a30b1e);
+    border-color: var(--accent, #a30b1e);
+  }
+</style>
