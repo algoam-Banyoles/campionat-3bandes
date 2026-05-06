@@ -419,6 +419,7 @@
         </button>
       </div>
     </div>
+  </header>
 
     {#if error}
       <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
@@ -643,7 +644,6 @@
         <div class="text-sm text-gray-600">Clubs diferents</div>
       </div>
     </div>
-  </div>
 </div>
 
 <!-- Modal per afegir/editar enllaç -->
@@ -754,3 +754,104 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .mm-root {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.75rem 1.25rem 4rem;
+    font-family: var(--font-sans, sans-serif);
+    color: var(--ink, #1a1814);
+  }
+  .mm-mast {
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 2px solid var(--ink, #1a1814);
+  }
+  .mm-mast-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .editorial-eyebrow {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-3, #807a72);
+  }
+  .mm-title {
+    margin: 0.4rem 0 0.4rem;
+    font-size: clamp(1.75rem, 2.4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.022em;
+    line-height: 1.1;
+  }
+  .mm-sub {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--ink-2, #4a443e);
+    max-width: 56ch;
+  }
+
+  .mm-root :global(.bg-white) { background: var(--paper-elevated, #fff) !important; }
+  .mm-root :global(.bg-gray-50),
+  .mm-root :global(.bg-gray-100) { background: var(--paper, #fbfaf6) !important; }
+  .mm-root :global(.bg-gray-200) { background: var(--rule, #e6e3dc) !important; }
+  .mm-root :global(.bg-blue-50),
+  .mm-root :global(.bg-blue-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--blue, #1f4a99) !important; }
+  .mm-root :global(.bg-blue-600),
+  .mm-root :global(.bg-blue-700) {
+    background: var(--ink, #1a1814) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .mm-root :global(.bg-yellow-50),
+  .mm-root :global(.bg-yellow-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--amber, #b8860b) !important; }
+  .mm-root :global(.bg-red-50),
+  .mm-root :global(.bg-red-100) { background: var(--paper, #fbfaf6) !important; border-color: var(--accent, #a30b1e) !important; }
+  .mm-root :global(.bg-red-600),
+  .mm-root :global(.bg-red-700) {
+    background: var(--accent, #a30b1e) !important;
+    color: var(--paper, #fbfaf6) !important;
+  }
+  .mm-root :global(.text-gray-400),
+  .mm-root :global(.text-gray-500),
+  .mm-root :global(.text-gray-600),
+  .mm-root :global(.text-gray-700) { color: var(--ink-2, #4a443e) !important; }
+  .mm-root :global(.text-gray-900) { color: var(--ink, #1a1814) !important; }
+  .mm-root :global(.text-blue-600),
+  .mm-root :global(.text-blue-700),
+  .mm-root :global(.text-blue-800) { color: var(--blue, #1f4a99) !important; }
+  .mm-root :global(.text-yellow-700),
+  .mm-root :global(.text-yellow-800) { color: var(--amber, #b8860b) !important; }
+  .mm-root :global(.text-red-700),
+  .mm-root :global(.text-red-800) { color: var(--accent, #a30b1e) !important; }
+  .mm-root :global(.border-gray-200),
+  .mm-root :global(.border-gray-300) { border-color: var(--rule, #e6e3dc) !important; }
+  .mm-root :global(.rounded),
+  .mm-root :global(.rounded-md),
+  .mm-root :global(.rounded-lg),
+  .mm-root :global(.rounded-xl),
+  .mm-root :global(.rounded-2xl),
+  .mm-root :global(.rounded-full) { border-radius: 0 !important; }
+  .mm-root :global(.shadow),
+  .mm-root :global(.shadow-sm),
+  .mm-root :global(.shadow-md),
+  .mm-root :global(.shadow-lg) { box-shadow: none !important; }
+  .mm-root :global(input),
+  .mm-root :global(select),
+  .mm-root :global(textarea) {
+    background: var(--paper-elevated, #fff) !important;
+    border: 1px solid var(--rule-strong, #b8b3a8) !important;
+    border-radius: 0 !important;
+    font-family: var(--font-sans, sans-serif);
+  }
+  .mm-root :global(input:focus),
+  .mm-root :global(select:focus),
+  .mm-root :global(textarea:focus) {
+    outline: 2px solid var(--ink, #1a1814);
+    outline-offset: -1px;
+  }
+</style>
