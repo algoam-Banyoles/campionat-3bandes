@@ -8,14 +8,9 @@ export async function ensureAdmin(supabase: SupabaseClient): Promise<void> {
     throw error(403, 'Només admins');
   }
 
-  const { data, error: adminErr } = await supabase
-    .from('admins')
-    .select('email')
-    .eq('email', email)
-    .limit(1)
-    .maybeSingle();
+  const { data, error: adminErr } = await supabase.rpc('is_admin_by_email');
 
-  if (adminErr || !data) {
+  if (adminErr || data !== true) {
     throw error(403, 'Només admins');
   }
 }

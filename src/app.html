@@ -2,7 +2,8 @@
 <html lang="ca">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<title>3Bandes — Foment Martinenc</title>
 
 		<!-- PWA Meta Tags -->
 		<meta name="application-name" content="3Bandes" />
@@ -18,11 +19,8 @@
 		<meta name="apple-touch-fullscreen" content="yes" />
 		<meta name="format-detection" content="telephone=no" />
 
-		<!-- iOS Icons - Using PNG icons for better compatibility -->
+		<!-- iOS Icons - una sola entrada (Safari escala segons necessitat) -->
 		<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
-		<link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-192x192.png" />
-		<link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144x144.png" />
-		<link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
 
 		<!-- Standard Icons - Using PNG for better compatibility -->
 		<link rel="icon" type="image/png" sizes="48x48" href="/icons/icon-48x48.png" />
@@ -45,6 +43,10 @@
 
 		<!-- Mobile CSS (loaded via components) -->
 
+		<style>
+			.sveltekit-body-wrapper { display: contents; }
+		</style>
+
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover" class="safe-area-top safe-area-bottom">
@@ -61,7 +63,7 @@
 			}
 		</script>
 
-		<div style="display: contents">%sveltekit.body%</div>
+		<div class="sveltekit-body-wrapper">%sveltekit.body%</div>
 
 		<!-- Mobile Navigation will be inserted here -->
 		<div id="mobile-nav-root"></div>

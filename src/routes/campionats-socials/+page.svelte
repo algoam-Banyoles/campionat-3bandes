@@ -417,7 +417,7 @@
       // Carregar socis actius
       const { data: socisData, error: socisError } = await supabase
         .from('socis')
-        .select('numero_soci, nom, cognoms, email, de_baixa')
+        .select('numero_soci, nom, cognoms, de_baixa')
         .eq('de_baixa', false)
         .order('nom');
 
@@ -478,7 +478,7 @@
           preferencies_dies,
           preferencies_hores,
           restriccions_especials,
-          socis!inscripcions_soci_numero_fkey(numero_soci, nom, cognoms, email, data_naixement)
+          socis!inscripcions_soci_numero_fkey(numero_soci, nom, cognoms, data_naixement)
         `)
         .eq('event_id', selectedEventId);
 

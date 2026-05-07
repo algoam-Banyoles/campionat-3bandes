@@ -12,7 +12,7 @@
   let inWaiting = false;
 
   // Per a la inscripció de socis (Junta)
-  let socis: Array<{ numero_soci: number; nom: string; cognoms: string; email: string }> = [];
+  let socis: Array<{ numero_soci: number; nom: string; cognoms: string }> = [];
   let selectedSoci: number | null = null;
   let mitjana: number | null = null;
 
@@ -51,7 +51,7 @@
         // Obtenir tots els socis actius i filtrar els no inscrits
         const { data: allSocis, error: socisError } = await supabase
           .from('socis')
-          .select('numero_soci, nom, cognoms, email')
+          .select('numero_soci, nom, cognoms')
           .eq('de_baixa', false);
 
         if (socisError) {

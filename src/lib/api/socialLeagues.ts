@@ -488,7 +488,6 @@ export async function searchActivePlayers(playerName: string): Promise<{
   numero_soci: number;
   nom: string;
   cognoms: string;
-  email: string | null;
   historicalAverage: number | null;
 }[]> {
   // Normalitzar el text de cerca (eliminar accents i convertir a minúscules)
@@ -505,7 +504,7 @@ export async function searchActivePlayers(playerName: string): Promise<{
   // Obtenim tots els socis actius i filtrem en el client per poder buscar sense accents
   const { data: socis, error } = await supabase
     .from('socis')
-    .select('numero_soci, nom, cognoms, email')
+    .select('numero_soci, nom, cognoms')
     .eq('de_baixa', false)
     .order('nom');
 
@@ -552,7 +551,6 @@ export async function searchActivePlayers(playerName: string): Promise<{
       numero_soci: soci.numero_soci,
       nom: soci.nom,
       cognoms: soci.cognoms || '',
-      email: soci.email,
       historicalAverage: bestMitjana
     };
   });

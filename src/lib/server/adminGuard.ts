@@ -39,16 +39,11 @@ export async function requireAdmin(event: Parameters<import('@sveltejs/kit').Req
   if (!email) {
     return new Response(JSON.stringify({ error: 'No autenticat' }), { status: 401 });
   }
-  const { data, error } = await supabase
-    .from('admins')
-    .select('email')
-    .eq('email', email)
-    .limit(1)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc('is_admin_by_email');
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
-  if (!data) {
+  if (data !== true) {
     return new Response(JSON.stringify({ error: 'Només admins' }), { status: 403 });
   }
   return null; // ok

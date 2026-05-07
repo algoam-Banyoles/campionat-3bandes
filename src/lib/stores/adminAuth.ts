@@ -26,32 +26,14 @@ export async function checkAdminStatus(userEmail: string): Promise<boolean> {
       return true;
     }
 
-    // Comprova la taula d'admins
-    const { data: adminData, error: adminError } = await supabase
-      .from('admins')
-      .select('email')
-      .eq('email', userEmail.toLowerCase())
-      .single();
-
-    if (adminData) {
-      return true;
+    // Comprova la taula d'admins via RPC (SECURITY DEFINER) — el client
+    // ja no necessita SELECT directe a `admins` ni a `socis.email`.
+    const { data: adminViaRpc, error: rpcErr } = await supabase.rpc('is_admin_by_email');
+    if (rpcErr) {
+      console.error('Error in is_admin_by_email RPC:', rpcErr);
+      return false;
     }
-
-    // Si no està a la taula d'admins, comprova si és membre de la junta directiva via socis
-    // (assumint que tens un camp per això a la taula socis)
-    const { data: sociData, error: sociError } = await supabase
-      .from('socis')
-      .select('numero_soci')
-      .eq('email', userEmail.toLowerCase())
-      .single();
-
-    if (sociError && sociError.code !== 'PGRST116') {
-      console.error('Error checking socis status:', sociError);
-    }
-
-    // Per ara, retorna false si no està a la taula d'admins
-    // Pots afegir lògica addicional aquí si tens camps específics per la junta
-    return false;
+    return adminViaRpc === true;
 
   } catch (error) {
     console.error('Error in checkAdminStatus:', error);

@@ -53,7 +53,7 @@
     try {
       const { data: sociData, error: sociError } = await supabase
         .from('socis')
-        .select('numero_soci, nom, cognoms, email')
+        .select('numero_soci, nom, cognoms')
         .eq('email', $user.email)
         .maybeSingle();
 
@@ -65,8 +65,7 @@
         // comparen per soci_numero directament.
         myPlayerData = {
           numero_soci: sociData.numero_soci,
-          nom: `${sociData.nom ?? ''} ${sociData.cognoms ?? ''}`.trim(),
-          email: sociData.email
+          nom: `${sociData.nom ?? ''} ${sociData.cognoms ?? ''}`.trim()
         };
       }
     } catch (e) {

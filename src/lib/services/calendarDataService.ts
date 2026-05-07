@@ -28,7 +28,6 @@ export interface MyPlayerData {
   id: number;
   numero_soci: number;
   nom: string;
-  email: string | null;
 }
 
 /**
@@ -42,7 +41,7 @@ export async function loadSociByEmail(
 ): Promise<MyPlayerData | null> {
   const { data, error } = await supabase
     .from('socis')
-    .select('numero_soci, nom, cognoms, email')
+    .select('numero_soci, nom, cognoms')
     .eq('email', email)
     .maybeSingle();
 
@@ -51,8 +50,7 @@ export async function loadSociByEmail(
   return {
     id: data.numero_soci,
     numero_soci: data.numero_soci,
-    nom: `${data.nom ?? ''} ${data.cognoms ?? ''}`.trim(),
-    email: data.email
+    nom: `${data.nom ?? ''} ${data.cognoms ?? ''}`.trim()
   };
 }
 

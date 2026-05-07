@@ -27,7 +27,6 @@
 		numero_soci: number;
 		nom: string;
 		cognoms: string;
-		email: string | null;
 	};
 
 	let mitjanes: MitjanaHistorica[] = [];
@@ -84,7 +83,7 @@
 			// Load all socis
 			const { data: socisList, error: socisError } = await supabase
 				.from('socis')
-				.select('numero_soci, nom, cognoms, email')
+				.select('numero_soci, nom, cognoms')
 				.order('cognoms');
 
 			if (socisError) {

@@ -1,0 +1,3149 @@
+[
+ {
+  "cognoms": "Alvarez Martínez",
+  "nom": "Jose Miguel",
+  "n_soci": 8310,
+  "alta": "2019-03-05 00:00:00",
+  "correu_elect": "correo.miguelalvarez@gmail.com",
+  "m_bil": 628901213,
+  "data_naix": "1956-05-24 00:00:00",
+  "taquilla": 238,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Alvarez Valencia",
+  "nom": "Pedro",
+  "n_soci": 8485,
+  "alta": "2021-10-14 00:00:00",
+  "m_bil": 651904893,
+  "data_naix": "1942-07-02 00:00:00",
+  "taquilla": 220,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Armengol Creus",
+  "nom": "Jaume",
+  "n_soci": 7044,
+  "alta": "2008-10-28 00:00:00",
+  "correu_elect": "jaumearmengol@telefonica.net",
+  "telefon": 636697538,
+  "m_bil": 658470094,
+  "data_naix": "1933-09-28 00:00:00",
+  "taquera": 15,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Arroyo Durán",
+  "nom": "Juan Luis",
+  "n_soci": 8396,
+  "alta": "2019-11-13 00:00:00",
+  "correu_elect": "juanluis01@gmail.com",
+  "m_bil": 686622557,
+  "data_naix": "1942-06-03 00:00:00",
+  "taquera": 47,
+  "taquilla": 244,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Baraut Baraut",
+  "nom": "Mariano",
+  "n_soci": 6726,
+  "alta": "2005-03-15 00:00:00",
+  "telefon": 932323610,
+  "data_naix": "1947-09-29 00:00:00",
+  "taquilla": 203,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Bellido gonzález",
+  "nom": "Ramón",
+  "n_soci": 8440,
+  "alta": "2020-12-18 00:00:00",
+  "correu_elect": "jrblld68@gmail.com",
+  "m_bil": 679200186,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Benito Navarro",
+  "nom": "Jorge",
+  "n_soci": 7226,
+  "alta": "2009-11-25 00:00:00",
+  "m_bil": 637002154,
+  "data_naix": "1971-02-15 00:00:00",
+  "taquilla": 235,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Bermejo Alias",
+  "nom": "Alfonso",
+  "n_soci": 8542,
+  "alta": "2022-05-28 00:00:00",
+  "m_bil": 648476941,
+  "data_naix": "1956-08-08 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Boix Gonzalez",
+  "nom": "Agustí",
+  "n_soci": 8077,
+  "alta": "2016-03-02 00:00:00",
+  "correu_elect": "agustiboixgonzalez@gmail.com",
+  "telefon": 932314291,
+  "m_bil": 690030267,
+  "data_naix": "1951-05-27 00:00:00",
+  "taquilla": 206,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Briones Lorente",
+  "nom": "Miquel",
+  "n_soci": 8364,
+  "alta": "2019-06-12 00:00:00",
+  "correu_elect": "miquelbriones@gmail.com",
+  "m_bil": 688807257,
+  "data_naix": "1951-11-22 00:00:00",
+  "taquilla": 241,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Bures Valls",
+  "nom": "Ramon",
+  "n_soci": 7642,
+  "alta": "2012-04-12 00:00:00",
+  "telefon": 933054275,
+  "m_bil": 646597457,
+  "data_naix": "1940-12-13 00:00:00",
+  "taquera": 46,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Caballero",
+  "nom": "Gabriel",
+  "m_bil": 621028041,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Cabre Camps",
+  "nom": "Jordi",
+  "n_soci": 261,
+  "alta": "1964-01-09 00:00:00",
+  "correu_elect": "jordicabrecamps@gmail.com",
+  "telefon": 935315230,
+  "m_bil": 617542528,
+  "data_naix": "1945-12-20 00:00:00",
+  "taquera": 21,
+  "taquilla": 246,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Carrasco Montes",
+  "nom": "Joan",
+  "n_soci": 2749,
+  "alta": "1981-05-21 00:00:00",
+  "correu_elect": "joancarmon@hotmail.com",
+  "telefon": 934552703,
+  "data_naix": "1944-06-09 00:00:00",
+  "taquera": 78,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Carreño Serra",
+  "nom": "Alfonso",
+  "n_soci": 7046,
+  "alta": "2008-10-29 00:00:00",
+  "correu_elect": "alfonsocarrenyo@gmail.com",
+  "telefon": 934565674,
+  "m_bil": 660069608,
+  "data_naix": "1959-05-01 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Casamor Regull",
+  "nom": "José Maria",
+  "n_soci": 8408,
+  "alta": "4-2--2020",
+  "telefon": 934355088,
+  "m_bil": 630059263,
+  "data_naix": "1953-12-22 00:00:00",
+  "taquera": 12,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Casanova Fregine",
+  "nom": "Pere",
+  "n_soci": 7618,
+  "alta": "2012-10-19 00:00:00",
+  "correu_elect": "p.casanova.f@gmail.com",
+  "telefon": 934579157,
+  "m_bil": 610450334,
+  "data_naix": "1946-11-22 00:00:00",
+  "taquilla": 233,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Castillo Juan",
+  "nom": "Arturo",
+  "n_soci": 6897,
+  "alta": "2006-04-12 00:00:00",
+  "telefon": 932107948,
+  "data_naix": "1938-05-14 00:00:00",
+  "taquilla": 201,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Cervantes Donenech",
+  "nom": "Roger",
+  "n_soci": 8138,
+  "alta": "2016-10-21 00:00:00",
+  "correu_elect": "cervi_4@hotmail.com",
+  "telefon": 931127085,
+  "m_bil": 645347167,
+  "data_naix": "1985-05-18 00:00:00",
+  "taquera": 114,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Cervantes Solsona",
+  "nom": "Rafael",
+  "n_soci": 7938,
+  "alta": "2014-11-11 00:00:00",
+  "m_bil": 649436956,
+  "data_naix": "1962-08-31 00:00:00",
+  "taquera": 55,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Comas Ferrer",
+  "nom": "Jaume",
+  "n_soci": 6110,
+  "alta": "1999-01-01 00:00:00",
+  "telefon": 934205045,
+  "data_naix": "1937-01-24 00:00:00",
+  "taquilla": 210,
+  "data_baixa": "No és baixa. Passarà Deu 2020",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Corbalan Juan",
+  "nom": "Domingo",
+  "n_soci": 8041,
+  "alta": "2016-01-19 00:00:00",
+  "telefon": 933096256,
+  "m_bil": 659652043,
+  "data_naix": "1941-09-28 00:00:00",
+  "taquilla": 224,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Curcó Aguarod",
+  "nom": "Enric",
+  "n_soci": 8433,
+  "alta": "2020-03-03 00:00:00",
+  "m_bil": 647423806,
+  "data_naix": "1938-05-03 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "De La Riva Aguado",
+  "nom": "Jordi",
+  "n_soci": 3287,
+  "alta": "1984-02-29 00:00:00",
+  "correu_elect": "jdelarivaaguado@hotmail.com",
+  "telefon": 933074128,
+  "m_bil": 619148046,
+  "data_naix": "1975-07-21 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Del Rio Soler",
+  "nom": "Andreu",
+  "n_soci": 5261,
+  "alta": "1994-01-25 00:00:00",
+  "correu_elect": "andreudelrio@gmail.com",
+  "telefon": 932102190,
+  "m_bil": 648754316,
+  "data_naix": "1947-03-28 00:00:00",
+  "taquilla": 228,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Díaz Martín",
+  "nom": "Eduard",
+  "n_soci": 8264,
+  "alta": "2018-04-10 00:00:00",
+  "correu_elect": "bluesmartini@hotmail.com",
+  "telefon": 932315521,
+  "m_bil": 629284920,
+  "data_naix": "1961-06-24 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Diez Diez",
+  "nom": "Angel",
+  "n_soci": 8031,
+  "alta": "2015-11-06 00:00:00",
+  "correu_elect": "angeldiezdiez2@hotmail.com",
+  "telefon": 933477525,
+  "m_bil": 659662959,
+  "data_naix": "1943-06-01 00:00:00",
+  "taquilla": 209,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Escoda Llort",
+  "nom": "Sergi",
+  "n_soci": 7952,
+  "alta": "2014-11-12 00:00:00",
+  "correu_elect": "sergi85kio@gmail.com",
+  "m_bil": 686367835,
+  "data_naix": "1986-07-07 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Ferras Omella",
+  "nom": "Pedro",
+  "n_soci": 7541,
+  "alta": "2012-01-17 00:00:00",
+  "telefon": 934331793,
+  "m_bil": 649439572,
+  "data_naix": "1946-11-20 00:00:00",
+  "taquera": "117-131",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Ferrer Miquel",
+  "nom": "Josep Mª",
+  "n_soci": 7864,
+  "alta": "2014-12-02 00:00:00",
+  "correu_elect": "jofermi10@yahoo.es",
+  "telefon": 932453160,
+  "m_bil": 606446566,
+  "data_naix": "1954-11-09 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Fina Pasanau",
+  "nom": "Xavier",
+  "n_soci": 407,
+  "alta": "1969-01-10 00:00:00",
+  "telefon": 934369884,
+  "data_naix": "1965-11-01 00:00:00",
+  "taquera": "41-92",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Fito Ibañez",
+  "nom": "Joan",
+  "n_soci": 7196,
+  "alta": "2009-10-30 00:00:00",
+  "correu_elect": "joanfito@gmail.com",
+  "telefon": 934353501,
+  "m_bil": 648806805,
+  "data_naix": "1951-07-04 00:00:00",
+  "taquilla": 221,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Garcia Garcia",
+  "nom": "Alfonso",
+  "n_soci": 7184,
+  "alta": "2009-10-27 00:00:00",
+  "telefon": 934299628,
+  "m_bil": 662046732,
+  "data_naix": "1931-01-23 00:00:00",
+  "taquera": 139,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Garriga Rostey",
+  "nom": "Claudi",
+  "n_soci": 2603,
+  "alta": "1980-10-31 00:00:00",
+  "correu_elect": "claudigarriga@gmail.com",
+  "telefon": 932317120,
+  "data_naix": "1937-01-26 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Gibernau Quintana",
+  "nom": "Joaquim",
+  "n_soci": 8387,
+  "alta": "2019-10-30 00:00:00",
+  "m_bil": 680419804,
+  "data_naix": "1958-01-01 00:00:00",
+  "taquera": "33-39",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Girbes Gonzalez",
+  "nom": "Vicens",
+  "n_soci": 8373,
+  "alta": "2019-09-30 00:00:00",
+  "correu_elect": "vgirbes@yahoo.es",
+  "telefon": 934083458,
+  "m_bil": 671958058,
+  "data_naix": "1949-05-18 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Gómez Cortés",
+  "nom": "Juan",
+  "n_soci": 8156,
+  "alta": "2017-02-10 00:00:00",
+  "correu_elect": "007juanjosegomez@gmail.com",
+  "telefon": 933088061,
+  "m_bil": 674294714,
+  "data_naix": "1935-05-08 00:00:00",
+  "taquilla": 227,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Gonzalez Carvajal",
+  "nom": "Lluis",
+  "n_soci": 7026,
+  "alta": "2008-04-07 00:00:00",
+  "correu_elect": "lugaro@orange.es",
+  "telefon": 934566312,
+  "m_bil": 610753859,
+  "data_naix": "1945-10-07 00:00:00",
+  "taquera": 118,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Gonzalez Vericat",
+  "nom": "Buenaventura",
+  "n_soci": 8014,
+  "alta": "2015-07-08 00:00:00",
+  "telefon": 932508003,
+  "m_bil": 616767476,
+  "data_naix": "1958-03-31 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Grau Cadena",
+  "nom": "Joan",
+  "n_soci": 8062,
+  "alta": "2016-02-03 00:00:00",
+  "correu_elect": "jgc1992c@gmail.com",
+  "m_bil": 649831293,
+  "data_naix": "1954-03-22 00:00:00",
+  "taquera": "10 y 56",
+  "taquilla": 208,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Hernández Falcó",
+  "nom": "Ignacio",
+  "n_soci": 8311,
+  "alta": "2019-03-05 00:00:00",
+  "correu_elect": "ignaciohernandezfalco@gmail.com",
+  "telefon": 934539237,
+  "m_bil": 600352301,
+  "data_naix": "1954-06-06 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Hernández Márquez",
+  "nom": "Juan",
+  "n_soci": 8186,
+  "alta": "2017-10-10 00:00:00",
+  "m_bil": 661274827,
+  "data_naix": "1947-03-02 00:00:00",
+  "taquilla": 223,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Herrera Nuñez",
+  "nom": "Rafael",
+  "n_soci": 8215,
+  "alta": "2018-01-12 00:00:00",
+  "telefon": 933516654,
+  "m_bil": 669838356,
+  "data_naix": "1942-10-04 00:00:00",
+  "taquera": 34,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Ibañez Forte",
+  "nom": "Jose",
+  "n_soci": 8115,
+  "alta": "2016-09-23 00:00:00",
+  "correu_elect": "jif42@hotmail.es",
+  "telefon": 934330364,
+  "m_bil": 655832630,
+  "data_naix": "1942-04-10 00:00:00",
+  "taquilla": 240,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Inocentes Sivilla",
+  "nom": "Vicens",
+  "n_soci": 5818,
+  "alta": "1997-01-05 00:00:00",
+  "correu_elect": "vicenteinocentes@telefonica.net",
+  "telefon": 934362185,
+  "m_bil": 690092694,
+  "data_naix": "1961-03-20 00:00:00",
+  "taquilla": 207,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Jarque Sanchez",
+  "nom": "Raül",
+  "n_soci": 7308,
+  "alta": "2010-07-06 00:00:00",
+  "correu_elect": "rauljarque2@hotmail.com",
+  "telefon": 933514664,
+  "m_bil": 618359052,
+  "data_naix": "1951-02-26 00:00:00",
+  "taquera": "110-132",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Lahoz Troni",
+  "nom": "Enric",
+  "n_soci": 8183,
+  "alta": "2017-09-13 00:00:00",
+  "correu_elect": "enlatro@gmail.com",
+  "telefon": 934571141,
+  "m_bil": 610616216,
+  "data_naix": "1946-02-19 00:00:00",
+  "taquera": 44,
+  "taquilla": 234,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Ledo Gasia",
+  "nom": "Francesc",
+  "n_soci": 8483,
+  "alta": "2021-07-01 00:00:00",
+  "correu_elect": "francescledo@gmail.com",
+  "m_bil": 607310321,
+  "data_naix": "1948-05-22 00:00:00",
+  "taquera": 138,
+  "taquilla": 202,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Leon Puig",
+  "nom": "Esteve",
+  "n_soci": 3019,
+  "alta": "1983-12-01 00:00:00",
+  "correu_elect": "eslepu@hotmail.com",
+  "m_bil": 607333728,
+  "data_naix": "1966-07-21 00:00:00",
+  "taquilla": 211,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Llauet Amiell",
+  "nom": "Antoni",
+  "n_soci": 2543,
+  "alta": "1980-09-16 00:00:00",
+  "telefon": 933478386,
+  "data_naix": "1945-05-23 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "López Mallach",
+  "nom": "Miguel",
+  "n_soci": 8482,
+  "alta": "2021-10-06 00:00:00",
+  "correu_elect": "miguel.lmfotografia@gmail.com",
+  "m_bil": 629692446,
+  "data_naix": "1971-08-10 00:00:00",
+  "taquera": 135,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Lopez Sanchez",
+  "nom": "Angel",
+  "n_soci": 1123,
+  "alta": "1976-01-02 00:00:00",
+  "telefon": 934552168,
+  "data_naix": "1953-01-28 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Lopez Zurdo",
+  "nom": "Isidoro",
+  "n_soci": 7439,
+  "alta": "2011-06-07 00:00:00",
+  "m_bil": 638379447,
+  "data_naix": "1953-01-02 00:00:00",
+  "taquera": 109,
+  "taquilla": "217-219",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Manzano García",
+  "nom": "Marià",
+  "n_soci": 8407,
+  "alta": "2020-01-14 00:00:00",
+  "correu_elect": "mariano.manzano@yahoo.es",
+  "telefon": 932188072,
+  "m_bil": 669904294,
+  "taquera": 116,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Marin Bellido",
+  "nom": "Salvador",
+  "n_soci": 1381,
+  "alta": "1977-01-01 00:00:00",
+  "correu_elect": "salvadormarin20@yahoo.es",
+  "telefon": 932196852,
+  "data_naix": "1963-08-20 00:00:00",
+  "taquera": 7,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Martínez García",
+  "nom": "Andrés",
+  "n_soci": 7009,
+  "alta": "2008-02-04 00:00:00",
+  "correu_elect": "andres37mg@hotmail.com",
+  "telefon": 932450657,
+  "data_naix": "1937-11-21 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Martínez Molina",
+  "nom": "Andrés",
+  "n_soci": 8379,
+  "alta": "2019-10-08 00:00:00",
+  "data_naix": "1964-11-30 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Mayor Piñol",
+  "nom": "Josep",
+  "n_soci": 8121,
+  "alta": "2016-09-28 00:00:00",
+  "correu_elect": "maypimayor@gmail.com",
+  "telefon": 933519404,
+  "m_bil": 670977779,
+  "data_naix": "1949-06-21 00:00:00",
+  "taquera": "9-111",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Melgarejo Nicolás",
+  "nom": "Antonio",
+  "n_soci": 8464,
+  "alta": "2021-10-01 00:00:00",
+  "telefon": 936540444,
+  "m_bil": 679686064,
+  "data_naix": "1942-04-05 00:00:00",
+  "taquilla": 242,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Mercader Gascon",
+  "nom": "Rossend",
+  "alta": "2020-03-05 00:00:00",
+  "telefon": 933471845,
+  "m_bil": 634436113,
+  "data_naix": "1954-09-01 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Millan Sánchez",
+  "nom": "Eduardo",
+  "n_soci": 8366,
+  "alta": "2019-07-30 00:00:00",
+  "correu_elect": "eduardomillansanchez@gmail.com",
+  "telefon": 933490886,
+  "m_bil": 659548990,
+  "taquera": 79,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Miralles",
+  "nom": "Francisco",
+  "n_soci": 8358,
+  "alta": "2019-05-16 00:00:00",
+  "m_bil": 696353746,
+  "data_naix": "1970-04-29 00:00:00",
+  "taquilla": 237,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Montaña Perez",
+  "nom": "Joan",
+  "n_soci": 8335,
+  "alta": "2019-03-14 00:00:00",
+  "correu_elect": "joanmont@hotmail.com",
+  "telefon": 933498423,
+  "m_bil": 653073578,
+  "data_naix": "1964-03-25 00:00:00",
+  "taquilla": 236,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Mora Santamaria",
+  "nom": "Angel",
+  "n_soci": 8438,
+  "m_bil": 669392774,
+  "taquera": "16-25",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Moreno Barcia",
+  "nom": "Rafael",
+  "n_soci": 8436,
+  "alta": "2020-03-03 00:00:00",
+  "m_bil": 630427844,
+  "data_naix": "1963-01-05 00:00:00",
+  "taquilla": 212,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Muntané Merino",
+  "nom": "Joan Maria",
+  "n_soci": 8137,
+  "alta": "2016-10-19 00:00:00",
+  "correu_elect": "joanma.muntane@gmail.com",
+  "m_bil": 619629989,
+  "data_naix": "1985-11-24 00:00:00",
+  "taquera": 113,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Muñoz López",
+  "nom": "Javier",
+  "n_soci": 8439,
+  "alta": "2020-11-30 00:00:00",
+  "correu_elect": "xaviml81@gmail.com",
+  "m_bil": 609915677,
+  "data_naix": "any 1981",
+  "taquera": 3,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Nogues Blanco",
+  "nom": "David",
+  "n_soci": 987,
+  "alta": "1975-01-04 00:00:00",
+  "telefon": 933149952,
+  "m_bil": 645181048,
+  "data_naix": "1962-01-27 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Ortiz Martinez",
+  "nom": "Victor",
+  "n_soci": 6723,
+  "alta": "2005-04-03 00:00:00",
+  "correu_elect": "olgamr@telefonica.net",
+  "telefon": 934553056,
+  "m_bil": 626665582,
+  "data_naix": "1993-05-21 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Ortiz Romero",
+  "nom": "Jesus",
+  "n_soci": 6855,
+  "alta": "2006-09-10 00:00:00",
+  "correu_elect": "jesusortizromero@telefonica.net",
+  "telefon": 934553056,
+  "m_bil": 696057512,
+  "data_naix": "1955-08-24 00:00:00",
+  "taquera": 8,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Pallarès Casanovas",
+  "nom": "Ramon",
+  "n_soci": 8093,
+  "alta": "2016-04-07 00:00:00",
+  "telefon": 932461987,
+  "m_bil": 629010179,
+  "data_naix": "1948-11-17 00:00:00",
+  "taquilla": 231,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Pallisa Gonzalez",
+  "nom": "Jose",
+  "n_soci": 8216,
+  "alta": "2018-01-12 00:00:00",
+  "correu_elect": "tekniko07@gmail.com",
+  "m_bil": 626923323,
+  "data_naix": "1955-12-12 00:00:00",
+  "taquilla": 230,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Pamplona Peralta",
+  "nom": "Manel",
+  "n_soci": 7193,
+  "alta": "2009-10-28 00:00:00",
+  "correu_elect": "conxita_montoliu@hotmail.es",
+  "telefon": 932319329,
+  "data_naix": "1944-02-15 00:00:00",
+  "taquilla": 225,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Pedret Cobo",
+  "nom": "Pedro Jorge",
+  "alta": "2022-01-07 00:00:00",
+  "correu_elect": "pereizhiban@gmail.com",
+  "m_bil": 679648037,
+  "data_naix": "1963-09-28 00:00:00",
+  "taquilla": 243,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Pérez Castillejos",
+  "nom": "Héctor",
+  "n_soci": 8409,
+  "alta": "2020-03-06 00:00:00",
+  "telefon": 34563138,
+  "m_bil": 659867776,
+  "data_naix": "1977-08-27 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Pérez Polaina",
+  "nom": "Sergio",
+  "alta": "2021-11-02 00:00:00",
+  "correu_elect": "sergiopolaina@gmail.com",
+  "telefon": 934654294,
+  "m_bil": 666728752,
+  "data_naix": "1976-11-24 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Piñol Parés",
+  "nom": "Joan",
+  "alta": "2022-04-20 00:00:00",
+  "correu_elect": "IDApplePB352Joan",
+  "telefon": 936890636,
+  "m_bil": 675198533,
+  "data_naix": "1933-01-18 00:00:00",
+  "taquera": 136,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Polls Badia",
+  "nom": "Ricardo",
+  "n_soci": 8181,
+  "alta": "2017-07-04 00:00:00",
+  "correu_elect": "raeltais@gmail.com",
+  "telefon": 930052923,
+  "m_bil": 640669944,
+  "data_naix": "1952-05-11 00:00:00",
+  "taquera": "20-93",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Pometti Cos",
+  "nom": "Alberto-Oscar",
+  "n_soci": 7954,
+  "alta": "2014-12-29 00:00:00",
+  "correu_elect": "albpoco@hotmail.com",
+  "telefon": 932325221,
+  "m_bil": 672670516,
+  "data_naix": "1934-01-29 00:00:00",
+  "taquera": 36,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Querol Viñals",
+  "nom": "Manuel",
+  "n_soci": 3463,
+  "alta": "1985-01-13 00:00:00",
+  "telefon": 933481562,
+  "m_bil": 640198702,
+  "data_naix": "1949-03-28 00:00:00",
+  "taquera": 77,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Rastrollo",
+  "nom": "Gregorio",
+  "m_bil": 669760252,
+  "taquilla": 248,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Rodriguez Airo",
+  "nom": "Juan Manuel",
+  "n_soci": 6811,
+  "alta": "2006-01-30 00:00:00",
+  "telefon": 933094357,
+  "data_naix": "1942-06-04 00:00:00",
+  "taquera": 28,
+  "taquilla": 204,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Rodriguez Fernandez",
+  "nom": "Juan",
+  "n_soci": 7909,
+  "alta": "2014-06-23 00:00:00",
+  "telefon": 930325667,
+  "m_bil": 671958410,
+  "data_naix": "1958-02-20 00:00:00",
+  "taquera": 27,
+  "taquilla": 213,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Rodriguez Lopez",
+  "nom": "Juan",
+  "n_soci": 8133,
+  "alta": "2016-10-10 00:00:00",
+  "telefon": 933506021,
+  "data_naix": "1958-02-22 00:00:00",
+  "taquera": 112,
+  "taquilla": 218,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Roy Sobrevilla",
+  "nom": "Leandro",
+  "n_soci": 6470,
+  "alta": "2002-09-18 00:00:00",
+  "telefon": 933480193,
+  "m_bil": 666423720,
+  "data_naix": "1946-12-09 00:00:00",
+  "taquilla": 215,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Royes Garcia",
+  "nom": "Eduardo",
+  "n_soci": 8411,
+  "alta": "2020-02-24 00:00:00",
+  "telefon": 932322806,
+  "m_bil": 687943931,
+  "data_naix": "1961-06-13 00:00:00",
+  "taquera": 69,
+  "taquilla": 214,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Ruiz Martinez",
+  "nom": "Angel",
+  "n_soci": 7297,
+  "alta": "2010-04-03 00:00:00",
+  "telefon": 934412151,
+  "m_bil": 659324016,
+  "data_naix": "1970-12-02 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Sanchez Molera",
+  "nom": "Manuel",
+  "n_soci": 7967,
+  "alta": "2015-02-17 00:00:00",
+  "correu_elect": "manelsan@hotmail.es",
+  "telefon": 931411268,
+  "m_bil": 626460309,
+  "data_naix": "1944-06-10 00:00:00",
+  "taquilla": 226,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Santos Gonzalez",
+  "nom": "Juan Felix",
+  "n_soci": 7602,
+  "alta": "2012-10-10 00:00:00",
+  "telefon": 931826180,
+  "m_bil": 651061737,
+  "data_naix": "1946-05-28 00:00:00",
+  "taquera": 98,
+  "taquilla": 239,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Sanz Mora",
+  "nom": "Joan",
+  "n_soci": 2377,
+  "alta": "1980-01-16 00:00:00",
+  "telefon": 934555665,
+  "data_naix": "1928-02-28 00:00:00",
+  "taquera": "86-87",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Saucedo Bascón",
+  "nom": "Jose Antonio",
+  "n_soci": 8296,
+  "alta": "2018-11-20 00:00:00",
+  "correu_elect": "saucedobascon@hotmail.com",
+  "telefon": 934334044,
+  "m_bil": 667272427,
+  "data_naix": "1963-03-12 00:00:00",
+  "taquera": "53 y 140",
+  "taquilla": 216,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Segura Gonzalez",
+  "nom": "Fernando",
+  "n_soci": 8309,
+  "alta": "2019-03-05 00:00:00",
+  "correu_elect": "loobvio.fer@gmail.com",
+  "telefon": 933176288,
+  "m_bil": 615975330,
+  "data_naix": "1962-10-03 00:00:00",
+  "taquilla": 245,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Selga  Sarro",
+  "nom": "Josep",
+  "n_soci": 6203,
+  "alta": "2000-01-25 00:00:00",
+  "telefon": 934553979,
+  "data_naix": "1937-01-14 00:00:00",
+  "taquera": "88-90",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Solergibert Fauría",
+  "nom": "Pere",
+  "n_soci": 8102,
+  "alta": "2016-05-05 00:00:00",
+  "correu_elect": "pere@solergibert.net",
+  "telefon": 933498227,
+  "m_bil": 620160961,
+  "data_naix": "1948-03-20 00:00:00",
+  "taquilla": 222,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Soto Castillo",
+  "nom": "Rafael",
+  "correu_elect": "rsoto@tmb.cat",
+  "telefon": 932454948,
+  "m_bil": 626190409,
+  "data_naix": "1967-08-03 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Trens Ojea",
+  "nom": "Tomás",
+  "alta": "2021-11-15 00:00:00",
+  "m_bil": 629881419,
+  "data_naix": "1951-10-20 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Trillo Palma",
+  "nom": "Antonio",
+  "n_soci": 8208,
+  "alta": "2017-12-15 00:00:00",
+  "correu_elect": "antriyo@hotmail.com",
+  "telefon": 935330759,
+  "m_bil": 670845754,
+  "data_naix": "1963-11-06 00:00:00",
+  "taquera": 40,
+  "taquilla": 229,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Valles Gallego",
+  "nom": "Miguel",
+  "n_soci": 8280,
+  "alta": "2018-09-28 00:00:00",
+  "telefon": 932459158,
+  "m_bil": 664162593,
+  "data_naix": "1926-06-16 00:00:00",
+  "taquilla": 232,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Valles Ros",
+  "nom": "Josep",
+  "n_soci": 6512,
+  "alta": "2002-11-11 00:00:00",
+  "correu_elect": "pitujv@gmail.com",
+  "telefon": 934555472,
+  "m_bil": 628872653,
+  "data_naix": "1951-12-07 00:00:00",
+  "taquilla": 205,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Verdugo Martín",
+  "nom": "Francesc",
+  "n_soci": 8212,
+  "alta": "2018-01-10 00:00:00",
+  "telefon": 932320487,
+  "m_bil": 646554065,
+  "data_naix": "1949-08-15 00:00:00",
+  "taquera": 42,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Veza Molla",
+  "nom": "Juan",
+  "correu_elect": "juanv000@gmail.com",
+  "m_bil": 601074166,
+  "data_naix": "1956-10-11 00:00:00",
+  "taquera": 133,
+  "taquilla": 247,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Viaplana Lleonart",
+  "nom": "Josep Maria",
+  "n_soci": 7586,
+  "alta": "2012-04-06 00:00:00",
+  "correu_elect": "josepmaria.viaplana@gmail.com",
+  "telefon": 933490532,
+  "m_bil": 669816126,
+  "data_naix": "1946-10-27 00:00:00",
+  "taquera": 43,
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Yepes Martinez",
+  "nom": "Eduard",
+  "n_soci": 3780,
+  "alta": "1986-10-09 00:00:00",
+  "correu_elect": "skakimat@hotmail.com",
+  "m_bil": 622353152,
+  "data_naix": "1974-02-23 00:00:00",
+  "__source": "todos_2022"
+ },
+ {
+  "cognoms": "Cabre Camps",
+  "nom": "Jordi",
+  "n_soci": 261,
+  "alta": "1964-01-09 00:00:00",
+  "correu_elect": "jordicabrecamps@gmail.com",
+  "telefon": 935315230,
+  "m_bil": 617542528,
+  "data_naix": "1945-12-20 00:00:00",
+  "taquera": 21,
+  "taquilla": 246,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Fina Pasanau",
+  "nom": "Xavier",
+  "n_soci": 407,
+  "alta": "1969-01-10 00:00:00",
+  "telefon": 934369884,
+  "data_naix": "1965-11-01 00:00:00",
+  "taquera": "41-92",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Nogues Blanco",
+  "nom": "David",
+  "n_soci": 987,
+  "alta": "1975-01-04 00:00:00",
+  "telefon": 933149952,
+  "m_bil": 645181048,
+  "data_naix": "1962-01-27 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Lopez Sanchez",
+  "nom": "Angel",
+  "n_soci": 1123,
+  "alta": "1976-01-02 00:00:00",
+  "telefon": 934552168,
+  "data_naix": "1953-01-28 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Marin Bellido",
+  "nom": "Salvador",
+  "n_soci": 1381,
+  "alta": "1977-01-01 00:00:00",
+  "correu_elect": "salvadormarin20@yahoo.es",
+  "telefon": 932196852,
+  "data_naix": "1963-08-20 00:00:00",
+  "taquera": 7,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Sanz Mora",
+  "nom": "Joan",
+  "n_soci": 2377,
+  "alta": "1980-01-16 00:00:00",
+  "telefon": 934555665,
+  "data_naix": "1928-02-28 00:00:00",
+  "taquera": "86-87",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Llauet Amiell",
+  "nom": "Antoni",
+  "n_soci": 2543,
+  "alta": "1980-09-16 00:00:00",
+  "telefon": 933478386,
+  "data_naix": "1945-05-23 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Garriga Rostey",
+  "nom": "Claudi",
+  "n_soci": 2603,
+  "alta": "1980-10-31 00:00:00",
+  "correu_elect": "claudigarriga@gmail.com",
+  "telefon": 932317120,
+  "data_naix": "1937-01-26 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Carrasco Montes",
+  "nom": "Joan",
+  "n_soci": 2749,
+  "alta": "1981-05-21 00:00:00",
+  "correu_elect": "joancarmon@hotmail.com",
+  "telefon": 934552703,
+  "data_naix": "1944-06-09 00:00:00",
+  "taquera": 78,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Leon Puig",
+  "nom": "Esteve",
+  "n_soci": 3019,
+  "alta": "1983-12-01 00:00:00",
+  "correu_elect": "eslepu@hotmail.com",
+  "m_bil": 607333728,
+  "data_naix": "1966-07-21 00:00:00",
+  "taquilla": 211,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "De La Riva Aguado",
+  "nom": "Jordi",
+  "n_soci": 3287,
+  "alta": "1984-02-29 00:00:00",
+  "correu_elect": "jdelarivaaguado@hotmail.com",
+  "telefon": 933074128,
+  "m_bil": 619148046,
+  "data_naix": "1975-07-21 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Querol Viñals",
+  "nom": "Manuel",
+  "n_soci": 3463,
+  "alta": "1985-01-13 00:00:00",
+  "telefon": 933481562,
+  "m_bil": 640198702,
+  "data_naix": "1949-03-28 00:00:00",
+  "taquera": 77,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Yepes Martinez",
+  "nom": "Eduard",
+  "n_soci": 3780,
+  "alta": "1986-10-09 00:00:00",
+  "correu_elect": "skakimat@hotmail.com",
+  "m_bil": 622353152,
+  "data_naix": "1974-02-23 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Del Rio Soler",
+  "nom": "Andreu",
+  "n_soci": 5261,
+  "alta": "1994-01-25 00:00:00",
+  "correu_elect": "andreudelrio@gmail.com",
+  "telefon": 932102190,
+  "m_bil": 648754316,
+  "data_naix": "1947-03-28 00:00:00",
+  "taquilla": 228,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Inocentes Sivilla",
+  "nom": "Vicens",
+  "n_soci": 5818,
+  "alta": "1997-01-05 00:00:00",
+  "correu_elect": "vicenteinocentes@telefonica.net",
+  "telefon": 934362185,
+  "m_bil": 690092694,
+  "data_naix": "1961-03-20 00:00:00",
+  "taquilla": 207,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Comas Ferrer",
+  "nom": "Jaume",
+  "n_soci": 6110,
+  "alta": "1999-01-01 00:00:00",
+  "telefon": 934205045,
+  "data_naix": "1937-01-24 00:00:00",
+  "taquilla": 210,
+  "data_baixa": "No és baixa. Passarà Deu 2020",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Selga  Sarro",
+  "nom": "Josep",
+  "n_soci": 6203,
+  "alta": "2000-01-25 00:00:00",
+  "telefon": 934553979,
+  "data_naix": "1937-01-14 00:00:00",
+  "taquera": "88-90",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Roy Sobrevilla",
+  "nom": "Leandro",
+  "n_soci": 6470,
+  "alta": "2002-09-18 00:00:00",
+  "telefon": 933480193,
+  "m_bil": 666423720,
+  "data_naix": "1946-12-09 00:00:00",
+  "taquilla": 215,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Valles Ros",
+  "nom": "Josep",
+  "n_soci": 6512,
+  "alta": "2002-11-11 00:00:00",
+  "correu_elect": "pitujv@gmail.com",
+  "telefon": 934555472,
+  "m_bil": 628872653,
+  "data_naix": "1951-12-07 00:00:00",
+  "taquilla": 205,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Ortiz Martinez",
+  "nom": "Victor",
+  "n_soci": 6723,
+  "alta": "2005-04-03 00:00:00",
+  "correu_elect": "olgamr@telefonica.net",
+  "telefon": 934553056,
+  "m_bil": 626665582,
+  "data_naix": "1993-05-21 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Baraut Baraut",
+  "nom": "Mariano",
+  "n_soci": 6726,
+  "alta": "2005-03-15 00:00:00",
+  "telefon": 932323610,
+  "data_naix": "1947-09-29 00:00:00",
+  "taquilla": 203,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Rodriguez Airo",
+  "nom": "Juan Manuel",
+  "n_soci": 6811,
+  "alta": "2006-01-30 00:00:00",
+  "telefon": 933094357,
+  "data_naix": "1942-06-04 00:00:00",
+  "taquera": 28,
+  "taquilla": 204,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Ortiz Romero",
+  "nom": "Jesus",
+  "n_soci": 6855,
+  "alta": "2006-09-10 00:00:00",
+  "correu_elect": "jesusortizromero@telefonica.net",
+  "telefon": 934553056,
+  "m_bil": 696057512,
+  "data_naix": "1955-08-24 00:00:00",
+  "taquera": 8,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Castillo Juan",
+  "nom": "Arturo",
+  "n_soci": 6897,
+  "alta": "2006-04-12 00:00:00",
+  "telefon": 932107948,
+  "data_naix": "1938-05-14 00:00:00",
+  "taquilla": 201,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Martínez García",
+  "nom": "Andrés",
+  "n_soci": 7009,
+  "alta": "2008-02-04 00:00:00",
+  "correu_elect": "andres37mg@hotmail.com",
+  "telefon": 932450657,
+  "data_naix": "1937-11-21 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Gonzalez Carvajal",
+  "nom": "Lluis",
+  "n_soci": 7026,
+  "alta": "2008-04-07 00:00:00",
+  "correu_elect": "lugaro@orange.es",
+  "telefon": 934566312,
+  "m_bil": 610753859,
+  "data_naix": "1945-10-07 00:00:00",
+  "taquera": 118,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Armengol Creus",
+  "nom": "Jaume",
+  "n_soci": 7044,
+  "alta": "2008-10-28 00:00:00",
+  "correu_elect": "jaumearmengol@telefonica.net",
+  "telefon": 636697538,
+  "m_bil": 658470094,
+  "data_naix": "1933-09-28 00:00:00",
+  "taquera": 15,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Carreño Serra",
+  "nom": "Alfonso",
+  "n_soci": 7046,
+  "alta": "2008-10-29 00:00:00",
+  "correu_elect": "alfonsocarrenyo@gmail.com",
+  "telefon": 934565674,
+  "m_bil": 660069608,
+  "data_naix": "1959-05-01 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Garcia Garcia",
+  "nom": "Alfonso",
+  "n_soci": 7184,
+  "alta": "2009-10-27 00:00:00",
+  "telefon": 934299628,
+  "m_bil": 662046732,
+  "data_naix": "1931-01-23 00:00:00",
+  "taquera": 139,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Pamplona Peralta",
+  "nom": "Manel",
+  "n_soci": 7193,
+  "alta": "2009-10-28 00:00:00",
+  "correu_elect": "conxita_montoliu@hotmail.es",
+  "telefon": 932319329,
+  "data_naix": "1944-02-15 00:00:00",
+  "taquilla": 225,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Fito Ibañez",
+  "nom": "Joan",
+  "n_soci": 7196,
+  "alta": "2009-10-30 00:00:00",
+  "correu_elect": "joanfito@gmail.com",
+  "telefon": 934353501,
+  "m_bil": 648806805,
+  "data_naix": "1951-07-04 00:00:00",
+  "taquilla": 221,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Benito Navarro",
+  "nom": "Jorge",
+  "n_soci": 7226,
+  "alta": "2009-11-25 00:00:00",
+  "m_bil": 637002154,
+  "data_naix": "1971-02-15 00:00:00",
+  "taquilla": 235,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Ruiz Martinez",
+  "nom": "Angel",
+  "n_soci": 7297,
+  "alta": "2010-04-03 00:00:00",
+  "telefon": 934412151,
+  "m_bil": 659324016,
+  "data_naix": "1970-12-02 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Jarque Sanchez",
+  "nom": "Raül",
+  "n_soci": 7308,
+  "alta": "2010-07-06 00:00:00",
+  "correu_elect": "rauljarque2@hotmail.com",
+  "telefon": 933514664,
+  "m_bil": 618359052,
+  "data_naix": "1951-02-26 00:00:00",
+  "taquera": "110-132",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Lopez Zurdo",
+  "nom": "Isidoro",
+  "n_soci": 7439,
+  "alta": "2011-06-07 00:00:00",
+  "m_bil": 638379447,
+  "data_naix": "1953-01-02 00:00:00",
+  "taquera": 109,
+  "taquilla": "217-219",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Ferras Omella",
+  "nom": "Pedro",
+  "n_soci": 7541,
+  "alta": "2012-01-17 00:00:00",
+  "telefon": 934331793,
+  "m_bil": 649439572,
+  "data_naix": "1946-11-20 00:00:00",
+  "taquera": "117-131",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Viaplana Lleonart",
+  "nom": "Josep Maria",
+  "n_soci": 7586,
+  "alta": "2012-04-06 00:00:00",
+  "correu_elect": "josepmaria.viaplana@gmail.com",
+  "telefon": 933490532,
+  "m_bil": 669816126,
+  "data_naix": "1946-10-27 00:00:00",
+  "taquera": 43,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Santos Gonzalez",
+  "nom": "Juan Felix",
+  "n_soci": 7602,
+  "alta": "2012-10-10 00:00:00",
+  "telefon": 931826180,
+  "m_bil": 651061737,
+  "data_naix": "1946-05-28 00:00:00",
+  "taquera": 98,
+  "taquilla": 239,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Casanova Fregine",
+  "nom": "Pere",
+  "n_soci": 7618,
+  "alta": "2012-10-19 00:00:00",
+  "correu_elect": "p.casanova.f@gmail.com",
+  "telefon": 934579157,
+  "m_bil": 610450334,
+  "data_naix": "1946-11-22 00:00:00",
+  "taquilla": 233,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Bures Valls",
+  "nom": "Ramon",
+  "n_soci": 7642,
+  "alta": "2012-04-12 00:00:00",
+  "telefon": 933054275,
+  "m_bil": 646597457,
+  "data_naix": "1940-12-13 00:00:00",
+  "taquera": 46,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Ferrer Miquel",
+  "nom": "Josep Mª",
+  "n_soci": 7864,
+  "alta": "2014-12-02 00:00:00",
+  "correu_elect": "jofermi10@yahoo.es",
+  "telefon": 932453160,
+  "m_bil": 606446566,
+  "data_naix": "1954-11-09 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Rodriguez Fernandez",
+  "nom": "Juan",
+  "n_soci": 7909,
+  "alta": "2014-06-23 00:00:00",
+  "telefon": 930325667,
+  "m_bil": 671958410,
+  "data_naix": "1958-02-20 00:00:00",
+  "taquera": 27,
+  "taquilla": 213,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Cervantes Solsona",
+  "nom": "Rafael",
+  "n_soci": 7938,
+  "alta": "2014-11-11 00:00:00",
+  "m_bil": 649436956,
+  "data_naix": "1962-08-31 00:00:00",
+  "taquera": 55,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Escoda Llort",
+  "nom": "Sergi",
+  "n_soci": 7952,
+  "alta": "2014-11-12 00:00:00",
+  "correu_elect": "sergi85kio@gmail.com",
+  "m_bil": 686367835,
+  "data_naix": "1986-07-07 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Pometti Cos",
+  "nom": "Alberto-Oscar",
+  "n_soci": 7954,
+  "alta": "2014-12-29 00:00:00",
+  "correu_elect": "albpoco@hotmail.com",
+  "telefon": 932325221,
+  "m_bil": 672670516,
+  "data_naix": "1934-01-29 00:00:00",
+  "taquera": 36,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Sanchez Molera",
+  "nom": "Manuel",
+  "n_soci": 7967,
+  "alta": "2015-02-17 00:00:00",
+  "correu_elect": "manelsan@hotmail.es",
+  "telefon": 931411268,
+  "m_bil": 626460309,
+  "data_naix": "1944-06-10 00:00:00",
+  "taquilla": 226,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Gonzalez Vericat",
+  "nom": "Buenaventura",
+  "n_soci": 8014,
+  "alta": "2015-07-08 00:00:00",
+  "telefon": 932508003,
+  "m_bil": 616767476,
+  "data_naix": "1958-03-31 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Diez Diez",
+  "nom": "Angel",
+  "n_soci": 8031,
+  "alta": "2015-11-06 00:00:00",
+  "correu_elect": "angeldiezdiez2@hotmail.com",
+  "telefon": 933477525,
+  "m_bil": 659662959,
+  "data_naix": "1943-06-01 00:00:00",
+  "taquilla": 209,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Corbalan Juan",
+  "nom": "Domingo",
+  "n_soci": 8041,
+  "alta": "2016-01-19 00:00:00",
+  "telefon": 933096256,
+  "m_bil": 659652043,
+  "data_naix": "1941-09-28 00:00:00",
+  "taquilla": 224,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Grau Cadena",
+  "nom": "Joan",
+  "n_soci": 8062,
+  "alta": "2016-02-03 00:00:00",
+  "correu_elect": "jgc1992c@gmail.com",
+  "m_bil": 649831293,
+  "data_naix": "1954-03-22 00:00:00",
+  "taquera": "10  i 56",
+  "taquilla": 208,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Boix Gonzalez",
+  "nom": "Agustí",
+  "n_soci": 8077,
+  "alta": "2016-03-02 00:00:00",
+  "correu_elect": "agustiboixgonzalez@gmail.com",
+  "telefon": 932314291,
+  "m_bil": 690030267,
+  "data_naix": "1951-05-27 00:00:00",
+  "taquilla": 206,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Pallarès Casanovas",
+  "nom": "Ramon",
+  "n_soci": 8093,
+  "alta": "2016-04-07 00:00:00",
+  "telefon": 932461987,
+  "m_bil": 629010179,
+  "data_naix": "1948-11-17 00:00:00",
+  "taquilla": 231,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Solergibert Fauría",
+  "nom": "Pere",
+  "n_soci": 8102,
+  "alta": "2016-05-05 00:00:00",
+  "correu_elect": "pere@solergibert.net",
+  "telefon": 933498227,
+  "m_bil": 620160961,
+  "data_naix": "1948-03-20 00:00:00",
+  "taquilla": 222,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Ibañez Forte",
+  "nom": "Jose",
+  "n_soci": 8115,
+  "alta": "2016-09-23 00:00:00",
+  "correu_elect": "jif42@hotmail.es",
+  "telefon": 934330364,
+  "m_bil": 655832630,
+  "data_naix": "1942-04-10 00:00:00",
+  "taquilla": 240,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Mayor Piñol",
+  "nom": "Josep",
+  "n_soci": 8121,
+  "alta": "2016-09-28 00:00:00",
+  "correu_elect": "maypimayor@gmail.com",
+  "telefon": 933519404,
+  "m_bil": 670977779,
+  "data_naix": "1949-06-21 00:00:00",
+  "taquera": "9-111",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Rodriguez Lopez",
+  "nom": "Juan",
+  "n_soci": 8133,
+  "alta": "2016-10-10 00:00:00",
+  "telefon": 933506021,
+  "data_naix": "1958-02-22 00:00:00",
+  "taquera": 112,
+  "taquilla": 218,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Muntané Merino",
+  "nom": "Joan Maria",
+  "n_soci": 8137,
+  "alta": "2016-10-19 00:00:00",
+  "correu_elect": "joanma.muntane@gmail.com",
+  "m_bil": 619629989,
+  "data_naix": "1985-11-24 00:00:00",
+  "taquera": 113,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Cervantes Donenech",
+  "nom": "Roger",
+  "n_soci": 8138,
+  "alta": "2016-10-21 00:00:00",
+  "correu_elect": "cervi_4@hotmail.com",
+  "telefon": 931127085,
+  "m_bil": 645347167,
+  "data_naix": "1985-05-18 00:00:00",
+  "taquera": 114,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Gómez Cortés",
+  "nom": "Juan",
+  "n_soci": 8156,
+  "alta": "2017-02-10 00:00:00",
+  "correu_elect": "007juanjosegomez@gmail.com",
+  "telefon": 933088061,
+  "m_bil": 674294714,
+  "data_naix": "1935-05-08 00:00:00",
+  "taquilla": 227,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Polls Badia",
+  "nom": "Ricardo",
+  "n_soci": 8181,
+  "alta": "2017-07-04 00:00:00",
+  "correu_elect": "raeltais@gmail.com",
+  "telefon": 930052923,
+  "m_bil": 640669944,
+  "data_naix": "1952-05-11 00:00:00",
+  "taquera": "20-93",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Lahoz Troni",
+  "nom": "Enric",
+  "n_soci": 8183,
+  "alta": "2017-09-13 00:00:00",
+  "correu_elect": "enlatro@gmail.com",
+  "telefon": 934571141,
+  "m_bil": 610616216,
+  "data_naix": "1946-02-19 00:00:00",
+  "taquera": 44,
+  "taquilla": 234,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Hernández Márquez",
+  "nom": "Juan",
+  "n_soci": 8186,
+  "alta": "2017-10-10 00:00:00",
+  "m_bil": 661274827,
+  "data_naix": "1947-03-02 00:00:00",
+  "taquilla": 223,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Trillo Palma",
+  "nom": "Antonio",
+  "n_soci": 8208,
+  "alta": "2017-12-15 00:00:00",
+  "correu_elect": "antriyo@hotmail.com",
+  "telefon": 935330759,
+  "m_bil": 670845754,
+  "data_naix": "1963-11-06 00:00:00",
+  "taquera": 40,
+  "taquilla": 229,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Verdugo Martín",
+  "nom": "Francesc",
+  "n_soci": 8212,
+  "alta": "2018-01-10 00:00:00",
+  "telefon": 932320487,
+  "m_bil": 646554065,
+  "data_naix": "1949-08-15 00:00:00",
+  "taquera": 42,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Herrera Nuñez",
+  "nom": "Rafael",
+  "n_soci": 8215,
+  "alta": "2018-01-12 00:00:00",
+  "telefon": 933516654,
+  "m_bil": 669838356,
+  "data_naix": "1942-10-04 00:00:00",
+  "taquera": 34,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Pallisa Gonzalez",
+  "nom": "Jose",
+  "n_soci": 8216,
+  "alta": "2018-01-12 00:00:00",
+  "correu_elect": "tekniko07@gmail.com",
+  "m_bil": 626923323,
+  "data_naix": "1955-12-12 00:00:00",
+  "taquilla": 230,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Díaz Martín",
+  "nom": "Eduard",
+  "n_soci": 8264,
+  "alta": "2018-04-10 00:00:00",
+  "correu_elect": "bluesmartini@hotmail.com",
+  "telefon": 932315521,
+  "m_bil": 629284920,
+  "data_naix": "1961-06-24 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Valles Gallego",
+  "nom": "Miguel",
+  "n_soci": 8280,
+  "alta": "2018-09-28 00:00:00",
+  "telefon": 932459158,
+  "m_bil": 664162593,
+  "data_naix": "1926-06-16 00:00:00",
+  "taquilla": 232,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Saucedo Bascón",
+  "nom": "Jose Antonio",
+  "n_soci": 8296,
+  "alta": "2018-11-20 00:00:00",
+  "correu_elect": "saucedobascon@hotmail.com",
+  "telefon": 934334044,
+  "m_bil": 667272427,
+  "data_naix": "1963-03-12 00:00:00",
+  "taquera": "53-84",
+  "taquilla": 216,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Segura Gonzalez",
+  "nom": "Fernando",
+  "n_soci": 8309,
+  "alta": "2019-03-05 00:00:00",
+  "correu_elect": "loobvio.fer@gmail.com",
+  "telefon": 933176288,
+  "m_bil": 615975330,
+  "data_naix": "1962-10-03 00:00:00",
+  "taquilla": 245,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Alvarez Martínez",
+  "nom": "Jose Miguel",
+  "n_soci": 8310,
+  "alta": "2019-03-05 00:00:00",
+  "correu_elect": "correo.miguelalvarez@gmail.com",
+  "m_bil": 628901213,
+  "data_naix": "1956-05-24 00:00:00",
+  "taquilla": 238,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Hernández Falcó",
+  "nom": "Ignacio",
+  "n_soci": 8311,
+  "alta": "2019-03-05 00:00:00",
+  "correu_elect": "ignaciohernandezfalco@gmail.com",
+  "telefon": 934539237,
+  "m_bil": 600352301,
+  "data_naix": "1954-06-06 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Montaña Perez",
+  "nom": "Joan",
+  "n_soci": 8335,
+  "alta": "2019-03-14 00:00:00",
+  "correu_elect": "joanmont@hotmail.com",
+  "telefon": 933498423,
+  "m_bil": 653073578,
+  "data_naix": "1964-03-25 00:00:00",
+  "taquilla": 236,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Miralles",
+  "nom": "Francisco",
+  "n_soci": 8358,
+  "alta": "2019-05-16 00:00:00",
+  "m_bil": 696353746,
+  "data_naix": "1970-04-29 00:00:00",
+  "taquilla": 237,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Briones Lorente",
+  "nom": "Miquel",
+  "n_soci": 8364,
+  "alta": "2019-06-12 00:00:00",
+  "correu_elect": "miquelbriones@gmail.com",
+  "m_bil": 688807257,
+  "data_naix": "1951-11-22 00:00:00",
+  "taquilla": 241,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Millan Sánchez",
+  "nom": "Eduardo",
+  "n_soci": 8366,
+  "alta": "2019-07-30 00:00:00",
+  "correu_elect": "eduardomillansanchez@gmail.com",
+  "telefon": 933490886,
+  "m_bil": 659548990,
+  "taquera": 79,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Girbes Gonzalez",
+  "nom": "Vicens",
+  "n_soci": 8373,
+  "alta": "2019-09-30 00:00:00",
+  "correu_elect": "vgirbes@yahoo.es",
+  "telefon": 934083458,
+  "m_bil": 671958058,
+  "data_naix": "1949-05-18 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Martínez Molina",
+  "nom": "Andrés",
+  "n_soci": 8379,
+  "alta": "2019-10-08 00:00:00",
+  "data_naix": "1964-11-30 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Gibernau Quintana",
+  "nom": "Joaquim",
+  "n_soci": 8387,
+  "alta": "2019-10-30 00:00:00",
+  "m_bil": 680419804,
+  "data_naix": "1958-01-01 00:00:00",
+  "taquera": "33-39",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Arroyo Durán",
+  "nom": "Juan Luis",
+  "n_soci": 8396,
+  "alta": "2019-11-13 00:00:00",
+  "correu_elect": "juanluis01@gmail.com",
+  "m_bil": 686622557,
+  "data_naix": "1942-06-03 00:00:00",
+  "taquera": 47,
+  "taquilla": 244,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Manzano García",
+  "nom": "Marià",
+  "n_soci": 8407,
+  "alta": "2020-01-14 00:00:00",
+  "correu_elect": "mariano.manzano@yahoo.es",
+  "telefon": 932188072,
+  "m_bil": 669904294,
+  "taquera": 116,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Casamor Regull",
+  "nom": "José Maria",
+  "n_soci": 8408,
+  "alta": "4-2--2020",
+  "telefon": 934355088,
+  "m_bil": 630059263,
+  "data_naix": "1953-12-22 00:00:00",
+  "taquera": 12,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Pérez Castillejos",
+  "nom": "Héctor",
+  "n_soci": 8409,
+  "alta": "2020-03-06 00:00:00",
+  "telefon": 34563138,
+  "m_bil": 659867776,
+  "data_naix": "1977-08-27 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Royes Garcia",
+  "nom": "Eduardo",
+  "n_soci": 8411,
+  "alta": "2020-02-24 00:00:00",
+  "telefon": 932322806,
+  "m_bil": 687943931,
+  "data_naix": "1961-06-13 00:00:00",
+  "taquera": 69,
+  "taquilla": 214,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Curcó Aguarod",
+  "nom": "Enric",
+  "n_soci": 8433,
+  "alta": "2020-03-03 00:00:00",
+  "m_bil": 647423806,
+  "data_naix": "1938-05-03 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Moreno Barcia",
+  "nom": "Rafael",
+  "n_soci": 8436,
+  "alta": "2020-03-03 00:00:00",
+  "m_bil": 630427844,
+  "data_naix": "1963-01-05 00:00:00",
+  "taquilla": 212,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Mora Santamaria",
+  "nom": "Angel",
+  "n_soci": 8438,
+  "m_bil": 669392774,
+  "taquera": "16-25",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Muñoz López",
+  "nom": "Javier",
+  "n_soci": 8439,
+  "alta": "2020-11-30 00:00:00",
+  "correu_elect": "xaviml81@gmail.com",
+  "m_bil": 609915677,
+  "data_naix": "any 1981",
+  "taquera": 3,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Bellido gonzález",
+  "nom": "Ramón",
+  "n_soci": 8440,
+  "alta": "2020-12-18 00:00:00",
+  "correu_elect": "jrblld68@gmail.com",
+  "m_bil": 679200186,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Melgarejo Nicolás",
+  "nom": "Antonio",
+  "n_soci": 8464,
+  "alta": "2021-10-01 00:00:00",
+  "telefon": 936540444,
+  "m_bil": 679686064,
+  "data_naix": "1942-04-05 00:00:00",
+  "taquilla": 242,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "López Mallach",
+  "nom": "Miguel",
+  "n_soci": 8482,
+  "alta": "2021-10-06 00:00:00",
+  "correu_elect": "miguel.lmfotografia@gmail.com",
+  "m_bil": 629692446,
+  "data_naix": "1971-08-10 00:00:00",
+  "taquera": 135,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Ledo Gasia",
+  "nom": "Francesc",
+  "n_soci": 8483,
+  "alta": "2021-07-01 00:00:00",
+  "correu_elect": "francescledo@gmail.com",
+  "m_bil": 607310321,
+  "data_naix": "1948-05-22 00:00:00",
+  "taquera": 138,
+  "taquilla": 202,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Alvarez Valencia",
+  "nom": "Pedro",
+  "n_soci": 8485,
+  "alta": "2021-10-14 00:00:00",
+  "m_bil": 651904893,
+  "data_naix": "1942-07-02 00:00:00",
+  "taquilla": 220,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Bermejo Alias",
+  "nom": "Alfonso",
+  "n_soci": 8542,
+  "alta": "2022-05-28 00:00:00",
+  "m_bil": 648476941,
+  "data_naix": "1956-08-08 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Caballero",
+  "nom": "Gabriel",
+  "m_bil": 621028041,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Mercader Gascon",
+  "nom": "Rossend",
+  "alta": "2020-03-05 00:00:00",
+  "telefon": 933471845,
+  "m_bil": 634436113,
+  "data_naix": "1954-09-01 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Pedret Cobo",
+  "nom": "Pedro Jorge",
+  "alta": "2022-01-07 00:00:00",
+  "correu_elect": "pereizhiban@gmail.com",
+  "m_bil": 679648037,
+  "data_naix": "1963-09-28 00:00:00",
+  "taquilla": 243,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Pérez Polaina",
+  "nom": "Sergio",
+  "alta": "2021-11-02 00:00:00",
+  "correu_elect": "sergiopolaina@gmail.com",
+  "telefon": 934654294,
+  "m_bil": 666728752,
+  "data_naix": "1976-11-24 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Piñol Parés",
+  "nom": "Joan",
+  "alta": "2022-04-20 00:00:00",
+  "correu_elect": "IDApplePB352Joan",
+  "telefon": 936890636,
+  "m_bil": 675198533,
+  "data_naix": "1933-01-18 00:00:00",
+  "taquera": 136,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Rastrollo",
+  "nom": "Gregorio",
+  "taquilla": 248,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Soto Castillo",
+  "nom": "Rafael",
+  "correu_elect": "rsoto@tmb.cat",
+  "telefon": 932454948,
+  "m_bil": 626190409,
+  "data_naix": "1967-08-03 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Trens Ojea",
+  "nom": "Tomás",
+  "alta": "2021-11-15 00:00:00",
+  "m_bil": 629881419,
+  "data_naix": "1951-10-20 00:00:00",
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Veza Molla",
+  "nom": "Juan",
+  "correu_elect": "juanv000@gmail.com",
+  "m_bil": 601074166,
+  "data_naix": "1956-10-11 00:00:00",
+  "taquera": 133,
+  "taquilla": 247,
+  "__source": "dades_27jul22"
+ },
+ {
+  "cognoms": "Alvira Ranz",
+  "nom": "Pedro",
+  "telefon": 933478437,
+  "m_bil": 628177751,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Ayala Lizaga",
+  "nom": "Carlos",
+  "telefon": 933511572,
+  "m_bil": 658263919,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Bachs Pesas",
+  "nom": "Pere",
+  "telefon": 934350419,
+  "taquera": 31,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Ballester Diaz",
+  "nom": "Pascual",
+  "telefon": 932464843,
+  "taquera": 73,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Baraut Baraut",
+  "nom": "Mariano",
+  "telefon": 932323610,
+  "taquera": 33,
+  "taquilla": 203,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Barcia Lora",
+  "nom": "Francisco",
+  "m_bil": 646252957,
+  "taquera": 138,
+  "taquilla": 214,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Barris Oms",
+  "nom": "Salvador",
+  "telefon": 935354156,
+  "m_bil": 656973284,
+  "taquera": 135,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Benito Navarro",
+  "nom": "Jorge",
+  "m_bil": 637002154,
+  "taquera": 116,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Bermejo Alias",
+  "nom": "Alfonso",
+  "telefon": 932466242,
+  "taquera": "11 i 12",
+  "taquilla": 212,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Boix Gonzalez",
+  "nom": "Agusti",
+  "telefon": 932314291,
+  "m_bil": 690030267,
+  "taquilla": 206,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Bruquetas Vall",
+  "nom": "Manel",
+  "telefon": 933476578,
+  "m_bil": 679908582,
+  "taquera": 23,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Bures Valls",
+  "nom": "Ramon",
+  "telefon": 933054275,
+  "m_bil": 646597457,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Cabre Camps",
+  "nom": "Jordi",
+  "telefon": 935315230,
+  "m_bil": 617542528,
+  "taquera": 21,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Cadillac Bis",
+  "nom": "Jordi",
+  "telefon": 934365169,
+  "m_bil": 662218404,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Calabria Bravo",
+  "nom": "Rafael",
+  "m_bil": 659567522,
+  "taquera": 137,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Campillo Gallego",
+  "nom": "Alfons",
+  "telefon": 934353297,
+  "m_bil": 639465093,
+  "taquera": 113,
+  "taquilla": 205,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Carmona Lopez",
+  "nom": "Manel",
+  "m_bil": 647862972,
+  "taquera": 102,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Carrasco Montes",
+  "nom": "Joan",
+  "telefon": 934552703,
+  "m_bil": 635497600,
+  "taquera": 78,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Casanova Fregine",
+  "nom": "Pere",
+  "telefon": 934579157,
+  "m_bil": 610450334,
+  "taquera": 69,
+  "taquilla": 224,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Casanovas Roca",
+  "nom": "Enric",
+  "telefon": 934360157,
+  "taquera": 53,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Castillo Juan",
+  "nom": "Arturo",
+  "telefon": 932107948,
+  "taquera": "10 i 26",
+  "taquilla": 201,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Cervantes Doménech",
+  "nom": "Roger",
+  "telefon": 931127085,
+  "m_bil": 645347167,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Cervantes Solsona",
+  "nom": "Rafael",
+  "m_bil": 649436956,
+  "taquera": 55,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Civil Delcor",
+  "nom": "Jaume",
+  "telefon": 931151922,
+  "m_bil": 687772115,
+  "taquera": 29,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Colom Codina",
+  "nom": "Ramon",
+  "telefon": 934356818,
+  "taquera": 38,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Comas Ferrer",
+  "nom": "Jaime",
+  "telefon": 934205045,
+  "m_bil": 603710958,
+  "taquera": 30,
+  "taquilla": 210,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Corbalan Juan",
+  "nom": "Domingo",
+  "telefon": 933096256,
+  "m_bil": 659652043,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "De La Riva Aguado",
+  "nom": "Jordi",
+  "telefon": 933074128,
+  "m_bil": 619148046,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Del Rio Soler",
+  "nom": "Andreu",
+  "telefon": 932102190,
+  "m_bil": 648754316,
+  "taquera": 143,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Diez Diez",
+  "nom": "Angel",
+  "telefon": 933477825,
+  "m_bil": 659536507,
+  "taquera": 46,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Ebri Martinez",
+  "nom": "Mario",
+  "telefon": 932320129,
+  "m_bil": 699894299,
+  "taquera": 125,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Escoda Llort",
+  "nom": "Sergi",
+  "m_bil": 686367835,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Ferras Omella",
+  "nom": "Pedro",
+  "telefon": 934331793,
+  "m_bil": 649439572,
+  "taquera": 131,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Ferrer Miquel",
+  "nom": "Josep Mª",
+  "telefon": 932453160,
+  "m_bil": 606446566,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Fina Pasanau",
+  "nom": "Xavier",
+  "telefon": 934369884,
+  "m_bil": 678544049,
+  "taquera": "89 i 92",
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Fito Ibañez",
+  "nom": "Joan",
+  "telefon": 933481875,
+  "m_bil": 648806805,
+  "taquilla": 208,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Garcia Garcia",
+  "nom": "Alfonso",
+  "telefon": 934299628,
+  "m_bil": 662046732,
+  "taquera": 139,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Garriga Rostey",
+  "nom": "Claudi",
+  "telefon": 932317120,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Gelabert Von-Weber",
+  "nom": "Josep",
+  "telefon": 934556689,
+  "taquera": 18,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Gimenez Garcia",
+  "nom": "Gabriel",
+  "m_bil": 697445750,
+  "taquera": 60,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Gomez Garcia",
+  "nom": "Jorge",
+  "telefon": 934355937,
+  "m_bil": 625343800,
+  "taquera": 91,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Gomez Gimenez",
+  "nom": "Felipe",
+  "telefon": 934353489,
+  "m_bil": 658234569,
+  "taquera": 90,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Gomez Gimenez",
+  "nom": "Isaac",
+  "telefon": 934353489,
+  "m_bil": 654068117,
+  "taquera": 84,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Gonzalez Carvajal",
+  "nom": "Lluis",
+  "telefon": 934566312,
+  "m_bil": 610753859,
+  "taquera": 118,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Gonzalez Flores",
+  "nom": "Antonio Manuel",
+  "telefon": 933524824,
+  "m_bil": 660794862,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Gonzalez Vericat",
+  "nom": "Buenaventura",
+  "telefon": 932508003,
+  "m_bil": 616767476,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Grau Cadena",
+  "nom": "Joan",
+  "m_bil": 649831293,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Grau Menal",
+  "nom": "Ricard",
+  "telefon": 933480948,
+  "m_bil": 687382834,
+  "taquera": "6 i 42",
+  "taquilla": 206,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Guimarans Rivas",
+  "nom": "Ignacio",
+  "telefon": 933475812,
+  "m_bil": 616598816,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Hernandez Marquez",
+  "nom": "Juan",
+  "telefon": 935354543,
+  "m_bil": 661274827,
+  "taquera": 16,
+  "taquilla": 209,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Ibáñez Forte",
+  "nom": "José",
+  "telefon": 934330364,
+  "m_bil": 655832630,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Inocentes Sivilla",
+  "nom": "Vicens",
+  "telefon": 934362185,
+  "m_bil": 690092694,
+  "taquera": "39-40-41",
+  "taquilla": 207,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Jarque Sanchez",
+  "nom": "Raül",
+  "telefon": 933514664,
+  "m_bil": 618359052,
+  "taquera": 132,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Juncosa Aragonés",
+  "nom": "Jordi",
+  "m_bil": 636356854,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Labad Mas",
+  "nom": "Ricard",
+  "telefon": 932652818,
+  "m_bil": 696362945,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Leon Puig",
+  "nom": "Esteve",
+  "m_bil": 607333728,
+  "taquilla": 211,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Llauet Amiell",
+  "nom": "Antoni",
+  "telefon": 933478386,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Lopez Carrasco",
+  "nom": "Angel",
+  "telefon": 934552168,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Lopez Mallach",
+  "nom": "Miguel",
+  "m_bil": 629692446,
+  "taquera": 117,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Lopez Sanchez",
+  "nom": "Angel",
+  "telefon": 934552168,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Lopez Zurdo",
+  "nom": "Isidoro",
+  "m_bil": 638379447,
+  "taquera": 109,
+  "taquilla": 217,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Marin Bellido",
+  "nom": "Salvador",
+  "telefon": 932196852,
+  "m_bil": 626538134,
+  "taquera": 7,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Marín Vidal",
+  "nom": "Jordi",
+  "telefon": 933478565,
+  "m_bil": 616783696,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Martinez Garcia",
+  "nom": "Andres",
+  "telefon": 932450657,
+  "taquera": 141,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Mayor Piñol",
+  "nom": "Josep",
+  "telefon": 933519404,
+  "m_bil": 670977779,
+  "taquera": 111,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Merce Farreny",
+  "nom": "Miquel",
+  "telefon": 933724104,
+  "m_bil": 609318218,
+  "taquilla": 223,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Mir Bellmunt",
+  "nom": "Josep",
+  "telefon": 933402717,
+  "taquera": 37,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Montero Perez",
+  "nom": "Joan",
+  "telefon": 933475864,
+  "taquera": "104 i 140",
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Morancho Lopez",
+  "nom": "Josep",
+  "telefon": 933005223,
+  "m_bil": 646951339,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Muntané Merino",
+  "nom": "Joan Maria",
+  "m_bil": 619629989,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Muñoz Garcia",
+  "nom": "Joan",
+  "telefon": 934550022,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Navarro Sole",
+  "nom": "Juan",
+  "telefon": 934363503,
+  "m_bil": 676316567,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Nogués Blanco",
+  "nom": "David",
+  "telefon": 933149952,
+  "m_bil": 645181048,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Ortiz Martinez",
+  "nom": "Victor",
+  "telefon": 934553056,
+  "m_bil": 626665582,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Ortiz Romero",
+  "nom": "Jesus",
+  "telefon": 934553056,
+  "m_bil": 696057512,
+  "taquera": 63,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Pallarès Casanovas",
+  "nom": "Ramón",
+  "telefon": 932461987,
+  "m_bil": 629010179,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Pamplona Peralta",
+  "nom": "Manel",
+  "telefon": 932319329,
+  "m_bil": 679924224,
+  "taquilla": 218,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Perez Garcia",
+  "nom": "Jesus",
+  "telefon": 933499479,
+  "m_bil": 619329596,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Pometti Cos",
+  "nom": "Alberto-Oscar",
+  "telefon": 932325221,
+  "m_bil": 672670516,
+  "taquera": 36,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Puga Fernandez",
+  "nom": "Jose Miguel",
+  "telefon": 934568564,
+  "m_bil": 608136485,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Querol Viñals",
+  "nom": "Manuel",
+  "telefon": 933481562,
+  "taquera": 77,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Quevedo Roig",
+  "nom": "Joan",
+  "telefon": 932264216,
+  "taquera": "76 i 93",
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Rodriguez Airo",
+  "nom": "Juan Manuel",
+  "telefon": 933094357,
+  "taquera": 28,
+  "taquilla": 204,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Rodriguez Fernandez",
+  "nom": "Juan",
+  "telefon": 934460401,
+  "m_bil": 671958410,
+  "taquera": 27,
+  "taquilla": 213,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Rodríguez López",
+  "nom": "Juan(Clot)",
+  "m_bil": 609675505,
+  "taquera": 112,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Rodriguez Rios",
+  "nom": "Eduardo",
+  "m_bil": 636541144,
+  "taquilla": 216,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Roy Sobrevilla",
+  "nom": "Leandro",
+  "telefon": 933480193,
+  "m_bil": 666423720,
+  "taquilla": 215,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Ruiz Martinez",
+  "nom": "Angel",
+  "telefon": 934412151,
+  "m_bil": 659324016,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Ruiz Martinez",
+  "nom": "Guillermo",
+  "telefon": 933479652,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Ruiz Perez",
+  "nom": "Juan",
+  "m_bil": 619331423,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Sanchez Molera",
+  "nom": "Manel",
+  "telefon": 931874205,
+  "m_bil": 626460309,
+  "taquilla": 202,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Sanchez Salvador",
+  "nom": "Carles",
+  "telefon": 932322099,
+  "taquera": "34 i 51",
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Sanmamed Zanuy",
+  "nom": "Armand",
+  "telefon": 933405273,
+  "m_bil": 686581117,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Santos Gonzalez",
+  "nom": "Juan Felix",
+  "telefon": 933499744,
+  "m_bil": 651061737,
+  "taquera": "79 i 98",
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Sanz Mora",
+  "nom": "Joan",
+  "telefon": 934555665,
+  "taquera": "86 i 87",
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Selga  Sarro",
+  "nom": "Josep",
+  "telefon": 934553979,
+  "taquera": 85,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Selgas Catala",
+  "nom": "Jordi",
+  "telefon": 934202597,
+  "taquera": 44,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Serra Balaguer",
+  "nom": "Pau",
+  "telefon": 932319891,
+  "taquera": 59,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Solergibert Fauria",
+  "nom": "Pere",
+  "telefon": 933498227,
+  "m_bil": 620160961,
+  "taquilla": 222,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Soms Grau",
+  "nom": "Josep Ma",
+  "telefon": 934361002,
+  "taquera": 66,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Suarez Retegui",
+  "nom": "Oscar",
+  "m_bil": 660897221,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Suriol Barcelo",
+  "nom": "Pedro",
+  "telefon": 934368138,
+  "taquera": 24,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Tares Millan",
+  "nom": "Francesc",
+  "telefon": 934369432,
+  "m_bil": 607070235,
+  "taquera": 106,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Val Aina",
+  "nom": "Josep Ma",
+  "telefon": 932452657,
+  "m_bil": 619709217,
+  "taquilla": "219-220",
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Valles Ros",
+  "nom": "Josep",
+  "telefon": 934555472,
+  "m_bil": 628872653,
+  "taquera": 67,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Viaplana Lleonart",
+  "nom": "Josep Maria",
+  "telefon": 933490532,
+  "m_bil": 669816126,
+  "taquera": 43,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Vidal Pons",
+  "nom": "Carles",
+  "telefon": 934361758,
+  "taquera": 45,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Viladrich Sabate",
+  "nom": "Miquel",
+  "telefon": 932327696,
+  "m_bil": 660581060,
+  "taquera": 25,
+  "foto": "no",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Viñeta Pardo",
+  "nom": "Ramon",
+  "telefon": 935309300,
+  "m_bil": 686674330,
+  "foto": "si",
+  "__source": "dades_2017"
+ },
+ {
+  "cognoms": "Yepes Martinez",
+  "nom": "Eduard",
+  "m_bil": 622353152,
+  "foto": "si",
+  "__source": "dades_2017"
+ }
+]

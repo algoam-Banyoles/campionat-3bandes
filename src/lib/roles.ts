@@ -40,15 +40,10 @@ export async function checkIsAdmin(): Promise<boolean> {
 
       let retries = 2;
       while (retries > 0) {
-        const { data, error } = await supabase
-          .from('admins')
-          .select('email')
-          .ilike('email', email)
-          .limit(1)
-          .maybeSingle();
+        const { data, error } = await supabase.rpc('is_admin_by_email');
 
         if (!error) {
-          const val = !!data;
+          const val = data === true;
           cache = { value: val, ts: now };
           return val;
         }
@@ -56,14 +51,13 @@ export async function checkIsAdmin(): Promise<boolean> {
         console.warn('[roles] Error checking admin status (retries left:', retries - 1, '):', error.message, 'for email:', email);
 
         // Si és un error de schema, no reintentis
-        if (error.message.includes('relation') || error.message.includes('does not exist')) {
-          console.error('[roles] Database schema issue - admins table missing or inaccessible');
+        if (error.message.includes('does not exist')) {
+          console.error('[roles] Database schema issue - is_admin_by_email RPC missing');
           break;
         }
 
         retries--;
         if (retries > 0) {
-          // Espera 100ms abans de reintentar
           await new Promise(resolve => setTimeout(resolve, 100));
         }
       }

@@ -18,8 +18,8 @@ import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
   // Configurable al gust: quins estats considerem “actius”
   const ACTIVE_STATES = ['proposat', 'acceptat', 'programat'] as const;
 
-  type Ranked = { soci_numero: number; posicio: number; nom: string; email: string | null };
-  type PlayerRow = { soci_numero: number; nom: string; email: string | null };
+  type Ranked = { soci_numero: number; posicio: number; nom: string };
+  type PlayerRow = { soci_numero: number; nom: string };
 
   let loading = true;
   let error: string | null = null;
@@ -85,7 +85,7 @@ import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
       // 3) Rànquing de l'event actiu (ranking_positions → socis)
       const { data: rp, error: eRank } = await supabase
         .from('ranking_positions')
-        .select('soci_numero, posicio, socis!ranking_positions_soci_numero_fkey(nom, cognoms, email)')
+        .select('soci_numero, posicio, socis!ranking_positions_soci_numero_fkey(nom, cognoms)')
         .eq('event_id', eventActiuId)
         .order('posicio', { ascending: true });
       if (eRank) throw eRank;
@@ -101,18 +101,17 @@ import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
         return {
           soci_numero: row.soci_numero,
           posicio: row.posicio,
-          nom: sociFullName(soci),
-          email: soci?.email ?? null
+          nom: sociFullName(soci)
         };
       });
 
       // diccionari auxiliar
-      playersById = new Map(ranked.map(r => [r.soci_numero, { soci_numero: r.soci_numero, nom: r.nom, email: r.email }]));
+      playersById = new Map(ranked.map(r => [r.soci_numero, { soci_numero: r.soci_numero, nom: r.nom }]));
 
       // 4) Primer jugador de la llista d'espera
       const { data: wl, error: eWl } = await supabase
         .from('waiting_list')
-        .select('soci_numero, socis!waiting_list_soci_numero_fkey(nom, cognoms, email)')
+        .select('soci_numero, socis!waiting_list_soci_numero_fkey(nom, cognoms)')
         .eq('event_id', eventActiuId)
         .order('ordre', { ascending: true })
         .limit(1)
@@ -122,8 +121,7 @@ import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
         const soci = extractSoci((wl as any).socis);
         waitFirst = {
           soci_numero: (wl as any).soci_numero,
-          nom: sociFullName(soci),
-          email: soci?.email ?? null
+          nom: sociFullName(soci)
         };
         playersById.set(waitFirst.soci_numero, waitFirst);
       }

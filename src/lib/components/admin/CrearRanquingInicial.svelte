@@ -12,7 +12,6 @@
 		numero_soci: number;
 		nom: string;
 		cognoms: string;
-		email: string | null;
 		telefon?: string | null;
 		de_baixa?: boolean | null;
 		creat_el?: string;
@@ -52,7 +51,7 @@
 				// 1. Carregar tots els socis actius
 				const { data: socisActius, error: socisError } = await supabase
 					.from('socis')
-					.select('numero_soci, nom, cognoms, email, de_baixa, creat_el')
+					.select('numero_soci, nom, cognoms, de_baixa, creat_el')
 					.or('de_baixa.is.null,de_baixa.eq.false');
 
 				if (socisError) {

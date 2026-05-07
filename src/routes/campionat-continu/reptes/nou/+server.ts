@@ -43,16 +43,11 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'Sessio no iniciada' }, { status: 401 });
     }
 
-    const { data: adminRow, error: admErr } = await supabase
-      .from('admins')
-      .select('email')
-      .eq('email', auth.user.email)
-      .limit(1)
-      .maybeSingle();
+    const { data: adminRow, error: admErr } = await supabase.rpc('is_admin_by_email');
     if (admErr) {
       return json({ ok: false, error: admErr.message }, { status: 400 });
     }
-    const isAdmin = !!adminRow;
+    const isAdmin = adminRow === true;
 
     let reptadorSoci = reptador_soci_numero;
     if (!isAdmin) {

@@ -4,7 +4,6 @@ export type SociWithAverage = {
   numero_soci: number;
   nom: string;
   cognoms: string;
-  email: string;
   historicalAverage: number | null;
   historicalAverageYear: number | null;
   oldestAverage: number | null;
@@ -33,7 +32,7 @@ export async function loadSocisWithAverages(
 ): Promise<SociWithAverage[]> {
   const { data: socisData, error: socisError } = await supabase
     .from('socis')
-    .select('numero_soci, nom, cognoms, email')
+    .select('numero_soci, nom, cognoms')
     .eq('de_baixa', false)
     .order('nom');
 
@@ -105,7 +104,6 @@ export async function loadSocisWithAverages(
       numero_soci: soci.numero_soci,
       nom: soci.nom,
       cognoms: soci.cognoms || '',
-      email: soci.email,
       historicalAverage: bestMitjana,
       historicalAverageYear: bestMitjanaYear,
       oldestAverage: oldestMitjana,

@@ -337,19 +337,11 @@
   }
 
   // Filtrar dades
+  // `filteredMatches` només aplica els filtres d'usuari (categoria/jugador/data).
+  // El tall passat/futur el fan els consumidors (programmedMatches, filteredTimeline)
+  // perquè la llista "Partides pendents" SÍ que vol veure passades no jugades
+  // fins que l'admin les "recicli" amb el botó Reciclar antigues.
   $: filteredMatches = matches.filter(match => {
-    // Mostrar partides passades NOMÉS si no s'han jugat (sense resultat)
-    // Per a que es mostrin al llistat de partides pendent de programar
-    if (match.data_programada) {
-      const matchDate = new Date(match.data_programada);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Resetear a inici del dia
-
-      const isPlayed = match.caramboles_jugador1 != null && match.caramboles_jugador2 != null;
-      // Si és anterior a avui i JA s'ha jugat, no la mostrem
-      if (matchDate < today && isPlayed) return false;
-    }
-
     // Filtrar per jugador: prioritzar ID si hi ha jugador seleccionat, sinó text
     if (showOnlyMyMatches && myPlayerData) {
       if (!matchPlayerById(match, myPlayerData.id)) return false;
@@ -371,17 +363,10 @@
     return true;
   });
 
+  // El calendari (vista cronològica) només mostra dies del dia d'avui en endavant.
   $: filteredTimeline = timelineData.filter(slot => {
-    // Mostrar slots de dates passades NOMÉS si la partida no s'ha jugat
-    const slotDate = new Date(slot.dateStr);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (slot.match) {
-      const isPlayed = slot.match.caramboles_jugador1 != null && slot.match.caramboles_jugador2 != null;
-      // Si és anterior a avui i JA s'ha jugat, no la mostrem
-      if (slotDate < today && isPlayed) return false;
-    }
+    const todayStr = toLocalDateStr(new Date());
+    if (slot.dateStr < todayStr) return false;
 
     // Filtrar per jugador: prioritzar ID si hi ha jugador seleccionat, sinó text
     if (showOnlyMyMatches && myPlayerData) {
@@ -405,22 +390,19 @@
   });
 
 
-  // Separar partits programats i no programats
-  // Programats: tenen data futura (avui o posterior) i no estan en pendent_programar
+  // Calendari (vista categoria): només partides programades amb data del dia d'avui en endavant.
+  // Partides passades (jugades o no) NO es mostren al calendari; les no jugades viuran a
+  // "Partides pendents" fins que l'admin les recicli a 'pendent_programar'.
   $: programmedMatches = filteredMatches.filter(match => {
     if (!match.data_programada) return false;
     if (match.estat === 'pendent_programar') return false;
-    // Una partida amb data passada que NO té resultat s'ha de tornar a programar
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const matchDate = new Date(match.data_programada);
-    const isPlayed = match.caramboles_jugador1 != null && match.caramboles_jugador2 != null;
-    if (matchDate < today && !isPlayed) return false; // passada sense resultat → no programada
+    const todayStr = toLocalDateStr(new Date());
+    const matchDateStr = toLocalDateStr(new Date(match.data_programada));
+    if (matchDateStr < todayStr) return false;
     return true;
   });
   $: {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStr = toLocalDateStr(new Date());
 
     unprogrammedMatches = filteredMatches.filter(match => {
       // Si la partida ja s'ha jugat, no és pendent
@@ -433,9 +415,9 @@
       // Sense data programada
       if (!match.data_programada) return true;
 
-      // Data programada anterior a avui (no jugada) → cal reprogramar-la
-      const matchDate = new Date(match.data_programada);
-      if (matchDate < today) return true;
+      // Data programada anterior a avui (no jugada) → cal "Reciclar" a pendent
+      const matchDateStr = toLocalDateStr(new Date(match.data_programada));
+      if (matchDateStr < todayStr) return true;
 
       return false;
     });

@@ -158,12 +158,11 @@
       return {
         nom: inscription.socis.nom ?? '',
         cognoms: inscription.socis.cognoms ?? '',
-        numero_soci: inscription.socis.numero_soci ?? inscription.soci_numero,
-        email: inscription.socis.email ?? null
+        numero_soci: inscription.socis.numero_soci ?? inscription.soci_numero
       };
     }
     const soci = socis.find(s => s.numero_soci === inscription.soci_numero);
-    return soci || { nom: 'Desconegut', cognoms: '', numero_soci: inscription.soci_numero, email: null };
+    return soci || { nom: 'Desconegut', cognoms: '', numero_soci: inscription.soci_numero };
   }
 
   function handleMovementsCompleted(event: CustomEvent<{ movements: unknown[]; totalMoved: number }>) {
