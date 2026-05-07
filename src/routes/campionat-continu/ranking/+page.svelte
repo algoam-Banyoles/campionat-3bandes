@@ -46,6 +46,7 @@
   let playerHistoryMap = new Map<number, ChallengeResult[]>();
   let intervalRef: NodeJS.Timeout;
   let cancelled = false;
+  let realtimeChannel: ReturnType<typeof import('$lib/supabaseClient').supabase.channel> | null = null;
 
   $: if (badgesLoaded) {
     badgeMap = new Map(badges.map((b) => [b.soci_numero, b]));
@@ -133,7 +134,27 @@
         void evaluateChallenges(supabaseClient);
       }
 
-      // Configurar refresh automàtic cada 5 minuts
+      // Realtime: subscriu-se a canvis de posició perquè el ranking es
+      // refresqui immediatament quan algú entra un resultat (en lloc d'esperar
+      // el setInterval de 5 min). Mantenim el setInterval com a fallback.
+      realtimeChannel = supabase
+        .channel(`ranking-${eventId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'history_position_changes',
+            filter: `event_id=eq.${eventId}`
+          },
+          () => {
+            if (cancelled) return;
+            void refreshRanking();
+          }
+        )
+        .subscribe();
+
+      // Fallback: refresh automàtic cada 5 minuts (per si la connexió realtime cau)
       intervalRef = setInterval(async () => {
         if (cancelled) return;
         await refreshRanking();
@@ -156,6 +177,8 @@
     if (typeof intervalRef !== 'undefined') {
       clearInterval(intervalRef);
     }
+    realtimeChannel?.unsubscribe();
+    realtimeChannel = null;
   });
 
   async function evaluateChallenges(supabase: any) {
