@@ -9,8 +9,6 @@
     numero_soci: number;
     nom: string;
     cognoms: string;
-    email: string | null;
-    data_naixement: string | null;
   };
 
   type MitjanaRow = {
@@ -100,10 +98,10 @@
       return;
     }
     try {
-      // 1) Soci
+      // 1) Soci — només camps no-PII (email/data_naixement no s'exposen en perfil públic)
       const { data: sociData, error: sociErr } = await supabase
         .from('socis')
-        .select('numero_soci, nom, cognoms, email, data_naixement')
+        .select('numero_soci, nom, cognoms')
         .eq('numero_soci', numeroSoci)
         .maybeSingle();
       if (sociErr) throw sociErr;
