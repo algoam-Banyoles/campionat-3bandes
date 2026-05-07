@@ -3,7 +3,7 @@
 	import { page } from '$app/stores';
 	import { afterNavigate } from '$app/navigation';
 	
-	let { data, form } = $props();
+	let { form } = $props();
 	
 	let confirmationText = $state('');
 	let isSubmitting = $state(false);
@@ -107,8 +107,6 @@
 				await update();
 			};
 		}}>
-			<input type="hidden" name="email" value={data.email} />
-			
 			<div class="mb-6">
 				<label for="confirmation" class="block text-sm font-medium text-gray-700 mb-2">
 					Per confirmar el reset, escriu exactament: <strong>RESET CAMPIONAT</strong>

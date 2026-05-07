@@ -1,46 +1,37 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { supabase } from '$lib/supabaseClient';
+import { serverSupabase } from '$lib/server/adminGuard';
 
-export const load: PageServerLoad = async ({ url }) => {
-	// Verificar si l'usuari és admin
-	const email = url.searchParams.get('email') || '';
-	
-	if (!email) {
+// Comprovació via `is_admin_by_email()` que usa el JWT del client (no
+// un paràmetre arbitrari de la URL). Aquesta era la causa d'un bypass
+// d'autorització: abans qualsevol podia passar `?email=algoam@gmail.com`
+// i el servidor confiava en aquest valor.
+export const load: PageServerLoad = async (event) => {
+	const supabase = serverSupabase(event);
+	const { data: isAdmin, error } = await supabase.rpc('is_admin_by_email');
+
+	if (error || isAdmin !== true) {
 		throw redirect(302, '/');
 	}
 
-	const { data: isAdmin } = await supabase
-		.rpc('is_admin', { p_email: email });
-
-	if (!isAdmin) {
-		throw redirect(302, '/');
-	}
-
-	return {
-		isAdmin: true,
-		email
-	};
+	return { isAdmin: true };
 };
 
 export const actions: Actions = {
-	reset: async ({ request }) => {
-		const data = await request.formData();
-		const email = data.get('email') as string;
+	reset: async (event) => {
+		const data = await event.request.formData();
 		const confirmationText = data.get('confirmation') as string;
 
-		// Verificar admin
-		const { data: isAdmin } = await supabase
-			.rpc('is_admin', { p_email: email });
+		const supabase = serverSupabase(event);
+		const { data: isAdmin } = await supabase.rpc('is_admin_by_email');
 
-		if (!isAdmin) {
+		if (isAdmin !== true) {
 			return {
 				success: false,
 				error: 'No tens permisos d\'administrador'
 			};
 		}
 
-		// Verificar text de confirmació
 		if (confirmationText !== 'RESET CAMPIONAT') {
 			return {
 				success: false,
@@ -49,9 +40,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			// Executar el reset
-			const { data: result, error } = await supabase
-				.rpc('admin_reset_championship');
+			const { data: result, error } = await supabase.rpc('admin_reset_championship');
 
 			if (error) {
 				console.error('Error en reset:', error);
