@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { supabase } from '$lib/supabaseClient';
-  import { adminChecked, isAdmin } from '$lib/stores/adminAuth';
+  import { adminChecked } from '$lib/stores/adminAuth';
+  import { effectiveIsAdmin } from '$lib/stores/viewMode';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
   import { formatSupabaseError } from '$lib/ui/alerts';
@@ -10,8 +11,8 @@
   import { showConfirm } from '$lib/stores/confirmDialogStore';
   import { formatarNomJugador } from '$lib/utils/playerUtils';
 
-  // Guard: només admins.
-  $: if ($adminChecked && !$isAdmin) {
+  // Guard: només admins en vista admin (respecta el toggle viewMode).
+  $: if ($adminChecked && !$effectiveIsAdmin) {
     goto('/campionat-continu/llista-espera');
   }
 

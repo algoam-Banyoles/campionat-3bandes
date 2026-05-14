@@ -1,9 +1,10 @@
 <script lang="ts">
-    import { isAdmin } from '$lib/stores/adminAuth';
     import { adminChecked } from '$lib/stores/adminAuth';
+    import { effectiveIsAdmin } from '$lib/stores/viewMode';
 
-    // Simply use the reactive stores - no delays or complex logic
-    $: canAccess = $adminChecked && $isAdmin;
+    // Usem effectiveIsAdmin perquè respecti el toggle viewMode:
+    // un admin en vista "Jugador" no ha de poder entrar a /admin.
+    $: canAccess = $adminChecked && $effectiveIsAdmin;
 </script>
 
 {#if !$adminChecked}

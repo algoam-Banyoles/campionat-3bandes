@@ -1,7 +1,7 @@
 import type { HandleFetch } from '@sveltejs/kit';
 import { get } from 'svelte/store';
 import { authState, type AuthState } from '$lib/stores/auth';
-import { ensureFreshToken, signOut } from '$lib/utils/auth-client';
+import { ensureFreshToken } from '$lib/utils/auth-client';
 
 export const handleFetch: HandleFetch = async ({ request, fetch }) => {
   const st: AuthState = get(authState);
@@ -15,14 +15,16 @@ export const handleFetch: HandleFetch = async ({ request, fetch }) => {
 
   let res = await fetch(new Request(request, { headers }));
 
+  // En 401, intenta refrescar el token i reintentar la petició una vegada.
+  // No fem signOut automàtic: un 401 transitori (xarxa lenta a l'obrir la PWA,
+  // race amb el refresh, una RLS denial confosa amb 401) no ha de fer fora
+  // l'usuari. Si la sessió és realment invàlida, el propi client de Supabase
+  // gestionarà el signOut via onAuthStateChange.
   if (res.status === 401) {
     const token = await ensureFreshToken();
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
       res = await fetch(new Request(request, { headers }));
-    }
-    if (res.status === 401) {
-      await signOut();
     }
   }
   return res;

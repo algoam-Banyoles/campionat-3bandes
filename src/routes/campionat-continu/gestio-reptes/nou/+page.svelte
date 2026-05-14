@@ -2,10 +2,11 @@
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { user } from '$lib/stores/auth';
-  import { isAdmin as isAdminStore, adminChecked } from '$lib/stores/adminAuth';
+  import { adminChecked } from '$lib/stores/adminAuth';
+  import { effectiveIsAdmin } from '$lib/stores/viewMode';
 
-  // Guard: només admins.
-  $: if ($adminChecked && !$isAdminStore) {
+  // Guard: només admins en vista admin (respecta el toggle viewMode).
+  $: if ($adminChecked && !$effectiveIsAdmin) {
     goto('/campionat-continu/reptes');
   }
   import { supabase } from '$lib/supabaseClient';

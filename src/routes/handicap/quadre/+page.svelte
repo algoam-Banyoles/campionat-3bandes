@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
-	import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
+	import { effectiveIsAdmin } from '$lib/stores/viewMode';
 	import { user } from '$lib/stores/auth';
 	import HandicapBracketView from '$lib/components/handicap/HandicapBracketView.svelte';
 	import HandicapBranchBalance from '$lib/components/handicap/HandicapBranchBalance.svelte';
@@ -510,7 +510,7 @@
 
 		<div class="actions-list">
 			{#if !loading && !error}
-				{#if $isAdmin}
+				{#if $effectiveIsAdmin}
 					{#if !isLocked && !isFinalitzat}
 						<a
 							href="/handicap/inscripcions"

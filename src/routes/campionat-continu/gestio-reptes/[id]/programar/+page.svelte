@@ -1,14 +1,15 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-      // Guard: només admins.
-      $: if ($adminChecked && !$isAdmin) {
+      // Guard: només admins en vista admin (respecta el toggle viewMode).
+      $: if ($adminChecked && !$effectiveIsAdmin) {
         goto('/campionat-continu/reptes');
       }
 
       import { onMount } from 'svelte';
     import { page } from '$app/stores';
     import { user } from '$lib/stores/auth';
-    import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
+    import { adminChecked } from '$lib/stores/adminAuth';
+    import { effectiveIsAdmin } from '$lib/stores/viewMode';
     import Banner from '$lib/components/general/Banner.svelte';
     import { formatSupabaseError, ok as okText, err as errText } from '$lib/ui/alerts';
     import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';

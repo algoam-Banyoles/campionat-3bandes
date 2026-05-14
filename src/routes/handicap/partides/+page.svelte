@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
-	import { isAdmin } from '$lib/stores/adminAuth';
+	import { effectiveIsAdmin } from '$lib/stores/viewMode';
 	import { user } from '$lib/stores/auth';
 	import HandicapSlotPicker from '$lib/components/handicap/HandicapSlotPicker.svelte';
 	import HandicapBranchBalance from '$lib/components/handicap/HandicapBranchBalance.svelte';
@@ -986,7 +986,7 @@
 									{formatDataHora(match.data_programada, match.hora_inici, match.taula_assignada)}
 								</td>
 								<td class="px-3 py-2 text-right">
-									{#if $isAdmin}
+									{#if $effectiveIsAdmin}
 									{#if !isFinalitzat && (match.estat === 'pendent' || match.estat === 'programada')}
 										{#if match.player1_participant_id && match.player2_participant_id && config}
 											{#if schedulingMatchId === match.id}
@@ -1095,7 +1095,7 @@
 </div>
 
 <!-- ── Modal d'introducció de resultat ────────────────────────────────────── -->
-{#if $isAdmin && resultMatch}
+{#if $effectiveIsAdmin && resultMatch}
 	<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"

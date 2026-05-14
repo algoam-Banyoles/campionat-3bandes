@@ -4,11 +4,12 @@
         import { goto } from '$app/navigation';
         import { user } from '$lib/stores/auth';
       import { supabase } from '$lib/supabaseClient';
-      import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
+      import { adminChecked } from '$lib/stores/adminAuth';
+      import { effectiveIsAdmin } from '$lib/stores/viewMode';
       import Banner from '$lib/components/general/Banner.svelte';
 
-      // Guard: només admins.
-      $: if ($adminChecked && !$isAdmin) {
+      // Guard: només admins en vista admin (respecta el toggle viewMode).
+      $: if ($adminChecked && !$effectiveIsAdmin) {
         goto('/campionat-continu/reptes');
       }
       import Loader from '$lib/components/general/Loader.svelte';
@@ -130,7 +131,7 @@
   function programInfo(r: ChallengeRow) {
     if (r.estat === 'proposat') return { allowed: true };
     if (['acceptat', 'programat'].includes(r.estat)) {
-      if (!$isAdmin && r.estat === 'programat' && r.reprogram_count >= reproLimit) {
+      if (!$effectiveIsAdmin && r.estat === 'programat' && r.reprogram_count >= reproLimit) {
         return { allowed: false, reason: 'límit de reprogramació assolit' };
       }
       return { allowed: true };

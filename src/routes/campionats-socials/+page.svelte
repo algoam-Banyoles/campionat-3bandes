@@ -16,7 +16,6 @@
   import HeadToHeadPrintModal from '$lib/components/campionats-socials/HeadToHeadPrintModal.svelte';
   import HallOfFame from '$lib/components/campionats-socials/HallOfFame.svelte';
   import { user } from '$lib/stores/auth';
-  import { isAdmin, adminUser } from '$lib/stores/adminAuth';
   import { effectiveIsAdmin } from '$lib/stores/viewMode';
   import { getSocialLeagueEvents, exportCalendariToCSV } from '$lib/api/socialLeagues';
   import { generateFinalClassifications } from '$lib/api/classifications';
@@ -64,9 +63,8 @@
 
   // Variable per la categoria seleccionada a la graella head-to-head
   let selectedHeadToHeadCategory: any = null;
-  // Refs als modals d'impressió de la graella (un per branca; visualment idèntics)
+  // Ref al modal d'impressió de la graella (només disponible per a admins)
   let h2hPrintModalAdmin: HeadToHeadPrintModal | null = null;
-  let h2hPrintModalPublic: HeadToHeadPrintModal | null = null;
 
   function getHistoricalModality(modality: string | undefined): string | null {
     const map: Record<string, string> = {
@@ -89,8 +87,9 @@
     return [currentYear - 1, currentYear - 2];
   }
 
-  // Computed per verificar si és admin (comprovant tots dos sistemes i view mode)
-  $: isUserAdmin = $isAdmin || $effectiveIsAdmin;
+  // Computed per verificar si és admin. Usem effectiveIsAdmin perquè respecta
+  // el toggle de viewMode: un admin en vista "Jugador" no ha de veure gestió.
+  $: isUserAdmin = $effectiveIsAdmin;
 
   // Categories per la pestanya de pagaments
   $: paymentCategories = selectedEvent?.categories || [];
@@ -1479,15 +1478,6 @@
                               </button>
                             {/each}
                           </div>
-                          <button
-                            type="button"
-                            class="h2h-print-btn"
-                            on:click={() => h2hPrintModalPublic?.open()}
-                            disabled={!(selectedEvent?.categories?.length)}
-                            title="Exportar la graella en format A3 apaïsat"
-                          >
-                            Imprimir (A3)
-                          </button>
                         </div>
 
                         <!-- Component de graella -->
@@ -1501,14 +1491,6 @@
                           <div class="state-empty">
                             Selecciona una categoria per veure la graella de resultats.
                           </div>
-                        {/if}
-
-                        {#if selectedEvent}
-                          <HeadToHeadPrintModal
-                            bind:this={h2hPrintModalPublic}
-                            event={selectedEvent}
-                            categories={selectedEvent.categories || []}
-                          />
                         {/if}
                       </div>
                     {/if}

@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
-	$: if ($adminChecked && !$isAdmin) goto('/handicap');
+	import { adminChecked } from '$lib/stores/adminAuth';
+	import { effectiveIsAdmin } from '$lib/stores/viewMode';
+	$: if ($adminChecked && !$effectiveIsAdmin) goto('/handicap');
 	import { supabase } from '$lib/supabaseClient';
 	import {
 		generateDoublEliminationBracket,

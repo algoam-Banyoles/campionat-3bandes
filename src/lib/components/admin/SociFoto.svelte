@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
+  import { adminChecked } from '$lib/stores/adminAuth';
+  import { effectiveIsAdmin } from '$lib/stores/viewMode';
   import { getSociFotoUrl } from '$lib/utils/soci-foto';
 
   export let numeroSoci: number | null | undefined;
@@ -24,7 +25,7 @@
   let loading = false;
 
   async function resolveUrl() {
-    if (!$adminChecked || !$isAdmin) {
+    if (!$adminChecked || !$effectiveIsAdmin) {
       url = null;
       return;
     }
@@ -44,7 +45,7 @@
 
   // Reactive: es recarrega quan canvia l'admin status o el soci
   $: if ($adminChecked) {
-    $isAdmin;
+    $effectiveIsAdmin;
     numeroSoci;
     fotoPath;
     resolveUrl();

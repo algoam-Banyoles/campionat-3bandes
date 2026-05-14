@@ -3,7 +3,7 @@
   import { user } from '$lib/stores/auth';
   import { isAdmin } from '$lib/stores/adminAuth';
   import { signOut } from '$lib/utils/auth-client';
-  import { viewMode } from '$lib/stores/viewMode';
+  import { viewMode, effectiveIsAdmin } from '$lib/stores/viewMode';
   import { mySociNumero } from '$lib/stores/mySoci';
 
   type NavLink = { href: string; label: string; disabled?: boolean };
@@ -224,7 +224,7 @@
 <nav class="sections" aria-label="Navegació de seccions">
   <div class="sections-inner">
     {#each Object.entries(navegacio) as [key, section]}
-      {#if !section.adminOnly || $isAdmin}
+      {#if !section.adminOnly || $effectiveIsAdmin}
         <div class="section-item" data-dropdown>
           <a
             href={section.links[0].href}
@@ -235,7 +235,7 @@
             <span class="num">{section.num}</span>
             <span class="lbl">{section.label}</span>
           </a>
-          {#if section.links.length > 1 || (section.userLinks && section.userLinks.length > 0 && $user) || (section.adminLinks && section.adminLinks.length > 0 && $isAdmin)}
+          {#if section.links.length > 1 || (section.userLinks && section.userLinks.length > 0 && $user) || (section.adminLinks && section.adminLinks.length > 0 && $effectiveIsAdmin)}
             <button
               class="caret-btn"
               on:click|stopPropagation={() => toggleDropdown(key)}
@@ -278,7 +278,7 @@
                   {/each}
                 {/if}
 
-                {#if $isAdmin && section.adminLinks && section.adminLinks.length > 0}
+                {#if $effectiveIsAdmin && section.adminLinks && section.adminLinks.length > 0}
                   <hr class="dropdown-rule" />
                   <div class="dropdown-eyebrow">Administració</div>
                   {#each section.adminLinks as link}
@@ -338,7 +338,7 @@
     </div>
 
     {#each Object.entries(navegacio) as [key, section]}
-      {#if !section.adminOnly || $isAdmin}
+      {#if !section.adminOnly || $effectiveIsAdmin}
         <div class="mobile-section">
           <div class="mobile-section-head" style="--section-color: var(--sec-{section.sectionToken});">
             <span class="num">{section.num}</span>
@@ -368,7 +368,7 @@
                 </a>
               {/each}
             {/if}
-            {#if $isAdmin && section.adminLinks && section.adminLinks.length > 0}
+            {#if $effectiveIsAdmin && section.adminLinks && section.adminLinks.length > 0}
               <div class="mobile-eyebrow">Administració</div>
               {#each section.adminLinks as link}
                 <a

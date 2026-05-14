@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { isAdmin } from '$lib/stores/adminAuth';
+  import { effectiveIsAdmin } from '$lib/stores/viewMode';
   import { supabase } from '$lib/supabaseClient';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
@@ -163,7 +163,7 @@
     <Loader />
   {:else if error}
     <Banner type="error" message={error} />
-  {:else if $isAdmin}
+  {:else if $effectiveIsAdmin}
     {#if successMessage}
       <Banner type="success" message={successMessage} class="mb-4" />
     {/if}

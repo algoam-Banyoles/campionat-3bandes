@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import { goto } from '$app/navigation';
-  import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
+  import { adminChecked } from '$lib/stores/adminAuth';
+  import { effectiveIsAdmin } from '$lib/stores/viewMode';
 
   let loading = true;
   let saving = false;
@@ -29,7 +30,7 @@
     await loadContent();
   });
 
-  $: if ($adminChecked && !$isAdmin) {
+  $: if ($adminChecked && !$effectiveIsAdmin) {
     goto('/admin');
   }
 
@@ -62,7 +63,7 @@
   }
 
   async function saveContent() {
-    if (!$isAdmin) {
+    if (!$effectiveIsAdmin) {
       error = 'No tens permisos per guardar canvis';
       return;
     }
@@ -102,7 +103,7 @@
       <div class="flex justify-center items-center h-64">
         <div class="text-gray-500">Verificant permisos...</div>
       </div>
-    {:else if !$isAdmin}
+    {:else if !$effectiveIsAdmin}
       <div class="bg-red-50 border border-red-200 rounded-lg p-4">
         <p class="text-red-800 font-medium">⛔ No tens permisos per accedir a aquesta pàgina</p>
       </div>

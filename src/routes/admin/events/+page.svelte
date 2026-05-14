@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { user } from '$lib/stores/auth';
-  import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
+  import { adminChecked } from '$lib/stores/adminAuth';
+  import { effectiveIsAdmin } from '$lib/stores/viewMode';
   import { supabase } from '$lib/supabaseClient';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
@@ -63,7 +64,7 @@
         return;
       }
       
-      if (!$isAdmin) {
+      if (!$effectiveIsAdmin) {
         error = errText('Només els administradors poden accedir a aquesta pàgina.');
         return;
       }
@@ -78,9 +79,9 @@
 
   // Reactively check admin status
   $: {
-    if ($adminChecked && !$isAdmin && $user?.email) {
+    if ($adminChecked && !$effectiveIsAdmin && $user?.email) {
       error = errText('Només els administradors poden accedir a aquesta pàgina.');
-    } else if ($adminChecked && $isAdmin) {
+    } else if ($adminChecked && $effectiveIsAdmin) {
       error = null;
     }
   }

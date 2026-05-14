@@ -2,11 +2,12 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { user } from '$lib/stores/auth';
-  import { adminChecked, isAdmin } from '$lib/stores/adminAuth';
+  import { adminChecked } from '$lib/stores/adminAuth';
+  import { effectiveIsAdmin } from '$lib/stores/viewMode';
   import Banner from '$lib/components/general/Banner.svelte';
 
-  // Guard: només admins.
-  $: if ($adminChecked && !$isAdmin) {
+  // Guard: només admins en vista admin (respecta el toggle viewMode).
+  $: if ($adminChecked && !$effectiveIsAdmin) {
     goto('/campionat-continu/ranking');
   }
   import Loader from '$lib/components/general/Loader.svelte';

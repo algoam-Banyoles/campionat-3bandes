@@ -7,10 +7,11 @@
 	import HandicapAvailabilityGrid from '$lib/components/handicap/HandicapAvailabilityGrid.svelte';
 	import { searchActivePlayers } from '$lib/api/socialLeagues';
 	import { debounce } from 'lodash-es';
-	import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
+	import { adminChecked } from '$lib/stores/adminAuth';
+	import { effectiveIsAdmin } from '$lib/stores/viewMode';
 	import { showConfirm } from '$lib/stores/confirmDialogStore';
 	import { formatarNomJugador } from '$lib/utils/playerUtils';
-	$: if ($adminChecked && !$isAdmin) goto('/handicap');
+	$: if ($adminChecked && !$effectiveIsAdmin) goto('/handicap');
 
 	// ─── State ────────────────────────────────────────────────
 	let loading = true;

@@ -5,8 +5,9 @@
 	import { formatSupabaseError } from '$lib/ui/alerts';
 	import Banner from '$lib/components/general/Banner.svelte';
 	import HandicapScheduleConfig from '$lib/components/handicap/HandicapScheduleConfig.svelte';
-	import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
-	$: if ($adminChecked && !$isAdmin) goto('/handicap');
+	import { adminChecked } from '$lib/stores/adminAuth';
+	import { effectiveIsAdmin } from '$lib/stores/viewMode';
+	$: if ($adminChecked && !$effectiveIsAdmin) goto('/handicap');
 
 	let loading = true;
 	let saving = false;

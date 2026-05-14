@@ -11,7 +11,7 @@
     refreshCalendarData,
     deleteEsdeveniment
   } from '$lib/stores/calendar';
-  import { isAdmin } from '$lib/stores/adminAuth';
+  import { effectiveIsAdmin } from '$lib/stores/viewMode';
   import CalendarControls from './CalendarControls.svelte';
   import CalendarDay from './CalendarDay.svelte';
   import EventForm from './EventForm.svelte';
@@ -190,7 +190,7 @@
   <div class="cal-toolbar">
     <CalendarControls />
 
-    {#if $isAdmin}
+    {#if $effectiveIsAdmin}
       <button
         on:click={handleCreateEvent}
         class="btn-new-event"
@@ -342,7 +342,7 @@
       </div>
       
       <div class="mt-6 flex justify-end gap-3">
-        {#if $isAdmin && selectedEvent?.type === 'event'}
+        {#if $effectiveIsAdmin && selectedEvent?.type === 'event'}
           <button 
             on:click={() => {
               if (selectedEvent) {

@@ -1,6 +1,7 @@
 // src/lib/supabaseClient.ts
 import { createClient } from '@supabase/supabase-js';
 import { wrapRpc } from './errors';
+import { resilientAuthStorage } from './utils/auth-storage';
 
 const url = import.meta.env.PUBLIC_SUPABASE_URL;
 const anon = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
@@ -59,7 +60,11 @@ export const supabase = wrapRpc(
   createClient(url, anon, {
     auth: {
       persistSession: true,
-      autoRefreshToken: true
+      autoRefreshToken: true,
+      // Storage resilient: localStorage + backup IndexedDB.
+      // En PWAs iOS (ITP) i alguns Androids, localStorage es pot esborrar entre
+      // sessions; IndexedDB sobreviu millor. Veure src/lib/utils/auth-storage.ts.
+      storage: resilientAuthStorage
     },
     global: {
       fetch: fetchWithTimeout

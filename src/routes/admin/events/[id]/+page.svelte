@@ -4,7 +4,8 @@
   import { page } from '$app/stores';
   import { user, adminStore } from '$lib/stores/auth';
   import { checkIsAdmin } from '$lib/roles';
-  import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
+  import { adminChecked } from '$lib/stores/adminAuth';
+  import { effectiveIsAdmin } from '$lib/stores/viewMode';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
   import CalendarGenerator from '$lib/components/admin/CalendarGenerator.svelte';
@@ -62,7 +63,7 @@
       }
 
       // Use reactive admin check
-      if (!$adminChecked || !$isAdmin) {
+      if (!$adminChecked || !$effectiveIsAdmin) {
         goto('/admin');
         return;
       }

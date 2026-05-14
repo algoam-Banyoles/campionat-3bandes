@@ -3,10 +3,11 @@
   import { goto } from '$app/navigation';
   import { user } from '$lib/stores/auth';
   import { supabase } from '$lib/supabaseClient';
-  import { adminChecked, isAdmin } from '$lib/stores/adminAuth';
+  import { adminChecked } from '$lib/stores/adminAuth';
+  import { effectiveIsAdmin } from '$lib/stores/viewMode';
 
-  // Guard: només admins. Si la comprovació ha acabat i no és admin, redirigeix.
-  $: if ($adminChecked && !$isAdmin) {
+  // Guard: només admins en vista admin. Un admin en vista "Jugador" tampoc hi entra.
+  $: if ($adminChecked && !$effectiveIsAdmin) {
     goto('/campionats-socials');
   }
   import Banner from '$lib/components/general/Banner.svelte';

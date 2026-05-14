@@ -3,7 +3,8 @@
   import { goto } from '$app/navigation';
   import { user, adminStore } from '$lib/stores/auth';
   import { checkIsAdmin } from '$lib/roles';
-  import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
+  import { adminChecked } from '$lib/stores/adminAuth';
+  import { effectiveIsAdmin } from '$lib/stores/viewMode';
   import Banner from '$lib/components/general/Banner.svelte';
   import { supabase } from '$lib/supabaseClient';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
@@ -123,7 +124,7 @@
     }
 
     // Check admin status using new store system
-    if (!$adminChecked || !$isAdmin) {
+    if (!$adminChecked || !$effectiveIsAdmin) {
       goto('/admin');
       return;
     }

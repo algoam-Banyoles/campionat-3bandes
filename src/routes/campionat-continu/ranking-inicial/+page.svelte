@@ -1,10 +1,11 @@
 <script lang="ts">
 	import CrearRanquingInicial from '$lib/components/admin/CrearRanquingInicial.svelte';
 	import { goto } from '$app/navigation';
-	import { adminChecked, isAdmin } from '$lib/stores/adminAuth';
+	import { adminChecked } from '$lib/stores/adminAuth';
+	import { effectiveIsAdmin } from '$lib/stores/viewMode';
 
-	// Guard: només admins.
-	$: if ($adminChecked && !$isAdmin) {
+	// Guard: només admins en vista admin (respecta el toggle viewMode).
+	$: if ($adminChecked && !$effectiveIsAdmin) {
 		goto('/campionat-continu/ranking');
 	}
 </script>

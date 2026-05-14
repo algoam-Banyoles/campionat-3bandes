@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
-	import { isAdmin } from '$lib/stores/adminAuth';
+	import { effectiveIsAdmin } from '$lib/stores/viewMode';
 
 	const accions = [
 		{ href: '/handicap/configuracio', label: 'Configuració', desc: 'Sistema, distàncies, horaris', icon: '⚙️' },
@@ -287,7 +287,7 @@
 		{/if}
 	</div>
 
-	{#if $isAdmin}
+	{#if $effectiveIsAdmin}
 		<!-- Quick actions -->
 		<h2 class="mb-3 text-lg font-semibold text-gray-800">Accions</h2>
 		<div class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-6">

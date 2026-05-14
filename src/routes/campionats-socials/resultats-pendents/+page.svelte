@@ -4,7 +4,9 @@
   import { supabase } from '$lib/supabaseClient';
   import { showSuccess, showError } from '$lib/stores/toastStore';
   import { showConfirm } from '$lib/stores/confirmDialogStore';
-  import { adminChecked, isAdmin } from '$lib/stores/adminAuth';
+  import { adminChecked } from '$lib/stores/adminAuth';
+  import { effectiveIsAdmin } from '$lib/stores/viewMode';
+  import { userId } from '$lib/stores/auth';
   import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   function nomComplet(nom: string | null | undefined, cognoms: string | null | undefined): string {
@@ -12,8 +14,8 @@
     return raw ? formatarNomJugador(raw) : '';
   }
 
-  // Guard: només admins poden entrar resultats. Si la comprovació ha acabat i no és admin, redirigeix.
-  $: if ($adminChecked && !$isAdmin) {
+  // Guard: només admins en vista admin. Un admin en vista "Jugador" tampoc hi entra.
+  $: if ($adminChecked && !$effectiveIsAdmin) {
     goto('/campionats-socials');
   }
 
@@ -89,70 +91,44 @@
     loading = true;
 
     try {
-      // Load withdrawn/disqualified players in this category to exclude their pending matches
-      const { data: inscriptionsData, error: inscriptionsError } = await supabase
-        .from('inscripcions')
-        .select('soci_numero, estat_jugador, eliminat_per_incompareixences')
-        .eq('event_id', selectedEvent.id)
-        .eq('categoria_assignada_id', selectedCategory.id);
+      // Paral·lelitzem: les dues queries són independents. La de partides ja
+      // resol els socis via FK join, així estalviem una tercera RTT i la
+      // construcció manual del map de lookup.
+      const [inscriptionsRes, matchesRes] = await Promise.all([
+        supabase
+          .from('inscripcions')
+          .select('soci_numero, estat_jugador, eliminat_per_incompareixences')
+          .eq('event_id', selectedEvent.id)
+          .eq('categoria_assignada_id', selectedCategory.id),
+        supabase
+          .from('calendari_partides')
+          .select(
+            '*, soci1:socis!calendari_partides_jugador1_soci_numero_fkey(numero_soci, nom, cognoms), soci2:socis!calendari_partides_jugador2_soci_numero_fkey(numero_soci, nom, cognoms)'
+          )
+          .eq('event_id', selectedEvent.id)
+          .eq('categoria_id', selectedCategory.id)
+          .is('match_id', null)
+          .is('caramboles_jugador1', null)
+          .order('data_programada')
+      ]);
 
-      if (inscriptionsError) throw inscriptionsError;
+      if (inscriptionsRes.error) throw inscriptionsRes.error;
+      if (matchesRes.error) throw matchesRes.error;
 
       const withdrawnNumbers = new Set<number>(
-        (inscriptionsData || [])
+        (inscriptionsRes.data || [])
           .filter((item: any) => item.estat_jugador === 'retirat' || item.eliminat_per_incompareixences)
           .map((item: any) => item.soci_numero)
           .filter((numero: any) => typeof numero === 'number')
       );
 
-      // Load calendar matches for selected category that are not yet played
-      const { data: matchesData, error: matchesError } = await supabase
-        .from('calendari_partides')
-        .select('*, jugador1_soci_numero, jugador2_soci_numero')
-        .eq('event_id', selectedEvent.id)
-        .eq('categoria_id', selectedCategory.id)
-        .is('match_id', null)
-        .is('caramboles_jugador1', null)
-        .order('data_programada');
-
-      if (matchesError) throw matchesError;
-
-      const filteredMatchesData = (matchesData || []).filter((match: any) => {
+      calendarMatches = (matchesRes.data || []).filter((match: any) => {
         if (withdrawnNumbers.size === 0) return true;
-        return !withdrawnNumbers.has(match.jugador1_soci_numero) && !withdrawnNumbers.has(match.jugador2_soci_numero);
+        return (
+          !withdrawnNumbers.has(match.jugador1_soci_numero) &&
+          !withdrawnNumbers.has(match.jugador2_soci_numero)
+        );
       });
-
-      // Get all unique numero_soci values from matches
-      const allNumerosSoci = new Set<number>();
-      filteredMatchesData.forEach((match: any) => {
-        if (match.jugador1_soci_numero) allNumerosSoci.add(match.jugador1_soci_numero);
-        if (match.jugador2_soci_numero) allNumerosSoci.add(match.jugador2_soci_numero);
-      });
-
-      // Fetch all socis in ONE query instead of N queries
-      const { data: socisData, error: socisError } = await supabase
-        .from('socis')
-        .select('numero_soci, nom, cognoms')
-        .in('numero_soci', Array.from(allNumerosSoci));
-
-      if (socisError) {
-        console.warn('Error loading socis:', socisError);
-      }
-
-      // Create a lookup map for fast access
-      const socisMap = new Map();
-      (socisData || []).forEach(soci => {
-        socisMap.set(soci.numero_soci, soci);
-      });
-
-      // Map matches with soci data using the lookup map (no async needed)
-      const matchesWithSocis = filteredMatchesData.map((match: any) => ({
-        ...match,
-        soci1: socisMap.get(match.jugador1_soci_numero) || null,
-        soci2: socisMap.get(match.jugador2_soci_numero) || null
-      }));
-
-      calendarMatches = matchesWithSocis;
     } catch (e) {
       console.error('Error loading matches:', e);
       error = 'Error carregant les partides';
@@ -162,7 +138,6 @@
   }
 
   async function submitResult() {
-    if (loading) return; // evita submissions concurrents (doble click)
     if (!selectedMatch) {
       error = 'Selecciona una partida';
       return;
@@ -174,84 +149,74 @@
       return;
     }
 
-    loading = true;
+    // Snapshot del que s'està guardant: així alliberem el formulari abans
+    // d'esperar la xarxa i l'usuari pot començar el següent resultat.
+    const matchToSave = selectedMatch;
+    const c1 = caramboles_jugador1;
+    const c2 = caramboles_jugador2;
+    const ent = entrades;
+    const obs = observacions;
+    const uid = $userId;
+
+    // Punts segons resultat
+    let punts_j1 = 0;
+    let punts_j2 = 0;
+    if (c1 > c2) {
+      punts_j1 = 2;
+    } else if (c2 > c1) {
+      punts_j2 = 2;
+    } else {
+      punts_j1 = 1;
+      punts_j2 = 1;
+    }
+
+    // UI optimista: traiem la partida de la llista i resetejem el formulari
+    // immediatament. Si la xarxa falla, fem rollback més avall.
+    calendarMatches = calendarMatches.filter((m) => m.id !== matchToSave.id);
+    selectedMatch = null;
+    caramboles_jugador1 = 0;
+    caramboles_jugador2 = 0;
+    entrades = 0;
+    observacions = '';
+    matchesCollapsed = false;
     error = '';
-    success = false;
 
     try {
-      // For social league matches, store results directly in calendari_partides
-      // This keeps social leagues separate from ranking championship
-      console.log('🔍 Guardant resultat:', {
-        match_id: selectedMatch.id,
-        caramboles_j1: caramboles_jugador1,
-        caramboles_j2: caramboles_jugador2,
-        entrades: entrades
-      });
-
-      // Calcular punts segons el resultat
-      let punts_j1 = 0;
-      let punts_j2 = 0;
-
-      if (caramboles_jugador1 > caramboles_jugador2) {
-        punts_j1 = 2;  // Jugador 1 guanya
-        punts_j2 = 0;
-      } else if (caramboles_jugador2 > caramboles_jugador1) {
-        punts_j1 = 0;
-        punts_j2 = 2;  // Jugador 2 guanya
-      } else {
-        punts_j1 = 1;  // Empat
-        punts_j2 = 1;
-      }
-
-      const { data: updateData, error: updateError } = await supabase
+      const now = new Date().toISOString();
+      const { error: updateError } = await supabase
         .from('calendari_partides')
         .update({
-          caramboles_jugador1: caramboles_jugador1,
-          caramboles_jugador2: caramboles_jugador2,
-          entrades: entrades,  // Mantingut per compatibilitat
-          entrades_jugador1: entrades,  // Ambdós jugadors tenen les mateixes entrades en partides normals
-          entrades_jugador2: entrades,
-          punts_jugador1: punts_j1,  // Punts calculats segons resultat
+          caramboles_jugador1: c1,
+          caramboles_jugador2: c2,
+          entrades: ent,
+          entrades_jugador1: ent,
+          entrades_jugador2: ent,
+          punts_jugador1: punts_j1,
           punts_jugador2: punts_j2,
-          data_joc: new Date().toISOString(),
+          data_joc: now,
           estat: 'jugada',
-          validat_per: (await supabase.auth.getUser()).data.user?.id,
-          data_validacio: new Date().toISOString(),
-          observacions_junta: observacions
+          validat_per: uid,
+          data_validacio: now,
+          observacions_junta: obs
         })
-        .eq('id', selectedMatch.id)
-        .select();
+        .eq('id', matchToSave.id);
 
-      if (updateError) {
-        console.error('❌ Error guardant a calendari_partides:', updateError);
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
-      console.log('✅ Resultat guardat correctament:', updateData);
-
-      // Remove the match from the list instead of reloading everything
-      // This is much faster and doesn't block the UI
-      calendarMatches = calendarMatches.filter(m => m.id !== selectedMatch.id);
-
-      // Reset form
-      selectedMatch = null;
-      caramboles_jugador1 = 0;
-      caramboles_jugador2 = 0;
-      entrades = 0;
-      observacions = '';
-      matchesCollapsed = false;
-
-      success = true;
-
-      setTimeout(() => {
-        success = false;
-      }, 3000);
-
+      showSuccess('Resultat guardat correctament');
     } catch (e) {
       console.error('Error submitting result:', e);
-      error = 'Error guardant el resultat';
-    } finally {
-      loading = false;
+      // Rollback: tornem la partida a la llista si encara no hi és
+      if (!calendarMatches.some((m) => m.id === matchToSave.id)) {
+        calendarMatches = [...calendarMatches, matchToSave].sort((a, b) => {
+          const da: string = a.data_programada ?? '';
+          const db: string = b.data_programada ?? '';
+          return da.localeCompare(db);
+        });
+      }
+      const nom1 = nomComplet(matchToSave.soci1?.nom, matchToSave.soci1?.cognoms);
+      const nom2 = nomComplet(matchToSave.soci2?.nom, matchToSave.soci2?.cognoms);
+      showError(`Error guardant ${nom1} vs ${nom2}. La partida torna a la llista.`, e);
     }
   }
 

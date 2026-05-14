@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
+	import { adminChecked } from '$lib/stores/adminAuth';
+	import { effectiveIsAdmin } from '$lib/stores/viewMode';
 	import { user } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabaseClient';
 
@@ -32,12 +33,13 @@
 
 	$: loading = !$adminChecked || accessLevel === 'loading';
 
-	// Admins always have access; public users need 'public' level
+	// Admins always have access; public users need 'public' level.
+	// Usem effectiveIsAdmin perquè respecti el toggle viewMode.
 	$: canAccess =
-		!loading && ($isAdmin || accessLevel === 'public') && !!$user;
+		!loading && ($effectiveIsAdmin || accessLevel === 'public') && !!$user;
 
-	$: showDevBanner = canAccess && accessLevel === 'dev' && $isAdmin;
-	$: showAdminBanner = canAccess && accessLevel === 'admin' && $isAdmin;
+	$: showDevBanner = canAccess && accessLevel === 'dev' && $effectiveIsAdmin;
+	$: showAdminBanner = canAccess && accessLevel === 'admin' && $effectiveIsAdmin;
 </script>
 
 {#if loading}

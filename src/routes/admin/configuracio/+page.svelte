@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { user } from '$lib/stores/auth';
-  import { isAdmin, adminChecked } from '$lib/stores/adminAuth';
+  import { adminChecked } from '$lib/stores/adminAuth';
+  import { effectiveIsAdmin } from '$lib/stores/viewMode';
   import { checkIsAdmin } from '$lib/roles';
   import Banner from '$lib/components/general/Banner.svelte';
   import { formatSupabaseError, err as errText } from '$lib/ui/alerts';
@@ -136,7 +137,7 @@
   <p class="text-slate-500">Carregant configuració…</p>
 {:else if error}
   <Banner type="error" message={error} />
-{:else if $isAdmin && settings}
+{:else if $effectiveIsAdmin && settings}
   <div class="max-w-2xl space-y-6">
     {#if saveSuccess}
       <Banner type="success" message={saveSuccess} />
