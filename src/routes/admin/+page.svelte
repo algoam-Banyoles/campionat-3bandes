@@ -453,6 +453,17 @@
           </p>
           <p class="ad-card-warn">No es pot desfer.</p>
         </a>
+
+        <!-- Reset hàndicap -->
+        <a href="/admin/reset-handicap" class="ad-card ad-card-danger">
+          <div class="ad-card-eyebrow ad-card-eyebrow-danger">Operació destructiva</div>
+          <h3 class="ad-card-title">Reset hàndicap</h3>
+          <p class="ad-card-body">
+            Esborra un event hàndicap i totes les seves dades (config, participants,
+            bracket, partides). Els tornejos finalitzats queden protegits com a històric.
+          </p>
+          <p class="ad-card-warn">No es pot desfer.</p>
+        </a>
       </div>
     </section>
 
