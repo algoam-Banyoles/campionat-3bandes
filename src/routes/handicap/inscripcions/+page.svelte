@@ -29,6 +29,15 @@
 	let participants: any[] = [];
 	let horariesExtra: string[] = [];
 
+	// Dades extra per participant: distància al social actual + millor mitjana 2 anys
+	type ParticipantExtra = {
+		distSocial: number | null;
+		categoriaSocialNom: string | null;
+		millorMitjana: number | null;
+		millorMitjanaYear: number | null;
+	};
+	let participantExtras = new Map<number, ParticipantExtra>();
+
 	// ─── Modal: afegir / editar ────────────────────────────────
 	let showModal = false;
 	let editingId: string | null = null;
