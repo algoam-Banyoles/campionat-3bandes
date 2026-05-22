@@ -46,23 +46,32 @@
 	let preferencies_hores: string[] = [];
 	let restriccions_especials = '';
 
-	// Suggeriment automàtic de distància
+	// Suggeriment automàtic de distància (modal individual)
 	let suggestLoading = false;
-	let suggestInfo: string | null = null;
+	let suggestData: {
+		categoriaNom: string | null;
+		distanciaSocial: number | null;
+		millorMitjana: number | null;
+		millorMitjanaYear: number | null;
+		message: string | null;
+	} | null = null;
 
 	// Modal importació massiva
 	let showImportModal = false;
+	type ImportOrigen = 'social' | 'promig' | 'cap';
 	let importPlayers: Array<{
 		numero_soci: number;
 		nom: string;
 		cognoms: string;
-		distanciaGrupIdx: number;
-		categoriaNom: string;
+		distanciaGrupIdx: number | null;
+		origenLabel: string;
+		origenTipus: ImportOrigen;
 		selected: boolean;
 		alreadyInscrit: boolean;
 	}> = [];
 	let importLoading = false;
 	let importSaving = false;
+	let importSearch = '';
 
 
 	// ─── Inicialització ────────────────────────────────────────
@@ -166,45 +175,70 @@
 		await suggestDistancia(soci.numero_soci);
 	}
 
-	async function suggestDistancia(numero_soci: number, _unused?: string | null) {
+	async function suggestDistancia(numero_soci: number) {
 		if (distanciaGrups.length === 0) return;
 		suggestLoading = true;
-		suggestInfo = null;
+		suggestData = null;
 
 		try {
-			if (!socialEventId) {
-				suggestInfo = socialEventNotFound
-					? `No s'ha trobat el campionat social de 3 bandes per a la temporada ${event?.temporada ?? ''}. Assigna la distància manualment.`
-					: 'Sense campionat social de referència. Assigna la distància manualment.';
-				return;
+			const yearActual = parseInt((event?.temporada || '').split('-').pop() || '0', 10);
+			const minYear = yearActual - 1; // últims 2 anys
+
+			// En paral·lel: inscripció social actual (si hi ha event) + millor mitjana 2 anys
+			const socialPromise = socialEventId
+				? supabase
+					.from('inscripcions')
+					.select('categoria_assignada_id, categories!inscripcions_categoria_assignada_id_fkey(nom, distancia_caramboles)')
+					.eq('soci_numero', numero_soci)
+					.eq('event_id', socialEventId)
+					.not('categoria_assignada_id', 'is', null)
+					.limit(1)
+					.maybeSingle()
+				: Promise.resolve({ data: null, error: null });
+
+			const mitjanaPromise = yearActual > 0
+				? supabase
+					.from('mitjanes_historiques')
+					.select('year, mitjana')
+					.eq('soci_id', numero_soci)
+					.eq('modalitat', '3 BANDES')
+					.gte('year', minYear)
+					.lte('year', yearActual)
+					.order('mitjana', { ascending: false })
+					.limit(1)
+					.maybeSingle()
+				: Promise.resolve({ data: null, error: null });
+
+			const [socialRes, mitjanaRes] = await Promise.all([socialPromise, mitjanaPromise]);
+
+			const socialRow: any = socialRes.data;
+			const cat: any = socialRow?.categories
+				? (Array.isArray(socialRow.categories) ? socialRow.categories[0] : socialRow.categories)
+				: null;
+			const mitjana: any = mitjanaRes.data;
+
+			let message: string | null = null;
+
+			if (cat?.distancia_caramboles != null) {
+				const gIdx = findClosestGroupIdx(cat.distancia_caramboles);
+				distanciaMode = 'grup';
+				distanciaGrupIdx = gIdx;
+				message = `Proposta: ${distanciaGrups[gIdx].nom} (${distanciaGrups[gIdx].distancia} car.)`;
+			} else if (socialEventNotFound) {
+				message = `No s'ha trobat el campionat social de 3 bandes per a la temporada ${event?.temporada ?? ''}. Assigna manualment.`;
+			} else {
+				message = `Sense inscripció al social 3 bandes ${event?.temporada ?? ''}. Assigna manualment.`;
 			}
 
-			// Buscar la inscripció al campionat social de 3 bandes de la mateixa temporada
-			const { data: inscripcions } = await supabase
-				.from('inscripcions')
-				.select('categoria_assignada_id, categories!inscripcions_categoria_assignada_id_fkey(nom, ordre_categoria)')
-				.eq('soci_numero', numero_soci)
-				.eq('event_id', socialEventId)
-				.not('categoria_assignada_id', 'is', null)
-				.limit(1);
-
-			if (!inscripcions || inscripcions.length === 0) {
-				suggestInfo = 'Sense inscripció al campionat social de 3 bandes. Assigna la distància manualment.';
-				return;
-			}
-
-			const cat = (inscripcions[0].categories as any);
-			const ordreCategoria: number = cat?.ordre_categoria ?? distanciaGrups.length;
-			const catNom: string = cat?.nom ?? 'Desconeguda';
-
-			// Mapping: ordre 1 → grup[0], ordre 2 → grup[1], ordre >= N → grup[N-1] (resta)
-			const gIdx = Math.min(ordreCategoria - 1, distanciaGrups.length - 1);
-
-			distanciaMode = 'grup';
-			distanciaGrupIdx = gIdx;
-			suggestInfo = `Categoria social: ${catNom} (${ordreCategoria}a) → ${distanciaGrups[gIdx].nom} (${distanciaGrups[gIdx].distancia} car.)`;
+			suggestData = {
+				categoriaNom: cat?.nom ?? null,
+				distanciaSocial: cat?.distancia_caramboles ?? null,
+				millorMitjana: mitjana?.mitjana ?? null,
+				millorMitjanaYear: mitjana?.year ?? null,
+				message
+			};
 		} catch {
-			suggestInfo = null;
+			suggestData = null;
 		} finally {
 			suggestLoading = false;
 		}
@@ -226,7 +260,7 @@
 		preferencies_dies = [];
 		preferencies_hores = [];
 		restriccions_especials = '';
-		suggestInfo = null;
+		suggestData = null;
 		showModal = true;
 	}
 
@@ -253,7 +287,7 @@
 		preferencies_dies = p.preferencies_dies || [];
 		preferencies_hores = p.preferencies_hores || [];
 		restriccions_especials = p.restriccions_especials || '';
-		suggestInfo = null;
+		suggestData = null;
 		showModal = true;
 	}
 
@@ -337,60 +371,155 @@
 	}
 
 	// ─── Importació massiva ────────────────────────────────────
+	// Regla d'assignació proposada (l'admin pot modificar tot al selector):
+	//   1. Si el soci ha jugat el social 3 bandes d'aquesta temporada
+	//      → grup del hàndicap amb `distancia_caramboles` més propera.
+	//   2. Si no, busca millor mitjana dels últims 3 anys (3 BANDES)
+	//      → grup amb mediana de promig (entre inscrits socials) més propera.
+	//   3. Si no té cap dada → proposta buida; l'admin assigna manualment.
+	function findClosestGroupIdx(targetDistancia: number): number {
+		let bestIdx = 0;
+		let bestDiff = Infinity;
+		for (let i = 0; i < distanciaGrups.length; i++) {
+			const diff = Math.abs(distanciaGrups[i].distancia - targetDistancia);
+			if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+		}
+		return bestIdx;
+	}
+
 	async function openImportModal() {
 		showImportModal = true;
 		importLoading = true;
 		importPlayers = [];
+		importSearch = '';
 
 		try {
-			// Usar el campionat social de 3 bandes de la mateixa temporada
-			if (!socialEventId) {
-				// No hi ha campionat social de la temporada → mostrar missatge al modal
+			if (distanciaGrups.length === 0) {
 				importLoading = false;
 				return;
 			}
 
-			const { data: inscripcions } = await supabase
-				.from('inscripcions')
-				.select(`
-					soci_numero,
-					categories!inscripcions_categoria_assignada_id_fkey(nom, ordre_categoria),
-					socis!inscripcions_soci_numero_fkey(nom, cognoms)
-				`)
-				.eq('event_id', socialEventId);
+			// Any actual de la temporada (end-year, ex: '2025-2026' → 2026)
+			const yearActual = parseInt((event.temporada || '').split('-').pop() || '0', 10);
+			const minYear = yearActual - 2; // últims 3 anys: [yearActual-2, yearActual]
 
-			if (!inscripcions) { importLoading = false; return; }
+			// 1. Socis actius
+			const { data: socisActius, error: socisErr } = await supabase
+				.from('socis')
+				.select('numero_soci, nom, cognoms')
+				.eq('de_baixa', false)
+				.order('cognoms');
+			if (socisErr) throw socisErr;
+			const allSocis = socisActius || [];
+			if (allSocis.length === 0) {
+				importLoading = false;
+				return;
+			}
+			const sociNumbers = allSocis.map(s => s.numero_soci);
 
-			// Fase 5c-S3: ja no cal la taula `players`. Matching directe via soci_numero.
-			const inscritsSocis = new Set(participants.map((p: any) => p.soci_numero));
-
-			// Deduplicar per jugador (un jugador pot tenir ≤1 inscripció per event, però per seguretat)
-			const seen = new Map<number, any>();
-			for (const ins of inscripcions) {
-				if (!seen.has(ins.soci_numero)) seen.set(ins.soci_numero, ins);
+			// 2. Inscripcions al social 3 bandes de la mateixa temporada (si existeix)
+			const socialInscriptionsByNumero = new Map<number, { distancia_caramboles: number; categoria_nom: string }>();
+			if (socialEventId) {
+				const { data: inscripcionsSocial } = await supabase
+					.from('inscripcions')
+					.select(`soci_numero, categories!inscripcions_categoria_assignada_id_fkey(nom, distancia_caramboles)`)
+					.eq('event_id', socialEventId)
+					.not('categoria_assignada_id', 'is', null);
+				for (const ins of (inscripcionsSocial || [])) {
+					const cat: any = Array.isArray((ins as any).categories) ? (ins as any).categories[0] : (ins as any).categories;
+					if (cat?.distancia_caramboles != null) {
+						socialInscriptionsByNumero.set((ins as any).soci_numero, {
+							distancia_caramboles: cat.distancia_caramboles,
+							categoria_nom: cat.nom ?? ''
+						});
+					}
+				}
 			}
 
-			const grups = distanciaGrups;
+			// 3. Millor promig (max mitjana) dels últims 3 anys per soci (modalitat 3 BANDES)
+			const { data: mitjanesData } = await supabase
+				.from('mitjanes_historiques')
+				.select('soci_id, year, mitjana')
+				.eq('modalitat', '3 BANDES')
+				.gte('year', minYear)
+				.lte('year', yearActual)
+				.in('soci_id', sociNumbers);
+			const bestPromigBySoci = new Map<number, { mitjana: number; year: number }>();
+			for (const m of (mitjanesData || []) as any[]) {
+				const current = bestPromigBySoci.get(m.soci_id);
+				if (!current || m.mitjana > current.mitjana) {
+					bestPromigBySoci.set(m.soci_id, { mitjana: m.mitjana, year: m.year });
+				}
+			}
 
-			importPlayers = [...seen.values()].map((ins: any) => {
-				const cat = ins.categories as any;
-				const ordreCategoria: number = cat?.ordre_categoria ?? grups.length;
-				const categoriaNom: string = cat?.nom ?? 'Sense categoria';
+			// 4. Mediana del millor promig per cada distancia_caramboles del social actual
+			const promigsByDistancia = new Map<number, number[]>();
+			for (const [soci, info] of socialInscriptionsByNumero) {
+				const best = bestPromigBySoci.get(soci);
+				if (best != null) {
+					if (!promigsByDistancia.has(info.distancia_caramboles)) {
+						promigsByDistancia.set(info.distancia_caramboles, []);
+					}
+					promigsByDistancia.get(info.distancia_caramboles)!.push(best.mitjana);
+				}
+			}
+			const medianaByDistancia = new Map<number, number>();
+			for (const [dist, vals] of promigsByDistancia) {
+				const sorted = [...vals].sort((a, b) => a - b);
+				const mid = Math.floor(sorted.length / 2);
+				const mediana = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+				medianaByDistancia.set(dist, mediana);
+			}
 
-				// Mapping: ordre 1 → grup[0], ordre 2 → grup[1], ordre >= N → grup[N-1]
-				const gIdx = Math.min(ordreCategoria - 1, grups.length - 1);
+			// 5. Filtrar ja inscrits al hàndicap
+			const inscritsHandicap = new Set(participants.map((p: any) => p.soci_numero));
 
-				const isInscrit = inscritsSocis.has(ins.soci_numero);
+			// 6. Construir proposta per a cada soci actiu
+			importPlayers = allSocis.map(soci => {
+				const isInscritHandicap = inscritsHandicap.has(soci.numero_soci);
+				const socialInfo = socialInscriptionsByNumero.get(soci.numero_soci);
+				const promigInfo = bestPromigBySoci.get(soci.numero_soci);
+
+				let distanciaGrupIdx: number | null = null;
+				let origenTipus: ImportOrigen = 'cap';
+				let origenLabel = 'Sense dades';
+
+				if (socialInfo) {
+					distanciaGrupIdx = findClosestGroupIdx(socialInfo.distancia_caramboles);
+					origenTipus = 'social';
+					origenLabel = `Social: ${socialInfo.categoria_nom} (${socialInfo.distancia_caramboles} car.)`;
+				} else if (promigInfo && medianaByDistancia.size > 0) {
+					let bestDistSocial: number | null = null;
+					let bestDiff = Infinity;
+					for (const [dist, med] of medianaByDistancia) {
+						const diff = Math.abs(med - promigInfo.mitjana);
+						if (diff < bestDiff) { bestDiff = diff; bestDistSocial = dist; }
+					}
+					if (bestDistSocial != null) {
+						distanciaGrupIdx = findClosestGroupIdx(bestDistSocial);
+						origenTipus = 'promig';
+						origenLabel = `Promig ${promigInfo.mitjana.toFixed(3)} (${promigInfo.year})`;
+					}
+				}
 
 				return {
-					numero_soci: ins.soci_numero,
-					nom: ins.socis?.nom || '',
-					cognoms: ins.socis?.cognoms || '',
-					distanciaGrupIdx: gIdx,
-					categoriaNom,
-					selected: !isInscrit,
-					alreadyInscrit: isInscrit
+					numero_soci: soci.numero_soci,
+					nom: soci.nom,
+					cognoms: soci.cognoms || '',
+					distanciaGrupIdx,
+					origenLabel,
+					origenTipus,
+					selected: false,
+					alreadyInscrit: isInscritHandicap
 				};
+			});
+
+			// Ordenar: social primer, després promig, després sense dades; per cognoms dins de cada grup
+			const orderMap: Record<ImportOrigen, number> = { social: 0, promig: 1, cap: 2 };
+			importPlayers.sort((a, b) => {
+				const diff = orderMap[a.origenTipus] - orderMap[b.origenTipus];
+				if (diff !== 0) return diff;
+				return `${a.cognoms} ${a.nom}`.localeCompare(`${b.cognoms} ${b.nom}`, 'ca');
 			});
 		} catch (e) {
 			error = formatSupabaseError(e);
@@ -399,8 +528,23 @@
 		}
 	}
 
+	$: importPlayersFiltered = (() => {
+		const term = importSearch.trim().toLowerCase();
+		if (!term) return importPlayers;
+		const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+		const t = norm(term);
+		return importPlayers.filter(p =>
+			norm(p.nom).includes(t) || norm(p.cognoms).includes(t)
+		);
+	})();
+	$: importSelectableCount = importPlayers.filter(
+		p => p.selected && !p.alreadyInscrit && p.distanciaGrupIdx != null
+	).length;
+
 	async function handleImport() {
-		const toInsert = importPlayers.filter(p => p.selected && !p.alreadyInscrit);
+		const toInsert = importPlayers.filter(
+			p => p.selected && !p.alreadyInscrit && p.distanciaGrupIdx != null
+		);
 		if (toInsert.length === 0) return;
 
 		importSaving = true;
@@ -408,7 +552,7 @@
 			const rows = toInsert.map(p => ({
 				event_id: event.id,
 				soci_numero: p.numero_soci,
-				distancia: distanciaGrups[p.distanciaGrupIdx]?.distancia || distanciaGrups[distanciaGrups.length - 1]?.distancia || 10,
+				distancia: distanciaGrups[p.distanciaGrupIdx as number].distancia,
 				preferencies_dies: [],
 				preferencies_hores: []
 			}));
@@ -933,12 +1077,31 @@
 					</div>
 				{/if}
 
-				<!-- Suggeriment distància -->
+				<!-- Suggeriment distància + dades del jugador -->
 				{#if suggestLoading}
-					<p class="text-xs text-gray-500">Consultant categoria social...</p>
-				{:else if suggestInfo}
-					<div class="rounded border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800">
-						{suggestInfo}
+					<p class="text-xs text-gray-500">Consultant categoria social i mitjanes...</p>
+				{:else if suggestData}
+					<div class="rounded border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800 space-y-1">
+						{#if suggestData.categoriaNom}
+							<p>
+								<strong>Social {event?.temporada}:</strong>
+								{suggestData.categoriaNom}{#if suggestData.distanciaSocial != null} ({suggestData.distanciaSocial} caramboles){/if}
+							</p>
+						{:else}
+							<p>Sense inscripció al campionat social 3 bandes {event?.temporada}.</p>
+						{/if}
+						{#if suggestData.millorMitjana != null}
+							<p>
+								<strong>Millor mitjana 3 bandes (últims 2 anys):</strong>
+								{suggestData.millorMitjana.toFixed(3)}
+								{#if suggestData.millorMitjanaYear} ({suggestData.millorMitjanaYear}){/if}
+							</p>
+						{:else}
+							<p>Sense mitjanes registrades els últims 2 anys.</p>
+						{/if}
+						{#if suggestData.message}
+							<p class="italic">{suggestData.message}</p>
+						{/if}
 					</div>
 				{/if}
 
@@ -1037,19 +1200,31 @@
 
 			<div class="px-5 py-4">
 				{#if importLoading}
-					<p class="text-sm text-gray-500">Carregant jugadors del campionat social...</p>
-				{:else if socialEventNotFound}
+					<p class="text-sm text-gray-500">Carregant socis i proposta de grup...</p>
+				{:else if distanciaGrups.length === 0}
 					<div class="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
-						No s'ha trobat cap campionat social de 3 bandes per a la temporada <strong>{event?.temporada}</strong>.
-						Afegeix els jugadors individualment amb el botó "+ Afegir jugador".
+						Configura primer els grups de distància a
+						<a href="/handicap/configuracio" class="underline">Configuració</a>.
 					</div>
 				{:else if importPlayers.length === 0}
-					<p class="text-sm text-gray-500">No s'han trobat jugadors inscrits al campionat social de 3 bandes de la temporada {event?.temporada}.</p>
+					<p class="text-sm text-gray-500">No hi ha socis actius per importar.</p>
 				{:else}
-					<p class="mb-3 text-sm text-gray-600">
-						{importPlayers.filter(p => !p.alreadyInscrit).length} jugadors disponibles per importar.
-						Selecciona'ls i assigna la distancia.
+					<p class="mb-2 text-sm text-gray-600">
+						Proposta automàtica: socis amb inscripció al campionat social 3 bandes {event?.temporada} → grup amb la mateixa distància.
+						Resta: millor mitjana 3 bandes (últimes 3 temporades) mapejat segons mediana del grup social.
+						Sense dades → assigna manualment. Tot es pot modificar al selector.
 					</p>
+					<div class="mb-2">
+						<input
+							type="search"
+							bind:value={importSearch}
+							placeholder="Filtra per nom o cognoms..."
+							class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-purple-500 focus:ring-purple-500"
+						/>
+					</div>
+					<div class="mb-2 text-xs text-gray-500">
+						{importPlayersFiltered.length} de {importPlayers.length} mostrats — {importPlayers.filter(p => !p.alreadyInscrit).length} no inscrits.
+					</div>
 					<div class="max-h-80 overflow-y-auto">
 						<table class="w-full text-sm">
 							<thead class="sticky top-0 bg-gray-50">
@@ -1057,48 +1232,60 @@
 									<th class="px-3 py-2 text-left">
 										<input
 											type="checkbox"
+											title="Selecciona tots els visibles amb proposta"
 											on:change={e => {
 												const checked = (e.target as HTMLInputElement).checked;
-												importPlayers = importPlayers.map(p => ({
-													...p,
-													selected: p.alreadyInscrit ? false : checked
-												}));
+												const visibles = new Set(importPlayersFiltered.map(p => p.numero_soci));
+												importPlayers = importPlayers.map(p => {
+													if (!visibles.has(p.numero_soci)) return p;
+													if (p.alreadyInscrit || p.distanciaGrupIdx == null) return p;
+													return { ...p, selected: checked };
+												});
 											}}
 										/>
 									</th>
-									<th class="px-3 py-2 text-left font-medium text-gray-700">Jugador (categoria social)</th>
-									<th class="px-3 py-2 text-center font-medium text-gray-700">Distancia</th>
+									<th class="px-3 py-2 text-left font-medium text-gray-700">Jugador</th>
+									<th class="px-3 py-2 text-left font-medium text-gray-700">Origen proposta</th>
+									<th class="px-3 py-2 text-center font-medium text-gray-700">Distància</th>
 								</tr>
 							</thead>
 							<tbody>
-								{#each importPlayers as imp, i}
+								{#each importPlayersFiltered as imp (imp.numero_soci)}
 									<tr class="border-t border-gray-100 {imp.alreadyInscrit ? 'opacity-40' : ''}">
 										<td class="px-3 py-2">
 											<input
 												type="checkbox"
 												bind:checked={imp.selected}
-												disabled={imp.alreadyInscrit}
+												disabled={imp.alreadyInscrit || imp.distanciaGrupIdx == null}
+												title={imp.distanciaGrupIdx == null ? 'Selecciona primer un grup' : ''}
 											/>
 										</td>
 										<td class="px-3 py-2">
 											<span class="font-medium">{formatarNomJugador(`${imp.nom ?? ''} ${imp.cognoms ?? ''}`.trim())}</span>
-											<span class="ml-1 text-xs text-gray-400">{imp.categoriaNom}</span>
 											{#if imp.alreadyInscrit}
 												<span class="ml-1 text-xs text-green-600">(ja inscrit)</span>
 											{/if}
 										</td>
-										<td class="px-3 py-2 text-center">
-											{#if distanciaGrups.length > 0}
-												<select
-													bind:value={imp.distanciaGrupIdx}
-													disabled={imp.alreadyInscrit}
-													class="rounded-md border-gray-300 text-xs shadow-sm focus:border-purple-500 focus:ring-purple-500"
-												>
-													{#each distanciaGrups as g, gi}
-														<option value={gi}>{g.nom} ({g.distancia})</option>
-													{/each}
-												</select>
+										<td class="px-3 py-2 text-xs">
+											{#if imp.origenTipus === 'social'}
+												<span class="text-gray-700">{imp.origenLabel}</span>
+											{:else if imp.origenTipus === 'promig'}
+												<span class="text-gray-700">{imp.origenLabel}</span>
+											{:else}
+												<span class="text-gray-400 italic">{imp.origenLabel}</span>
 											{/if}
+										</td>
+										<td class="px-3 py-2 text-center">
+											<select
+												bind:value={imp.distanciaGrupIdx}
+												disabled={imp.alreadyInscrit}
+												class="rounded-md border-gray-300 text-xs shadow-sm focus:border-purple-500 focus:ring-purple-500"
+											>
+												<option value={null}>—</option>
+												{#each distanciaGrups as g, gi}
+													<option value={gi}>{g.nom} ({g.distancia})</option>
+												{/each}
+											</select>
 										</td>
 									</tr>
 								{/each}
@@ -1118,10 +1305,10 @@
 				{#if importPlayers.length > 0}
 					<button
 						on:click={handleImport}
-						disabled={importSaving || importPlayers.filter(p => p.selected && !p.alreadyInscrit).length === 0}
+						disabled={importSaving || importSelectableCount === 0}
 						class="rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
 					>
-						{importSaving ? 'Important...' : `Importar ${importPlayers.filter(p => p.selected && !p.alreadyInscrit).length} jugadors`}
+						{importSaving ? 'Important...' : `Importar ${importSelectableCount} jugador${importSelectableCount === 1 ? '' : 's'}`}
 					</button>
 				{/if}
 			</div>
