@@ -158,6 +158,65 @@
 			.order('created_at', { ascending: true });
 		if (pErr) throw pErr;
 		participants = data || [];
+		await loadParticipantExtras();
+	}
+
+	async function loadParticipantExtras() {
+		const sociNumbers = participants.map((p: any) => p.soci_numero).filter((n: any) => n != null);
+		if (sociNumbers.length === 0) {
+			participantExtras = new Map();
+			return;
+		}
+
+		const yearActual = parseInt((event?.temporada || '').split('-').pop() || '0', 10);
+		const minYear = yearActual - 1; // últims 2 anys
+
+		const map = new Map<number, ParticipantExtra>();
+		for (const n of sociNumbers) {
+			map.set(n, { distSocial: null, categoriaSocialNom: null, millorMitjana: null, millorMitjanaYear: null });
+		}
+
+		const socialPromise = socialEventId
+			? supabase
+				.from('inscripcions')
+				.select('soci_numero, categories!inscripcions_categoria_assignada_id_fkey(nom, distancia_caramboles)')
+				.eq('event_id', socialEventId)
+				.in('soci_numero', sociNumbers)
+				.not('categoria_assignada_id', 'is', null)
+			: Promise.resolve({ data: [], error: null });
+
+		const mitjanaPromise = yearActual > 0
+			? supabase
+				.from('mitjanes_historiques')
+				.select('soci_id, year, mitjana')
+				.eq('modalitat', '3 BANDES')
+				.gte('year', minYear)
+				.lte('year', yearActual)
+				.in('soci_id', sociNumbers)
+			: Promise.resolve({ data: [], error: null });
+
+		const [socialRes, mitjanaRes] = await Promise.all([socialPromise, mitjanaPromise]);
+
+		for (const ins of (socialRes.data || []) as any[]) {
+			const cat: any = Array.isArray(ins.categories) ? ins.categories[0] : ins.categories;
+			if (cat?.distancia_caramboles != null) {
+				const entry = map.get(ins.soci_numero);
+				if (entry) {
+					entry.distSocial = cat.distancia_caramboles;
+					entry.categoriaSocialNom = cat.nom ?? null;
+				}
+			}
+		}
+
+		for (const m of (mitjanaRes.data || []) as any[]) {
+			const entry = map.get(m.soci_id);
+			if (entry && (entry.millorMitjana == null || m.mitjana > entry.millorMitjana)) {
+				entry.millorMitjana = m.mitjana;
+				entry.millorMitjanaYear = m.year;
+			}
+		}
+
+		participantExtras = map;
 	}
 
 	// ─── Cerca de jugadors ─────────────────────────────────────
@@ -768,7 +827,9 @@
 						<thead class="bg-gray-50">
 							<tr>
 								<th class="px-4 py-2 text-left font-medium text-gray-700">Jugador</th>
-								<th class="px-4 py-2 text-center font-medium text-gray-700">Dist.</th>
+								<th class="px-4 py-2 text-center font-medium text-gray-700" title="Distància al torneig hàndicap">Dist.</th>
+								<th class="px-4 py-2 text-center font-medium text-gray-700" title="Distància de la categoria al social 3 bandes d'aquesta temporada">Social</th>
+								<th class="px-4 py-2 text-center font-medium text-gray-700" title="Millor mitjana 3 bandes dels últims 2 anys">Promig</th>
 								<th class="px-4 py-2 text-left font-medium text-gray-700">Dies</th>
 								<th class="px-4 py-2 text-left font-medium text-gray-700">Hores</th>
 								<th class="px-4 py-2 text-left font-medium text-gray-700">Restriccions</th>
@@ -778,12 +839,30 @@
 						</thead>
 						<tbody>
 							{#each participants as p, i}
+								{@const extra = participantExtras.get(p.soci_numero)}
 								<tr class="border-t border-gray-100 {i % 2 === 0 ? '' : 'bg-gray-50'}">
 									<td class="px-4 py-2 font-medium text-gray-900">{playerNom(p)}</td>
 									<td class="px-4 py-2 text-center">
 										<span class="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-bold text-purple-800">
 											{p.distancia}
 										</span>
+									</td>
+									<td class="px-4 py-2 text-center text-xs text-gray-700">
+										{#if extra?.distSocial != null}
+											<span title={extra.categoriaSocialNom ?? ''}>{extra.distSocial}</span>
+										{:else}
+											<span class="text-gray-400">—</span>
+										{/if}
+									</td>
+									<td class="px-4 py-2 text-center text-xs text-gray-700">
+										{#if extra?.millorMitjana != null}
+											{extra.millorMitjana.toFixed(3)}
+											{#if extra.millorMitjanaYear}
+												<span class="ml-1 text-gray-400">({extra.millorMitjanaYear})</span>
+											{/if}
+										{:else}
+											<span class="text-gray-400">—</span>
+										{/if}
 									</td>
 									<td class="px-4 py-2 text-gray-600 text-xs">{formatDies(p.preferencies_dies)}</td>
 									<td class="px-4 py-2 text-gray-600 text-xs">{formatDies(p.preferencies_hores)}</td>
