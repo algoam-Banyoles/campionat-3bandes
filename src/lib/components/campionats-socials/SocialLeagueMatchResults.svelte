@@ -30,6 +30,14 @@
   let updateError: string | null = null;
   let updateSuccess: string | null = null;
   let saving = false;
+  // Flux de reversió d'incompareixença: quan l'admin clica "substituir per resultat real",
+  // el formulari del modal s'usa per recollir caramboles+entrades i `saveMatchResult` deriva
+  // cap a la RPC `revertir_incompareixenca` en lloc de fer un UPDATE directe.
+  let substituintIncompareixenca = false;
+
+  $: editingHasIncompareixenca = !!(
+    editingMatch && (editingMatch.incompareixenca_jugador1 || editingMatch.incompareixenca_jugador2)
+  );
 
   onMount(() => {
     if (eventId) {
@@ -321,18 +329,116 @@
       entrades_reptador: match.entrades_reptador ?? match.entrades ?? 0,
       entrades_reptat: match.entrades_reptat ?? match.entrades ?? 0
     };
+    substituintIncompareixenca = false;
     updateError = null;
     updateSuccess = null;
   }
 
   function cancelEdit() {
     editingMatch = null;
+    substituintIncompareixenca = false;
     updateError = null;
     updateSuccess = null;
   }
 
+  // Revertir incompareixença i deixar la partida pendent (sense resultat).
+  async function revertirIncompareixencaAPendent() {
+    if (!editingMatch) return;
+    if (saving) return;
+    if (!confirm('Es treurà la incompareixença i la partida tornarà a estat pendent. Continuar?')) return;
+
+    saving = true;
+    updateError = null;
+    updateSuccess = null;
+    try {
+      const { error: rpcErr } = await supabase.rpc('revertir_incompareixenca', {
+        p_partida_id: editingMatch.id,
+        p_mode: 'pendent'
+      });
+      if (rpcErr) {
+        updateError = `Error: ${rpcErr.message || rpcErr.code}`;
+        return;
+      }
+      updateSuccess = 'Incompareixença revertida. La partida ha tornat a pendent.';
+      await loadMatches();
+      setTimeout(() => cancelEdit(), 1500);
+    } catch (e: any) {
+      updateError = e.message || 'Error revertint la incompareixença';
+    } finally {
+      saving = false;
+    }
+  }
+
+  // Activar el mode "substitució per resultat real": l'admin omple el formulari
+  // i en clicar "Guardar" s'enviarà via RPC en lloc d'un UPDATE directe.
+  function iniciarSubstitucioResultat() {
+    if (!editingMatch) return;
+    substituintIncompareixenca = true;
+    // Pre-omplir el formulari amb zeros perquè els valors actuals (caramboles=0,
+    // entrades=max_entrades del jugador absent) no tenen sentit com a resultat real.
+    editForm = {
+      caramboles_reptador: 0,
+      caramboles_reptat: 0,
+      entrades_reptador: 0,
+      entrades_reptat: 0
+    };
+    updateError = null;
+    updateSuccess = null;
+  }
+
+  function cancelarSubstitucio() {
+    substituintIncompareixenca = false;
+    updateError = null;
+  }
+
+  async function aplicarRevertResultat() {
+    if (!editingMatch) return;
+    if (saving) return;
+
+    const c1 = editForm.caramboles_reptador;
+    const c2 = editForm.caramboles_reptat;
+    const e1 = editForm.entrades_reptador;
+    const e2 = editForm.entrades_reptat;
+    if (c1 == null || c2 == null || !e1 || !e2 || e1 < 1 || e2 < 1) {
+      updateError = 'Cal omplir caramboles i entrades (>0) dels dos jugadors.';
+      return;
+    }
+
+    saving = true;
+    updateError = null;
+    updateSuccess = null;
+    try {
+      const { error: rpcErr } = await supabase.rpc('revertir_incompareixenca', {
+        p_partida_id: editingMatch.id,
+        p_mode: 'resultat',
+        p_caramboles_jugador1: c1,
+        p_caramboles_jugador2: c2,
+        p_entrades_jugador1: e1,
+        p_entrades_jugador2: e2
+      });
+      if (rpcErr) {
+        updateError = `Error: ${rpcErr.message || rpcErr.code}`;
+        return;
+      }
+      updateSuccess = 'Incompareixença substituïda pel resultat real.';
+      await loadMatches();
+      setTimeout(() => cancelEdit(), 1500);
+    } catch (e: any) {
+      updateError = e.message || 'Error aplicant el resultat';
+    } finally {
+      saving = false;
+    }
+  }
+
   async function saveMatchResult() {
     if (!editingMatch) return;
+
+    // Si l'admin està substituint una incompareixença per un resultat real,
+    // derivem cap a la RPC dedicada que reverteix la incompareixença a l'inrevés.
+    if (substituintIncompareixenca) {
+      await aplicarRevertResultat();
+      return;
+    }
 
     try {
       if (saving) return;
@@ -341,13 +447,27 @@
       updateError = null;
       updateSuccess = null;
 
+      // Punts segons resultat: vencedor 2pts, perdedor 0; empat 1-1.
+      const c1 = editForm.caramboles_reptador;
+      const c2 = editForm.caramboles_reptat;
+      let punts_j1 = 0;
+      let punts_j2 = 0;
+      if (c1 > c2) punts_j1 = 2;
+      else if (c2 > c1) punts_j2 = 2;
+      else { punts_j1 = 1; punts_j2 = 1; }
+
       const { data, error: updateErr } = await supabase
         .from('calendari_partides')
         .update({
-          caramboles_jugador1: editForm.caramboles_reptador,
-          caramboles_jugador2: editForm.caramboles_reptat,
+          caramboles_jugador1: c1,
+          caramboles_jugador2: c2,
           entrades_jugador1: editForm.entrades_reptador,
-          entrades_jugador2: editForm.entrades_reptat
+          entrades_jugador2: editForm.entrades_reptat,
+          entrades: Math.max(editForm.entrades_reptador ?? 0, editForm.entrades_reptat ?? 0),
+          punts_jugador1: punts_j1,
+          punts_jugador2: punts_j2,
+          estat: 'jugada',
+          data_joc: editingMatch.data_joc ?? new Date().toISOString()
         })
         .eq('id', editingMatch.id)
         .select();
@@ -613,7 +733,35 @@
           <div class="msg msg-success">{updateSuccess}</div>
         {/if}
 
-        <div class="form-fields">
+        {#if editingHasIncompareixenca}
+          <div class="incompar-banner">
+            <strong>⚠ Incompareixença registrada</strong> —
+            {#if editingMatch.incompareixenca_jugador1 && editingMatch.incompareixenca_jugador2}
+              cap dels dos jugadors es va presentar.
+            {:else if editingMatch.incompareixenca_jugador1}
+              no s'ha presentat el jugador 1.
+            {:else}
+              no s'ha presentat el jugador 2.
+            {/if}
+            {#if !substituintIncompareixenca}
+              <div class="incompar-actions">
+                <button type="button" class="btn-secondary" on:click={revertirIncompareixencaAPendent} disabled={saving}>
+                  Treure i deixar pendent
+                </button>
+                <button type="button" class="btn-primary" on:click={iniciarSubstitucioResultat} disabled={saving}>
+                  Substituir per resultat real
+                </button>
+              </div>
+            {:else}
+              <div class="incompar-substituting">
+                Introdueix el resultat real i clica <em>Guardar</em>. La incompareixença es revertirà automàticament.
+                <button type="button" class="link-btn" on:click={cancelarSubstitucio}>Cancel·la substitució</button>
+              </div>
+            {/if}
+          </div>
+        {/if}
+
+        <div class="form-fields" class:hidden={editingHasIncompareixenca && !substituintIncompareixenca}>
           <div class="form-field">
             <label for="caramboles_reptador">
               Caramboles {formatPlayerName(editingMatch.jugador1_nom, editingMatch.jugador1_cognoms, editingMatch.jugador1_numero_soci)}
@@ -688,9 +836,11 @@
 
         <div class="modal-actions">
           <button type="button" on:click={cancelEdit} class="btn-secondary">Cancel·lar</button>
-          <button type="submit" class="btn-primary" disabled={saving}>
-            {saving ? 'Guardant…' : 'Guardar'}
-          </button>
+          {#if !editingHasIncompareixenca || substituintIncompareixenca}
+            <button type="submit" class="btn-primary" disabled={saving}>
+              {saving ? 'Guardant…' : 'Guardar'}
+            </button>
+          {/if}
         </div>
       </form>
     </div>
@@ -1063,6 +1213,39 @@
   }
   .msg-error { color: var(--accent); border-color: var(--accent); background: rgba(163, 11, 30, 0.05); }
   .msg-success { color: var(--green); border-color: var(--green); background: rgba(45, 110, 62, 0.05); }
+
+  .incompar-banner {
+    border-left: 3px solid var(--amber, #b6841c);
+    background: rgba(182, 132, 28, 0.06);
+    padding: 0.75rem 0.85rem;
+    font-size: 0.875rem;
+    color: var(--ink);
+  }
+  .incompar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+  }
+  .incompar-substituting {
+    margin-top: 0.4rem;
+    font-size: 0.8125rem;
+    color: var(--ink-2);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .link-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--ink);
+    text-decoration: underline;
+    font-size: inherit;
+    cursor: pointer;
+  }
+  .hidden { display: none !important; }
 
   .form-fields { display: flex; flex-direction: column; gap: 0.85rem; }
   .form-field { display: flex; flex-direction: column; gap: 0.35rem; }
