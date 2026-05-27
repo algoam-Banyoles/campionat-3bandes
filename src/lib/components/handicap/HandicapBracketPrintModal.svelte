@@ -473,7 +473,10 @@
 		display: flex; align-items: center; gap: 5mm; min-width: 0;
 	}
 	.page-logo {
-		height: 18mm; width: auto; flex: none;
+		/* viewBox 1024×1536 → ratio 2:3. Fixem width i height per evitar
+		   deformacions en alguns navegadors (Chrome i Edge al print). */
+		height: 18mm; width: 12mm; flex: none;
+		object-fit: contain;
 	}
 	.page-head-titles { display: flex; flex-direction: column; gap: 1mm; min-width: 0; }
 	.page-title-main {
@@ -562,7 +565,9 @@
 			break-after: page;
 			box-shadow: none;
 		}
-		@page { size: A3 landscape; margin: 0; }
+		/* Dimensions explícites A3 apaisat: la sintaxi 'A3 landscape' no la respecten
+		   tots els navegadors. Amb width × height els forcem a apaisat. */
+		@page { size: 420mm 297mm; margin: 0; }
 		:global(body) { background: white; margin: 0; }
 		:global(html) { background: white; }
 	}

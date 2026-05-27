@@ -410,7 +410,11 @@
 		gap: 6mm; flex: none;
 	}
 	.page-head-left { display: flex; align-items: center; gap: 5mm; min-width: 0; }
-	.page-logo { height: 16mm; width: auto; flex: none; }
+	.page-logo {
+		/* viewBox 1024×1536 → ratio 2:3 */
+		height: 16mm; width: 11mm; flex: none;
+		object-fit: contain;
+	}
 	.page-head-titles { display: flex; flex-direction: column; gap: 1mm; min-width: 0; }
 	.page-title-main { font-weight: 800; font-size: 14pt; letter-spacing: 0.02em; line-height: 1.1; text-transform: uppercase; }
 	.page-section { font-size: 10pt; color: #444; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
@@ -477,7 +481,7 @@
 		.modal-card { max-width: none; max-height: none; box-shadow: none; }
 		.preview { background: white; padding: 0; overflow: visible; }
 		.print-page { margin: 0; box-shadow: none; }
-		@page { size: A3 landscape; margin: 0; }
+		@page { size: 420mm 297mm; margin: 0; }
 		:global(body) { background: white; margin: 0; }
 		:global(html) { background: white; }
 	}

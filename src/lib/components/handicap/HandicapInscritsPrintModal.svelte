@@ -213,7 +213,11 @@
 		gap: 6mm;
 	}
 	.page-head-left { display: flex; align-items: center; gap: 5mm; min-width: 0; }
-	.page-logo { height: 16mm; width: auto; flex: none; }
+	.page-logo {
+		/* viewBox 1024×1536 → ratio 2:3 */
+		height: 16mm; width: 11mm; flex: none;
+		object-fit: contain;
+	}
 	.page-head-titles { display: flex; flex-direction: column; gap: 1mm; min-width: 0; }
 	.page-title-main {
 		font-weight: 800; font-size: 14pt;
