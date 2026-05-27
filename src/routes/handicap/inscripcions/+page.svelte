@@ -6,6 +6,7 @@
 	import Banner from '$lib/components/general/Banner.svelte';
 	import HandicapAvailabilityGrid from '$lib/components/handicap/HandicapAvailabilityGrid.svelte';
 	import HandicapBracketPrintModal from '$lib/components/handicap/HandicapBracketPrintModal.svelte';
+	import HandicapBracketPrintVisualModal from '$lib/components/handicap/HandicapBracketPrintVisualModal.svelte';
 	import HandicapInscritsPrintModal from '$lib/components/handicap/HandicapInscritsPrintModal.svelte';
 	import { searchActivePlayers } from '$lib/api/socialLeagues';
 	import { debounce } from 'lodash-es';
@@ -86,6 +87,7 @@
 
 	// Modal d'impressió del bracket en blanc (per a sorteig manual a la pissarra)
 	let showPrintBracketModal = false;
+	let showPrintBracketVisualModal = false;
 	let printBracketCount = 0;
 	// Modal d'impressió del llistat d'inscrits
 	let showPrintInscritsModal = false;
@@ -767,9 +769,19 @@
 						showPrintBracketModal = true;
 					}}
 					class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-					title="Imprimir bracket en blanc per a sorteig manual"
+					title="Bracket compacte en graella per ronda"
 				>
-					Imprimir bracket A3
+					Bracket A3 compacte
+				</button>
+				<button
+					on:click={() => {
+						printBracketCount = Math.max(participants.length, 4);
+						showPrintBracketVisualModal = true;
+					}}
+					class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+					title="Bracket visual amb columnes per ronda (més fulls, més espai per casella)"
+				>
+					Bracket A3 visual
 				</button>
 				<button
 					on:click={openAddModal}
@@ -1436,6 +1448,15 @@
 		eventNom={event?.nom ?? ''}
 		eventTemporada={event?.temporada ?? ''}
 		onClose={() => (showPrintBracketModal = false)}
+	/>
+{/if}
+
+{#if showPrintBracketVisualModal}
+	<HandicapBracketPrintVisualModal
+		participantCount={printBracketCount}
+		eventNom={event?.nom ?? ''}
+		eventTemporada={event?.temporada ?? ''}
+		onClose={() => (showPrintBracketVisualModal = false)}
 	/>
 {/if}
 
