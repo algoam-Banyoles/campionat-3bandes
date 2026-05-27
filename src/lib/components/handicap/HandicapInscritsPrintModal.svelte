@@ -42,7 +42,86 @@
 		: 'cognoms';
 
 	function doPrint() {
-		window.print();
+		const previewEl = document.querySelector('.print-portal .preview');
+		if (!previewEl) {
+			window.print();
+			return;
+		}
+
+		const w = window.open('', '_blank', 'width=900,height=900');
+		if (!w) {
+			alert("No s'ha pogut obrir la finestra d'impressió. Permet finestres emergents per a aquest lloc.");
+			return;
+		}
+
+		const css = String.raw`
+			@page { size: A4 portrait; margin: 10mm 12mm; }
+			* { box-sizing: border-box; }
+			html, body { margin: 0; padding: 0; background: white; font-family: 'Helvetica Neue', Arial, sans-serif; color: #1f1f1f; }
+			.print-page { background: white; width: auto; padding: 0; margin: 0; display: flex; flex-direction: column; }
+			.page-head {
+				display: flex; justify-content: space-between; align-items: center;
+				border-bottom: 2px solid #1f1f1f; padding-bottom: 4mm; margin-bottom: 4mm; gap: 6mm;
+			}
+			.page-head-left { display: flex; align-items: center; gap: 5mm; min-width: 0; }
+			.page-logo { height: 16mm; width: 11mm; flex: none; object-fit: contain; }
+			.page-head-titles { display: flex; flex-direction: column; gap: 1mm; min-width: 0; }
+			.page-title-main { font-weight: 800; font-size: 14pt; letter-spacing: 0.02em; line-height: 1.1; text-transform: uppercase; }
+			.page-section { font-size: 10pt; color: #444; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+			.page-sub { font-size: 9pt; color: #555; text-align: right; }
+			.inscrits-table { width: 100%; border-collapse: collapse; font-size: 10pt; page-break-inside: avoid; }
+			.inscrits-table thead { page-break-after: avoid; }
+			.inscrits-table thead th {
+				text-align: left; padding: 1.5mm; border-bottom: 1.5px solid #1f1f1f;
+				font-size: 8.5pt; font-weight: 700; text-transform: uppercase;
+				letter-spacing: 0.04em; color: #1f1f1f;
+			}
+			.inscrits-table tbody tr { page-break-inside: avoid; }
+			.inscrits-table tbody td {
+				padding: 1mm 1.5mm; border-bottom: 0.5px solid #ccc;
+				vertical-align: middle;
+			}
+			.tabular { font-variant-numeric: tabular-nums; }
+			.num-col { width: 12mm; text-align: right; color: #555; }
+			.name-col { width: auto; }
+			.dist-col { width: 40mm; text-align: center; }
+			.page-foot {
+				display: flex; justify-content: space-between;
+				margin-top: 6mm; padding-top: 4mm;
+				border-top: 1px solid #ccc;
+				font-size: 8pt; color: #777;
+			}
+		`;
+
+		const scriptOpen = '<' + 'script>';
+		const scriptClose = '<' + '/script>';
+		const printScript = scriptOpen +
+			"window.addEventListener('load', function () {" +
+			"  var imgs = Array.from(document.images);" +
+			"  var ready = imgs.length === 0 ? Promise.resolve() :" +
+			"    Promise.all(imgs.map(function (img) {" +
+			"      return img.complete ? null : new Promise(function (r) { img.onload = img.onerror = r; });" +
+			"    }));" +
+			"  ready.then(function () { setTimeout(function () { window.print(); }, 100); });" +
+			"});" +
+			scriptClose;
+
+		const html = `<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8" />
+<title>Llistat inscrits — ${(eventNom || 'Hàndicap').replace(/[<>&"]/g, '')}</title>
+<style>${css}</style>
+</head>
+<body>
+${previewEl.innerHTML}
+${printScript}
+</body>
+</html>`;
+
+		w.document.open();
+		w.document.write(html);
+		w.document.close();
 	}
 </script>
 

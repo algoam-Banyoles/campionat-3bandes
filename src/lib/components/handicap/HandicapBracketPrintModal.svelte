@@ -245,7 +245,110 @@
 	}
 
 	function doPrint() {
-		window.print();
+		// Obrir una finestra nova amb HTML i CSS independents. Així evitem que
+		// l'app principal interfereixi i el navegador respecta el @page correctament.
+		const previewEl = document.querySelector('.print-portal .print-preview');
+		if (!previewEl) {
+			window.print();
+			return;
+		}
+
+		const w = window.open('', '_blank', 'width=1100,height=800');
+		if (!w) {
+			alert("No s'ha pogut obrir la finestra d'impressió. Permet finestres emergents per a aquest lloc.");
+			return;
+		}
+
+		const css = String.raw`
+			@page { size: A3 landscape; margin: 0; }
+			@page { size: 420mm 297mm; margin: 0; }
+			* { box-sizing: border-box; }
+			html, body { margin: 0; padding: 0; background: white; font-family: 'Helvetica Neue', Arial, sans-serif; color: #1f1f1f; }
+			.print-page {
+				background: white;
+				width: 420mm; height: 297mm;
+				padding: 8mm 10mm;
+				margin: 0;
+				box-sizing: border-box;
+				display: flex; flex-direction: column;
+				page-break-after: always;
+				break-after: page;
+			}
+			.print-page:last-child { page-break-after: auto; break-after: auto; }
+			.page-head {
+				display: flex; justify-content: space-between; align-items: center;
+				border-bottom: 2px solid #1f1f1f; padding-bottom: 4mm; margin-bottom: 4mm; gap: 6mm;
+			}
+			.page-head-left { display: flex; align-items: center; gap: 5mm; min-width: 0; }
+			.page-logo { height: 18mm; width: 12mm; flex: none; object-fit: contain; }
+			.page-head-titles { display: flex; flex-direction: column; gap: 1mm; min-width: 0; }
+			.page-title-main { font-weight: 800; font-size: 16pt; letter-spacing: 0.02em; line-height: 1.1; text-transform: uppercase; }
+			.page-section { font-size: 11pt; color: #444; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+			.page-sub { font-size: 10pt; color: #555; text-align: right; }
+			.rounds { display: flex; flex-direction: column; gap: 4mm; flex: 1; overflow: hidden; }
+			.round-section { display: flex; flex-direction: column; gap: 2mm; }
+			.round-title {
+				font-size: 10pt; font-weight: 700; letter-spacing: 0.05em;
+				text-transform: uppercase; color: #1f1f1f;
+				border-left: 4px solid #1f1f1f; padding-left: 3mm; margin: 0;
+			}
+			.match-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(70mm, 1fr));
+				gap: 3mm;
+			}
+			.match-cell {
+				border: 1.5px solid #1f1f1f;
+				padding: 2mm 2.5mm;
+				display: flex; flex-direction: column; gap: 1.5mm;
+				min-height: 32mm; font-size: 9pt;
+			}
+			.cell-head {
+				display: flex; justify-content: space-between; align-items: baseline;
+				font-size: 8.5pt; border-bottom: 1px solid #999; padding-bottom: 1mm;
+			}
+			.match-code { font-weight: 800; font-size: 11pt; letter-spacing: 0.04em; }
+			.arrows { display: flex; gap: 3mm; flex-wrap: wrap; font-size: 8pt; color: #333; }
+			.arrows strong { font-weight: 700; }
+			.player-row, .entries-row { display: flex; align-items: center; gap: 1.5mm; font-size: 8pt; }
+			.label { font-weight: 700; font-size: 7.5pt; text-transform: uppercase; color: #555; min-width: 11mm; }
+			.kv { font-size: 7.5pt; color: #555; font-weight: 600; }
+			.line { flex: 1; border-bottom: 1px solid #1f1f1f; height: 5mm; }
+			.box { display: inline-block; border: 1px solid #1f1f1f; height: 5mm; width: 14mm; }
+			.box.small { width: 9mm; }
+		`;
+
+		// Concatenem `<script>` separat perquè el parser de Svelte
+		// no es pensi que volem un bloc d'script real al component.
+		const scriptOpen = '<' + 'script>';
+		const scriptClose = '<' + '/script>';
+		const printScript = scriptOpen +
+			"window.addEventListener('load', function () {" +
+			"  var imgs = Array.from(document.images);" +
+			"  var ready = imgs.length === 0 ? Promise.resolve() :" +
+			"    Promise.all(imgs.map(function (img) {" +
+			"      return img.complete ? null : new Promise(function (r) { img.onload = img.onerror = r; });" +
+			"    }));" +
+			"  ready.then(function () { setTimeout(function () { window.print(); }, 100); });" +
+			"});" +
+			scriptClose;
+
+		const html = `<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8" />
+<title>Bracket — ${(eventNom || 'Hàndicap').replace(/[<>&"]/g, '')}</title>
+<style>${css}</style>
+</head>
+<body>
+${previewEl.innerHTML}
+${printScript}
+</body>
+</html>`;
+
+		w.document.open();
+		w.document.write(html);
+		w.document.close();
 	}
 </script>
 

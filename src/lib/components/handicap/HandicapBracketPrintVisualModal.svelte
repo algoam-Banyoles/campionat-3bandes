@@ -252,7 +252,103 @@
 	}
 
 	function doPrint() {
-		window.print();
+		const previewEl = document.querySelector('.print-portal .preview');
+		if (!previewEl) {
+			window.print();
+			return;
+		}
+
+		const w = window.open('', '_blank', 'width=1100,height=800');
+		if (!w) {
+			alert("No s'ha pogut obrir la finestra d'impressió. Permet finestres emergents per a aquest lloc.");
+			return;
+		}
+
+		const css = String.raw`
+			@page { size: A3 landscape; margin: 0; }
+			@page { size: 420mm 297mm; margin: 0; }
+			* { box-sizing: border-box; }
+			html, body { margin: 0; padding: 0; background: white; font-family: 'Helvetica Neue', Arial, sans-serif; color: #1f1f1f; }
+			.print-page {
+				background: white;
+				width: 420mm; height: 297mm;
+				padding: 8mm 10mm;
+				margin: 0;
+				box-sizing: border-box;
+				display: flex; flex-direction: column;
+				page-break-after: always;
+				break-after: page;
+			}
+			.print-page:last-child { page-break-after: auto; break-after: auto; }
+			.page-head {
+				display: flex; justify-content: space-between; align-items: center;
+				border-bottom: 2px solid #1f1f1f; padding-bottom: 3mm; margin-bottom: 3mm; gap: 6mm; flex: none;
+			}
+			.page-head-left { display: flex; align-items: center; gap: 5mm; min-width: 0; }
+			.page-logo { height: 16mm; width: 11mm; flex: none; object-fit: contain; }
+			.page-head-titles { display: flex; flex-direction: column; gap: 1mm; min-width: 0; }
+			.page-title-main { font-weight: 800; font-size: 14pt; letter-spacing: 0.02em; line-height: 1.1; text-transform: uppercase; }
+			.page-section { font-size: 10pt; color: #444; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+			.page-sub { font-size: 9pt; color: #555; text-align: right; }
+			.bracket-flow { display: flex; flex: 1; gap: 4mm; min-height: 0; }
+			.round-col { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 3mm; }
+			.round-label {
+				font-size: 9pt; font-weight: 700; text-transform: uppercase;
+				letter-spacing: 0.06em; color: #1f1f1f;
+				border-bottom: 1.5px solid #1f1f1f; padding-bottom: 1.5mm; text-align: center;
+			}
+			.round-matches { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: 2mm; }
+			.match-cell {
+				border: 1.5px solid #1f1f1f;
+				padding: 1.5mm 2mm;
+				display: flex; flex-direction: column; gap: 1mm;
+				font-size: 8pt; min-height: 24mm;
+			}
+			.cell-head {
+				display: flex; justify-content: space-between; align-items: baseline;
+				font-size: 7.5pt; border-bottom: 1px solid #999;
+				padding-bottom: 0.5mm; gap: 1.5mm;
+			}
+			.match-code { font-weight: 800; font-size: 9.5pt; letter-spacing: 0.04em; }
+			.arrows { display: flex; gap: 1.5mm; flex-wrap: wrap; font-size: 7pt; color: #333; }
+			.arrows strong { font-weight: 700; }
+			.player-row, .entries-row { display: flex; align-items: center; gap: 1mm; font-size: 7.5pt; }
+			.label { font-weight: 700; font-size: 7pt; color: #555; min-width: 4mm; }
+			.kv { font-size: 7pt; color: #555; font-weight: 600; }
+			.line { flex: 1; border-bottom: 1px solid #1f1f1f; height: 4.5mm; }
+			.box { display: inline-block; border: 1px solid #1f1f1f; height: 4.5mm; width: 10mm; }
+			.box.small { width: 7mm; }
+		`;
+
+		const scriptOpen = '<' + 'script>';
+		const scriptClose = '<' + '/script>';
+		const printScript = scriptOpen +
+			"window.addEventListener('load', function () {" +
+			"  var imgs = Array.from(document.images);" +
+			"  var ready = imgs.length === 0 ? Promise.resolve() :" +
+			"    Promise.all(imgs.map(function (img) {" +
+			"      return img.complete ? null : new Promise(function (r) { img.onload = img.onerror = r; });" +
+			"    }));" +
+			"  ready.then(function () { setTimeout(function () { window.print(); }, 100); });" +
+			"});" +
+			scriptClose;
+
+		const html = `<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8" />
+<title>Bracket visual — ${(eventNom || 'Hàndicap').replace(/[<>&"]/g, '')}</title>
+<style>${css}</style>
+</head>
+<body>
+${previewEl.innerHTML}
+${printScript}
+</body>
+</html>`;
+
+		w.document.open();
+		w.document.write(html);
+		w.document.close();
 	}
 </script>
 
