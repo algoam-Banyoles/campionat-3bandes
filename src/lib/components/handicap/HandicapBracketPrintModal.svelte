@@ -31,6 +31,8 @@
 		code: string;
 		bracket: Bracket;
 		ronda: number;
+		slot1Pos: number;
+		slot2Pos: number;
 		winnerDest: string;
 		loserDest: string;
 	};
@@ -153,14 +155,20 @@
 				return codeByMatchId.get(m.id) ?? '—';
 			};
 
-			const matchViews: MatchView[] = enriched.map(e => ({
-				id: e.m.id,
-				code: codeByMatchId.get(e.m.id) ?? '?',
-				bracket: e.bracket,
-				ronda: e.ronda,
-				winnerDest: destinationCode(e.m.winner_slot_dest_id),
-				loserDest: destinationCode(e.m.loser_slot_dest_id)
-			}));
+			const matchViews: MatchView[] = enriched.map(e => {
+				const s1 = slotById.get(e.m.slot1_id);
+				const s2 = slotById.get(e.m.slot2_id);
+				return {
+					id: e.m.id,
+					code: codeByMatchId.get(e.m.id) ?? '?',
+					bracket: e.bracket,
+					ronda: e.ronda,
+					slot1Pos: s1?.posicio ?? 0,
+					slot2Pos: s2?.posicio ?? 0,
+					winnerDest: destinationCode(e.m.winner_slot_dest_id),
+					loserDest: destinationCode(e.m.loser_slot_dest_id)
+				};
+			});
 
 			totalMatches = matchViews.length;
 
@@ -321,13 +329,13 @@
 													</span>
 												</div>
 												<div class="player-row">
-													<span class="label">Jug 1</span>
+													<span class="label">{mv.ronda === 1 ? `#${mv.slot1Pos}` : 'Jug 1'}</span>
 													<span class="line"></span>
 													<span class="kv">Dist</span><span class="box small"></span>
 													<span class="kv">Car</span><span class="box small"></span>
 												</div>
 												<div class="player-row">
-													<span class="label">Jug 2</span>
+													<span class="label">{mv.ronda === 1 ? `#${mv.slot2Pos}` : 'Jug 2'}</span>
 													<span class="line"></span>
 													<span class="kv">Dist</span><span class="box small"></span>
 													<span class="kv">Car</span><span class="box small"></span>

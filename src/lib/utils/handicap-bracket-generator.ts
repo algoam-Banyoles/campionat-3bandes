@@ -71,24 +71,57 @@ export function resetIdGenerator(): void {
 
 // ── Funció principal ──────────────────────────────────────────────────────────
 
+export interface GenerateBracketOptions {
+	/**
+	 * Si és cert, el camp `seed` de cada participant es tracta com a POSICIÓ
+	 * explícita a R1 del Winners bracket (1..size). Les posicions no assignades
+	 * a cap participant esdevenen byes. Útil per a sorteig manual on l'admin
+	 * decideix exactament a quina ranura va cada jugador.
+	 *
+	 * Per defecte (false), els seeds s'interpreten com a 1..N de millor a pitjor
+	 * i s'emparellen segons l'algoritme estàndard (seed i vs seed size+1-i).
+	 */
+	useExplicitR1Positions?: boolean;
+}
+
 /**
  * Genera tots els slots i partides d'un torneig d'eliminació doble.
  *
  * @param eventId  UUID de l'event (handicap_participants.event_id)
  * @param participants  Array de participants amb seed i distancia assignats
+ * @param options  Opcions de generació (vegeu GenerateBracketOptions)
  * @returns  Arrays de SlotInsert i MatchInsert llestos per inserir a la BD
  */
 export function generateDoublEliminationBracket(
 	eventId: string,
-	participants: ParticipantInput[]
+	participants: ParticipantInput[],
+	options: GenerateBracketOptions = {}
 ): BracketResult {
 	const n = participants.length;
 	if (n < 2) throw new Error('Cal mínim 2 participants');
 
-	// Participants ordenats per seed (1 = millor)
+	const explicit = options.useExplicitR1Positions ?? false;
+
+	// Participants ordenats per seed (1 = millor) [comportament estàndard]
+	// En mode explícit, el seed és la POSICIÓ a R1 (1..size).
 	const sorted = [...participants].sort((a, b) => a.seed - b.seed);
 
 	const size = nextPow2(n);
+
+	if (explicit) {
+		// Validar que cada seed (=posició a R1) està dins del rang i no es repeteix.
+		const seen = new Set<number>();
+		for (const p of participants) {
+			if (p.seed < 1 || p.seed > size) {
+				throw new Error(`Posició invàlida ${p.seed} (rang vàlid 1..${size})`);
+			}
+			if (seen.has(p.seed)) {
+				throw new Error(`Posició duplicada: ${p.seed}`);
+			}
+			seen.add(p.seed);
+		}
+	}
+
 	const k = Math.log2(size); // rondes del winners bracket
 	const lRounds = 2 * (k - 1); // rondes del losers bracket
 
@@ -135,14 +168,26 @@ export function generateDoublEliminationBracket(
 
 	// ── 1. Slots del winners bracket ──────────────────────────────────────────
 
-	// W-R1: parelles (seed i) vs (seed size+1-i)
-	for (let i = 1; i <= size / 2; i++) {
-		const seed1 = i;
-		const seed2 = size + 1 - i;
-		const p1 = seed1 <= n ? sorted[seed1 - 1] : null;
-		const p2 = seed2 <= n ? sorted[seed2 - 1] : null;
-		addSlot('winners', 1, 2 * i - 1, p1?.id ?? null, p1 === null);
-		addSlot('winners', 1, 2 * i, p2?.id ?? null, p2 === null);
+	if (explicit) {
+		// Posicions explícites: el camp `seed` indica la posició a R1 (1..size).
+		// Les posicions sense participant esdevenen byes.
+		const byPos = new Map<number, ParticipantInput>(
+			participants.map(p => [p.seed, p])
+		);
+		for (let pos = 1; pos <= size; pos++) {
+			const p = byPos.get(pos) ?? null;
+			addSlot('winners', 1, pos, p?.id ?? null, p === null);
+		}
+	} else {
+		// W-R1: parelles (seed i) vs (seed size+1-i)
+		for (let i = 1; i <= size / 2; i++) {
+			const seed1 = i;
+			const seed2 = size + 1 - i;
+			const p1 = seed1 <= n ? sorted[seed1 - 1] : null;
+			const p2 = seed2 <= n ? sorted[seed2 - 1] : null;
+			addSlot('winners', 1, 2 * i - 1, p1?.id ?? null, p1 === null);
+			addSlot('winners', 1, 2 * i, p2?.id ?? null, p2 === null);
+		}
 	}
 
 	// W-R2 fins W-Rk (sense participants inicialment)

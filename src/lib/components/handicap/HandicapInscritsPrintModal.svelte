@@ -14,19 +14,49 @@
 
 	$: temporadaPretty = (eventTemporada || '').replace('-', '/');
 
-	// Ordenar per cognoms (com és el llistat)
-	$: rows = [...participants]
-		.map((p: any) => {
-			const raw = p.socis;
-			const s = Array.isArray(raw) ? raw[0] : raw;
-			return {
-				nom: s?.nom ?? '',
-				cognoms: s?.cognoms ?? '',
-				distancia: p.distancia,
-				extras: participantExtras.get(p.soci_numero) ?? null
-			};
-		})
-		.sort((a, b) => `${a.cognoms} ${a.nom}`.localeCompare(`${b.cognoms} ${b.nom}`, 'ca'));
+	type OrderBy = 'cognoms' | 'distancia' | 'promig';
+	let orderBy: OrderBy = 'cognoms';
+
+	$: baseRows = participants.map((p: any) => {
+		const raw = p.socis;
+		const s = Array.isArray(raw) ? raw[0] : raw;
+		return {
+			nom: s?.nom ?? '',
+			cognoms: s?.cognoms ?? '',
+			distancia: p.distancia as number | null,
+			extras: participantExtras.get(p.soci_numero) ?? null
+		};
+	});
+
+	$: rows = (() => {
+		const copy = [...baseRows];
+		if (orderBy === 'distancia') {
+			// Caramboles assignades: descendent (més distància primer)
+			copy.sort((a, b) => {
+				const da = a.distancia ?? -1;
+				const db = b.distancia ?? -1;
+				if (db !== da) return db - da;
+				return `${a.cognoms} ${a.nom}`.localeCompare(`${b.cognoms} ${b.nom}`, 'ca');
+			});
+		} else if (orderBy === 'promig') {
+			// Promig considerat: descendent (millor primer); sense promig → al final
+			copy.sort((a, b) => {
+				const pa = a.extras?.millorMitjana ?? -1;
+				const pb = b.extras?.millorMitjana ?? -1;
+				if (pb !== pa) return pb - pa;
+				return `${a.cognoms} ${a.nom}`.localeCompare(`${b.cognoms} ${b.nom}`, 'ca');
+			});
+		} else {
+			copy.sort((a, b) => `${a.cognoms} ${a.nom}`.localeCompare(`${b.cognoms} ${b.nom}`, 'ca'));
+		}
+		return copy;
+	})();
+
+	$: orderLabel = orderBy === 'distancia'
+		? 'distància assignada (de més a menys)'
+		: orderBy === 'promig'
+			? 'promig considerat (de més a menys)'
+			: 'cognoms';
 
 	function doPrint() {
 		window.print();
@@ -41,7 +71,17 @@
 		</div>
 
 		<div class="modal-toolbar no-print">
-			<span>{rows.length} inscrits</span>
+			<div class="toolbar-info">
+				<span>{rows.length} inscrits</span>
+				<label class="order-label">
+					Ordenar per:
+					<select bind:value={orderBy} class="order-select">
+						<option value="cognoms">Cognoms (alfabètic)</option>
+						<option value="distancia">Caramboles (distància assignada)</option>
+						<option value="promig">Promig considerat</option>
+					</select>
+				</label>
+			</div>
 			<div class="toolbar-actions">
 				<button type="button" class="btn-secondary" on:click={onClose}>Tancar</button>
 				<button
@@ -62,7 +102,7 @@
 						<img src="/logo-billar.svg" alt="" class="page-logo" />
 						<div class="page-head-titles">
 							<div class="page-title-main">CAMPIONAT SOCIAL HÀNDICAP{temporadaPretty ? ` ${temporadaPretty}` : ''}</div>
-							<div class="page-section">Llistat d'inscrits ({rows.length})</div>
+							<div class="page-section">Llistat d'inscrits ({rows.length}) · per {orderLabel}</div>
 						</div>
 					</div>
 					{#if eventNom}<div class="page-sub">{eventNom}</div>{/if}
@@ -140,6 +180,13 @@
 		font-size: 0.875rem; color: #444;
 	}
 	.toolbar-actions { display: flex; gap: 0.5rem; }
+	.toolbar-info { display: flex; gap: 0.85rem; align-items: center; flex-wrap: wrap; }
+	.order-label { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600; }
+	.order-select {
+		padding: 0.25rem 0.4rem;
+		border: 1px solid #333; border-radius: 0;
+		font-size: 0.8125rem; background: white;
+	}
 	.btn-primary, .btn-secondary {
 		padding: 0.4rem 0.85rem; cursor: pointer; font-size: 0.875rem; font-weight: 600;
 		border-radius: 0; border: 1px solid #333;

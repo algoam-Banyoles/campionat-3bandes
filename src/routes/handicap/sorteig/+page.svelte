@@ -7,9 +7,7 @@
 	import { supabase } from '$lib/supabaseClient';
 	import {
 		generateDoublEliminationBracket,
-		calcByes,
-		getR1Pairings,
-		type ParticipantInput
+		calcByes
 	} from '$lib/utils/handicap-bracket-generator';
 	import { validateBracket } from '$lib/utils/handicap-bracket-validator';
 	import { insertBracketToDb } from '$lib/utils/handicap-bracket-db';
@@ -24,16 +22,28 @@
 	let config: any = null;
 	let participants: any[] = []; // handicap_participants amb socis (FK directe via soci_numero)
 
-	// Assignació de seeds: participant.id → seed (1-based)
+	// Assignació de POSICIONS a R1: participant.id → posicio (1..bracketSize).
+	// Les posicions sense participant esdevenen byes a R1.
 	let seedMap: Record<string, number> = {};
 
+	$: nParticipants = participants.length;
+	$: bracketSize = nParticipants > 0 ? nextPow2Local(nParticipants) : 0;
+	$: byes = nParticipants > 0 ? calcByes(nParticipants) : 0;
+
+	function nextPow2Local(n: number): number {
+		let p = 1;
+		while (p < n) p *= 2;
+		return p;
+	}
+
 	// Errors de validació del sorteig
-	$: seedValues = Object.values(seedMap).filter(Boolean);
+	$: seedValues = Object.values(seedMap).filter((v) => typeof v === 'number' && v > 0);
 	$: allSeeded = participants.length > 0 && seedValues.length === participants.length;
 	$: hasDuplicates = allSeeded && new Set(seedValues).size !== seedValues.length;
-	$: validSeeds = allSeeded && !hasDuplicates;
+	$: outOfRange = seedValues.some((v) => v < 1 || v > bracketSize);
+	$: validSeeds = allSeeded && !hasDuplicates && !outOfRange;
 
-	// Participants com a ParticipantInput (per al generador)
+	// Participants com a ParticipantInput (per al generador) — el `seed` és la POSICIÓ a R1
 	$: participantInputs = validSeeds
 		? participants.map((p) => ({
 				id: p.id as string,
@@ -42,10 +52,31 @@
 			}))
 		: [];
 
-	$: byes = participants.length > 0 ? calcByes(participants.length) : 0;
-
-	// Vista prèvia R1 (si tots els seeds estan assignats)
-	$: r1Preview = validSeeds ? getR1Pairings(participantInputs) : [];
+	// Vista prèvia R1 amb les posicions assignades (byes als slots sense participant)
+	type R1Pair = {
+		matchNum: number;
+		slot1: { posicio: number; participant: any | null };
+		slot2: { posicio: number; participant: any | null };
+	};
+	$: r1Preview = (() => {
+		if (!validSeeds || bracketSize === 0) return [] as R1Pair[];
+		const byPos = new Map<number, any>();
+		for (const p of participants) {
+			const pos = seedMap[p.id];
+			if (pos) byPos.set(pos, p);
+		}
+		const pairs: R1Pair[] = [];
+		for (let i = 1; i <= bracketSize / 2; i++) {
+			const pos1 = 2 * i - 1;
+			const pos2 = 2 * i;
+			pairs.push({
+				matchNum: i,
+				slot1: { posicio: pos1, participant: byPos.get(pos1) ?? null },
+				slot2: { posicio: pos2, participant: byPos.get(pos2) ?? null }
+			});
+		}
+		return pairs;
+	})();
 
 	function playerName(p: any): string {
 		const raw = p.socis;
@@ -69,7 +100,7 @@
 	}
 
 	function assignSeedsAuto() {
-		// Assignar seeds 1..N en l'ordre actual de la llista
+		// Assignar posicions 1..N en l'ordre actual de la llista (byes a les posicions N+1..size).
 		const order = [...participants].sort((a, b) => {
 			const sa = seedMap[a.id] ?? 9999;
 			const sb = seedMap[b.id] ?? 9999;
@@ -92,7 +123,9 @@
 		error = null;
 
 		try {
-			const result = generateDoublEliminationBracket(event.id, participantInputs);
+			const result = generateDoublEliminationBracket(event.id, participantInputs, {
+				useExplicitR1Positions: true
+			});
 
 			// Validar bracket generat
 			const validation = validateBracket(
@@ -200,14 +233,18 @@
 		</div>
 	{:else}
 		<!-- Info resum -->
-		<div class="mb-4 grid grid-cols-3 gap-3 text-sm">
+		<div class="mb-4 grid grid-cols-4 gap-3 text-sm">
 			<div class="rounded border border-gray-200 bg-white p-3 text-center shadow-sm">
-				<div class="text-2xl font-bold text-purple-700">{participants.length}</div>
+				<div class="text-2xl font-bold text-purple-700">{nParticipants}</div>
 				<div class="text-gray-500">Participants</div>
 			</div>
 			<div class="rounded border border-gray-200 bg-white p-3 text-center shadow-sm">
+				<div class="text-2xl font-bold text-gray-800">{bracketSize}</div>
+				<div class="text-gray-500">Places R1</div>
+			</div>
+			<div class="rounded border border-gray-200 bg-white p-3 text-center shadow-sm">
 				<div class="text-2xl font-bold text-blue-700">{byes}</div>
-				<div class="text-gray-500">Byes</div>
+				<div class="text-gray-500">Byes (posicions buides)</div>
 			</div>
 			<div class="rounded border border-gray-200 bg-white p-3 text-center shadow-sm">
 				<div class="text-2xl font-bold text-green-700">{2 * (participants.length + byes) - 1}</div>
@@ -215,17 +252,23 @@
 			</div>
 		</div>
 
-		<!-- Assignació de seeds -->
+		<!-- Assignació de posicions a R1 -->
 		<div class="mb-6 rounded-lg border border-gray-200 bg-white shadow-sm">
 			<div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-				<h2 class="font-semibold text-gray-800">Assignació de seeds</h2>
+				<div>
+					<h2 class="font-semibold text-gray-800">Assignació de posicions a R1 (sorteig manual)</h2>
+					<p class="text-xs text-gray-500 mt-0.5">
+						Posa a cada jugador la posició que tindrà a la 1a ronda (1..{bracketSize}).
+						Les posicions s'emparellen 1-2, 3-4, 5-6, etc. Les que deixis buides seran <strong>byes</strong>.
+					</p>
+				</div>
 				<div class="flex gap-2">
 					<button
 						type="button"
 						on:click={assignSeedsAuto}
 						class="rounded border border-gray-300 bg-white px-3 py-1 text-xs text-gray-700 hover:bg-gray-50"
 					>
-						Auto (1..{participants.length})
+						Auto (1..{nParticipants})
 					</button>
 					<button
 						type="button"
@@ -239,7 +282,12 @@
 
 			{#if hasDuplicates}
 				<div class="mx-4 mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
-					Hi ha seeds duplicats. Cada jugador ha de tenir un seed únic (1–{participants.length}).
+					Hi ha posicions duplicades. Cada jugador ha de tenir una posició única (1–{bracketSize}).
+				</div>
+			{/if}
+			{#if outOfRange}
+				<div class="mx-4 mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+					Hi ha posicions fora de rang. Han d'estar entre 1 i {bracketSize}.
 				</div>
 			{/if}
 
@@ -247,7 +295,7 @@
 				<table class="w-full text-sm">
 					<thead>
 						<tr class="border-b border-gray-100 text-left text-xs text-gray-500">
-							<th class="pb-2 pr-4">Seed</th>
+							<th class="pb-2 pr-4">Posició R1</th>
 							<th class="pb-2 pr-4">Jugador</th>
 							<th class="pb-2 text-right">Distància</th>
 						</tr>
@@ -255,14 +303,14 @@
 					<tbody>
 						{#each sortedParticipants as p (p.id)}
 							<tr class="border-b border-gray-50">
-								<td class="py-2 pr-4 w-20">
+								<td class="py-2 pr-4 w-24">
 									<input
 										type="number"
 										min="1"
-										max={participants.length}
+										max={bracketSize}
 										bind:value={seedMap[p.id]}
 										on:blur={() => { seedMap = { ...seedMap }; }}
-										class="w-16 rounded border px-2 py-1 text-center text-sm
+										class="w-20 rounded border px-2 py-1 text-center text-sm
 											{seedMap[p.id]
 												? 'border-purple-300 bg-purple-50'
 												: 'border-gray-300 bg-white'}"
@@ -283,32 +331,38 @@
 			<div class="mb-6 rounded-lg border border-purple-200 bg-white shadow-sm">
 				<div class="border-b border-purple-100 px-4 py-3">
 					<h2 class="font-semibold text-gray-800">Vista prèvia — 1a ronda</h2>
-					<p class="text-xs text-gray-500 mt-0.5">Winners bracket, Ronda 1</p>
+					<p class="text-xs text-gray-500 mt-0.5">Winners bracket, Ronda 1 ({bracketSize} places, {byes} byes)</p>
 				</div>
 				<div class="p-4">
 					<div class="space-y-2">
-						{#each r1Preview as pair, i}
+						{#each r1Preview as pair}
 							<div class="flex items-center gap-3 rounded border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
-								<span class="w-6 text-center text-xs font-bold text-gray-400">{i + 1}</span>
+								<span class="w-12 text-center text-xs font-bold text-gray-400">M{pair.matchNum}</span>
 								<span class="flex-1 font-medium text-gray-900">
-									[{pair.seed1.seed}] {participants.find(p => p.id === pair.seed1.id) ? playerName(participants.find(p => p.id === pair.seed1.id)!) : '?'}
-									<span class="text-xs text-gray-500 ml-1">({pair.seed1.distancia} car.)</span>
+									<span class="text-xs text-gray-400 mr-1">[pos {pair.slot1.posicio}]</span>
+									{#if pair.slot1.participant}
+										{playerName(pair.slot1.participant)}
+										<span class="text-xs text-gray-500 ml-1">({pair.slot1.participant.distancia} car.)</span>
+									{:else}
+										<span class="text-amber-600 font-medium">BYE</span>
+									{/if}
 								</span>
 								<span class="text-gray-400 font-bold">vs</span>
-								{#if pair.seed2}
-									<span class="flex-1 font-medium text-gray-900 text-right">
-										[{pair.seed2.seed}] {participants.find(p => p.id === pair.seed2!.id) ? playerName(participants.find(p => p.id === pair.seed2!.id)!) : '?'}
-										<span class="text-xs text-gray-500 ml-1">({pair.seed2.distancia} car.)</span>
-									</span>
-								{:else}
-									<span class="flex-1 text-right text-amber-600 font-medium">BYE ✓</span>
-								{/if}
+								<span class="flex-1 font-medium text-gray-900 text-right">
+									{#if pair.slot2.participant}
+										{playerName(pair.slot2.participant)}
+										<span class="text-xs text-gray-500 ml-1">({pair.slot2.participant.distancia} car.)</span>
+									{:else}
+										<span class="text-amber-600 font-medium">BYE</span>
+									{/if}
+									<span class="text-xs text-gray-400 ml-1">[pos {pair.slot2.posicio}]</span>
+								</span>
 							</div>
 						{/each}
 					</div>
 					{#if byes > 0}
 						<p class="mt-3 text-xs text-amber-700">
-							{byes} bye{byes !== 1 ? 's' : ''}: el{byes !== 1 ? 's' : ''} seed{byes !== 1 ? 's' : ''} 1..{byes} passe{byes !== 1 ? 'n' : ''} automàticament a la 2a ronda.
+							{byes} bye{byes !== 1 ? 's' : ''}: el jugador emparellat amb una posició buida passa automàticament a la 2a ronda.
 						</p>
 					{/if}
 				</div>
@@ -331,11 +385,13 @@
 		<div class="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
 			<div class="text-sm text-gray-600">
 				{#if !allSeeded}
-					<span class="text-amber-600">Assigna un seed a cada jugador per continuar.</span>
+					<span class="text-amber-600">Assigna una posició a R1 a cada jugador per continuar.</span>
 				{:else if hasDuplicates}
-					<span class="text-red-600">Corregeix els seeds duplicats.</span>
+					<span class="text-red-600">Corregeix les posicions duplicades.</span>
+				{:else if outOfRange}
+					<span class="text-red-600">Hi ha posicions fora del rang 1..{bracketSize}.</span>
 				{:else}
-					<span class="text-green-700 font-medium">✓ Tots els seeds assignats. Llest per generar.</span>
+					<span class="text-green-700 font-medium">✓ Totes les posicions assignades. Llest per generar.</span>
 				{/if}
 			</div>
 			<button
