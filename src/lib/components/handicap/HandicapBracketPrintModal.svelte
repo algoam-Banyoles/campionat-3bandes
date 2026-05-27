@@ -303,6 +303,9 @@
 		</div>
 
 		{#if !loading && !error}
+			<div class="print-warning no-print">
+				⚠ <strong>Important:</strong> al diàleg d'imprimir, tria <strong>paper A3</strong> i orientació <strong>Apaisat / Horitzontal</strong>. Si el navegador imprimeix amb A4 vertical, el bracket sortirà tallat.
+			</div>
 			<div class="print-preview">
 				{#each winnersPages as page, pi}
 					<section class="print-page">
@@ -454,6 +457,15 @@
 	.err { color: #a30b1e; font-weight: 600; }
 
 	.print-preview { overflow: auto; flex: 1; padding: 1rem; background: #ececec; }
+	.print-warning {
+		padding: 0.65rem 1rem;
+		background: #fff3cd;
+		border-bottom: 1px solid #f0d68c;
+		color: #6b4f00;
+		font-size: 0.875rem;
+		line-height: 1.4;
+	}
+	.print-warning strong { color: #4d3700; }
 
 	.print-page {
 		background: white;
@@ -591,9 +603,11 @@
 			box-shadow: none !important;
 		}
 		.print-page:last-child { page-break-after: auto; break-after: auto; }
-		/* Força paper A3 apaisat. Chrome/Edge poden deshabilitar el selector
-		   d'orientació, però el resultat ja serà el correcte (420×297 mm). */
+		/* Doble especificació: 'A3 landscape' per a navegadors que respecten la
+		   sintaxi nominal, i dimensions explícites 420×297 mm com a fallback per
+		   a Chrome/Edge que sovint només respecten width × height. */
 		@page { size: A3 landscape; margin: 0; }
+		@page { size: 420mm 297mm; margin: 0; }
 		:global(body) { background: white !important; margin: 0 !important; }
 		:global(html) { background: white !important; }
 	}

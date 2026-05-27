@@ -295,6 +295,9 @@
 		</div>
 
 		{#if !loading && !error}
+			<div class="print-warning no-print">
+				⚠ <strong>Important:</strong> al diàleg d'imprimir, tria <strong>paper A3</strong> i orientació <strong>Apaisat / Horitzontal</strong>. Si el navegador imprimeix amb A4 vertical, el bracket sortirà tallat.
+			</div>
 			<div class="preview">
 				{#each pages as page}
 					<section class="print-page">
@@ -394,6 +397,15 @@
 	.count-input { width: 4.5rem; padding: 0.25rem 0.4rem; border: 1px solid #333; border-radius: 0; font-size: 0.875rem; }
 
 	.preview { overflow: auto; flex: 1; padding: 1rem; background: #ececec; }
+	.print-warning {
+		padding: 0.65rem 1rem;
+		background: #fff3cd;
+		border-bottom: 1px solid #f0d68c;
+		color: #6b4f00;
+		font-size: 0.875rem;
+		line-height: 1.4;
+	}
+	.print-warning strong { color: #4d3700; }
 
 	.print-page {
 		background: white;
@@ -513,6 +525,7 @@
 		}
 		.print-page:last-child { page-break-after: auto; break-after: auto; }
 		@page { size: A3 landscape; margin: 0; }
+		@page { size: 420mm 297mm; margin: 0; }
 		:global(body) { background: white !important; margin: 0 !important; }
 		:global(html) { background: white !important; }
 	}
