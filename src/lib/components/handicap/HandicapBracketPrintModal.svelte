@@ -568,10 +568,10 @@
 			break-after: page;
 			box-shadow: none;
 		}
-		/* No fixem 'size' perquè alguns navegadors deshabiliten el selector
-		   d'orientació quan el CSS ho ha decidit. L'usuari ha de triar A3
-		   apaisat al diàleg d'impressió (recomanat: 420×297 mm). */
-		@page { margin: 0; }
+		/* Força paper A3 apaisat. Chrome/Edge poden deshabilitar el selector
+		   d'orientació, però el resultat ja serà el correcte (420×297 mm).
+		   Si el navegador no respecta @page, cal triar manualment "Apaisat". */
+		@page { size: A3 landscape; margin: 0; }
 		:global(body) { background: white; margin: 0; }
 		:global(html) { background: white; }
 	}
