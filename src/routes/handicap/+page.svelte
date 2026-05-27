@@ -7,7 +7,8 @@
 		{ href: '/handicap/configuracio', label: 'Configuració', desc: 'Sistema, distàncies, horaris', icon: '⚙️' },
 		{ href: '/handicap/inscripcions', label: 'Inscripcions', desc: 'Jugadors inscrits i disponibilitat', icon: '👥' },
 		{ href: '/handicap/sorteig', label: 'Sorteig', desc: 'Assignar seeds i generar bracket', icon: '🎲' },
-		{ href: '/handicap/partides', label: 'Partides', desc: 'Programar i gestionar partides', icon: '📅' }
+		{ href: '/handicap/partides', label: 'Partides', desc: 'Programar i gestionar partides', icon: '📅' },
+		{ href: '/handicap/simulacio', label: 'Simulació', desc: 'Predir la data de finalització', icon: '🎯' }
 	];
 
 	let participantsCount = 0;
