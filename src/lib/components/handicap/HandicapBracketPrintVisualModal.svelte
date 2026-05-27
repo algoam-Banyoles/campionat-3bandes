@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { base } from '$app/paths';
 	import { supabase } from '$lib/supabaseClient';
 	import { generateDoublEliminationBracket } from '$lib/utils/handicap-bracket-generator';
 	import { printPortal } from '$lib/utils/print-portal';
@@ -258,6 +259,12 @@
 			return;
 		}
 
+		const logoUrl = `${window.location.origin}${base}/logo-billar.svg`;
+		const innerHTML = previewEl.innerHTML.replace(
+			/src="[^"]*logo-billar\.svg"/g,
+			`src="${logoUrl}"`
+		);
+
 		const w = window.open('', '_blank', 'width=1100,height=800');
 		if (!w) {
 			alert("No s'ha pogut obrir la finestra d'impressió. Permet finestres emergents per a aquest lloc.");
@@ -341,7 +348,7 @@
 <style>${css}</style>
 </head>
 <body>
-${previewEl.innerHTML}
+${innerHTML}
 ${printScript}
 </body>
 </html>`;

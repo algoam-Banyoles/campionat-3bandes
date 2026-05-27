@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { base } from '$app/paths';
 	import { formatarNomJugador } from '$lib/utils/playerUtils';
 	import { printPortal } from '$lib/utils/print-portal';
 
@@ -47,6 +48,12 @@
 			window.print();
 			return;
 		}
+
+		const logoUrl = `${window.location.origin}${base}/logo-billar.svg`;
+		const innerHTML = previewEl.innerHTML.replace(
+			/src="[^"]*logo-billar\.svg"/g,
+			`src="${logoUrl}"`
+		);
 
 		const w = window.open('', '_blank', 'width=900,height=900');
 		if (!w) {
@@ -114,7 +121,7 @@
 <style>${css}</style>
 </head>
 <body>
-${previewEl.innerHTML}
+${innerHTML}
 ${printScript}
 </body>
 </html>`;
