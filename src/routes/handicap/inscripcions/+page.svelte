@@ -5,6 +5,8 @@
 	import { formatSupabaseError } from '$lib/ui/alerts';
 	import Banner from '$lib/components/general/Banner.svelte';
 	import HandicapAvailabilityGrid from '$lib/components/handicap/HandicapAvailabilityGrid.svelte';
+	import HandicapBracketPrintModal from '$lib/components/handicap/HandicapBracketPrintModal.svelte';
+	import HandicapInscritsPrintModal from '$lib/components/handicap/HandicapInscritsPrintModal.svelte';
 	import { searchActivePlayers } from '$lib/api/socialLeagues';
 	import { debounce } from 'lodash-es';
 	import { adminChecked } from '$lib/stores/adminAuth';
@@ -81,6 +83,12 @@
 	let importLoading = false;
 	let importSaving = false;
 	let importSearch = '';
+
+	// Modal d'impressió del bracket en blanc (per a sorteig manual a la pissarra)
+	let showPrintBracketModal = false;
+	let printBracketCount = 0;
+	// Modal d'impressió del llistat d'inscrits
+	let showPrintInscritsModal = false;
 
 
 	// ─── Inicialització ────────────────────────────────────────
@@ -738,12 +746,30 @@
 			<h1 class="page-title">Inscripcions</h1>
 		</div>
 		{#if event}
-			<div class="flex gap-2">
+			<div class="flex flex-wrap gap-2">
 				<button
 					on:click={openImportModal}
 					class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
 				>
 					Importar de campionats socials
+				</button>
+				<button
+					on:click={() => (showPrintInscritsModal = true)}
+					disabled={participants.length === 0}
+					class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+					title="Imprimir llistat d'inscrits amb distàncies i promigs"
+				>
+					Imprimir llistat
+				</button>
+				<button
+					on:click={() => {
+						printBracketCount = Math.max(participants.length, 4);
+						showPrintBracketModal = true;
+					}}
+					class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+					title="Imprimir bracket en blanc per a sorteig manual"
+				>
+					Imprimir bracket A3
 				</button>
 				<button
 					on:click={openAddModal}
@@ -1402,6 +1428,25 @@
 			</div>
 		</div>
 	</div>
+{/if}
+
+{#if showPrintBracketModal}
+	<HandicapBracketPrintModal
+		participantCount={printBracketCount}
+		eventNom={event?.nom ?? ''}
+		eventTemporada={event?.temporada ?? ''}
+		onClose={() => (showPrintBracketModal = false)}
+	/>
+{/if}
+
+{#if showPrintInscritsModal}
+	<HandicapInscritsPrintModal
+		{participants}
+		{participantExtras}
+		eventNom={event?.nom ?? ''}
+		eventTemporada={event?.temporada ?? ''}
+		onClose={() => (showPrintInscritsModal = false)}
+	/>
 {/if}
 
 <style>

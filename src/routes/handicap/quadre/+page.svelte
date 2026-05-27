@@ -5,6 +5,7 @@
 	import { effectiveIsAdmin } from '$lib/stores/viewMode';
 	import { user } from '$lib/stores/auth';
 	import HandicapBracketView from '$lib/components/handicap/HandicapBracketView.svelte';
+	import HandicapBracketPrintModal from '$lib/components/handicap/HandicapBracketPrintModal.svelte';
 	import HandicapBranchBalance from '$lib/components/handicap/HandicapBranchBalance.svelte';
 	import HandicapMatchResult from '$lib/components/handicap/HandicapMatchResult.svelte';
 	import type { MatchView, PlayerInfo, BranchMatchInput } from '$lib/utils/handicap-types';
@@ -49,6 +50,7 @@
 	let subchampionName: string | null = null;
 	$: isFinalitzat = estatCompeticio === 'finalitzat';
 	let closingTournament = false;
+	let showPrintBracketModal = false;
 
 	// Resultat modal
 	let showResultForm = false;
@@ -541,6 +543,11 @@
 				<button type="button" on:click={() => window.print()} class="btn-action">
 					Imprimir →
 				</button>
+				{#if $effectiveIsAdmin}
+					<button type="button" on:click={() => showPrintBracketModal = true} class="btn-action">
+						Imprimir A3 pissarra
+					</button>
+				{/if}
 			{/if}
 		</div>
 		</div>
@@ -836,6 +843,14 @@
 			<button type="button" on:click={() => (quadreError = null)} class="text-red-500">✕</button>
 		</div>
 	</div>
+{/if}
+
+{#if showPrintBracketModal && event}
+	<HandicapBracketPrintModal
+		eventId={event.id}
+		eventNom={event.nom}
+		onClose={() => (showPrintBracketModal = false)}
+	/>
 {/if}
 
 <style>
