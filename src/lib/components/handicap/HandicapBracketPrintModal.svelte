@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { generateDoublEliminationBracket } from '$lib/utils/handicap-bracket-generator';
+	import { printPortal } from '$lib/utils/print-portal';
 
 	// Dos modes:
 	//   - eventId definit       → bracket REAL: carrega slots/matches de la BBDD.
@@ -248,7 +249,7 @@
 	}
 </script>
 
-<div class="print-modal-overlay" on:click|self={onClose} role="presentation">
+<div class="print-modal-overlay print-portal" use:printPortal on:click|self={onClose} role="presentation">
 	<div class="print-modal-card" role="dialog" aria-modal="true">
 		<div class="print-modal-head no-print">
 			<h2 class="print-modal-title">Imprimir bracket per a la pissarra</h2>
@@ -541,11 +542,19 @@
 	.box.small { width: 9mm; }
 
 	@media print {
+		:global(body > *:not(.print-portal)) { display: none !important; }
+		:global(.print-portal) {
+			position: static !important;
+			background: white !important;
+			padding: 0 !important;
+			inset: auto !important;
+			z-index: auto !important;
+		}
 		.no-print { display: none !important; }
 		.print-modal-overlay {
 			position: static; background: white; padding: 0;
 		}
-		.print-modal-card { max-width: none; max-height: none; }
+		.print-modal-card { max-width: none; max-height: none; box-shadow: none; }
 		.print-preview { background: white; padding: 0; overflow: visible; }
 		.print-page {
 			margin: 0;
@@ -554,6 +563,7 @@
 			box-shadow: none;
 		}
 		@page { size: A3 landscape; margin: 0; }
-		:global(body) { background: white; }
+		:global(body) { background: white; margin: 0; }
+		:global(html) { background: white; }
 	}
 </style>

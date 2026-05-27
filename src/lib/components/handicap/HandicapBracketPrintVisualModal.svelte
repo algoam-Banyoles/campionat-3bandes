@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { generateDoublEliminationBracket } from '$lib/utils/handicap-bracket-generator';
+	import { printPortal } from '$lib/utils/print-portal';
 
 	export let eventId: string | null = null;
 	export let participantCount: number | null = null;
@@ -255,7 +256,7 @@
 	}
 </script>
 
-<div class="modal-overlay" on:click|self={onClose} role="presentation">
+<div class="modal-overlay print-portal" use:printPortal on:click|self={onClose} role="presentation">
 	<div class="modal-card" role="dialog" aria-modal="true">
 		<div class="modal-head no-print">
 			<h2 class="modal-title">Imprimir bracket VISUAL per a la pissarra</h2>
@@ -463,12 +464,21 @@
 	.box.small { width: 7mm; }
 
 	@media print {
+		:global(body > *:not(.print-portal)) { display: none !important; }
+		:global(.print-portal) {
+			position: static !important;
+			background: white !important;
+			padding: 0 !important;
+			inset: auto !important;
+			z-index: auto !important;
+		}
 		.no-print { display: none !important; }
 		.modal-overlay { position: static; background: white; padding: 0; }
-		.modal-card { max-width: none; max-height: none; }
+		.modal-card { max-width: none; max-height: none; box-shadow: none; }
 		.preview { background: white; padding: 0; overflow: visible; }
 		.print-page { margin: 0; box-shadow: none; }
 		@page { size: A3 landscape; margin: 0; }
-		:global(body) { background: white; }
+		:global(body) { background: white; margin: 0; }
+		:global(html) { background: white; }
 	}
 </style>
