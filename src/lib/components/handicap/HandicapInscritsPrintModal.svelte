@@ -217,19 +217,43 @@
 	@media print {
 		:global(body > *:not(.print-portal)) { display: none !important; }
 		:global(.print-portal) {
+			display: block !important;
 			position: static !important;
 			background: white !important;
 			padding: 0 !important;
 			inset: auto !important;
 			z-index: auto !important;
+			width: auto !important;
+			height: auto !important;
+			max-width: none !important;
+			max-height: none !important;
+			overflow: visible !important;
 		}
 		.no-print { display: none !important; }
-		.modal-overlay { position: static; background: white; padding: 0; }
-		.modal-card { max-width: none; max-height: none; box-shadow: none; }
-		.preview { background: white; padding: 0; overflow: visible; }
-		.print-page { margin: 0; box-shadow: none; }
+		.modal-overlay {
+			display: block !important;
+			position: static !important;
+			background: white !important;
+			padding: 0 !important;
+		}
+		.modal-card {
+			display: block !important;
+			max-width: none !important;
+			max-height: none !important;
+			width: auto !important;
+			height: auto !important;
+			box-shadow: none !important;
+		}
+		.preview {
+			display: block !important;
+			background: white !important;
+			padding: 0 !important;
+			overflow: visible !important;
+			flex: none !important;
+		}
+		.print-page { margin: 0 !important; box-shadow: none !important; }
 		@page { size: A4 portrait; margin: 12mm 14mm; }
-		:global(body) { background: white; margin: 0; }
-		:global(html) { background: white; }
+		:global(body) { background: white !important; margin: 0 !important; }
+		:global(html) { background: white !important; }
 	}
 </style>
