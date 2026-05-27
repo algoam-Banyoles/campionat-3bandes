@@ -550,29 +550,51 @@
 	@media print {
 		:global(body > *:not(.print-portal)) { display: none !important; }
 		:global(.print-portal) {
+			display: block !important;
 			position: static !important;
 			background: white !important;
 			padding: 0 !important;
 			inset: auto !important;
 			z-index: auto !important;
+			width: auto !important;
+			height: auto !important;
+			max-width: none !important;
+			max-height: none !important;
+			overflow: visible !important;
 		}
 		.no-print { display: none !important; }
 		.print-modal-overlay {
-			position: static; background: white; padding: 0;
+			display: block !important;
+			position: static !important;
+			background: white !important;
+			padding: 0 !important;
 		}
-		.print-modal-card { max-width: none; max-height: none; box-shadow: none; }
-		.print-preview { background: white; padding: 0; overflow: visible; }
+		.print-modal-card {
+			display: block !important;
+			max-width: none !important;
+			max-height: none !important;
+			width: auto !important;
+			height: auto !important;
+			box-shadow: none !important;
+		}
+		.print-preview {
+			display: block !important;
+			background: white !important;
+			padding: 0 !important;
+			overflow: visible !important;
+			flex: none !important;
+		}
 		.print-page {
-			margin: 0;
+			margin: 0 !important;
 			page-break-after: always;
 			break-after: page;
-			box-shadow: none;
+			box-shadow: none !important;
 		}
+		.print-page:last-child { page-break-after: auto; break-after: auto; }
 		/* Força paper A3 apaisat. Chrome/Edge poden deshabilitar el selector
-		   d'orientació, però el resultat ja serà el correcte (420×297 mm).
-		   Si el navegador no respecta @page, cal triar manualment "Apaisat". */
+		   d'orientació, però el resultat ja serà el correcte (420×297 mm). */
 		@page { size: A3 landscape; margin: 0; }
-		:global(body) { background: white; margin: 0; }
-		:global(html) { background: white; }
+		:global(body) { background: white !important; margin: 0 !important; }
+		:global(html) { background: white !important; }
 	}
 </style>
