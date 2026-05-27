@@ -191,16 +191,28 @@
 	}
 	.page-sub { font-size: 9pt; color: #555; text-align: right; }
 
-	.inscrits-table { width: 100%; border-collapse: collapse; font-size: 10pt; flex: 1; }
+	.inscrits-table {
+		width: 100%; border-collapse: collapse; font-size: 10pt; flex: 1;
+		page-break-inside: avoid;
+		break-inside: avoid;
+	}
+	.inscrits-table thead {
+		page-break-after: avoid;
+		break-after: avoid;
+	}
 	.inscrits-table thead th {
-		text-align: left; padding: 2mm 1.5mm;
+		text-align: left; padding: 1.5mm 1.5mm;
 		border-bottom: 1.5px solid #1f1f1f;
 		font-size: 8.5pt; font-weight: 700; text-transform: uppercase;
 		letter-spacing: 0.04em; color: #1f1f1f;
 	}
+	.inscrits-table tbody tr {
+		page-break-inside: avoid;
+		break-inside: avoid;
+	}
 	.inscrits-table tbody td {
-		padding: 1.5mm; border-bottom: 0.5px solid #ccc;
-		vertical-align: top;
+		padding: 1mm 1.5mm; border-bottom: 0.5px solid #ccc;
+		vertical-align: middle;
 	}
 	.tabular { font-variant-numeric: tabular-nums; }
 	.num-col { width: 12mm; text-align: right; color: #555; }
@@ -251,8 +263,16 @@
 			overflow: visible !important;
 			flex: none !important;
 		}
-		.print-page { margin: 0 !important; box-shadow: none !important; }
-		@page { size: A4 portrait; margin: 12mm 14mm; }
+		.print-page {
+			margin: 0 !important;
+			padding: 0 !important; /* els marges del paper els dóna @page */
+			min-height: 0 !important;
+			width: auto !important;
+			box-shadow: none !important;
+			page-break-after: avoid;
+			break-after: avoid;
+		}
+		@page { size: A4 portrait; margin: 10mm 12mm; }
 		:global(body) { background: white !important; margin: 0 !important; }
 		:global(html) { background: white !important; }
 	}
