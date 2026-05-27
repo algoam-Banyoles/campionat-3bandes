@@ -1463,7 +1463,6 @@
 {#if showPrintInscritsModal}
 	<HandicapInscritsPrintModal
 		{participants}
-		{participantExtras}
 		eventNom={event?.nom ?? ''}
 		eventTemporada={event?.temporada ?? ''}
 		onClose={() => (showPrintInscritsModal = false)}

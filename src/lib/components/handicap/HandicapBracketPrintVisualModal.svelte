@@ -271,7 +271,10 @@
 					<span class="err">{error}</span>
 				{:else}
 					<span>{pages.length} fulls A3 landscape</span>
-					<span class="hint">Per a PDF: <em>Imprimir / Desar PDF</em> → al diàleg, destinació <em>Guardar com a PDF</em>.</span>
+					<span class="hint">
+						Al diàleg d'imprimir tria <strong>A3</strong> i orientació <strong>Apaisat / Horitzontal</strong>.
+						Per a PDF: destinació <em>Guardar com a PDF</em>.
+					</span>
 				{/if}
 				{#if !eventId}
 					<label class="count-label">
@@ -481,7 +484,9 @@
 		.modal-card { max-width: none; max-height: none; box-shadow: none; }
 		.preview { background: white; padding: 0; overflow: visible; }
 		.print-page { margin: 0; box-shadow: none; }
-		@page { size: 420mm 297mm; margin: 0; }
+		/* Sense 'size' explícit: alguns navegadors deshabiliten el selector
+		   d'orientació quan el CSS ho fixa. Tria A3 apaisat al diàleg. */
+		@page { margin: 0; }
 		:global(body) { background: white; margin: 0; }
 		:global(html) { background: white; }
 	}

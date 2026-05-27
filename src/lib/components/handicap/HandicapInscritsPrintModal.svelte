@@ -3,19 +3,13 @@
 	import { printPortal } from '$lib/utils/print-portal';
 
 	export let participants: any[] = [];
-	export let participantExtras: Map<number, {
-		distSocial: number | null;
-		categoriaSocialNom: string | null;
-		millorMitjana: number | null;
-		millorMitjanaYear: number | null;
-	}> = new Map();
 	export let eventNom: string = '';
 	export let eventTemporada: string = '';
 	export let onClose: () => void = () => {};
 
 	$: temporadaPretty = (eventTemporada || '').replace('-', '/');
 
-	type OrderBy = 'cognoms' | 'distancia' | 'promig';
+	type OrderBy = 'cognoms' | 'distancia';
 	let orderBy: OrderBy = 'cognoms';
 
 	$: baseRows = participants.map((p: any) => {
@@ -24,27 +18,17 @@
 		return {
 			nom: s?.nom ?? '',
 			cognoms: s?.cognoms ?? '',
-			distancia: p.distancia as number | null,
-			extras: participantExtras.get(p.soci_numero) ?? null
+			distancia: p.distancia as number | null
 		};
 	});
 
 	$: rows = (() => {
 		const copy = [...baseRows];
 		if (orderBy === 'distancia') {
-			// Caramboles assignades: descendent (més distància primer)
 			copy.sort((a, b) => {
 				const da = a.distancia ?? -1;
 				const db = b.distancia ?? -1;
 				if (db !== da) return db - da;
-				return `${a.cognoms} ${a.nom}`.localeCompare(`${b.cognoms} ${b.nom}`, 'ca');
-			});
-		} else if (orderBy === 'promig') {
-			// Promig considerat: descendent (millor primer); sense promig → al final
-			copy.sort((a, b) => {
-				const pa = a.extras?.millorMitjana ?? -1;
-				const pb = b.extras?.millorMitjana ?? -1;
-				if (pb !== pa) return pb - pa;
 				return `${a.cognoms} ${a.nom}`.localeCompare(`${b.cognoms} ${b.nom}`, 'ca');
 			});
 		} else {
@@ -55,9 +39,7 @@
 
 	$: orderLabel = orderBy === 'distancia'
 		? 'distància assignada (de més a menys)'
-		: orderBy === 'promig'
-			? 'promig considerat (de més a menys)'
-			: 'cognoms';
+		: 'cognoms';
 
 	function doPrint() {
 		window.print();
@@ -79,7 +61,6 @@
 					<select bind:value={orderBy} class="order-select">
 						<option value="cognoms">Cognoms (alfabètic)</option>
 						<option value="distancia">Caramboles (distància assignada)</option>
-						<option value="promig">Promig considerat</option>
 					</select>
 				</label>
 			</div>
@@ -114,9 +95,7 @@
 						<tr>
 							<th class="num-col">#</th>
 							<th class="name-col">Jugador</th>
-							<th class="dist-col">Dist. assignada</th>
-							<th class="dist-col">Dist. social</th>
-							<th class="dist-col">Promig considerat</th>
+							<th class="dist-col">Distància assignada</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -125,23 +104,6 @@
 								<td class="num-col tabular">{i + 1}</td>
 								<td class="name-col">{formatarNomJugador(`${r.nom} ${r.cognoms}`.trim())}</td>
 								<td class="dist-col tabular">{r.distancia ?? '—'}</td>
-								<td class="dist-col tabular">
-									{#if r.extras?.distSocial != null}
-										{r.extras.distSocial}
-									{:else}
-										<span class="muted">—</span>
-									{/if}
-								</td>
-								<td class="dist-col tabular">
-									{#if r.extras?.millorMitjana != null}
-										{r.extras.millorMitjana.toFixed(3)}
-										{#if r.extras.millorMitjanaYear}
-											<span class="year">({r.extras.millorMitjanaYear})</span>
-										{/if}
-									{:else}
-										<span class="muted">—</span>
-									{/if}
-								</td>
 							</tr>
 						{/each}
 					</tbody>
@@ -241,11 +203,9 @@
 		vertical-align: top;
 	}
 	.tabular { font-variant-numeric: tabular-nums; }
-	.num-col { width: 8mm; text-align: right; color: #555; }
+	.num-col { width: 12mm; text-align: right; color: #555; }
 	.name-col { width: auto; }
-	.dist-col { width: 28mm; text-align: center; }
-	.muted { color: #999; }
-	.year { color: #888; font-size: 9pt; margin-left: 1mm; }
+	.dist-col { width: 40mm; text-align: center; }
 
 	.page-foot {
 		display: flex; justify-content: space-between;
