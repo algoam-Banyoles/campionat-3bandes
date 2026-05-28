@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
-	import { buildMatchCodeMap } from '$lib/utils/handicap-types';
+	import { buildMatchCodeMap, buildSlotSourceMap } from '$lib/utils/handicap-types';
 	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 
 	let loading = true;
@@ -22,6 +22,8 @@
 		player1: string | null;
 		player2: string | null;
 		estat: string | null;
+		/** True quan els 2 jugadors són reals. False = data orientativa. */
+		playersResolved: boolean;
 	};
 	let rows: CalRow[] = [];
 	let columns: 1 | 2 = 2;
@@ -121,6 +123,20 @@
 			});
 			const codeMap = buildMatchCodeMap(codeInputs);
 
+			// Mapa slot_id → origen (Guanyador/Perdedor de match X) per a slots pendents
+			const slotSourceMap = buildSlotSourceMap(
+				rawMatches.map((m: any) => ({
+					id: m.id as string,
+					winner_slot_dest_id: m.winner_slot_dest_id as string | null,
+					loser_slot_dest_id: m.loser_slot_dest_id as string | null
+				})),
+				codeMap
+			);
+			const sourceLabel = (slotId: string): string | null => {
+				const src = slotSourceMap.get(slotId);
+				return src ? `${src.role} ${src.code}` : null;
+			};
+
 			// Mapa slot_id → match (per resoldre winner/loser dest)
 			const matchBySlot = new Map<string, any>();
 			for (const m of rawMatches) {
@@ -143,6 +159,7 @@
 				player1: string | null;
 				player2: string | null;
 				estat: string;
+				playersResolved: boolean;
 			};
 			const matchAtSlot = new Map<string, MatchInfo>();
 			const scheduledDates = new Set<string>();
@@ -157,14 +174,18 @@
 				const bKey = cal.taula_assignada as number;
 				const key = `${dKey}|${hKey}|${bKey}`;
 				scheduledDates.add(dKey);
+				const p1 = s1.participant_id ? (nameMap.get(s1.participant_id) ?? null) : sourceLabel(s1.id);
+				const p2 = s2.participant_id ? (nameMap.get(s2.participant_id) ?? null) : sourceLabel(s2.id);
+				const resolved = !!(s1.participant_id && s2.participant_id);
 				matchAtSlot.set(key, {
 					code: codeMap.get(m.id) ?? '?',
 					bracket: (s1.bracket_type ?? 'winners') as MatchInfo['bracket'],
 					winnerDest: destCode(m.winner_slot_dest_id),
 					loserDest: destCode(m.loser_slot_dest_id),
-					player1: s1.participant_id ? (nameMap.get(s1.participant_id) ?? null) : null,
-					player2: s2.participant_id ? (nameMap.get(s2.participant_id) ?? null) : null,
-					estat: m.estat as string
+					player1: p1,
+					player2: p2,
+					estat: m.estat as string,
+					playersResolved: resolved
 				});
 			}
 
@@ -202,7 +223,8 @@
 							loserDest: mi?.loserDest ?? null,
 							player1: mi?.player1 ?? null,
 							player2: mi?.player2 ?? null,
-							estat: mi?.estat ?? null
+							estat: mi?.estat ?? null,
+							playersResolved: mi?.playersResolved ?? true
 						});
 					}
 				}
@@ -262,6 +284,7 @@
 	}
 
 	$: scheduledCount = rows.filter((r) => r.code !== null).length;
+	$: tentativeCount = rows.filter((r) => r.code !== null && !r.playersResolved).length;
 </script>
 
 <svelte:head>
@@ -292,6 +315,16 @@
 	{:else if rows.length === 0}
 		<div class="empty">Encara no hi ha cap partida programada.</div>
 	{:else}
+		{#if tentativeCount > 0}
+			<div class="disclaimer">
+				<strong>Atenció:</strong> {tentativeCount} partid{tentativeCount === 1 ? 'a' : 'es'} amb data
+				<em>orientativa</em>. Quan encara no es coneixen els dos contrincants, la data i el billar
+				assignats poden canviar i es concretaran quan es defineixin els jugadors a partir dels
+				resultats de les rondes anteriors. Aquestes files es marquen amb <span class="tentative-mark">·</span>
+				i el text en cursiva.
+			</div>
+		{/if}
+
 		<div class="toolbar">
 			<label class="col-label">
 				Format:
@@ -321,7 +354,13 @@
 							{#each colDays as gd}
 								{#each gd.hours as gh, hIdx}
 									{#each gh.items as it, iIdx}
-										<tr class:played={it.estat === 'jugada' || it.estat === 'walkover'}>
+										<tr
+											class:played={it.estat === 'jugada' || it.estat === 'walkover'}
+											class:tentative={it.code !== null && !it.playersResolved}
+											title={it.code !== null && !it.playersResolved
+												? 'Data orientativa: es concretarà quan es defineixin els dos jugadors'
+												: null}
+										>
 											{#if hIdx === 0 && iIdx === 0}
 												<td class="day-cell" rowspan={gd.total}>
 													<div class="d-num">{dateLabel(gd.date)}</div>
@@ -332,7 +371,12 @@
 												<td class="hour-cell" rowspan={gh.items.length}>{gh.hora}</td>
 											{/if}
 											<td class="billar-cell">B{it.billar}</td>
-											<td class="code-cell {codeColorClass(it.bracket)}">{it.code ?? ''}</td>
+											<td class="code-cell {codeColorClass(it.bracket)}">
+												{it.code ?? ''}
+												{#if it.code !== null && !it.playersResolved}
+													<span class="tentative-mark" aria-label="Data orientativa">·</span>
+												{/if}
+											</td>
 											<td class="dest-cell">
 												{#if it.winnerDest}<div class="arrow-win">↗G: <strong>{it.winnerDest}</strong></div>{/if}
 												{#if it.loserDest}<div class="arrow-lose">↘P: <strong>{it.loserDest}</strong></div>{/if}
@@ -464,6 +508,29 @@
 	.player-cell { font-size: 0.8rem; min-width: 7rem; text-align: left; padding: 0.25rem 0.5rem; }
 
 	tr.played .player-cell, tr.played .code-cell { opacity: 0.6; }
+
+	tr.tentative .player-cell {
+		font-style: italic;
+		color: var(--ink-2, #555);
+	}
+	.tentative-mark {
+		display: inline-block;
+		margin-left: 0.25rem;
+		color: #b85c00;
+		font-weight: 900;
+		font-size: 1.1em;
+		line-height: 1;
+	}
+	.disclaimer {
+		border: 1px solid #d97706;
+		border-left: 4px solid #d97706;
+		background: #fffaf0;
+		padding: 0.75rem 1rem;
+		font-size: 0.85rem;
+		line-height: 1.45;
+		color: #1f1f1f;
+	}
+	.disclaimer em { font-style: italic; }
 
 	@media (max-width: 900px) {
 		.two-cols { flex-direction: column; }

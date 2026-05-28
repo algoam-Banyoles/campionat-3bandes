@@ -1056,6 +1056,16 @@
 			{/if}
 		</div>
 
+		<!-- Disclaimer: dates orientatives quan els jugadors encara no estan determinats -->
+		{#if filteredMatches.some((m) => m.data_programada && (!m.player1_participant_id || !m.player2_participant_id))}
+			<div class="mb-3 border-l-4 border-amber-500 bg-amber-50 px-4 py-2 text-xs leading-snug text-gray-800">
+				<strong class="font-semibold">Atenció:</strong> les partides amb jugadors marcats com a
+				<em>Guanyador/Perdedor d'un altre match</em> o <em>Per determinar</em> tenen una data
+				<em>orientativa</em>. La data, l'hora i el billar es concretaran quan es defineixin
+				els dos jugadors a partir dels resultats de les rondes anteriors.
+			</div>
+		{/if}
+
 		<!-- Taula de partides -->
 		<div class="rounded-lg border border-gray-200 bg-white shadow-sm">
 			{#if filteredMatches.length === 0}
@@ -1113,6 +1123,9 @@
 								</td>
 								<td class="px-3 py-2 text-center text-xs text-gray-600">
 									{formatDataHora(match.data_programada, match.hora_inici, match.taula_assignada)}
+									{#if match.data_programada && (!match.player1_participant_id || !match.player2_participant_id)}
+										<span class="ml-1 text-amber-600 font-bold" title="Data orientativa: es concretarà quan es defineixin els dos jugadors">·</span>
+									{/if}
 								</td>
 								<td class="px-3 py-2 text-right">
 									{#if $effectiveIsAdmin}
@@ -1212,6 +1225,9 @@
 								</td>
 								<td class="px-3 py-2 text-center text-xs text-gray-600">
 									{formatDataHora(match.data_programada, match.hora_inici, match.taula_assignada)}
+									{#if match.data_programada && (!match.player1_participant_id || !match.player2_participant_id)}
+										<span class="ml-1 text-amber-600 font-bold" title="Data orientativa: es concretarà quan es defineixin els dos jugadors">·</span>
+									{/if}
 								</td>
 							</tr>
 						{/each}

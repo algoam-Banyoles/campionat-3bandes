@@ -3,6 +3,7 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { effectiveIsAdmin } from '$lib/stores/viewMode';
 	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
+	import { buildMatchCodeMap, buildSlotSourceMap } from '$lib/utils/handicap-types';
 
 	const accions = [
 		{ href: '/handicap/configuracio', label: 'Configuració', desc: 'Sistema, distàncies, horaris', icon: '⚙️' },
@@ -57,6 +58,7 @@
 		ronda: number;
 		data: string | null;
 		hora: string | null;
+		playersResolved: boolean;
 	}
 
 	let recentMatches: RecentMatch[] = [];
@@ -89,7 +91,7 @@
 				.eq('event_id', ev.id),
 			supabase
 				.from('handicap_matches')
-				.select('id, estat, slot1_id, slot2_id, guanyador_participant_id, calendari_partida_id')
+				.select('id, estat, slot1_id, slot2_id, guanyador_participant_id, calendari_partida_id, winner_slot_dest_id, loser_slot_dest_id')
 				.eq('event_id', ev.id)
 				.neq('estat', 'bye')
 		]);
@@ -107,7 +109,7 @@
 			const calIds = (matchStats as any[]).filter((m) => m.calendari_partida_id).map((m: any) => m.calendari_partida_id as string);
 
 			const [{ data: slots }, { data: calPartides }] = await Promise.all([
-				supabase.from('handicap_bracket_slots').select('id, bracket_type, ronda, participant_id').in('id', slotIds),
+				supabase.from('handicap_bracket_slots').select('id, bracket_type, ronda, posicio, participant_id').in('id', slotIds),
 				calIds.length > 0
 					? supabase.from('calendari_partides').select('id, data_programada, hora_inici').in('id', calIds)
 					: Promise.resolve({ data: [] })
@@ -149,6 +151,33 @@
 			jugades.sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''));
 			recentMatches = jugades.slice(0, 3);
 
+			// Codis de match (W1.1, L2.3, GF1) per resoldre "Guanyador W1.1"
+			const codeInputs = (matchStats as any[]).map((m) => {
+				const s1: any = slotMap.get(m.slot1_id);
+				return {
+					id: m.id as string,
+					bracket_type: (s1?.bracket_type ?? 'winners') as string,
+					ronda: (s1?.ronda ?? 1) as number,
+					matchPos: s1 ? Math.ceil((s1.posicio as number) / 2) : 0
+				};
+			});
+			const codeMap = buildMatchCodeMap(codeInputs);
+			const slotSourceMap = buildSlotSourceMap(
+				(matchStats as any[]).map((m) => ({
+					id: m.id as string,
+					winner_slot_dest_id: m.winner_slot_dest_id as string | null,
+					loser_slot_dest_id: m.loser_slot_dest_id as string | null
+				})),
+				codeMap
+			);
+			const resolveName = (slot: any): { name: string; resolved: boolean } => {
+				if (slot.participant_id) {
+					return { name: nameMap.get(slot.participant_id) ?? '?', resolved: true };
+				}
+				const src = slotSourceMap.get(slot.id);
+				return { name: src ? `${src.role} ${src.code}` : 'Per determinar', resolved: false };
+			};
+
 			// Pròximes 3 programades
 			const programades = (matchStats as any[])
 				.filter((m) => m.estat === 'programada' && m.calendari_partida_id)
@@ -157,13 +186,16 @@
 					const s2 = slotMap.get(m.slot2_id);
 					const cal = m.calendari_partida_id ? calMap.get(m.calendari_partida_id) : null;
 					if (!s1 || !s2 || !cal) return null;
+					const r1 = resolveName(s1);
+					const r2 = resolveName(s2);
 					return {
-						player1_name: nameMap.get(s1.participant_id) ?? '?',
-						player2_name: nameMap.get(s2.participant_id) ?? '?',
+						player1_name: r1.name,
+						player2_name: r2.name,
 						bracket_type: s1.bracket_type as string,
 						ronda: s1.ronda as number,
 						data: (cal.data_programada as string)?.substring(0, 10) ?? null,
-						hora: (cal.hora_inici as string)?.substring(0, 5) ?? null
+						hora: (cal.hora_inici as string)?.substring(0, 5) ?? null,
+						playersResolved: r1.resolved && r2.resolved
 					} satisfies UpcomingMatch;
 				})
 				.filter(Boolean) as UpcomingMatch[];
@@ -270,23 +302,54 @@
 		</div>
 	{/if}
 
-	<!-- Navegació pública -->
-	<h2 class="mb-3 text-lg font-semibold text-gray-800">Consultar</h2>
-	<div class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+	<!-- Navegació pública (subnavbar editorial) -->
+	<nav class="page-subtabs" aria-label="Vistes del campionat hàndicap">
 		{#each publicLinks as link}
-			<a
-				href={link.href}
-				class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-colors hover:border-purple-300 hover:bg-purple-50"
-			>
-				<div class="mb-1 text-2xl">{link.icon}</div>
-				<div class="font-medium text-gray-900">{link.label}</div>
-				<div class="text-xs text-gray-500">{link.desc}</div>
-				{#if link.label === 'Jugadors inscrits' && participantsCount > 0}
-					<div class="mt-1 text-xs font-semibold text-purple-700">{participantsCount} inscrits</div>
+			<a href={link.href} class="subtab" title={link.desc}>
+				{link.label}{#if link.label === 'Jugadors inscrits' && participantsCount > 0}
+					<span class="subtab-count tabular-nums">{participantsCount}</span>
 				{/if}
 			</a>
 		{/each}
-	</div>
+	</nav>
+
+	{#if upcomingMatches.length > 0}
+		<section class="ump-section">
+			<header class="ump-head">
+				<div class="editorial-eyebrow ump-eyebrow">Pròximament</div>
+				<h2 class="ump-title">Pròximes partides</h2>
+			</header>
+			<ol class="ump-list">
+				{#each upcomingMatches as m}
+					<li class="ump-row" class:tentative={!m.playersResolved}>
+						<div class="ump-date">
+							<div class="ump-date-day tabular-nums">{formatDateCa(m.data)}</div>
+							{#if m.hora}
+								<div class="ump-date-hour tabular-nums">{m.hora}</div>
+							{/if}
+						</div>
+						<div class="ump-info">
+							<div class="ump-opponent">
+								<strong>{m.player1_name}</strong> vs <strong>{m.player2_name}</strong>
+								{#if !m.playersResolved}
+									<span class="tentative-mark" title="Data orientativa">·</span>
+								{/if}
+							</div>
+							<div class="ump-meta">
+								{bracketLabel(m.bracket_type)} · Ronda {m.ronda}
+							</div>
+						</div>
+					</li>
+				{/each}
+			</ol>
+			{#if upcomingMatches.some((m) => !m.playersResolved)}
+				<p class="ump-disclaimer">
+					<span class="tentative-mark">·</span> Data <em>orientativa</em>: es concretarà quan es defineixin
+					els dos jugadors a partir dels resultats de les rondes anteriors.
+				</p>
+			{/if}
+		</section>
+	{/if}
 
 	{#if recentMatches.length > 0}
 		<section class="ump-section">
@@ -306,35 +369,6 @@
 							</div>
 							<div class="ump-meta">
 								{m.player1_name} vs {m.player2_name} · {bracketLabel(m.bracket_type)} · Ronda {m.ronda}
-							</div>
-						</div>
-					</li>
-				{/each}
-			</ol>
-		</section>
-	{/if}
-
-	{#if upcomingMatches.length > 0}
-		<section class="ump-section">
-			<header class="ump-head">
-				<div class="editorial-eyebrow ump-eyebrow">Pròximament</div>
-				<h2 class="ump-title">Pròximes partides</h2>
-			</header>
-			<ol class="ump-list">
-				{#each upcomingMatches as m}
-					<li class="ump-row">
-						<div class="ump-date">
-							<div class="ump-date-day tabular-nums">{formatDateCa(m.data)}</div>
-							{#if m.hora}
-								<div class="ump-date-hour tabular-nums">{m.hora}</div>
-							{/if}
-						</div>
-						<div class="ump-info">
-							<div class="ump-opponent">
-								<strong>{m.player1_name}</strong> vs <strong>{m.player2_name}</strong>
-							</div>
-							<div class="ump-meta">
-								{bracketLabel(m.bracket_type)} · Ronda {m.ronda}
 							</div>
 						</div>
 					</li>
@@ -486,6 +520,55 @@
 		color: var(--blue);
 	}
 
+	/* ── Subnavbar editorial (mateix patró que campionats socials) ─── */
+	.page-subtabs {
+		display: flex;
+		gap: 0;
+		border-bottom: 1px solid var(--rule);
+		margin-top: 0;
+		overflow-x: auto;
+		scrollbar-width: thin;
+	}
+	.subtab {
+		background: transparent;
+		border: none;
+		padding: 0.85rem 0;
+		margin-right: 1.75rem;
+		color: var(--ink-3);
+		font-family: var(--font-sans);
+		font-weight: 500;
+		font-size: 0.9375rem;
+		letter-spacing: -0.005em;
+		text-decoration: none;
+		cursor: pointer;
+		position: relative;
+		white-space: nowrap;
+	}
+	.subtab:hover { color: var(--ink-2); }
+	.subtab-count {
+		display: inline-block;
+		margin-left: 0.4rem;
+		padding: 0.05rem 0.4rem;
+		font-size: 0.75rem;
+		font-weight: 700;
+		color: var(--sec-handicap);
+		border: 1px solid var(--rule);
+		background: var(--paper-elevated);
+	}
+	@media (max-width: 640px) {
+		.page-subtabs {
+			flex-wrap: wrap;
+			overflow-x: visible;
+			row-gap: 0.25rem;
+		}
+		.subtab {
+			margin-right: 1.25rem;
+			font-size: 0.875rem;
+			min-height: 44px;
+			padding: 0.6rem 0;
+		}
+	}
+
 	/* ── Properes partides: mateix format que MyUpcomingMatchesWidget ─── */
 	.ump-section {
 		margin-bottom: 2rem;
@@ -550,4 +633,24 @@
 		color: var(--ink-3);
 	}
 	.tabular-nums { font-variant-numeric: tabular-nums; }
+
+	.ump-row.tentative .ump-opponent strong { font-style: italic; font-weight: 600; }
+	.tentative-mark {
+		display: inline-block;
+		margin-left: 0.25rem;
+		color: #b85c00;
+		font-weight: 900;
+		font-size: 1.1em;
+		line-height: 1;
+	}
+	.ump-disclaimer {
+		margin: 0.75rem 0 0;
+		padding: 0.5rem 0.75rem;
+		border-left: 3px solid #d97706;
+		background: #fffaf0;
+		font-size: 0.8125rem;
+		color: var(--ink-2);
+		line-height: 1.4;
+	}
+	.ump-disclaimer em { font-style: italic; }
 </style>
