@@ -354,12 +354,13 @@
 			.code-w { color: #1d6e3a; }
 			.code-l { color: #a30b1e; }
 			.code-gf { color: #6b3eb8; }
-			.dest-cell { font-size: 8.5pt; font-weight: 700; min-width: 14mm; }
+			.dest-cell { font-size: 7.5pt; font-weight: 600; min-width: 16mm; text-align: left; line-height: 1.25; padding: 1mm 1.5mm; }
+			.dest-cell .arrow-win, .dest-cell .arrow-lose { display: block; }
+			.dest-cell strong { font-weight: 800; }
 			.arrow-win { color: #1d6e3a; }
 			.arrow-lose { color: #a30b1e; }
-			.slot-empty { background: repeating-linear-gradient(45deg, #fafafa, #fafafa 2mm, white 2mm, white 4mm); }
-			.slot-empty .billar-cell { background: transparent; color: #1f1f1f; }
-			.slot-empty .day-cell, .slot-empty .hour-cell { color: #1f1f1f; }
+			.player-cell { font-size: 9pt; min-width: 30mm; }
+			.player-line { display: inline-block; width: 100%; border-bottom: 1px solid #1f1f1f; height: 4mm; }
 		`;
 
 		const scriptOpen = '<' + 'script>';
@@ -443,15 +444,16 @@
 											<th>Hora</th>
 											<th>B</th>
 											<th>Match</th>
-											<th>→ Winner</th>
-											<th>→ Loser</th>
+											<th>Destí</th>
+											<th>Jugador 1</th>
+											<th>Jugador 2</th>
 										</tr>
 									</thead>
 									<tbody>
 										{#each colDays as gd}
 											{#each gd.hours as gh, hIdx}
 												{#each gh.items as it, iIdx}
-													<tr class:slot-empty={!it.code}>
+													<tr>
 														{#if hIdx === 0 && iIdx === 0}
 															<td class="day-cell" rowspan={gd.total}>
 																<div class="d-num">{dateLabel(gd.date)}</div>
@@ -463,8 +465,12 @@
 														{/if}
 														<td class="billar-cell">B{it.billar}</td>
 														<td class="code-cell {codeColorClass(it.bracket)}">{it.code ?? ''}</td>
-														<td class="dest-cell arrow-win">{it.winnerDest ?? ''}</td>
-														<td class="dest-cell arrow-lose">{it.loserDest ?? ''}</td>
+														<td class="dest-cell">
+															{#if it.winnerDest}<div class="arrow-win">↗G: <strong>{it.winnerDest}</strong></div>{/if}
+															{#if it.loserDest}<div class="arrow-lose">↘P: <strong>{it.loserDest}</strong></div>{/if}
+														</td>
+														<td class="player-cell"><span class="player-line"></span></td>
+														<td class="player-cell"><span class="player-line"></span></td>
 													</tr>
 												{/each}
 											{/each}
@@ -578,11 +584,13 @@
 	.code-w { color: #1d6e3a; }
 	.code-l { color: #a30b1e; }
 	.code-gf { color: #6b3eb8; }
-	.dest-cell { font-size: 8.5pt; font-weight: 700; min-width: 14mm; }
+	.dest-cell { font-size: 7.5pt; font-weight: 600; min-width: 16mm; text-align: left; line-height: 1.25; padding: 1mm 1.5mm; }
+	.dest-cell .arrow-win, .dest-cell .arrow-lose { display: block; }
+	.dest-cell strong { font-weight: 800; }
 	.arrow-win { color: #1d6e3a; }
 	.arrow-lose { color: #a30b1e; }
-	.slot-empty { background: repeating-linear-gradient(45deg, #fafafa, #fafafa 2mm, white 2mm, white 4mm); color: #ccc; }
-	.slot-empty .billar-cell { background: transparent; }
+	.player-cell { font-size: 9pt; min-width: 30mm; }
+	.player-line { display: inline-block; width: 100%; border-bottom: 1px solid #1f1f1f; height: 4mm; }
 
 	@media print {
 		:global(body > *:not(.print-portal)) { display: none !important; }
