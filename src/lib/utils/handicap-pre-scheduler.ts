@@ -241,6 +241,16 @@ export function preSchedulingForBracket(
 		return `${s.date.toISOString().slice(0, 10)}|${s.hora}|${s.billar}`;
 	}
 
+	// Rondes "estrictes": cada dia només es poden jugar matches del mateix
+	// nivell. Aplica als nivells primerencs (W1, L1, W2, L2, L3, W3, és a dir
+	// nivells 1..6 segons getNivell). A partir del nivell 7 (L4 endavant)
+	// els dies poden barrejar-se per estalviar dies.
+	const STRICT_LEVEL_MAX = 6;
+	const levelsByDate = new Map<string, Set<number>>();
+	function dayKeyOf(d: Date): string {
+		return d.toISOString().slice(0, 10);
+	}
+
 	const margeInici = options.diesMargeRondesInicials ?? 1;
 
 	// Tracking de la data més tardana de cada (bracket, ronda) ja processada.
@@ -307,12 +317,30 @@ export function preSchedulingForBracket(
 			}
 		}
 
-		// Cerquem el primer slot disponible ≥ earliestDate.
+		const nivellMatch = getNivell(bracket, ronda);
+
+		// Cerquem el primer slot disponible ≥ earliestDate. Si el match és d'un
+		// nivell estricte (≤ 6), evitem dies on ja hi hagi matches d'un altre
+		// nivell estricte.
 		let chosen: Slot | null = null;
 		for (const s of allSlots) {
 			if (s.date < earliestDate) continue;
 			const k = slotKey(s);
 			if (used.has(k)) continue;
+			if (nivellMatch <= STRICT_LEVEL_MAX) {
+				const dKey = dayKeyOf(s.date);
+				const existing = levelsByDate.get(dKey);
+				if (existing) {
+					let conflict = false;
+					for (const lvl of existing) {
+						if (lvl !== nivellMatch && lvl <= STRICT_LEVEL_MAX) {
+							conflict = true;
+							break;
+						}
+					}
+					if (conflict) continue;
+				}
+			}
 			chosen = s;
 			break;
 		}
@@ -322,6 +350,9 @@ export function preSchedulingForBracket(
 		}
 
 		used.add(slotKey(chosen));
+		const cKey = dayKeyOf(chosen.date);
+		if (!levelsByDate.has(cKey)) levelsByDate.set(cKey, new Set());
+		levelsByDate.get(cKey)!.add(nivellMatch);
 		// Inicialment, dataMaximaDisputa = data_fi (es recalcularà després).
 		scheduled.set(m.id, {
 			matchId: m.id,
