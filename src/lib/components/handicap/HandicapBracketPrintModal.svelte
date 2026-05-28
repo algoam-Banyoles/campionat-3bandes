@@ -350,7 +350,7 @@
 			.page-section { font-size: 11pt; color: #444; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
 			.page-sub { font-size: 10pt; color: #555; text-align: right; }
 			.rounds { display: flex; flex-direction: column; gap: 4mm; flex: 1; overflow: hidden; }
-			.round-section { display: flex; flex-direction: column; gap: 2mm; }
+			.round-section { display: flex; flex-direction: column; gap: 2mm; page-break-inside: avoid; break-inside: avoid; }
 			.round-title {
 				font-size: 10pt; font-weight: 700; letter-spacing: 0.05em;
 				text-transform: uppercase; color: #1f1f1f;
@@ -366,6 +366,12 @@
 				padding: 2mm 2.5mm;
 				display: flex; flex-direction: column; gap: 1.5mm;
 				min-height: 32mm; font-size: 9pt;
+				page-break-inside: avoid;
+				break-inside: avoid;
+			}
+			.round-section {
+				page-break-inside: avoid;
+				break-inside: avoid;
 			}
 			.cell-head {
 				display: flex; justify-content: space-between; align-items: baseline;
@@ -711,7 +717,7 @@ ${printScript}
 		display: flex; flex-direction: column; gap: 4mm; flex: 1;
 		overflow: hidden;
 	}
-	.round-section { display: flex; flex-direction: column; gap: 2mm; }
+	.round-section { display: flex; flex-direction: column; gap: 2mm; page-break-inside: avoid; break-inside: avoid; }
 	.round-title {
 		font-size: 10pt; font-weight: 700; letter-spacing: 0.05em;
 		text-transform: uppercase; color: #1f1f1f;
@@ -729,6 +735,8 @@ ${printScript}
 		display: flex; flex-direction: column; gap: 1.5mm;
 		min-height: 32mm;
 		font-size: 9pt;
+		page-break-inside: avoid;
+		break-inside: avoid;
 	}
 	.cell-head {
 		display: flex; justify-content: space-between; align-items: baseline;
