@@ -362,4 +362,10 @@
 		background: rgba(217, 25, 25, 0.08);
 		font-weight: 800;
 	}
+
+	/* Card amb data orientativa: contingut en cursiva i opacitat lleugera */
+	.hcap-component-root :global(.hcap-tentative) {
+		font-style: italic;
+		opacity: 0.88;
+	}
 </style>
