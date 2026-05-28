@@ -24,6 +24,8 @@ export interface PreSchedulerSlot {
 	bracket_type: Bracket;
 	ronda: number;
 	posicio: number;
+	/** Si el slot té un participant ja assignat (R1 post-sorteig). */
+	participant_id?: string | null;
 }
 
 export interface PreSchedulerMatch {
@@ -60,6 +62,19 @@ export interface PreSchedulerOptions {
 	 * partides. Comparació per data (YYYY-MM-DD).
 	 */
 	diesBloquejats?: Date[];
+	/**
+	 * Disponibilitats dels participants. Si es passa, el pre-scheduler intenta
+	 * col·locar cada match en un slot compatible amb les preferences/restriccions
+	 * dels jugadors coneguts (R1 sempre, R2+ només quan ja hi ha participant).
+	 * Si no troba cap slot compatible, cau enrere a l'algoritme estàndard.
+	 */
+	availabilities?: Map<string, {
+		preferenciesDies: string[];
+		preferenciesHores: string[];
+		dataDisponibleDes?: Date;
+		dataDisponibleFins?: Date;
+		diesNoDisponibles?: Date[];
+	}>;
 }
 
 export interface ScheduledMatch {
@@ -86,6 +101,25 @@ function addDays(date: Date, n: number): Date {
 	const d = new Date(date);
 	d.setDate(d.getDate() + n);
 	return d;
+}
+
+function isoDay(d: Date): string {
+	return d.toISOString().slice(0, 10);
+}
+
+/** Comprova si un participant pot jugar un dia/hora segons les seves preferences. */
+function participantPotJugar(
+	avail: NonNullable<PreSchedulerOptions['availabilities']> extends Map<string, infer V> ? V : never,
+	date: Date,
+	hora: string
+): boolean {
+	if (avail.dataDisponibleDes && date < avail.dataDisponibleDes) return false;
+	if (avail.dataDisponibleFins && date > avail.dataDisponibleFins) return false;
+	if (avail.diesNoDisponibles?.some(d => isoDay(d) === isoDay(date))) return false;
+	const codi = diaCodi(date);
+	if (avail.preferenciesDies.length > 0 && !avail.preferenciesDies.includes(codi)) return false;
+	if (avail.preferenciesHores.length > 0 && !avail.preferenciesHores.includes(hora)) return false;
+	return true;
 }
 
 /**
@@ -376,33 +410,58 @@ export function preSchedulingForBracket(
 			if (preds.length > 0) gf1Sched = scheduled.get(preds[0]) ?? null;
 		}
 
-		let chosen: Slot | null = null;
-		for (const s of allSlots) {
-			if (s.date < earliestDate) continue;
-			const k = slotKey(s);
-			if (used.has(k)) continue;
-			if (nivellMatch <= STRICT_LEVEL_MAX) {
-				const dKey = dayKeyOf(s.date);
-				const existing = levelsByDate.get(dKey);
-				if (existing) {
-					let conflict = false;
-					for (const lvl of existing) {
-						if (lvl !== nivellMatch && lvl <= STRICT_LEVEL_MAX) {
-							conflict = true;
+		// Participants coneguts del match (R1 ja, R2+ a mesura que es resolen).
+		const slot1Info = slotById.get(m.slot1_id);
+		const slot2Info = slotById.get(m.slot2_id);
+		const participants: string[] = [];
+		if (slot1Info?.participant_id) participants.push(slot1Info.participant_id);
+		if (slot2Info?.participant_id) participants.push(slot2Info.participant_id);
+
+		const tryFindSlot = (respectAvail: boolean): Slot | null => {
+			for (const s of allSlots) {
+				if (s.date < earliestDate) continue;
+				const k = slotKey(s);
+				if (used.has(k)) continue;
+				if (nivellMatch <= STRICT_LEVEL_MAX) {
+					const dKey = dayKeyOf(s.date);
+					const existing = levelsByDate.get(dKey);
+					if (existing) {
+						let conflict = false;
+						for (const lvl of existing) {
+							if (lvl !== nivellMatch && lvl <= STRICT_LEVEL_MAX) {
+								conflict = true;
+								break;
+							}
+						}
+						if (conflict) continue;
+					}
+				}
+				if (gf1Sched
+					&& dayKeyOf(s.date) === dayKeyOf(gf1Sched.dataProgramada)
+					&& s.hora === gf1Sched.horaInici) {
+					continue;
+				}
+				if (respectAvail && options.availabilities && participants.length > 0) {
+					let viola = false;
+					for (const pid of participants) {
+						const av = options.availabilities.get(pid);
+						if (!av) continue;
+						if (!participantPotJugar(av, s.date, s.hora)) {
+							viola = true;
 							break;
 						}
 					}
-					if (conflict) continue;
+					if (viola) continue;
 				}
+				return s;
 			}
-			if (gf1Sched
-				&& dayKeyOf(s.date) === dayKeyOf(gf1Sched.dataProgramada)
-				&& s.hora === gf1Sched.horaInici) {
-				continue; // GF2 no pot mateixa hora que GF1
-			}
-			chosen = s;
-			break;
-		}
+			return null;
+		};
+
+		// Primer intent: respectant disponibilitats dels participants.
+		// Fallback: ignorant-les (no podem deixar de programar el match).
+		let chosen: Slot | null = tryFindSlot(true);
+		if (!chosen) chosen = tryFindSlot(false);
 
 		if (!chosen) {
 			throw new Error(`No hi ha prou slots per encabir tot el bracket (match ${m.id}).`);

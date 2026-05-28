@@ -168,6 +168,24 @@ export async function persistFullSchedule(
 		});
 	}
 
+	// Mapa per al pre-scheduler (només camps que necessita, sense participantId).
+	const availForPre = new Map<string, {
+		preferenciesDies: string[];
+		preferenciesHores: string[];
+		dataDisponibleDes?: Date;
+		dataDisponibleFins?: Date;
+		diesNoDisponibles?: Date[];
+	}>();
+	for (const [pid, av] of availabilities) {
+		availForPre.set(pid, {
+			preferenciesDies: av.preferenciesDies,
+			preferenciesHores: av.preferenciesHores,
+			dataDisponibleDes: av.dataDisponibleDes,
+			dataDisponibleFins: av.dataDisponibleFins,
+			diesNoDisponibles: av.diesNoDisponibles
+		});
+	}
+
 	let scheduled;
 	try {
 		scheduled = preSchedulingForBracket(slots, playables, {
@@ -176,7 +194,8 @@ export async function persistFullSchedule(
 			horesEstandard: ['18:00', '19:00'],
 			horarisExtra: cfg?.horaris_extra ?? null,
 			billars: 3,
-			diesBloquejats: options.diesBloquejats
+			diesBloquejats: options.diesBloquejats,
+			availabilities: availForPre
 		});
 	} catch (e: any) {
 		result.errors.push(`Error en pre-scheduling: ${e?.message ?? e}`);
