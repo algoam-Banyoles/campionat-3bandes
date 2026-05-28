@@ -148,7 +148,8 @@
 							dataFi: new Date(ev.data_fi),
 							horesEstandard: ['18:00', '19:00'],
 							horarisExtra: cfg?.horaris_extra ?? null,
-							billars: 3
+							billars: 3,
+							diesBloquejats: [new Date('2026-06-24')]
 						}
 					);
 				}

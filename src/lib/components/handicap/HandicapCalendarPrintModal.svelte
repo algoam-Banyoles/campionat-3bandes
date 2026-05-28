@@ -110,7 +110,8 @@
 				dataFi: new Date(ev.data_fi),
 				horesEstandard: ['18:00', '19:00'],
 				horarisExtra,
-				billars: 3
+				billars: 3,
+				diesBloquejats: [new Date('2026-06-24')]
 			});
 
 			const order: Record<string, number> = { winners: 0, losers: 1, grand_final: 2 };
@@ -187,11 +188,13 @@
 			const maxDate = new Date(allDates[allDates.length - 1]);
 			const dies = ['dg', 'dl', 'dt', 'dc', 'dj', 'dv', 'ds'];
 			const diesActius = ['dl', 'dt', 'dc', 'dj', 'dv'];
+			const diesBloquejatsSet = new Set(['2026-06-24']);
 
 			const tmp: CalRow[] = [];
 			for (let d = new Date(minDate); d <= maxDate; d.setDate(d.getDate() + 1)) {
 				const codi = dies[d.getDay()];
 				if (!diesActius.includes(codi)) continue;
+				if (diesBloquejatsSet.has(ymd(d))) continue;
 				const hores = [...['18:00', '19:00']];
 				if (horarisExtra && horarisExtra.dies.includes(codi)) {
 					hores.unshift(horarisExtra.franja);

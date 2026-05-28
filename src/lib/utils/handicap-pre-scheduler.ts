@@ -55,6 +55,11 @@ export interface PreSchedulerOptions {
 	 * 0 per al comportament minimalista (sense marge extra).
 	 */
 	diesMargeRondesInicials?: number;
+	/**
+	 * Dies bloquejats (festius, vacances, etc.) en què no es poden programar
+	 * partides. Comparació per data (YYYY-MM-DD).
+	 */
+	diesBloquejats?: Date[];
 }
 
 export interface ScheduledMatch {
@@ -217,9 +222,14 @@ export function preSchedulingForBracket(
 	const allSlots: Slot[] = [];
 	const used = new Set<string>(); // key: 'YYYY-MM-DD|HH:MM|B'
 
+	const bloquejatsSet = new Set(
+		(options.diesBloquejats ?? []).map(d => d.toISOString().slice(0, 10))
+	);
+
 	for (let d = new Date(options.dataInici); d <= options.dataFi; d = addDays(d, 1)) {
 		const codi = diaCodi(d);
 		if (!diesActius.includes(codi)) continue;
+		if (bloquejatsSet.has(d.toISOString().slice(0, 10))) continue;
 		const hores = [...options.horesEstandard];
 		if (options.horarisExtra && options.horarisExtra.dies.includes(codi)) {
 			hores.unshift(options.horarisExtra.franja);
@@ -265,16 +275,27 @@ export function preSchedulingForBracket(
 		const ronda = matchSlot?.ronda ?? 0;
 
 		// Data mínima: dia després del darrer predecessor (per evitar mateix dia
-		// que el predecessor). Excepció: a la grand_final, el mateix dia que la
-		// final del winners es permet.
+		// que el predecessor). Excepcions per a la Grand Final:
+		//   - GF1 espera W5 (final winners): pot ser mateix dia.
+		//   - GF1 espera L8 (final losers): +1 dia (cap jugador 2 partides/dia).
+		//   - GF2 espera GF1: pot ser mateix dia (continuació immediata).
 		let earliestDate = options.dataInici;
 		for (const predId of predecessorsOf.get(m.id) ?? []) {
 			const pred = scheduled.get(predId);
 			if (!pred) continue;
+			const predMatch = playablesById.get(predId);
+			const predSlot = predMatch ? slotById.get(predMatch.slot1_id) : null;
+			const predBracket = predSlot?.bracket_type;
 
 			let candidate: Date;
 			if (bracket === 'grand_final') {
-				candidate = pred.dataProgramada; // pot ser mateix dia
+				if (predBracket === 'losers') {
+					// L8 (final del bracket Losers) no pot ser mateix dia que GF1
+					candidate = addDays(pred.dataProgramada, 1);
+				} else {
+					// W5 (final winners) o GF1 (per a GF2): pot ser mateix dia
+					candidate = pred.dataProgramada;
+				}
 			} else {
 				candidate = addDays(pred.dataProgramada, 1);
 			}
@@ -309,11 +330,11 @@ export function preSchedulingForBracket(
 			if (losersRondaPrev >= 1) {
 				const losersEnd = lastDateInRound.get(`losers-${losersRondaPrev}`);
 				if (losersEnd) {
-					// Cross-bracket L→W: només +1 dia (sense dia al mig). La
-					// deadline dels matches L ja queda coberta pel marge same-bracket
-					// L→L següent o pel propi pas a W al dia següent.
-					const barrier = addDays(losersEnd, 1);
-					if (barrier > earliestDate) earliestDate = barrier;
+					// Cross-bracket L→W: mateix dia OK perquè els matches W(r) i
+					// L(2r-3) no comparteixen jugadors (W té sempre invictes, L té
+					// jugadors que ja han perdut un cop). Només garantim que L
+					// hagi avançat fins a aquesta ronda.
+					if (losersEnd > earliestDate) earliestDate = losersEnd;
 				}
 			}
 		}
@@ -348,6 +369,13 @@ export function preSchedulingForBracket(
 		// Cerquem el primer slot disponible ≥ earliestDate. Si el match és d'un
 		// nivell estricte (≤ 6), evitem dies on ja hi hagi matches d'un altre
 		// nivell estricte.
+		// GF2: si va al mateix dia que GF1, ha de tenir HORA DIFERENT.
+		let gf1Sched: ScheduledMatch | null = null;
+		if (bracket === 'grand_final' && ronda === 2) {
+			const preds = predecessorsOf.get(m.id) ?? [];
+			if (preds.length > 0) gf1Sched = scheduled.get(preds[0]) ?? null;
+		}
+
 		let chosen: Slot | null = null;
 		for (const s of allSlots) {
 			if (s.date < earliestDate) continue;
@@ -366,6 +394,11 @@ export function preSchedulingForBracket(
 					}
 					if (conflict) continue;
 				}
+			}
+			if (gf1Sched
+				&& dayKeyOf(s.date) === dayKeyOf(gf1Sched.dataProgramada)
+				&& s.hora === gf1Sched.horaInici) {
+				continue; // GF2 no pot mateixa hora que GF1
 			}
 			chosen = s;
 			break;
