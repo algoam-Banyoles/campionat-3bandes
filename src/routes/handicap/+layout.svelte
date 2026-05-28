@@ -33,10 +33,11 @@
 
 	$: loading = !$adminChecked || accessLevel === 'loading';
 
-	// Admins always have access; public users need 'public' level.
+	// Admins always have access (admin level implies logged-in admin).
+	// 'public' level: tothom, incloent usuaris anònims.
 	// Usem effectiveIsAdmin perquè respecti el toggle viewMode.
 	$: canAccess =
-		!loading && ($effectiveIsAdmin || accessLevel === 'public') && !!$user;
+		!loading && ($effectiveIsAdmin || accessLevel === 'public');
 
 	$: showDevBanner = canAccess && accessLevel === 'dev' && $effectiveIsAdmin;
 	$: showAdminBanner = canAccess && accessLevel === 'admin' && $effectiveIsAdmin;
