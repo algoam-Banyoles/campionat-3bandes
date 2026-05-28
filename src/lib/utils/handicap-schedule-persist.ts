@@ -43,6 +43,54 @@ function toLocalIsoNoon(d: Date): string {
 	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/**
+ * Parser senzill del camp text `restriccions_especials`. Reconeix:
+ *   - "1, 2, 3 i 5 de juny no" → bloqueja dies 1, 2, 3, 5 de juny.
+ *   - "no pot el 12 d'agost" → bloqueja dia 12 d'agost.
+ *   - "a partir del 9 de juny" → fixa dataDisponibleDes = 9 juny.
+ *
+ * Si el patró no es reconeix, retorna llistes buides. L'admin pot afinar la
+ * disponibilitat amb els camps preferencies_dies / preferencies_hores i amb
+ * dies concrets a sobrar — el parser és un best-effort.
+ */
+const MESOS_CAT: Record<string, number> = {
+	gener: 0, febrer: 1, març: 2, marc: 2, abril: 3, maig: 4, juny: 5,
+	juliol: 6, agost: 7, setembre: 8, octubre: 9, novembre: 10, desembre: 11
+};
+export function parseRestriccionsText(
+	text: string | null | undefined,
+	year: number
+): { diesNoDisponibles: Date[]; dataDisponibleDes?: Date } {
+	const out: { diesNoDisponibles: Date[]; dataDisponibleDes?: Date } = { diesNoDisponibles: [] };
+	if (!text) return out;
+	const lower = text.toLowerCase();
+
+	// Patró: dies separats per , o "i", seguit de "de <mes>"
+	const dieRe = /(\d+(?:\s*,\s*\d+|\s+i\s+\d+)*)\s+(?:de|d')\s*([a-zçñ]+)/gi;
+	let m: RegExpExecArray | null;
+	while ((m = dieRe.exec(lower)) !== null) {
+		const mes = m[2];
+		const mesIdx = MESOS_CAT[mes];
+		if (mesIdx === undefined) continue;
+		const dies = m[1].split(/[,\s]+|\s+i\s+/).map(s => parseInt(s, 10)).filter(n => !isNaN(n));
+		for (const dia of dies) {
+			out.diesNoDisponibles.push(new Date(year, mesIdx, dia));
+		}
+	}
+
+	// Patró "a partir del N de mes" → dataDisponibleDes
+	const partirRe = /a partir del?\s+(\d+)(?:\s+(?:de|d'))?\s*([a-zçñ]+)?/i;
+	const pm = partirRe.exec(lower);
+	if (pm) {
+		const dia = parseInt(pm[1], 10);
+		const mes = pm[2] ? MESOS_CAT[pm[2]] : undefined;
+		if (!isNaN(dia) && mes !== undefined) {
+			out.dataDisponibleDes = new Date(year, mes, dia);
+		}
+	}
+	return out;
+}
+
 export async function persistFullSchedule(
 	supabase: SupabaseClient,
 	eventId: string,
@@ -96,22 +144,26 @@ export async function persistFullSchedule(
 
 	const { data: participants } = await supabase
 		.from('handicap_participants')
-		.select('id, soci_numero, preferencies_dies, preferencies_hores')
+		.select('id, soci_numero, preferencies_dies, preferencies_hores, restriccions_especials')
 		.eq('event_id', eventId);
+
+	const dataInici = new Date(ev.data_inici);
+	const dataFi = new Date(ev.data_fi);
+	const yearReferencia = dataInici.getFullYear();
 
 	const sociByParticipant = new Map<string, number>();
 	const availabilities = new Map<string, ParticipantAvailability>();
 	for (const p of participants ?? []) {
 		sociByParticipant.set(p.id, p.soci_numero);
+		const parsed = parseRestriccionsText(p.restriccions_especials, yearReferencia);
 		availabilities.set(p.id, {
 			participantId: p.id,
 			preferenciesDies: p.preferencies_dies ?? [],
-			preferenciesHores: p.preferencies_hores ?? []
+			preferenciesHores: p.preferencies_hores ?? [],
+			diesNoDisponibles: parsed.diesNoDisponibles.length > 0 ? parsed.diesNoDisponibles : undefined,
+			dataDisponibleDes: parsed.dataDisponibleDes
 		});
 	}
-
-	const dataInici = new Date(ev.data_inici);
-	const dataFi = new Date(ev.data_fi);
 
 	let scheduled;
 	try {
@@ -145,6 +197,23 @@ export async function persistFullSchedule(
 	result.dataFiEfectiva = optResult.dataFiEfectiva
 		? toLocalIsoNoon(optResult.dataFiEfectiva)
 		: null;
+
+	// PASSADA 1: alliberar tots els slots actuals (taula_assignada = NULL) per
+	// evitar conflictes amb l'índex únic 'idx_unique_billar_slot' durant els
+	// updates posteriors. L'índex és parcial: només actua amb tots els camps
+	// no-null, així posant taula a NULL sortim de l'índex i podem reorganitzar.
+	const existingCalendariIds = playables
+		.map(m => m.calendari_partida_id)
+		.filter((id): id is string => !!id);
+	if (existingCalendariIds.length > 0) {
+		const { error: clearErr } = await supabase
+			.from('calendari_partides')
+			.update({ taula_assignada: null, data_programada: null, hora_inici: null })
+			.in('id', existingCalendariIds);
+		if (clearErr) {
+			result.errors.push(`CLEAR slots: ${clearErr.message}`);
+		}
+	}
 
 	const slotById = new Map(slots.map(s => [s.id, s]));
 	for (const m of playables) {
