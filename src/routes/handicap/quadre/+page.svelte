@@ -5,6 +5,7 @@
 	import { effectiveIsAdmin } from '$lib/stores/viewMode';
 	import { user } from '$lib/stores/auth';
 	import HandicapBracketView from '$lib/components/handicap/HandicapBracketView.svelte';
+	import HandicapBracketViewCompact from '$lib/components/handicap/HandicapBracketViewCompact.svelte';
 	import HandicapBracketPrintModal from '$lib/components/handicap/HandicapBracketPrintModal.svelte';
 	import HandicapMatchResult from '$lib/components/handicap/HandicapMatchResult.svelte';
 	import type { MatchView, PlayerInfo, BranchMatchInput } from '$lib/utils/handicap-types';
@@ -30,6 +31,7 @@
 
 	// Filtres
 	let filter: 'all' | 'winners' | 'losers' | 'grand_final' = 'all';
+	let bracketMode: 'visual' | 'compact' = 'visual';
 	let searchTerm = '';
 
 	// Modal detall partida
@@ -661,15 +663,46 @@
 			</div>
 		</div>
 
+		<!-- ── Toggle Visual / Compacte ─────────────────────────────────────── -->
+		<div class="mb-3 inline-flex rounded border border-gray-300 bg-white p-0.5 text-xs">
+			<button
+				type="button"
+				on:click={() => (bracketMode = 'visual')}
+				class="rounded px-3 py-1 font-medium {bracketMode === 'visual'
+					? 'bg-gray-800 text-white'
+					: 'text-gray-600 hover:bg-gray-100'}"
+				title="Vista visual amb connectors entre rondes"
+			>Visual</button>
+			<button
+				type="button"
+				on:click={() => (bracketMode = 'compact')}
+				class="rounded px-3 py-1 font-medium {bracketMode === 'compact'
+					? 'bg-gray-800 text-white'
+					: 'text-gray-600 hover:bg-gray-100'}"
+				title="Vista compacta (format de la versió d'impressió)"
+			>Compacte</button>
+		</div>
+
 		<!-- ── Visualització bracket ──────────────────────────────────────────── -->
-		<HandicapBracketView
-			{matchViews}
-			{filter}
-			{searchTerm}
-			{championParticipantId}
-			{sistemaPuntuacio}
-			on:matchclick={(e) => openMatch(e.detail)}
-		/>
+		{#if bracketMode === 'visual'}
+			<HandicapBracketView
+				{matchViews}
+				{filter}
+				{searchTerm}
+				{championParticipantId}
+				{sistemaPuntuacio}
+				on:matchclick={(e) => openMatch(e.detail)}
+			/>
+		{:else}
+			<HandicapBracketViewCompact
+				{matchViews}
+				{filter}
+				{searchTerm}
+				{championParticipantId}
+				{sistemaPuntuacio}
+				on:matchclick={(e) => openMatch(e.detail)}
+			/>
+		{/if}
 	{/if}
 </div>
 
