@@ -131,7 +131,7 @@ export async function persistFullSchedule(
 
 	const { data: matchesData, error: mErr } = await supabase
 		.from('handicap_matches')
-		.select('id, slot1_id, slot2_id, winner_slot_dest_id, loser_slot_dest_id, estat, calendari_partida_id')
+		.select('id, slot1_id, slot2_id, winner_slot_dest_id, loser_slot_dest_id, estat, calendari_partida_id, calendari_fixat')
 		.eq('event_id', eventId);
 	if (mErr || !matchesData) {
 		result.errors.push("Matches no trobats.");
@@ -139,8 +139,11 @@ export async function persistFullSchedule(
 	}
 
 	const slots = slotsData as Array<PreSchedulerSlot & { participant_id: string | null }>;
-	const matchesAll = matchesData as Array<PreSchedulerMatch & { calendari_partida_id: string | null }>;
-	const playables = matchesAll.filter(m => m.estat !== 'bye');
+	const matchesAll = matchesData as Array<PreSchedulerMatch & { calendari_partida_id: string | null; calendari_fixat?: boolean }>;
+	// Saltem byes, jugats i matches marcats com a fixats (data forçada per l'admin).
+	const playables = matchesAll.filter(
+		m => m.estat !== 'bye' && m.estat !== 'jugada' && !m.calendari_fixat
+	);
 
 	const { data: participants } = await supabase
 		.from('handicap_participants')
