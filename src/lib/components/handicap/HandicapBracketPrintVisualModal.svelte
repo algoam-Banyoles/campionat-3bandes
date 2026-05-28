@@ -484,7 +484,7 @@ ${printScript}
 												<div class="cell-head">
 													<span class="match-code">{mv.code}</span>
 													<span class="arrows">
-														<span>↗W:<strong>{mv.winnerDest}</strong></span>
+														<span class="arrow-win">↗W:<strong>{mv.winnerDest}</strong></span>
 														{#if mv.loserDest !== '—'}
 															<span>↘L:<strong>{mv.loserDest}</strong></span>
 														{/if}
