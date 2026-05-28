@@ -504,8 +504,6 @@
 	.code-gf { color: #6b3eb8; }
 	.cell-line { display: flex; align-items: center; gap: 1mm; font-size: 7.5pt; }
 	.line { flex: 1; border-bottom: 1px solid #1f1f1f; height: 3.5mm; }
-	.kv { font-size: 7pt; color: #555; font-weight: 600; }
-	.box { display: inline-block; border: 1px solid #1f1f1f; height: 3.5mm; width: 8mm; }
 
 	@media print {
 		:global(body > *:not(.print-portal)) { display: none !important; }

@@ -1479,6 +1479,15 @@
 	/>
 {/if}
 
+{#if showPrintCalendarModal}
+	<HandicapCalendarPrintModal
+		participantCount={printBracketCount}
+		eventNom={event?.nom ?? ''}
+		eventTemporada={event?.temporada ?? ''}
+		onClose={() => (showPrintCalendarModal = false)}
+	/>
+{/if}
+
 {#if showPrintInscritsModal}
 	<HandicapInscritsPrintModal
 		{participants}
