@@ -469,8 +469,8 @@
 															{#if it.winnerDest}<div class="arrow-win">↗G: <strong>{it.winnerDest}</strong></div>{/if}
 															{#if it.loserDest}<div class="arrow-lose">↘P: <strong>{it.loserDest}</strong></div>{/if}
 														</td>
-														<td class="player-cell"><span class="player-line"></span></td>
-														<td class="player-cell"><span class="player-line"></span></td>
+														<td class="player-cell"></td>
+														<td class="player-cell"></td>
 													</tr>
 												{/each}
 											{/each}
@@ -590,7 +590,6 @@
 	.arrow-win { color: #1d6e3a; }
 	.arrow-lose { color: #a30b1e; }
 	.player-cell { font-size: 9pt; min-width: 30mm; }
-	.player-line { display: inline-block; width: 100%; border-bottom: 1px solid #1f1f1f; height: 4mm; }
 
 	@media print {
 		:global(body > *:not(.print-portal)) { display: none !important; }
