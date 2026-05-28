@@ -111,6 +111,39 @@ describe('handicap-pre-scheduler', () => {
 		}
 	});
 
+	it('hi ha 1 dia al mig entre l\'últim de R1 i el primer de R2 (winners i losers)', () => {
+		const participants = fakeParticipants(32);
+		const bracket = generateDoublEliminationBracket('evX', participants);
+		const matches = bracket.matches.filter(m => m.estat !== 'bye');
+		const slotsById = new Map(bracket.slots.map(s => [s.id, s]));
+
+		const scheduled = preSchedulingForBracket(
+			bracket.slots,
+			matches,
+			{
+				dataInici: new Date('2026-06-01'),
+				dataFi: new Date('2026-09-30'),
+				horesEstandard: ['18:00', '19:00'],
+				billars: 3
+			}
+		);
+
+		const dayOf = (m: any) => {
+			const sched = scheduled.get(m.id);
+			return sched ? sched.dataProgramada.getTime() : null;
+		};
+
+		for (const target of ['winners', 'losers'] as const) {
+			const r1 = matches.filter(m => slotsById.get(m.slot1_id)?.bracket_type === target && slotsById.get(m.slot1_id)?.ronda === 1);
+			const r2 = matches.filter(m => slotsById.get(m.slot1_id)?.bracket_type === target && slotsById.get(m.slot1_id)?.ronda === 2);
+			const r1MaxDay = Math.max(...r1.map(dayOf).filter((x): x is number => x !== null));
+			const r2MinDay = Math.min(...r2.map(dayOf).filter((x): x is number => x !== null));
+			const diff = (r2MinDay - r1MaxDay) / 86400000;
+			// 1 dia al mig = diferència >= 2 dies
+			expect(diff).toBeGreaterThanOrEqual(2);
+		}
+	});
+
 	it('data màxima d\'un match és anterior a la del seu successor', () => {
 		const participants = fakeParticipants(16);
 		const bracket = generateDoublEliminationBracket('evX', participants);

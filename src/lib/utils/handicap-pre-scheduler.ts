@@ -292,12 +292,16 @@ export function preSchedulingForBracket(
 		// W(r) per r>1 no comença fins que la ronda L(2r-3) hagi acabat.
 		// Així el guanyador W no espera molts dies a la final del bracket
 		// perquè el Losers ja s'ha anat acompassant darrere.
+		// També aplica el marge addicional (1 dia al mig) si la barrera cau
+		// dins de les primeres rondes (W2/W3 esperant L1/L3).
 		if (bracket === 'winners' && ronda > 1) {
 			const losersRondaPrev = 2 * ronda - 3;
 			if (losersRondaPrev >= 1) {
 				const losersEnd = lastDateInRound.get(`losers-${losersRondaPrev}`);
 				if (losersEnd) {
-					const barrier = addDays(losersEnd, 1);
+					const isPrimeraRondaCross = losersRondaPrev <= 3;
+					const margeExtraCross = isPrimeraRondaCross ? margeInici : 0;
+					const barrier = addDays(losersEnd, 1 + margeExtraCross);
 					if (barrier > earliestDate) earliestDate = barrier;
 				}
 			}
