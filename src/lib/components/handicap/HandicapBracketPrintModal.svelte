@@ -373,6 +373,9 @@
 			.match-code { font-weight: 800; font-size: 11pt; letter-spacing: 0.04em; }
 			.arrows { display: flex; gap: 3mm; flex-wrap: wrap; font-size: 8pt; color: #333; }
 			.arrows strong { font-weight: 700; }
+			.arrow-win { color: #1d6e3a; }
+			.arrow-lose { color: #a30b1e; }
+			.arrow-win strong, .arrow-lose strong { color: inherit; }
 			.player-row, .entries-row { display: flex; align-items: center; gap: 1.5mm; font-size: 8pt; }
 			.label { font-weight: 700; font-size: 7.5pt; text-transform: uppercase; color: #555; min-width: 11mm; }
 			.kv { font-size: 7.5pt; color: #555; font-weight: 600; }
@@ -737,6 +740,9 @@ ${printScript}
 		display: flex; gap: 3mm; flex-wrap: wrap; font-size: 8pt; color: #333;
 	}
 	.arrows strong { font-weight: 700; }
+	.arrow-win { color: #1d6e3a; }
+	.arrow-lose { color: #a30b1e; }
+	.arrow-win strong, .arrow-lose strong { color: inherit; }
 
 	.player-row, .entries-row {
 		display: flex; align-items: center; gap: 1.5mm;
