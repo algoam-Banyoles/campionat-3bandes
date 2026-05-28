@@ -328,21 +328,25 @@
 		const codeMap = buildMatchCodeMap(codeInputs);
 		const slotSourceMap = buildSlotSourceMap(rawMatches, codeMap);
 
-		// Càlcul de la data màxima de disputa per cada match. Es basa en els
-		// successors estructurals (winner_slot_dest_id / loser_slot_dest_id):
-		// la deadline és el dia anterior a la primera data programada d'un
-		// successor. Si el match no té successor (final winners / GF / final
-		// losers), la deadline és config.data_fi.
-		const deadlineInputs = rawMatches.map((m) => ({
-			id: m.id,
-			slot1_id: m.slot1_id,
-			slot2_id: m.slot2_id,
-			winner_slot_dest_id: m.winner_slot_dest_id,
-			loser_slot_dest_id: m.loser_slot_dest_id,
-			data_programada: m.calendari_partida_id
-				? (partidaMap.get(m.calendari_partida_id)?.data_programada as string | undefined) ?? null
-				: null
-		}));
+		// Càlcul de la data màxima de disputa per cada match. La deadline
+		// és el primer dia de la ronda que succeeix aquest match − 1 (round-
+		// level), perquè tots els matches d'una mateixa ronda comparteixin
+		// la mateixa data màxima (igual que el pre-scheduler).
+		const deadlineInputs = rawMatches.map((m) => {
+			const s1 = slotMap.get(m.slot1_id);
+			return {
+				id: m.id,
+				slot1_id: m.slot1_id,
+				slot2_id: m.slot2_id,
+				winner_slot_dest_id: m.winner_slot_dest_id,
+				loser_slot_dest_id: m.loser_slot_dest_id,
+				data_programada: m.calendari_partida_id
+					? (partidaMap.get(m.calendari_partida_id)?.data_programada as string | undefined) ?? null
+					: null,
+				bracket_type: (s1?.bracket_type ?? 'winners') as 'winners' | 'losers' | 'grand_final',
+				ronda: (s1?.ronda ?? 1) as number
+			};
+		});
 		const deadlines = computeDeadlines(deadlineInputs, config?.data_fi ?? null);
 
 		// Map slot_id → codi de match (per resoldre destinacions de winner/loser).

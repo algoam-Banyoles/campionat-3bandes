@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8" />
+<title>Campionats Socials Hàndicap · Foment Martinenc</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  /* ============================================================
+     COLORS I VARIABLES
+     ============================================================ */
+  :root {
+    --navy:        #102C46;
+    --blue:        #0D5C91;
+    --blue-vivid:  #0B97D1;
+    --yellow:      #F7C948;
+    --green:       #1F7A55;
+    --ink:         #111827;
+    --ink-soft:    #334155;
+    --paper:       #FFFFFF;
+    --paper-soft:  #F4F7FB;
+    --line:        #D8E0EA;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #E2E8F0;
+    font-family: Arial, Helvetica, "Segoe UI", sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 24px;
+    min-height: 100vh;
+  }
+
+  /* ============================================================
+     BOTONS FLOTANTS (només pantalla)
+     ============================================================ */
+  .switcher {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    z-index: 9999;
+  }
+  .switcher a {
+    display: inline-block;
+    padding: 10px 18px;
+    background: var(--navy);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    box-shadow: 0 4px 14px rgba(16,44,70,0.35);
+  }
+  .switcher a.active { background: var(--blue-vivid); }
+  .switcher a:hover { background: var(--blue); }
+
+  /* ============================================================
+     CONTENIDOR PAGE
+     ============================================================ */
+  .page {
+    background: var(--paper);
+    color: var(--ink);
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 18px 60px rgba(15,30,55,0.25);
+  }
+
+  .page.a4 {
+    width: 210mm;
+    height: 297mm;
+    padding: 10mm 11mm 8mm 11mm;
+    display: flex;
+    flex-direction: column;
+    gap: 3mm;
+    font-size: 12pt;
+  }
+
+  .page.wa {
+    width: 1080px;
+    height: 1920px;
+    padding: 40px 50px 38px 50px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    font-size: 26px;
+  }
+
+  /* ============================================================
+     CAPÇALERA
+     ============================================================ */
+  .header {
+    background: var(--navy);
+    color: #fff;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+  }
+  .a4 .header { padding: 6mm 8mm; }
+  .wa .header { padding: 32px 42px; border-radius: 28px; }
+
+  .header-text { flex: 1; min-width: 0; }
+  .eyebrow {
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: #BBD6EC;
+    text-transform: uppercase;
+  }
+  .a4 .eyebrow { font-size: 9.5pt; }
+  .wa .eyebrow { font-size: 22px; }
+
+  .h1 {
+    font-weight: 900;
+    line-height: 1.05;
+    margin: 6px 0 0 0;
+    letter-spacing: 0.01em;
+  }
+  .a4 .h1 { font-size: 22pt; margin-top: 4px; }
+  .wa .h1 { font-size: 56px; margin-top: 8px; }
+
+  .season-badge {
+    display: inline-block;
+    background: var(--yellow);
+    color: var(--navy);
+    font-weight: 800;
+    border-radius: 999px;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+  .a4 .season-badge {
+    margin-top: 5mm;
+    padding: 4px 14px;
+    font-size: 10pt;
+  }
+  .wa .season-badge {
+    margin-top: 18px;
+    padding: 8px 24px;
+    font-size: 22px;
+  }
+
+  .logo {
+    flex-shrink: 0;
+    background: #fff;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .a4 .logo { width: 20mm; height: 20mm; padding: 3mm; }
+  .wa .logo { width: 128px; height: 128px; padding: 14px; border-radius: 22px; }
+  .logo img { width: 100%; height: 100%; object-fit: contain; }
+
+  /* ============================================================
+     TÍTOL SECCIÓ
+     ============================================================ */
+  .section-title {
+    font-weight: 900;
+    color: var(--navy);
+    text-align: center;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    line-height: 1.1;
+  }
+  .a4 .section-title { font-size: 16pt; margin: 0; }
+  .wa .section-title { font-size: 42px; margin: 0; }
+
+  /* ============================================================
+     BLOC 1 — DISTÀNCIES
+     ============================================================ */
+  .distances {
+    background: var(--paper-soft);
+    border: 2px solid var(--line);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .a4 .distances { padding: 4mm 6mm; }
+  .wa .distances { padding: 20px 40px; border-radius: 26px; border-width: 3px; }
+
+  .distances-label {
+    font-weight: 900;
+    color: var(--navy);
+    letter-spacing: 0.04em;
+  }
+  .a4 .distances-label { font-size: 13pt; }
+  .wa .distances-label { font-size: 32px; }
+
+  .distance-pills {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .pill-distance {
+    background: var(--blue-vivid);
+    color: #fff;
+    font-weight: 900;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .a4 .pill-distance {
+    width: 13mm; height: 13mm;
+    font-size: 15pt;
+  }
+  .wa .pill-distance {
+    width: 80px; height: 80px;
+    font-size: 40px;
+  }
+  .distance-dot {
+    color: var(--navy);
+    font-weight: 900;
+  }
+  .a4 .distance-dot { font-size: 16pt; }
+  .wa .distance-dot { font-size: 42px; }
+
+  .distances-foot {
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+  .a4 .distances-foot { font-size: 9.5pt; }
+  .wa .distances-foot { font-size: 22px; }
+
+  /* ============================================================
+     BLOC 2 — TRES PASSOS
+     A4: 3 columnes en una sola fila.
+     WhatsApp: pas 1 i 2 en una fila, pas 3 ocupa tota l'amplada
+     a sota perquè respiri amb les seves 3 opcions.
+     ============================================================ */
+  .steps { display: grid; }
+  .a4 .steps {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4mm;
+  }
+  .wa .steps {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "s1 s2"
+      "s3 s3";
+    gap: 20px;
+  }
+  .wa .step.s1 { grid-area: s1; }
+  .wa .step.s2 { grid-area: s2; }
+  .wa .step.s3 { grid-area: s3; }
+
+  .step {
+    background: var(--paper-soft);
+    border: 2px solid var(--line);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .a4 .step { padding: 4mm 4mm 3.5mm 4mm; }
+  .wa .step { padding: 24px 26px 22px 26px; border-radius: 22px; border-width: 3px; }
+
+  .step-num {
+    position: absolute;
+    top: -14px;
+    left: 14px;
+    background: var(--navy);
+    color: #fff;
+    font-weight: 900;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .a4 .step-num {
+    width: 9mm; height: 9mm;
+    font-size: 12pt;
+    top: -5mm;
+    left: 5mm;
+  }
+  .wa .step-num {
+    width: 56px; height: 56px;
+    font-size: 30px;
+    top: -28px;
+    left: 26px;
+  }
+
+  .step-title {
+    font-weight: 900;
+    color: var(--navy);
+    letter-spacing: 0.02em;
+    line-height: 1.15;
+    margin: 2px 0 6px 0;
+  }
+  .a4 .step-title { font-size: 11pt; min-height: 24pt; }
+  .wa .step-title { font-size: 28px; margin: 4px 0 10px 0; min-height: 0; }
+  .wa .step.s3 .step-title { text-align: left; }
+
+  .step-text {
+    color: var(--ink-soft);
+    line-height: 1.35;
+    margin: 0 0 8px 0;
+  }
+  .a4 .step-text { font-size: 10pt; }
+  .wa .step-text { font-size: 22px; margin: 0 0 12px 0; }
+
+  .step-highlight {
+    display: inline-block;
+    background: var(--yellow);
+    color: var(--navy);
+    font-weight: 900;
+    border-radius: 8px;
+    margin-top: auto;
+    align-self: flex-start;
+  }
+  .a4 .step-highlight {
+    padding: 3px 10px;
+    font-size: 11pt;
+  }
+  .wa .step-highlight {
+    padding: 8px 18px;
+    font-size: 24px;
+    border-radius: 14px;
+  }
+
+  /* Bola groga decorativa per al Pas 2 */
+  .yellow-ball {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #FFE89A 0%, #F7C948 55%, #C99A1F 100%);
+    border: 1px solid #B5870E;
+    vertical-align: -0.18em;
+    margin-right: 0.25em;
+  }
+
+  /* Opcions A / B / C dins del Pas 3 */
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  /* A WhatsApp el pas 3 ocupa tota l'amplada: les opcions van en fila */
+  .wa .options {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    margin-top: 2px;
+  }
+  .option {
+    background: #fff;
+    border: 1.5px solid var(--line);
+    border-left: 4px solid var(--blue-vivid);
+    border-radius: 8px;
+  }
+  .a4 .option { padding: 3px 7px; }
+  .wa .option { padding: 12px 16px; border-radius: 14px; border-left-width: 6px; }
+
+  .option-title {
+    font-weight: 900;
+    color: var(--navy);
+    letter-spacing: 0.02em;
+    line-height: 1.1;
+    margin: 0 0 2px 0;
+  }
+  .a4 .option-title { font-size: 9pt; }
+  .wa .option-title { font-size: 22px; margin: 0 0 4px 0; }
+
+  .option-text {
+    color: var(--ink-soft);
+    line-height: 1.3;
+    margin: 0;
+  }
+  .a4 .option-text { font-size: 8.5pt; }
+  .wa .option-text { font-size: 19px; }
+
+  /* ============================================================
+     BLOC GRAELLA + BLOC EXEMPLE (en fila a A4)
+     ============================================================ */
+  .row-graella-exemple {
+    display: grid;
+    grid-template-columns: 1.55fr 1fr;
+    gap: 10px;
+  }
+  .a4 .row-graella-exemple { gap: 4mm; }
+  .wa .row-graella-exemple { gap: 20px; grid-template-columns: 1.55fr 1fr; }
+
+  .graella {
+    background: var(--blue);
+    color: #fff;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .a4 .graella { padding: 4mm 6mm; }
+  .wa .graella { padding: 22px 34px; border-radius: 24px; }
+
+  .graella-title {
+    font-weight: 900;
+    color: var(--yellow);
+    letter-spacing: 0.04em;
+    line-height: 1.1;
+    margin: 0 0 4px 0;
+  }
+  .a4 .graella-title { font-size: 13pt; }
+  .wa .graella-title { font-size: 34px; margin: 0 0 10px 0; }
+
+  .graella-text {
+    color: #fff;
+    line-height: 1.3;
+    font-weight: 600;
+    margin: 0;
+  }
+  .a4 .graella-text { font-size: 11pt; }
+  .wa .graella-text { font-size: 24px; }
+
+  .exemple {
+    background: var(--paper-soft);
+    border: 2px solid var(--line);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .a4 .exemple { padding: 3mm; gap: 5px; }
+  .wa .exemple { padding: 18px; gap: 10px; border-radius: 24px; border-width: 3px; }
+
+  .exemple-label {
+    font-weight: 900;
+    color: var(--navy);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .a4 .exemple-label { font-size: 9.5pt; }
+  .wa .exemple-label { font-size: 22px; }
+
+  .exemple-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  .wa .exemple-row { gap: 12px; }
+
+  .exemple-pill {
+    background: #fff;
+    border: 2px solid var(--blue-vivid);
+    color: var(--navy);
+    font-weight: 900;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .a4 .exemple-pill { padding: 3px 9px; font-size: 10pt; }
+  .wa .exemple-pill { padding: 8px 18px; font-size: 24px; border-width: 3px; }
+
+  .exemple-pill.empat {
+    background: var(--green);
+    color: #fff;
+    border-color: var(--green);
+  }
+
+  .exemple-arrow {
+    background: var(--navy);
+    color: #fff;
+    font-weight: 900;
+    border-radius: 8px;
+    letter-spacing: 0.06em;
+  }
+  .a4 .exemple-arrow { padding: 4px 11px; font-size: 10pt; }
+  .wa .exemple-arrow { padding: 10px 22px; font-size: 24px; }
+
+  /* ============================================================
+     BLOC FINAL — DESEMPAT
+     ============================================================ */
+  .desempat {
+    background: var(--navy);
+    color: #fff;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+  }
+  .a4 .desempat { padding: 5mm 7mm 5mm 7mm; gap: 2.5mm; }
+  .wa .desempat { padding: 30px 44px 30px 44px; gap: 14px; border-radius: 28px; }
+
+  .desempat-title {
+    text-align: center;
+    line-height: 1.1;
+    margin: 0;
+  }
+  .desempat-title .line1 {
+    display: block;
+    font-weight: 700;
+    color: #BBD6EC;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .desempat-title .line2 {
+    display: block;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 0.01em;
+    margin-top: 4px;
+  }
+  .a4 .desempat-title .line1 { font-size: 10.5pt; }
+  .a4 .desempat-title .line2 { font-size: 17pt; margin-top: 3px; }
+  .wa .desempat-title .line1 { font-size: 22px; }
+  .wa .desempat-title .line2 { font-size: 42px; margin-top: 6px; }
+
+  .pill-score {
+    align-self: center;
+    background: var(--yellow);
+    color: var(--navy);
+    font-weight: 900;
+    border-radius: 999px;
+    letter-spacing: 0.05em;
+  }
+  .a4 .pill-score { padding: 4px 18px; font-size: 13pt; }
+  .wa .pill-score { padding: 8px 36px; font-size: 32px; }
+
+  .desempat-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .a4 .desempat-list { gap: 2mm; }
+  .wa .desempat-list { gap: 10px; }
+
+  .desempat-list li {
+    position: relative;
+    color: #fff;
+    line-height: 1.3;
+  }
+  .a4 .desempat-list li { font-size: 10pt; padding-left: 16px; }
+  .wa .desempat-list li { font-size: 23px; padding-left: 28px; }
+
+  .desempat-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--yellow);
+  }
+  .wa .desempat-list li::before {
+    width: 14px;
+    height: 14px;
+    top: 0.55em;
+  }
+
+  .coin {
+    display: inline-block;
+    width: 0.9em;
+    height: 0.9em;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #FFF3B5 0%, #F7C948 55%, #B5870E 100%);
+    border: 1px solid #8B6A0F;
+    vertical-align: -0.12em;
+    margin-left: 0.3em;
+    box-shadow: inset -1px -1px 1px rgba(0,0,0,0.18);
+  }
+
+  /* ============================================================
+     PEU
+     ============================================================ */
+  .footer {
+    text-align: center;
+    color: var(--ink-soft);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin-top: auto;
+  }
+  .a4 .footer { font-size: 9.5pt; }
+  .wa .footer { font-size: 22px; }
+
+  /* ============================================================
+     IMPRESSIÓ
+     ============================================================ */
+  @page { size: A4 portrait; margin: 0; }
+
+  @media print {
+    body {
+      background: #fff;
+      padding: 0;
+      display: block;
+    }
+    .switcher { display: none !important; }
+    .page.a4 {
+      box-shadow: none;
+      width: 210mm;
+      height: 297mm;
+    }
+    .page.wa { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Botons flotants -->
+<nav class="switcher" id="switcher">
+  <a id="btn-a4" href="?format=a4">A4</a>
+  <a id="btn-wa" href="?format=whatsapp">WhatsApp</a>
+</nav>
+
+<!-- ===========================================================
+     PAGE — Es renderitza el format escollit per query string
+     =========================================================== -->
+<main id="root"></main>
+
+<template id="tpl-content">
+  <!-- Capçalera -->
+  <header class="header">
+    <div class="header-text">
+      <div class="eyebrow">SECCIÓ DE BILLAR · FOMENT MARTINENC</div>
+      <h1 class="h1">CAMPIONATS SOCIALS HÀNDICAP</h1>
+      <div><span class="season-badge">TEMPORADA 2025-2026</span></div>
+    </div>
+    <div class="logo"><img src="logo.png" alt="Foment Martinenc" /></div>
+  </header>
+
+  <!-- Títol secció -->
+  <h2 class="section-title">Com funcionen les partides?</h2>
+
+  <!-- BLOC 1 — Distàncies -->
+  <section class="distances">
+    <div class="distances-label">DISTÀNCIES DE JOC:</div>
+    <div class="distance-pills">
+      <span class="pill-distance">10</span>
+      <span class="distance-dot">·</span>
+      <span class="pill-distance">15</span>
+      <span class="distance-dot">·</span>
+      <span class="pill-distance">20</span>
+    </div>
+    <div class="distances-foot">segons el hàndicap</div>
+  </section>
+
+  <!-- BLOC 2 — Tres passos -->
+  <section class="steps">
+    <!-- Pas 1 -->
+    <div class="step s1">
+      <div class="step-num">1</div>
+      <div class="step-title">LÍMIT DE PARTIDA</div>
+      <p class="step-text">La partida acaba en arribar a la distància o al màxim de 50 entrades.</p>
+      <span class="step-highlight">50 entrades</span>
+    </div>
+
+    <!-- Pas 2 -->
+    <div class="step s2">
+      <div class="step-num">2</div>
+      <div class="step-title">CONTRASORTIDA</div>
+      <p class="step-text">El jugador amb <span class="yellow-ball" aria-hidden="true"></span>bola groga tanca l'entrada i té dret a contrasortida per empatar.</p>
+      <span class="step-highlight">Dret a empat</span>
+    </div>
+
+    <!-- Pas 3 -->
+    <div class="step s3">
+      <div class="step-num">3</div>
+      <div class="step-title">ACABADA L'ENTRADA: QUI GUANYA?</div>
+      <div class="options">
+        <div class="option">
+          <div class="option-title">A · ARRIBA A LA DISTÀNCIA</div>
+          <p class="option-text">Si només un jugador arriba a la seva distància, guanya.</p>
+        </div>
+        <div class="option">
+          <div class="option-title">B · ENTRADA 50</div>
+          <p class="option-text">Si ningú arriba a la seva distància, es consulta la graella.</p>
+        </div>
+        <div class="option">
+          <div class="option-title">C · RESULTAT E</div>
+          <p class="option-text">Si la graella indica empat, es juga la represa.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BLOC GRAELLA + EXEMPLE -->
+  <section class="row-graella-exemple">
+    <div class="graella">
+      <div class="graella-title">NO CAL FER CÀLCULS</div>
+      <p class="graella-text">Consulta la graella que facilitarà la Junta per cada partida.</p>
+    </div>
+    <div class="exemple">
+      <div class="exemple-label">EXEMPLE</div>
+      <div class="exemple-row">
+        <span class="exemple-pill">J10 = 9</span>
+        <span class="exemple-pill">J20 = 18</span>
+      </div>
+      <div class="exemple-row">
+        <span class="exemple-pill empat">E = EMPAT</span>
+        <span class="exemple-arrow">→ REPRESA</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- BLOC DESEMPAT -->
+  <section class="desempat">
+    <h3 class="desempat-title">
+      <span class="line1">SI HI HA EMPAT:</span>
+      <span class="line2">REPRESA «CARAMBOLA D'OR»</span>
+    </h3>
+    <span class="pill-score">0–0</span>
+    <ul class="desempat-list">
+      <li>La represa comença a 0–0.</li>
+      <li>Comença amb bola blanca el mateix jugador que havia iniciat la partida original.</li>
+      <li>El jugador amb bola groga tanca sempre l'entrada.</li>
+      <li>Guanya qui, acabada una entrada completa, tingui 1 carambola d'avantatge.</li>
+      <li>Si després de 20 entrades completes encara hi ha empat, el guanyador es decideix amb una moneda a l'aire<span class="coin" aria-hidden="true"></span>.</li>
+    </ul>
+  </section>
+
+  <!-- Peu -->
+  <div class="footer">En cas de dubte, consulteu la Junta.</div>
+</template>
+
+<script>
+  (function () {
+    const params = new URLSearchParams(location.search);
+    const format = (params.get('format') || 'a4').toLowerCase() === 'whatsapp' ? 'whatsapp' : 'a4';
+
+    const root = document.getElementById('root');
+    const tpl  = document.getElementById('tpl-content');
+
+    const page = document.createElement('article');
+    page.className = 'page ' + (format === 'whatsapp' ? 'wa' : 'a4');
+    page.id = 'page';
+    page.appendChild(tpl.content.cloneNode(true));
+    root.appendChild(page);
+
+    // Marcar botó actiu
+    document.getElementById('btn-a4').classList.toggle('active', format === 'a4');
+    document.getElementById('btn-wa').classList.toggle('active', format === 'whatsapp');
+
+    // Document title friendly per a impressió
+    document.title = format === 'whatsapp'
+      ? 'Infografia hàndicap — WhatsApp'
+      : 'Infografia hàndicap — A4';
+  })();
+</script>
+
+</body>
+</html>

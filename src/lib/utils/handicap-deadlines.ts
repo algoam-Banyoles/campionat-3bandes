@@ -20,6 +20,12 @@ export interface DeadlineInput {
 	 *  per a matches encara no programats (no els podem usar com a font de
 	 *  deadline d'un predecessor). */
 	data_programada?: string | null;
+	/** Bracket i ronda del match. Necessari per calcular deadlines a nivell
+	 *  de ronda (igual que el pre-scheduler): tots els matches d'una mateixa
+	 *  ronda comparteixen la mateixa deadline = primer dia de la ronda que
+	 *  els succeeix − 1. */
+	bracket_type?: 'winners' | 'losers' | 'grand_final';
+	ronda?: number;
 }
 
 export type DeadlineStatus = 'safe' | 'soon' | 'passed' | 'unknown';
@@ -42,6 +48,12 @@ function addDays(iso: string, n: number): string {
 /**
  * Per cada match retorna la seva deadline ('YYYY-MM-DD'). Si no es pot
  * determinar (cap successor té data) i tampoc tenim `dataFi`, retorna null.
+ *
+ * Regla (replica `handicap-pre-scheduler.ts` línies 703-736): la deadline
+ * és el primer dia de la ronda del successor − 1 dia (no la data individual
+ * del successor concret). Així tots els matches d'una mateixa ronda
+ * comparteixen la mateixa data màxima, que és el comportament que produeix
+ * el pre-scheduler en generar el bracket.
  */
 export function computeDeadlines(
 	matches: DeadlineInput[],
@@ -53,23 +65,42 @@ export function computeDeadlines(
 		matchBySlot.set(m.slot2_id, m);
 	}
 
+	// Per cada (bracket, ronda), el primer dia programat de la ronda.
+	const firstDateInRound = new Map<string, string>(); // 'bracket-ronda' → 'YYYY-MM-DD'
+	for (const m of matches) {
+		const d = toIsoDay(m.data_programada);
+		if (!d || !m.bracket_type || m.ronda == null) continue;
+		const key = `${m.bracket_type}-${m.ronda}`;
+		const existing = firstDateInRound.get(key);
+		if (!existing || d < existing) firstDateInRound.set(key, d);
+	}
+
 	const fallback = toIsoDay(dataFi);
 	const result = new Map<string, string | null>();
 	for (const m of matches) {
-		const succDates: string[] = [];
+		const succRoundDates: string[] = [];
 		for (const slotId of [m.winner_slot_dest_id, m.loser_slot_dest_id]) {
 			if (!slotId) continue;
 			const succ = matchBySlot.get(slotId);
 			if (!succ) continue;
-			const d = toIsoDay(succ.data_programada);
-			if (d) succDates.push(d);
+			// Si tenim bracket+ronda, usa el primer dia de la ronda del
+			// successor (round-level deadline). Si no, cau a la data
+			// individual del successor.
+			if (succ.bracket_type && succ.ronda != null) {
+				const key = `${succ.bracket_type}-${succ.ronda}`;
+				const d = firstDateInRound.get(key);
+				if (d) succRoundDates.push(d);
+			} else {
+				const d = toIsoDay(succ.data_programada);
+				if (d) succRoundDates.push(d);
+			}
 		}
-		if (succDates.length === 0) {
+		if (succRoundDates.length === 0) {
 			result.set(m.id, fallback);
 			continue;
 		}
-		succDates.sort();
-		result.set(m.id, addDays(succDates[0], -1));
+		succRoundDates.sort();
+		result.set(m.id, addDays(succRoundDates[0], -1));
 	}
 	return result;
 }
