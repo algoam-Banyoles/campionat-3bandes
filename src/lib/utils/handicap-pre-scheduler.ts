@@ -144,23 +144,35 @@ export function preSchedulingForBracket(
 		for (const s of succs) predecessorsOf.get(s)!.push(matchId);
 	}
 
-	// Ordenament topològic estable: tots els predecessors d'un match abans que
-	// ell. El "criteri secundari" (per desempatar) és bracket+ronda+posició.
-	const order: Record<Bracket, number> = { winners: 0, losers: 1, grand_final: 2 };
+	// Ordenament topològic estable. Usem un "nivell d'acompassament" per
+	// forçar l'ordre: W1 → L1 → W2 → L2 → L3 → W3 → L4 → L5 → W4 → ... → GF.
+	// Així L(2r-3) sempre es processa ABANS de W(r), que permet posar barrera
+	// cross-bracket: W(r) no comença fins que L(2r-3) hagi acabat.
 	const matchInfo = (m: PreSchedulerMatch) => {
 		const s = slotById.get(m.slot1_id);
 		return {
-			bracket: s?.bracket_type ?? 'winners',
+			bracket: (s?.bracket_type ?? 'winners') as Bracket,
 			ronda: s?.ronda ?? 0,
 			posicio: s?.posicio ?? 0
 		};
 	};
+	const getNivell = (bracket: Bracket, ronda: number): number => {
+		if (bracket === 'grand_final') return 999 + ronda;
+		if (bracket === 'winners') {
+			if (ronda === 1) return 1;
+			return (ronda - 1) * 3;
+		}
+		// losers: L1→2, L2→4, L3→5, L4→7, L5→8, L6→10, L7→11, L8→13...
+		if (ronda % 2 === 1) {
+			const k = (ronda + 1) / 2;
+			return 3 * k - 1;
+		}
+		const k = ronda / 2;
+		return 3 * k + 1;
+	};
 	const matchKey = (m: PreSchedulerMatch) => {
 		const i = matchInfo(m);
-		// Grand Final sempre va a la "ronda virtual" més alta perquè depèn de
-		// la final del Winners i del Losers.
-		const rondaVirtual = i.bracket === 'grand_final' ? 9999 + i.ronda : i.ronda;
-		return [order[i.bracket as Bracket], rondaVirtual, i.posicio] as const;
+		return [getNivell(i.bracket, i.ronda), i.posicio] as const;
 	};
 	const indegree = new Map<string, number>();
 	for (const m of playables) indegree.set(m.id, (predecessorsOf.get(m.id) ?? []).length);
@@ -273,6 +285,21 @@ export function preSchedulingForBracket(
 				const margeExtra = (isPrimeraRondaWinners || isPrimeraRondaLosers) ? margeInici : 0;
 				const barrier = addDays(prevEnd, 1 + margeExtra);
 				if (barrier > earliestDate) earliestDate = barrier;
+			}
+		}
+
+		// Barrera CROSS-BRACKET per acompassar Winners i Losers:
+		// W(r) per r>1 no comença fins que la ronda L(2r-3) hagi acabat.
+		// Així el guanyador W no espera molts dies a la final del bracket
+		// perquè el Losers ja s'ha anat acompassant darrere.
+		if (bracket === 'winners' && ronda > 1) {
+			const losersRondaPrev = 2 * ronda - 3;
+			if (losersRondaPrev >= 1) {
+				const losersEnd = lastDateInRound.get(`losers-${losersRondaPrev}`);
+				if (losersEnd) {
+					const barrier = addDays(losersEnd, 1);
+					if (barrier > earliestDate) earliestDate = barrier;
+				}
 			}
 		}
 
