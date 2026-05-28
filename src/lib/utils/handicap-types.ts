@@ -4,23 +4,39 @@
 
 /**
  * Construeix un Map<matchId, codi> per a tots els matches.
- * Ordre: ronda ASC, matchPos ASC dins cada bracket.
- * Codis: W1…Wn, L1…Ln, F1 (Gran Final), F2 (Reset).
+ * Format: W<ronda>.<n>, L<ronda>.<n>, GF<r>. Idèntic a la nomenclatura
+ * que es genera als modals d'impressió de bracket i calendari.
  */
 export function buildMatchCodeMap(
 	matches: ReadonlyArray<{ id: string; bracket_type: string; ronda: number; matchPos: number }>
 ): Map<string, string> {
-	const sortFn = (a: { ronda: number; matchPos: number }, b: { ronda: number; matchPos: number }) =>
-		a.ronda !== b.ronda ? a.ronda - b.ronda : a.matchPos - b.matchPos;
+	const winnersByRonda = new Map<number, Array<{ id: string; matchPos: number }>>();
+	const losersByRonda = new Map<number, Array<{ id: string; matchPos: number }>>();
+	const gf: Array<{ id: string; ronda: number }> = [];
 
-	const winners = matches.filter((m) => m.bracket_type === 'winners').slice().sort(sortFn);
-	const losers  = matches.filter((m) => m.bracket_type === 'losers').slice().sort(sortFn);
-	const gf      = matches.filter((m) => m.bracket_type === 'grand_final').slice().sort((a, b) => a.ronda - b.ronda);
+	for (const m of matches) {
+		if (m.bracket_type === 'winners') {
+			if (!winnersByRonda.has(m.ronda)) winnersByRonda.set(m.ronda, []);
+			winnersByRonda.get(m.ronda)!.push({ id: m.id, matchPos: m.matchPos });
+		} else if (m.bracket_type === 'losers') {
+			if (!losersByRonda.has(m.ronda)) losersByRonda.set(m.ronda, []);
+			losersByRonda.get(m.ronda)!.push({ id: m.id, matchPos: m.matchPos });
+		} else if (m.bracket_type === 'grand_final') {
+			gf.push({ id: m.id, ronda: m.ronda });
+		}
+	}
 
 	const map = new Map<string, string>();
-	winners.forEach((m, i) => map.set(m.id, `W${i + 1}`));
-	losers.forEach((m, i)  => map.set(m.id, `L${i + 1}`));
-	gf.forEach((m, i)      => map.set(m.id, `F${i + 1}`));
+	for (const [ronda, ms] of winnersByRonda) {
+		ms.sort((a, b) => a.matchPos - b.matchPos);
+		ms.forEach((m, i) => map.set(m.id, `W${ronda}.${i + 1}`));
+	}
+	for (const [ronda, ms] of losersByRonda) {
+		ms.sort((a, b) => a.matchPos - b.matchPos);
+		ms.forEach((m, i) => map.set(m.id, `L${ronda}.${i + 1}`));
+	}
+	gf.sort((a, b) => a.ronda - b.ronda);
+	gf.forEach((m) => map.set(m.id, `GF${m.ronda}`));
 	return map;
 }
 

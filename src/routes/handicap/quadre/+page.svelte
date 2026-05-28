@@ -6,7 +6,6 @@
 	import { user } from '$lib/stores/auth';
 	import HandicapBracketView from '$lib/components/handicap/HandicapBracketView.svelte';
 	import HandicapBracketPrintModal from '$lib/components/handicap/HandicapBracketPrintModal.svelte';
-	import HandicapBranchBalance from '$lib/components/handicap/HandicapBranchBalance.svelte';
 	import HandicapMatchResult from '$lib/components/handicap/HandicapMatchResult.svelte';
 	import type { MatchView, PlayerInfo, BranchMatchInput } from '$lib/utils/handicap-types';
 	import { buildMatchCodeMap, buildLoserDestCodeMap, buildSlotSourceMap } from '$lib/utils/handicap-types';
@@ -608,11 +607,6 @@
 				<div class="text-xl font-bold text-purple-700">G-R{currentRound}</div>
 				<div class="text-xs text-gray-500">Ronda actual</div>
 			</div>
-		</div>
-
-		<!-- ── Equilibri de branques ──────────────────────────────────────────── -->
-		<div class="mb-4 print:hidden">
-			<HandicapBranchBalance matches={branchMatches} />
 		</div>
 
 		<!-- ── Controls ───────────────────────────────────────────────────────── -->

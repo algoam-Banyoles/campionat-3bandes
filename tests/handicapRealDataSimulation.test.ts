@@ -28,7 +28,7 @@ const REAL_PARTICIPANTS: RealParticipant[] = [
 	{ nom: 'José María Campos', distancia: 20, dies: ['dl', 'dt', 'dc', 'dj', 'dv'], hores: ['18:00'] },
 	{ nom: 'Rafael Cervantes', distancia: 20, dies: ['dl', 'dt', 'dc', 'dj', 'dv'], hores: ['18:00', '19:00'] },
 	{ nom: 'Luís Chuecos', distancia: 20, dies: ['dl', 'dt', 'dc', 'dj', 'dv'], hores: ['18:00', '19:00'] },
-	{ nom: 'Jordi Domingo', distancia: 20, dies: ['dl', 'dt', 'dc', 'dv'], hores: ['18:00', '19:00'], restriccions: 'a partir del 9 juny', dataDisponibleDes: new Date('2026-06-09') },
+	{ nom: 'Jordi Domingo', distancia: 20, dies: ['dl', 'dt', 'dc', 'dv'], hores: ['18:00', '19:00'] },
 	{ nom: 'Joaquim Gibernau', distancia: 15, dies: ['dl', 'dt', 'dv'], hores: ['18:00', '19:00'] },
 	{ nom: 'Albert Gómez', distancia: 20, dies: ['dl', 'dt', 'dc', 'dj', 'dv'], hores: ['18:00', '19:00'] },
 	{ nom: 'Jorge Gómez', distancia: 15, dies: ['dl', 'dt', 'dc', 'dj', 'dv'], hores: ['18:00', '19:00'] },

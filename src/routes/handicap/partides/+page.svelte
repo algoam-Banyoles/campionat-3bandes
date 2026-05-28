@@ -20,6 +20,7 @@
 		type ScheduleItemResult
 	} from '$lib/utils/handicap-scheduler';
 	import { executeScheduling } from '$lib/utils/handicap-scheduler-db';
+	import { persistFullSchedule } from '$lib/utils/handicap-schedule-persist';
 
 	// ── Tipus locals ──────────────────────────────────────────────────────────
 
@@ -48,6 +49,7 @@
 
 	let loading = true;
 	let saving = false;
+	let regenerantHorari = false;
 	let error: string | null = null;
 
 	let eventId: string | null = null;
@@ -644,6 +646,33 @@
 		await loadData();
 		loading = false;
 	});
+
+	async function regenerarHorariComplet() {
+		if (!eventId) return;
+		const ok = await showConfirm({
+			title: 'Regenerar tot l\'horari',
+			message: 'Es sobreescriurà la programació de TOTES les partides (incloent rondes futures amb jugadors no resolts com a pre-reserves). Vols continuar?',
+			severity: 'warning',
+			confirmLabel: 'Regenerar'
+		});
+		if (!ok) return;
+		regenerantHorari = true;
+		try {
+			const r = await persistFullSchedule(supabase, eventId, {
+				diesBloquejats: [new Date('2026-06-24')]
+			});
+			alert(
+				`Programats: ${r.programats} (${r.nous} nous, ${r.actualitzats} actualitzats)\n`
+				+ `Data fi efectiva: ${r.dataFiEfectiva ?? '—'}\n`
+				+ (r.errors.length > 0 ? `Errors:\n${r.errors.slice(0, 5).join('\n')}` : 'Sense errors.')
+			);
+			location.reload();
+		} catch (e: any) {
+			alert(`Error: ${e?.message ?? e}`);
+		} finally {
+			regenerantHorari = false;
+		}
+	}
 </script>
 
 <div class="hcap-page-root">
@@ -654,6 +683,17 @@
 			</div>
 			<h1 class="page-title">Partides</h1>
 		</div>
+		{#if $effectiveIsAdmin && eventId}
+			<button
+				type="button"
+				on:click={regenerarHorariComplet}
+				disabled={regenerantHorari}
+				class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+				title="Aplica pre-scheduler + optimizer i desa l'horari sencer (incloent pre-reserves de R2+)"
+			>
+				{regenerantHorari ? 'Regenerant…' : 'Regenerar horari complet'}
+			</button>
+		{/if}
 	</header>
 
 	{#if loading}
