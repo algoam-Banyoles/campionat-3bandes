@@ -104,7 +104,12 @@ function addDays(date: Date, n: number): Date {
 }
 
 function isoDay(d: Date): string {
-	return d.toISOString().slice(0, 10);
+	// IMPORTANT: usem components LOCALS, no toISOString(), perquè les dates
+	// parsejades des de text de restriccions (new Date(year, month, day)) són
+	// locals i toISOString() les converteix a UTC, produint un offset d'un
+	// dia en zones positives (CEST). Mantenint local-local la comparació és
+	// consistent.
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 /** Comprova si un participant pot jugar un dia/hora segons les seves preferences. */
@@ -257,13 +262,13 @@ export function preSchedulingForBracket(
 	const used = new Set<string>(); // key: 'YYYY-MM-DD|HH:MM|B'
 
 	const bloquejatsSet = new Set(
-		(options.diesBloquejats ?? []).map(d => d.toISOString().slice(0, 10))
+		(options.diesBloquejats ?? []).map(d => isoDay(d))
 	);
 
 	for (let d = new Date(options.dataInici); d <= options.dataFi; d = addDays(d, 1)) {
 		const codi = diaCodi(d);
 		if (!diesActius.includes(codi)) continue;
-		if (bloquejatsSet.has(d.toISOString().slice(0, 10))) continue;
+		if (bloquejatsSet.has(isoDay(d))) continue;
 		const hores = [...options.horesEstandard];
 		if (options.horarisExtra && options.horarisExtra.dies.includes(codi)) {
 			hores.unshift(options.horarisExtra.franja);
@@ -282,7 +287,7 @@ export function preSchedulingForBracket(
 	const scheduled = new Map<string, ScheduledMatch>();
 
 	function slotKey(s: Slot): string {
-		return `${s.date.toISOString().slice(0, 10)}|${s.hora}|${s.billar}`;
+		return `${isoDay(s.date)}|${s.hora}|${s.billar}`;
 	}
 
 	// Rondes "estrictes": cada dia només es poden jugar matches del mateix
@@ -292,7 +297,7 @@ export function preSchedulingForBracket(
 	const STRICT_LEVEL_MAX = 6;
 	const levelsByDate = new Map<string, Set<number>>();
 	function dayKeyOf(d: Date): string {
-		return d.toISOString().slice(0, 10);
+		return isoDay(d);
 	}
 
 	const margeInici = options.diesMargeRondesInicials ?? 1;

@@ -144,6 +144,50 @@ describe('handicap-pre-scheduler', () => {
 		}
 	});
 
+	it('respecta diesNoDisponibles del participant (regressió timezone CEST)', () => {
+		// Cas Albert Gómez: "1 de juny no". Si parsegem amb new Date(2026,5,1)
+		// (local) i comparem amb toISOString() en CEST, queda "2026-05-31" i la
+		// restricció es perd. La comparació ha de ser per components locals.
+		const participants = fakeParticipants(8);
+		const bracket = generateDoublEliminationBracket('evX', participants);
+		const matches = bracket.matches.filter(m => m.estat !== 'bye');
+		const slotsById = new Map(bracket.slots.map(s => [s.id, s]));
+
+		// Construïm availabilities: p1 no pot l'1 de juny.
+		const dia1Juny = new Date(2026, 5, 1); // local 00:00 1-juny
+		const availabilities = new Map([
+			['p1', {
+				preferenciesDies: ['dl', 'dt', 'dc', 'dj', 'dv'],
+				preferenciesHores: ['18:00', '19:00'],
+				diesNoDisponibles: [dia1Juny]
+			}]
+		]);
+
+		const scheduled = preSchedulingForBracket(
+			bracket.slots,
+			matches,
+			{
+				dataInici: new Date('2026-06-01'),
+				dataFi: new Date('2026-07-31'),
+				horesEstandard: ['18:00', '19:00'],
+				billars: 3,
+				availabilities
+			}
+		);
+
+		// Cerquem el match on hi té p1 i comprovem que no és l'1 de juny.
+		for (const m of matches) {
+			const s1 = slotsById.get(m.slot1_id);
+			const s2 = slotsById.get(m.slot2_id);
+			const teP1 = s1?.participant_id === 'p1' || s2?.participant_id === 'p1';
+			if (!teP1) continue;
+			const sm = scheduled.get(m.id);
+			if (!sm) continue;
+			const isoLocal = `${sm.dataProgramada.getFullYear()}-${String(sm.dataProgramada.getMonth() + 1).padStart(2, '0')}-${String(sm.dataProgramada.getDate()).padStart(2, '0')}`;
+			expect(isoLocal).not.toBe('2026-06-01');
+		}
+	});
+
 	it('data màxima d\'un match és anterior a la del seu successor', () => {
 		const participants = fakeParticipants(16);
 		const bracket = generateDoublEliminationBracket('evX', participants);

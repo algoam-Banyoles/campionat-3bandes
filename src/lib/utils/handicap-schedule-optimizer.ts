@@ -72,6 +72,11 @@ function diaCodi(date: Date): string {
 	return DIES_SETMANA[date.getDay()];
 }
 
+/** Day key en components LOCALS (NO toISOString) — vegeu nota a handicap-pre-scheduler.ts */
+function localDayKey(d: Date): string {
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function isAvailable(
 	avail: ParticipantAvailability | undefined,
 	date: Date,
@@ -81,9 +86,9 @@ function isAvailable(
 	if (avail.dataDisponibleDes && date < avail.dataDisponibleDes) return false;
 	if (avail.dataDisponibleFins && date > avail.dataDisponibleFins) return false;
 	if (avail.diesNoDisponibles) {
-		const targetIso = date.toISOString().slice(0, 10);
+		const targetIso = localDayKey(date);
 		for (const d of avail.diesNoDisponibles) {
-			if (d.toISOString().slice(0, 10) === targetIso) return false;
+			if (localDayKey(d) === targetIso) return false;
 		}
 	}
 	const codi = diaCodi(date);
@@ -158,7 +163,7 @@ function violatesSameDayRule(
 		if (s2?.participant_id) participants.push(s2.participant_id);
 	}
 
-	const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+	const isoDay = (d: Date) => localDayKey(d);
 	for (const pid of participants) {
 		// Cerca les altres partides d'aquest jugador
 		const matchesPlayer = matches.filter(m => {
@@ -272,7 +277,7 @@ export function optimizeSchedule(input: OptimizerInput): OptimizerResult {
 		const billars = cfg.billars ?? 3;
 		const diesActius = cfg.diesActius ?? ['dl', 'dt', 'dc', 'dj', 'dv'];
 		const DIES_W = ['dg', 'dl', 'dt', 'dc', 'dj', 'dv', 'ds'];
-		const ymd = (d: Date) => d.toISOString().slice(0, 10);
+		const ymd = (d: Date) => localDayKey(d);
 
 		// Generar tots els slots del calendari (mateixa lògica que pre-scheduler).
 		type Slot = { date: Date; hora: string; billar: number };
