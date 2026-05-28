@@ -323,8 +323,19 @@ ${printScript}
 	}
 	.page-sub { font-size: 9pt; color: #555; text-align: right; }
 
+	.tables-wrap {
+		display: flex; gap: 8mm; align-items: flex-start;
+		flex: 1;
+	}
+	.tables-wrap > .inscrits-table { flex: 1 1 0; min-width: 0; }
+	.tables-wrap.cols-2 .num-col { width: 9mm; padding-left: 0.5mm; padding-right: 0.5mm; }
+	.tables-wrap.cols-2 .dist-col { width: 22mm; }
+	.tables-wrap.cols-2 .inscrits-table { font-size: 9.5pt; }
+	.tables-wrap.cols-2 .inscrits-table thead th { padding: 1.2mm 1mm; font-size: 8pt; }
+	.tables-wrap.cols-2 .inscrits-table tbody td { padding: 0.8mm 1mm; }
+
 	.inscrits-table {
-		width: 100%; border-collapse: collapse; font-size: 10pt; flex: 1;
+		width: 100%; border-collapse: collapse; font-size: 10pt;
 		page-break-inside: avoid;
 		break-inside: avoid;
 	}

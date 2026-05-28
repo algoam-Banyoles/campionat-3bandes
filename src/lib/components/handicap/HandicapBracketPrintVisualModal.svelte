@@ -365,12 +365,14 @@
 				letter-spacing: 0.06em; color: #1f1f1f;
 				border-bottom: 1.5px solid #1f1f1f; padding-bottom: 1.5mm; text-align: center;
 			}
-			.round-matches { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: 2mm; }
+			.round-matches { display: flex; flex-direction: column; gap: 4mm; }
 			.match-cell {
 				border: 1.5px solid #1f1f1f;
-				padding: 1.5mm 2mm;
+				padding: 2mm;
 				display: flex; flex-direction: column; gap: 1mm;
-				font-size: 8pt; min-height: 24mm;
+				font-size: 8pt;
+				min-height: 32mm; height: 32mm;
+				box-sizing: border-box;
 			}
 			.cell-head {
 				display: flex; justify-content: space-between; align-items: baseline;
