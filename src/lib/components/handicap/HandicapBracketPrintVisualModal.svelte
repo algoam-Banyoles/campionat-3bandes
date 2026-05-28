@@ -249,6 +249,11 @@
 		return [...map.entries()].sort((a, b) => a[0] - b[0]);
 	}
 
+	// Màxim de caixes per columna per garantir que cada caixa quedi
+	// igualment llegible (~32mm d'alt + gap). En A3 landscape l'alçada útil
+	// permet 6-7 caixes per columna còmodament.
+	const MAX_CELLS_PER_COLUMN = 6;
+
 	function splitBracketPages(
 		baseTitle: string,
 		bracket: Bracket,
@@ -256,7 +261,9 @@
 	): PageDef[] {
 		if (rondesSorted.length === 0) return [];
 		const r1Count = rondesSorted[0][1].length;
-		if (r1Count <= 8) {
+		const nPages = Math.max(1, Math.ceil(r1Count / MAX_CELLS_PER_COLUMN));
+
+		if (nPages === 1) {
 			return [{
 				title: baseTitle,
 				sectionLabel: baseTitle,
@@ -266,21 +273,28 @@
 				}))
 			}];
 		}
-		// Top half = primera meitat de matches per ronda
-		const topCols: Array<{ rondaLabel: string; matches: MatchView[] }> = [];
-		const bottomCols: Array<{ rondaLabel: string; matches: MatchView[] }> = [];
-		for (const [r, matches] of rondesSorted) {
-			const half = Math.ceil(matches.length / 2);
-			topCols.push({ rondaLabel: rondaLabel(bracket, r), matches: matches.slice(0, half) });
-			bottomCols.push({ rondaLabel: rondaLabel(bracket, r), matches: matches.slice(half) });
+
+		const pages: PageDef[] = [];
+		for (let p = 0; p < nPages; p++) {
+			const cols: Array<{ rondaLabel: string; matches: MatchView[] }> = [];
+			for (const [r, matches] of rondesSorted) {
+				const perPage = Math.ceil(matches.length / nPages);
+				const start = p * perPage;
+				const end = Math.min(start + perPage, matches.length);
+				const subset = matches.slice(start, end);
+				if (subset.length > 0) {
+					cols.push({ rondaLabel: rondaLabel(bracket, r), matches: subset });
+				}
+			}
+			if (cols.length > 0) {
+				pages.push({
+					title: baseTitle,
+					sectionLabel: `${baseTitle} — Secció ${p + 1}/${nPages}`,
+					columns: cols
+				});
+			}
 		}
-		// Si l'última ronda (final del bracket) acaba al top half buit del bottom, ho deixem així:
-		// no és gran problema visual perquè el codi indica on entra cada guanyador.
-		const cleanBottom = bottomCols.filter(c => c.matches.length > 0);
-		return [
-			{ title: baseTitle, sectionLabel: `${baseTitle} — Meitat superior`, columns: topCols },
-			{ title: baseTitle, sectionLabel: `${baseTitle} — Meitat inferior`, columns: cleanBottom }
-		];
+		return pages;
 	}
 
 	function fmtDate(d: Date): string {

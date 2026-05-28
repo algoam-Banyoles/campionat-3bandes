@@ -18,6 +18,9 @@
 	type OrderBy = 'cognoms' | 'distancia';
 	let orderBy: OrderBy = 'cognoms';
 
+	type Columns = 1 | 2;
+	let columns: Columns = 1;
+
 	$: baseRows = participants.map((p: any) => {
 		const raw = p.socis;
 		const s = Array.isArray(raw) ? raw[0] : raw;
@@ -46,6 +49,12 @@
 	$: orderLabel = orderBy === 'distancia'
 		? 'distància assignada (de més a menys)'
 		: 'cognoms';
+
+	$: splitRows = (() => {
+		if (columns === 1) return [rows];
+		const half = Math.ceil(rows.length / 2);
+		return [rows.slice(0, half), rows.slice(half)];
+	})();
 
 	function doPrint() {
 		const previewEl = document.querySelector('.print-portal .preview');
@@ -86,6 +95,8 @@
 			.page-title-main { font-weight: 800; font-size: 14pt; letter-spacing: 0.02em; line-height: 1.1; text-transform: uppercase; }
 			.page-section { font-size: 10pt; color: #444; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
 			.page-sub { font-size: 9pt; color: #555; text-align: right; }
+			.tables-wrap { display: flex; gap: 8mm; align-items: flex-start; }
+			.tables-wrap > .inscrits-table { flex: 1 1 0; min-width: 0; }
 			.inscrits-table { width: 100%; border-collapse: collapse; font-size: 10pt; page-break-inside: avoid; }
 			.inscrits-table thead { page-break-after: avoid; }
 			.inscrits-table thead th {
@@ -102,6 +113,11 @@
 			.num-col { width: 12mm; text-align: right; color: #555; }
 			.name-col { width: auto; }
 			.dist-col { width: 40mm; text-align: center; }
+			.tables-wrap.cols-2 .num-col { width: 9mm; padding-left: 0.5mm; padding-right: 0.5mm; }
+			.tables-wrap.cols-2 .dist-col { width: 22mm; }
+			.tables-wrap.cols-2 .inscrits-table { font-size: 9.5pt; }
+			.tables-wrap.cols-2 .inscrits-table thead th { padding: 1.2mm 1mm; font-size: 8pt; }
+			.tables-wrap.cols-2 .inscrits-table tbody td { padding: 0.8mm 1mm; }
 			.page-foot {
 				display: flex; justify-content: space-between;
 				margin-top: 6mm; padding-top: 4mm;
