@@ -257,28 +257,33 @@
 		}
 	}
 
-	// Divideix un bracket en 1 o 2 pàgines. Si tots els matches ≤16, una pàgina.
-	// Si no, parteix per rondes intentant equilibrar.
+	// Divideix un bracket en N pàgines respectant un MÀXIM de matches per
+	// pàgina. Cap ronda es parteix entre fulls (les rondes són atòmiques).
+	const MAX_MATCHES_PER_PAGE = 18;
 	function splitInPages(
 		rondesSorted: Array<[number, MatchView[]]>,
 		total: number
 	): Array<Array<[number, MatchView[]]>> {
-		if (total <= 16 || rondesSorted.length <= 1) {
+		if (rondesSorted.length === 0) return [];
+		if (total <= MAX_MATCHES_PER_PAGE || rondesSorted.length <= 1) {
 			return [rondesSorted];
 		}
-		const target = Math.ceil(total / 2);
-		const page1: Array<[number, MatchView[]]> = [];
-		const page2: Array<[number, MatchView[]]> = [];
+		const pages: Array<Array<[number, MatchView[]]>> = [];
+		let current: Array<[number, MatchView[]]> = [];
 		let acc = 0;
 		for (const entry of rondesSorted) {
-			if (acc < target) {
-				page1.push(entry);
-				acc += entry[1].length;
-			} else {
-				page2.push(entry);
+			// Si afegir aquesta ronda excedeix el màxim i ja hi ha contingut,
+			// tanca la pàgina actual i obre una de nova.
+			if (acc > 0 && acc + entry[1].length > MAX_MATCHES_PER_PAGE) {
+				pages.push(current);
+				current = [];
+				acc = 0;
 			}
+			current.push(entry);
+			acc += entry[1].length;
 		}
-		return page2.length === 0 ? [page1] : [page1, page2];
+		if (current.length > 0) pages.push(current);
+		return pages;
 	}
 
 	$: totalFulls = winnersPages.length + losersPages.length;
