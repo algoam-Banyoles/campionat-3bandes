@@ -2,6 +2,12 @@
 	import { createEventDispatcher } from 'svelte';
 	import type { MatchView } from '$lib/utils/handicap-types';
 	import { buildMatchCodeMap, buildLoserDestCodeMap, buildSlotSourceMap } from '$lib/utils/handicap-types';
+	import {
+		deadlineStatus,
+		formatDeadlineShort,
+		todayLocalIso,
+		type DeadlineStatus
+	} from '$lib/utils/handicap-deadlines';
 
 	const dispatch = createEventDispatcher<{ matchclick: MatchView }>();
 
@@ -415,6 +421,21 @@
 		return s;
 	}
 
+	const today = todayLocalIso();
+	function deadlineStatusFor(m: MatchView): DeadlineStatus {
+		return deadlineStatus(m.dataMaximaDisputa, today, m.estat);
+	}
+	function deadlineLabelFor(m: MatchView): string {
+		return formatDeadlineShort(m.dataMaximaDisputa);
+	}
+	function deadlineClassFor(m: MatchView): string {
+		const st = deadlineStatusFor(m);
+		if (st === 'passed') return 'hcap-deadline hcap-deadline-passed';
+		if (st === 'soon') return 'hcap-deadline hcap-deadline-soon';
+		if (st === 'safe') return 'hcap-deadline hcap-deadline-safe';
+		return '';
+	}
+
 	$: showWinners = filter === 'all' || filter === 'winners' || filter === 'grand_final';
 	$: showLosers = filter === 'all' || filter === 'losers';
 
@@ -603,13 +624,18 @@
 										{/if}
 									{/if}
 								</div>
-								<!-- Fila d'info: data/hora/taula -->
+								<!-- Fila d'info: data/hora/taula + deadline -->
 								<div
-									class="flex shrink-0 items-center border-t border-gray-100 px-2"
+									class="flex shrink-0 items-center justify-between gap-1 border-t border-gray-100 px-2"
 									style="height: 17px;"
 								>
 									{#if match.data_hora}
 										<span class="truncate text-[9px] text-gray-400">{formatMatchInfo(match)}</span>
+									{:else}
+										<span></span>
+									{/if}
+									{#if match.dataMaximaDisputa}
+										<span class={deadlineClassFor(match)} title="Data màxima de disputa: {match.dataMaximaDisputa}">màx {deadlineLabelFor(match)}</span>
 									{/if}
 								</div>
 							</button>
@@ -1050,6 +1076,34 @@
 	/* Ring (per highlight de cerca) */
 	.hcap-bracket-root :global(.ring-2.ring-yellow-400) {
 		box-shadow: 0 0 0 2px var(--amber) !important;
+	}
+
+	/* ── Pill de data màxima de disputa ─────────────────────────────── */
+	.hcap-bracket-root :global(.hcap-deadline) {
+		display: inline-flex;
+		align-items: center;
+		font-size: 8.5px;
+		font-weight: 700;
+		line-height: 1;
+		letter-spacing: 0.02em;
+		padding: 1px 4px;
+		border: 1px solid currentColor;
+		border-radius: 2px;
+		white-space: nowrap;
+		flex: none;
+	}
+	.hcap-bracket-root :global(.hcap-deadline-safe) {
+		color: var(--ink-3);
+		opacity: 0.7;
+	}
+	.hcap-bracket-root :global(.hcap-deadline-soon) {
+		color: var(--amber);
+		background: rgba(255, 176, 0, 0.08);
+	}
+	.hcap-bracket-root :global(.hcap-deadline-passed) {
+		color: var(--accent);
+		background: rgba(217, 25, 25, 0.08);
+		font-weight: 800;
 	}
 
 	/* ── Stub de ronda col·lapsada ─────────────────────────────────── */

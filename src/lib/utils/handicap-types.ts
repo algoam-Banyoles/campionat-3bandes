@@ -125,6 +125,8 @@ export interface CalendarEntry {
 	data_programada: string; // 'YYYY-MM-DD'
 	hora_inici: string; // 'HH:MM'
 	taula_assignada: number; // 1-3
+	/** 'YYYY-MM-DD' — opcional. Veure MatchView.dataMaximaDisputa. */
+	dataMaximaDisputa?: string | null;
 }
 
 export interface PlayerInfo {
@@ -157,4 +159,7 @@ export interface MatchView {
 	calendari_partida_id: string | null;
 	data_hora?: string | null;
 	taula?: string | null;
+	/** 'YYYY-MM-DD' — data límit per disputar la partida (un dia abans del
+	 *  primer successor). Es calcula a la pàgina amb `computeDeadlines()`. */
+	dataMaximaDisputa?: string | null;
 }

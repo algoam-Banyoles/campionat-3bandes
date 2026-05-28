@@ -9,6 +9,7 @@
 	import HandicapMatchResult from '$lib/components/handicap/HandicapMatchResult.svelte';
 	import type { MatchView, PlayerInfo, BranchMatchInput } from '$lib/utils/handicap-types';
 	import { buildMatchCodeMap, buildLoserDestCodeMap, buildSlotSourceMap } from '$lib/utils/handicap-types';
+	import { computeDeadlines } from '$lib/utils/handicap-deadlines';
 	import { saveMatchResult, closeTournamentManual } from '$lib/utils/handicap-propagation';
 	import type { SaveResultError } from '$lib/utils/handicap-propagation';
 	import { formatarNomJugador } from '$lib/utils/playerUtils';
@@ -346,6 +347,23 @@
 				taula: (m.calendari_partides as any)?.taula_assignada?.toString() ?? null
 			} satisfies MatchView;
 		}).filter(Boolean) as MatchView[];
+
+		// Calcular dataMaximaDisputa per cada match a partir dels successors
+		// estructurals (winner_slot_dest_id / loser_slot_dest_id) i de la
+		// data_fi del torneig com a fallback.
+		const deadlineInputs = matchViews.map(mv => ({
+			id: mv.id,
+			slot1_id: mv.slot1.id,
+			slot2_id: mv.slot2.id,
+			winner_slot_dest_id: mv.winner_slot_dest_id,
+			loser_slot_dest_id: mv.loser_slot_dest_id,
+			data_programada: mv.data_hora ? mv.data_hora.substring(0, 10) : null
+		}));
+		const deadlines = computeDeadlines(deadlineInputs, event?.data_fi ?? null);
+		matchViews = matchViews.map(mv => ({
+			...mv,
+			dataMaximaDisputa: deadlines.get(mv.id) ?? null
+		}));
 
 		// Detectar si l'usuari autenticat és participant del torneig
 		// Fase 5c-S2b: matching directe via soci_numero, sense passar per players
