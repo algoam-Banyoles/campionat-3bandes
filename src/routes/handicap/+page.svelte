@@ -18,6 +18,26 @@
 		{ href: '/handicap/jugadors', label: 'Jugadors inscrits', desc: 'Llista dels participants del torneig', icon: '👥' }
 	];
 
+	const BRACKET_LABEL_FULL: Record<string, string> = {
+		winners: 'Bracket Principal',
+		losers: 'Bracket Repesca',
+		grand_final: 'Gran Final'
+	};
+	function bracketLabel(b: string): string {
+		return BRACKET_LABEL_FULL[b] ?? b;
+	}
+	/** Format curt català: 'Dl 02 jul'. Replica el patró del MyUpcomingMatchesWidget. */
+	function formatDateCa(d: string | null): string {
+		if (!d) return '—';
+		const dt = new Date(d);
+		if (isNaN(dt.getTime())) return d;
+		return dt.toLocaleDateString('ca-ES', {
+			weekday: 'short',
+			day: '2-digit',
+			month: 'short'
+		});
+	}
+
 	let participantsCount = 0;
 	let bracketStats: { total: number; played: number; pending: number; scheduled: number } | null = null;
 
@@ -243,61 +263,56 @@
 		</div>
 	</header>
 
-	<div class="mb-6 rounded-lg border border-purple-200 bg-white p-4 shadow-sm">
-		{#if participantsCount > 0}
-			<p class="text-sm font-semibold text-purple-700">{participantsCount} jugador{participantsCount !== 1 ? 's' : ''} inscrit{participantsCount !== 1 ? 's' : ''}</p>
-		{/if}
-		{#if champion}
-			<div class="mt-3 rounded-lg bg-yellow-100 border border-yellow-300 px-4 py-3 text-center">
-				<div class="text-xs font-semibold uppercase text-yellow-600 mb-0.5">Campió del Torneig</div>
-				<div class="text-lg font-bold text-yellow-900">🏆 {champion}</div>
-			</div>
-		{/if}
+	{#if champion}
+		<div class="mb-6 rounded-lg bg-yellow-100 border border-yellow-300 px-4 py-3 text-center">
+			<div class="text-xs font-semibold uppercase text-yellow-600 mb-0.5">Campió del Torneig</div>
+			<div class="text-lg font-bold text-yellow-900">🏆 {champion}</div>
+		</div>
+	{/if}
 
-		{#if bracketStats}
-			<div class="mt-3 flex flex-wrap gap-4 text-sm">
-				<span class="text-gray-600"><span class="font-semibold text-green-700">{bracketStats.played}</span>/{bracketStats.total} jugades</span>
-				<span class="text-gray-600"><span class="font-semibold text-blue-700">{bracketStats.scheduled}</span> programades</span>
-				<span class="text-gray-600"><span class="font-semibold text-gray-500">{bracketStats.pending}</span> pendents</span>
+	{#if recentMatches.length > 0}
+		<div class="mb-6 rounded-lg border border-purple-200 bg-white p-4 shadow-sm">
+			<div class="text-xs font-semibold uppercase text-purple-600 mb-2">Últims resultats</div>
+			<div class="space-y-1.5">
+				{#each recentMatches as m}
+					<div class="flex items-center gap-2 text-xs">
+						<span class="font-medium text-green-700">{m.winner_name}</span>
+						<span class="text-gray-400">guanya ·</span>
+						<span class="text-gray-500">{m.player1_name} vs {m.player2_name}</span>
+					</div>
+				{/each}
 			</div>
-			<div class="mt-2 flex gap-3">
-				<a href="/handicap/quadre" class="text-xs font-medium text-purple-600 hover:underline">Veure quadre →</a>
-				{#if bracketStats.pending > 0 || bracketStats.scheduled > 0}
-					<a href="/handicap/partides" class="text-xs font-medium text-blue-600 hover:underline">Gestionar partides →</a>
-				{/if}
-				<a href="/handicap/historial" class="text-xs font-medium text-green-600 hover:underline">Historial →</a>
-			</div>
-		{/if}
+		</div>
+	{/if}
 
-		{#if recentMatches.length > 0}
-			<div class="mt-4 border-t border-purple-100 pt-3">
-				<div class="text-xs font-semibold uppercase text-purple-600 mb-2">Últims resultats</div>
-				<div class="space-y-1.5">
-					{#each recentMatches as m}
-						<div class="flex items-center gap-2 text-xs">
-							<span class="font-medium text-green-700">{m.winner_name}</span>
-							<span class="text-gray-400">guanya ·</span>
-							<span class="text-gray-500">{m.player1_name} vs {m.player2_name}</span>
+	{#if upcomingMatches.length > 0}
+		<section class="ump-section">
+			<header class="ump-head">
+				<div class="editorial-eyebrow ump-eyebrow">Pròximament</div>
+				<h2 class="ump-title">Pròximes partides</h2>
+			</header>
+			<ol class="ump-list">
+				{#each upcomingMatches as m}
+					<li class="ump-row">
+						<div class="ump-date">
+							<div class="ump-date-day tabular-nums">{formatDateCa(m.data)}</div>
+							{#if m.hora}
+								<div class="ump-date-hour tabular-nums">{m.hora}</div>
+							{/if}
 						</div>
-					{/each}
-				</div>
-			</div>
-		{/if}
-
-		{#if upcomingMatches.length > 0}
-			<div class="mt-4 border-t border-purple-100 pt-3">
-				<div class="text-xs font-semibold uppercase text-purple-600 mb-2">Pròximes partides</div>
-				<div class="space-y-1.5">
-					{#each upcomingMatches as m}
-						<div class="flex items-center gap-2 text-xs">
-							<span class="text-gray-500">{m.data ? m.data.substring(8) + '/' + m.data.substring(5, 7) : '—'}{m.hora ? ' ' + m.hora : ''}</span>
-							<span class="text-gray-700">{m.player1_name} vs {m.player2_name}</span>
+						<div class="ump-info">
+							<div class="ump-opponent">
+								<strong>{m.player1_name}</strong> vs <strong>{m.player2_name}</strong>
+							</div>
+							<div class="ump-meta">
+								{bracketLabel(m.bracket_type)} · Ronda {m.ronda}
+							</div>
 						</div>
-					{/each}
-				</div>
-			</div>
-		{/if}
-	</div>
+					</li>
+				{/each}
+			</ol>
+		</section>
+	{/if}
 
 	<!-- Navegació pública -->
 	<h2 class="mb-3 text-lg font-semibold text-gray-800">Consultar</h2>
@@ -459,4 +474,68 @@
 	.hcap-root :global(a) {
 		color: var(--blue);
 	}
+
+	/* ── Properes partides: mateix format que MyUpcomingMatchesWidget ─── */
+	.ump-section {
+		margin-bottom: 2rem;
+		padding: 1.25rem 1.4rem;
+		background: var(--paper-elevated);
+		border: 1px solid var(--rule);
+		border-left: 3px solid var(--ink);
+		font-family: var(--font-sans);
+	}
+	.ump-head { margin-bottom: 0.85rem; }
+	.ump-eyebrow {
+		font-size: 0.625rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.16em;
+		color: var(--ink-3);
+	}
+	.ump-title {
+		margin: 0.3rem 0 0;
+		font-size: 1.125rem;
+		font-weight: 800;
+		letter-spacing: -0.012em;
+		color: var(--ink);
+	}
+	.ump-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.ump-row {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.85rem;
+		padding: 0.7rem 0;
+		border-bottom: 1px solid var(--rule);
+	}
+	.ump-row:last-child { border-bottom: none; }
+	.ump-date {
+		min-width: 5.5rem;
+		flex-shrink: 0;
+	}
+	.ump-date-day {
+		font-size: 0.8125rem;
+		font-weight: 700;
+		color: var(--ink);
+		text-transform: capitalize;
+	}
+	.ump-date-hour {
+		font-size: 0.75rem;
+		color: var(--ink-3);
+	}
+	.ump-info { flex: 1; min-width: 0; }
+	.ump-opponent {
+		font-size: 0.9375rem;
+		color: var(--ink-2);
+	}
+	.ump-opponent strong { color: var(--ink); }
+	.ump-meta {
+		margin-top: 0.2rem;
+		font-size: 0.8125rem;
+		color: var(--ink-3);
+	}
+	.tabular-nums { font-variant-numeric: tabular-nums; }
 </style>
