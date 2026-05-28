@@ -70,8 +70,13 @@
 	function playerLabel(m: MatchView, which: 1 | 2): string {
 		const p = which === 1 ? m.player1 : m.player2;
 		if (!p) return 'Per determinar';
-		const display = p.shortName ?? p.name ?? '';
-		return display ? formatarNomJugador(display) : 'Per determinar';
+		// shortName ja ve abreujada (formatarNomJugadorParts amb nom/cognoms
+		// separats, que preserva noms compostos com "Jose Antonio Saucedo →
+		// J. A. Saucedo"). Si la passem una segona vegada per formatarNomJugador,
+		// reinterpreta "J. A. Saucedo" com nom+cognoms i perd el cognom real.
+		if (p.shortName) return p.shortName;
+		if (p.name) return formatarNomJugador(p.name);
+		return 'Per determinar';
 	}
 
 	function isWinner(m: MatchView, which: 1 | 2): boolean {
