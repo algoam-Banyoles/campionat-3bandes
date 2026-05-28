@@ -6,6 +6,7 @@
 	import HandicapSlotPicker from '$lib/components/handicap/HandicapSlotPicker.svelte';
 	import HandicapBranchBalance from '$lib/components/handicap/HandicapBranchBalance.svelte';
 	import HandicapWeeklyCalendar from '$lib/components/handicap/HandicapWeeklyCalendar.svelte';
+	import HandicapCalendarGridView from '$lib/components/handicap/HandicapCalendarGridView.svelte';
 	import HandicapMatchResult from '$lib/components/handicap/HandicapMatchResult.svelte';
 	import type { CalendarEntry, BranchMatchInput } from '$lib/utils/handicap-types';
 	import { buildMatchCodeMap, buildSlotSourceMap } from '$lib/utils/handicap-types';
@@ -46,6 +47,8 @@
 		hora_inici: string | null; // 'HH:MM'
 		taula_assignada: number | null;
 		dataMaximaDisputa: string | null; // 'YYYY-MM-DD'
+		winnerDest: string | null;
+		loserDest: string | null;
 	}
 
 	// ── Estat ─────────────────────────────────────────────────────────────────
@@ -109,6 +112,7 @@
 	// ── Pestanya activa ───────────────────────────────────────────────────────
 
 	let activeTab: 'list' | 'calendar' | 'mine' = 'list';
+	let calendarMode: 'weekly' | 'grid' = 'grid';
 
 	// ── Participant actual ────────────────────────────────────────────────────
 
@@ -149,7 +153,10 @@
 			data_programada: m.data_programada!,
 			hora_inici: m.hora_inici!,
 			taula_assignada: m.taula_assignada!,
-			dataMaximaDisputa: m.dataMaximaDisputa
+			dataMaximaDisputa: m.dataMaximaDisputa,
+			matchCode: m.matchCode,
+			winnerDest: m.winnerDest ?? undefined,
+			loserDest: m.loserDest ?? undefined
 		})) as CalendarEntry[];
 
 	// ── Programació manual ────────────────────────────────────────────────────
@@ -336,6 +343,18 @@
 		}));
 		const deadlines = computeDeadlines(deadlineInputs, config?.data_fi ?? null);
 
+		// Map slot_id → codi de match (per resoldre destinacions de winner/loser).
+		const matchBySlot = new Map<string, any>();
+		for (const m of rawMatches) {
+			matchBySlot.set(m.slot1_id, m);
+			matchBySlot.set(m.slot2_id, m);
+		}
+		const destCode = (slotId: string | null): string | null => {
+			if (!slotId) return null;
+			const dest = matchBySlot.get(slotId);
+			return dest ? codeMap.get(dest.id) ?? null : null;
+		};
+
 		matches = rawMatches
 			.map((m) => {
 			const slot1 = slotMap.get(m.slot1_id);
@@ -370,7 +389,9 @@
 				hora_inici: partida ? (partida.hora_inici as string).substring(0, 5) : null,
 				taula_assignada: partida?.taula_assignada ?? null,
 				matchCode: codeMap.get(m.id) ?? '',
-				dataMaximaDisputa: deadlines.get(m.id) ?? null
+				dataMaximaDisputa: deadlines.get(m.id) ?? null,
+				winnerDest: destCode(m.winner_slot_dest_id),
+				loserDest: destCode(m.loser_slot_dest_id)
 			} satisfies MatchDisplay;
 		})
 		.filter((m) => m.estat !== 'bye')
@@ -932,20 +953,54 @@
 		</div>
 
 		{#if activeTab === 'calendar' && config}
-			<HandicapWeeklyCalendar
-				entries={calendarEntries}
-				{config}
-				on:matchclick={(e) => {
-					const m = matches.find((x) => x.id === e.detail);
-					if (m) {
-						activeTab = 'list';
-						filterEstat = 'all';
-						filterBracket = 'all';
-						filterRonda = 'all';
-						searchTerm = m.player1_name.split(' ')[0];
-					}
-				}}
-			/>
+			<!-- Toggle Setmanal / Graella -->
+			<div class="mb-3 inline-flex rounded border border-gray-300 bg-white p-0.5 text-xs">
+				<button
+					type="button"
+					on:click={() => (calendarMode = 'weekly')}
+					class="rounded px-3 py-1 font-medium {calendarMode === 'weekly'
+						? 'bg-gray-800 text-white'
+						: 'text-gray-600 hover:bg-gray-100'}"
+					title="Vista setmanal (navegació per setmanes)"
+				>Setmanal</button>
+				<button
+					type="button"
+					on:click={() => (calendarMode = 'grid')}
+					class="rounded px-3 py-1 font-medium {calendarMode === 'grid'
+						? 'bg-gray-800 text-white'
+						: 'text-gray-600 hover:bg-gray-100'}"
+					title="Vista graella (format de la versió d'impressió)"
+				>Graella</button>
+			</div>
+
+			{#if calendarMode === 'weekly'}
+				<HandicapWeeklyCalendar
+					entries={calendarEntries}
+					{config}
+					on:matchclick={(e) => {
+						const m = matches.find((x) => x.id === e.detail);
+						if (m) {
+							activeTab = 'list';
+							filterEstat = 'all';
+							filterBracket = 'all';
+							filterRonda = 'all';
+							searchTerm = m.player1_name.split(' ')[0];
+						}
+					}}
+				/>
+			{:else}
+				<HandicapCalendarGridView
+					entries={calendarEntries}
+					{config}
+					diesBloquejats={[new Date('2026-06-24')]}
+					on:matchclick={(e) => {
+						const m = matches.find((x) => x.id === e.detail);
+						if (m) {
+							resultMatchId = m.id;
+						}
+					}}
+				/>
+			{/if}
 		{:else}
 
 		<!-- Filtres -->

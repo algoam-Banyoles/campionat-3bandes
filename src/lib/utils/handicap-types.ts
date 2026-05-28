@@ -127,6 +127,12 @@ export interface CalendarEntry {
 	taula_assignada: number; // 1-3
 	/** 'YYYY-MM-DD' — opcional. Veure MatchView.dataMaximaDisputa. */
 	dataMaximaDisputa?: string | null;
+	/** Codi del match (W1.1, L2.3, GF1) — opcional. Usat per la vista graella. */
+	matchCode?: string;
+	/** Codi del match destí del guanyador — opcional. */
+	winnerDest?: string;
+	/** Codi del match destí del perdedor — opcional. */
+	loserDest?: string;
 }
 
 export interface PlayerInfo {
