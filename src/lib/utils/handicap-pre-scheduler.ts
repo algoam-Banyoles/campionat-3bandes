@@ -317,6 +317,28 @@ export function preSchedulingForBracket(
 			}
 		}
 
+		// Barrera CROSS-BRACKET Winners→Losers: els matches del Losers que reben
+		// perdedors d'una ronda Winners no comencen fins que aquella ronda hagi
+		// acabat. Al ronda L1 i L2 amb marge primer (1 dia al mig).
+		// Mapping: L1 → W1; L(2k) → W(k+1) per k=1..4 (L2→W2, L4→W3, L6→W4, L8→W5).
+		if (bracket === 'losers') {
+			let winnersRondaPrev: number | null = null;
+			if (ronda === 1) {
+				winnersRondaPrev = 1;
+			} else if (ronda % 2 === 0) {
+				winnersRondaPrev = ronda / 2 + 1;
+			}
+			if (winnersRondaPrev !== null) {
+				const winnersEnd = lastDateInRound.get(`winners-${winnersRondaPrev}`);
+				if (winnersEnd) {
+					const isPrimera = winnersRondaPrev <= 2;
+					const margeExtra = isPrimera ? margeInici : 0;
+					const barrier = addDays(winnersEnd, 1 + margeExtra);
+					if (barrier > earliestDate) earliestDate = barrier;
+				}
+			}
+		}
+
 		const nivellMatch = getNivell(bracket, ronda);
 
 		// Cerquem el primer slot disponible ≥ earliestDate. Si el match és d'un
@@ -353,6 +375,15 @@ export function preSchedulingForBracket(
 		const cKey = dayKeyOf(chosen.date);
 		if (!levelsByDate.has(cKey)) levelsByDate.set(cKey, new Set());
 		levelsByDate.get(cKey)!.add(nivellMatch);
+
+		// Actualitzar lastDateInRound perquè la barrera de ronda en els
+		// successors funcioni (era el bug: el map quedava sempre buit).
+		const lastKey = `${bracket}-${ronda}`;
+		const prevLast = lastDateInRound.get(lastKey);
+		if (!prevLast || chosen.date > prevLast) {
+			lastDateInRound.set(lastKey, chosen.date);
+		}
+
 		// Inicialment, dataMaximaDisputa = data_fi (es recalcularà després).
 		scheduled.set(m.id, {
 			matchId: m.id,
@@ -363,16 +394,37 @@ export function preSchedulingForBracket(
 		});
 	}
 
-	// Calcular dataMaximaDisputa = min(dataProgramada dels successors) - 1 dia.
-	// Si no té successors, la deadline és data_fi.
+	// Calcular dataMaximaDisputa = primer dia de la ronda següent (la que rep
+	// matches d'aquest) - 1 dia. Així tots els matches d'una mateixa ronda
+	// tenen la mateixa deadline: el dia anterior a l'inici de la ronda que
+	// els segueix. Si no té successors, la deadline és data_fi.
+	const firstDateInRound = new Map<string, Date>();
+	for (const m of playables) {
+		const sched = scheduled.get(m.id);
+		if (!sched) continue;
+		const s = slotById.get(m.slot1_id);
+		const key = `${s?.bracket_type}-${s?.ronda}`;
+		const existing = firstDateInRound.get(key);
+		if (!existing || sched.dataProgramada < existing) {
+			firstDateInRound.set(key, sched.dataProgramada);
+		}
+	}
+
 	for (const m of playables) {
 		const succs = successorsOf.get(m.id) ?? [];
-		const succDates = succs
-			.map(sid => scheduled.get(sid)?.dataProgramada)
-			.filter((d): d is Date => !!d);
-		if (succDates.length === 0) continue; // ja és data_fi
-		const minSuccDate = succDates.reduce((a, b) => (a < b ? a : b));
-		const deadline = addDays(minSuccDate, -1);
+		if (succs.length === 0) continue;
+		const succFirstDates: Date[] = [];
+		for (const sid of succs) {
+			const succMatch = playablesById.get(sid);
+			if (!succMatch) continue;
+			const s = slotById.get(succMatch.slot1_id);
+			const key = `${s?.bracket_type}-${s?.ronda}`;
+			const d = firstDateInRound.get(key);
+			if (d) succFirstDates.push(d);
+		}
+		if (succFirstDates.length === 0) continue;
+		const minFirst = succFirstDates.reduce((a, b) => (a < b ? a : b));
+		const deadline = addDays(minFirst, -1);
 		const entry = scheduled.get(m.id);
 		if (entry) entry.dataMaximaDisputa = deadline;
 	}
