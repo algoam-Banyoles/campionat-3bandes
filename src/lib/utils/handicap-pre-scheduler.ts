@@ -309,9 +309,12 @@ export function preSchedulingForBracket(
 			if (losersRondaPrev >= 1) {
 				const losersEnd = lastDateInRound.get(`losers-${losersRondaPrev}`);
 				if (losersEnd) {
-					// Sense marge addicional cross-bracket: només +1 dia
-					// (l'usuari prefereix no perdre dies entre L i W).
-					const barrier = addDays(losersEnd, 1);
+					// Amb marge: 1 dia al mig entre l'última partida de L(2r-3)
+					// i la primera de W(r). Aquell dia al mig serveix com a
+					// deadline per recuperar partides L ajornades.
+					const isPrimeraRondaCross = losersRondaPrev <= 3;
+					const margeExtraCross = isPrimeraRondaCross ? margeInici : 0;
+					const barrier = addDays(losersEnd, 1 + margeExtraCross);
 					if (barrier > earliestDate) earliestDate = barrier;
 				}
 			}
@@ -331,8 +334,12 @@ export function preSchedulingForBracket(
 			if (winnersRondaPrev !== null) {
 				const winnersEnd = lastDateInRound.get(`winners-${winnersRondaPrev}`);
 				if (winnersEnd) {
-					// Sense marge addicional cross-bracket: només +1 dia.
-					const barrier = addDays(winnersEnd, 1);
+					// Amb marge: 1 dia al mig entre l'última partida de W(k) i
+					// la primera de L. Aquell dia al mig és deadline per recuperar
+					// partides W ajornades.
+					const isPrimera = winnersRondaPrev <= 2;
+					const margeExtra = isPrimera ? margeInici : 0;
+					const barrier = addDays(winnersEnd, 1 + margeExtra);
 					if (barrier > earliestDate) earliestDate = barrier;
 				}
 			}

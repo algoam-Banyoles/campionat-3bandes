@@ -25,19 +25,15 @@
 	let error: string | null = null;
 	let inputCount = participantCount ?? 32;
 
-	// Per cada slot (data+hora+billar) → info del match programat
-	type SlotCell = {
+	// Llistat ordenat de partides amb dia/hora/billar/codi
+	type CalRow = {
+		date: Date;
+		hora: string;
+		billar: number;
 		code: string;
 		bracket: 'winners' | 'losers' | 'grand_final';
-		ronda: number;
-		jugador1Nom: string | null;
-		jugador2Nom: string | null;
 	};
-	// Estructura: mapWeekDays[weekIdx] = [dies de la setmana]; cellMap[dateISO][hora][billar] = SlotCell
-	let weeks: Array<{ start: Date; days: Date[] }> = [];
-	let cellMap = new Map<string, SlotCell>(); // key: 'YYYY-MM-DD|HH:MM|B'
-	let horesUsades: string[] = ['18:00', '19:00'];
-	let billarsUsats: number[] = [1, 2, 3];
+	let rows: CalRow[] = [];
 
 	onMount(async () => {
 		logoDataUrl = await loadLogoDataUrl();
@@ -52,17 +48,10 @@
 		return d.toISOString().slice(0, 10);
 	}
 
-	function addDays(d: Date, n: number): Date {
-		const r = new Date(d);
-		r.setDate(r.getDate() + n);
-		return r;
-	}
-
 	async function loadAll() {
 		loading = true;
 		error = null;
-		weeks = [];
-		cellMap = new Map();
+		rows = [];
 
 		try {
 			if (!inputCount || inputCount < 2) {
@@ -71,7 +60,6 @@
 				return;
 			}
 
-			// Generar bracket fake (estructural). Mateix patró que als altres modals.
 			const fakes: ParticipantInput[] = Array.from({ length: inputCount }, (_, i) => ({
 				id: `fake-${i + 1}`,
 				seed: i + 1,
@@ -95,7 +83,6 @@
 					estat: m.estat
 				}));
 
-			// Carregar event actiu per a dates i horaris extra
 			const { data: ev } = await supabase
 				.from('events')
 				.select('id, data_inici, data_fi')
@@ -123,14 +110,13 @@
 				billars: 3
 			});
 
-			// Codis seqüencials per match
 			const order: Record<string, number> = { winners: 0, losers: 1, grand_final: 2 };
 			const slotById = new Map(slots.map(s => [s.id, s]));
 			const enriched = matches.map(m => {
 				const s = slotById.get(m.slot1_id);
 				return {
 					m,
-					bracket: s?.bracket_type ?? 'winners',
+					bracket: (s?.bracket_type ?? 'winners') as CalRow['bracket'],
 					ronda: s?.ronda ?? 0,
 					posicio: s?.posicio ?? 0
 				};
@@ -151,50 +137,27 @@
 				codeByMatchId.set(e.m.id, code);
 			}
 
-			// Omplir cellMap i recollir hores usades
-			const horesSet = new Set<string>();
+			const tmp: CalRow[] = [];
 			for (const e of enriched) {
 				const sched = scheduled.get(e.m.id);
 				if (!sched) continue;
-				const key = `${ymd(sched.dataProgramada)}|${sched.horaInici}|${sched.taulaAssignada}`;
-				cellMap.set(key, {
+				tmp.push({
+					date: sched.dataProgramada,
+					hora: sched.horaInici,
+					billar: sched.taulaAssignada,
 					code: codeByMatchId.get(e.m.id) ?? '?',
-					bracket: e.bracket,
-					ronda: e.ronda,
-					jugador1Nom: null,
-					jugador2Nom: null
+					bracket: e.bracket
 				});
-				horesSet.add(sched.horaInici);
 			}
-			horesUsades = [...horesSet].sort();
-
-			// Construir setmanes (de dilluns a divendres) entre dataInici i dataFi
-			const inici = new Date(ev.data_inici);
-			const fi = new Date(ev.data_fi);
-			// Comencem a dilluns d'aquesta setmana
-			let cursor = new Date(inici);
-			const dayMonday = cursor.getDay() === 0 ? -6 : 1 - cursor.getDay();
-			cursor = addDays(cursor, dayMonday);
-			while (cursor <= fi) {
-				const days: Date[] = [];
-				for (let i = 0; i < 5; i++) days.push(addDays(cursor, i)); // dl..dv
-				// Mantenim setmana només si conté algun dia dins el rang i amb match
-				const hasMatch = days.some(d => {
-					if (d < inici || d > fi) return false;
-					for (const h of horesUsades) {
-						for (const b of billarsUsats) {
-							if (cellMap.has(`${ymd(d)}|${h}|${b}`)) return true;
-						}
-					}
-					return false;
-				});
-				if (hasMatch) {
-					weeks.push({ start: cursor, days });
-				}
-				cursor = addDays(cursor, 7);
-			}
-			weeks = weeks; // trigger reactivity
-
+			// Ordenar cronològicament: dia, hora, billar
+			tmp.sort((a, b) => {
+				const da = a.date.getTime();
+				const db = b.date.getTime();
+				if (da !== db) return da - db;
+				if (a.hora !== b.hora) return a.hora.localeCompare(b.hora);
+				return a.billar - b.billar;
+			});
+			rows = tmp;
 			loading = false;
 		} catch (e: any) {
 			error = e.message ?? 'Error generant el calendari';
@@ -203,15 +166,59 @@
 	}
 
 	function diaNom(d: Date): string {
-		return ['Dg', 'Dl', 'Dt', 'Dc', 'Dj', 'Dv', 'Ds'][d.getDay()];
+		return ['Diumenge', 'Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte'][d.getDay()];
 	}
 	function dateLabel(d: Date): string {
 		const dd = String(d.getDate()).padStart(2, '0');
 		const mm = String(d.getMonth() + 1).padStart(2, '0');
-		return `${diaNom(d)} ${dd}/${mm}`;
+		return `${dd}/${mm}`;
 	}
-	function cellAt(date: Date, hora: string, billar: number): SlotCell | undefined {
-		return cellMap.get(`${ymd(date)}|${hora}|${billar}`);
+
+	// Agrupem rows per dia → hora per als rowspans
+	type GroupHour = { hora: string; items: CalRow[] };
+	type GroupDay = { date: Date; total: number; hours: GroupHour[] };
+	$: groupedDays = (() => {
+		const byDay = new Map<string, GroupDay>();
+		for (const r of rows) {
+			const key = ymd(r.date);
+			let gd = byDay.get(key);
+			if (!gd) {
+				gd = { date: r.date, total: 0, hours: [] };
+				byDay.set(key, gd);
+			}
+			let gh = gd.hours.find(h => h.hora === r.hora);
+			if (!gh) {
+				gh = { hora: r.hora, items: [] };
+				gd.hours.push(gh);
+			}
+			gh.items.push(r);
+			gd.total++;
+		}
+		return [...byDay.values()].sort((a, b) => a.date.getTime() - b.date.getTime());
+	})();
+
+	// Per a 2 columnes: dividim els dies en dues meitats balancejades
+	let columns: 1 | 2 = 2;
+	$: splitDays = (() => {
+		if (columns === 1) return [groupedDays];
+		const total = groupedDays.reduce((a, g) => a + g.total, 0);
+		const target = total / 2;
+		const left: GroupDay[] = [];
+		const right: GroupDay[] = [];
+		let acc = 0;
+		for (const g of groupedDays) {
+			if (acc < target) {
+				left.push(g);
+				acc += g.total;
+			} else {
+				right.push(g);
+			}
+		}
+		return [left, right];
+	})();
+
+	function codeColorClass(bracket: CalRow['bracket']): string {
+		return bracket === 'winners' ? 'code-w' : bracket === 'losers' ? 'code-l' : 'code-gf';
 	}
 
 	function doPrint() {
@@ -233,14 +240,12 @@
 		}
 
 		const css = String.raw`
-			@page { size: A3 landscape; margin: 0; }
-			@page { size: 420mm 297mm; margin: 0; }
+			@page { size: A4 landscape; margin: 8mm 8mm 6mm 8mm; }
 			* { box-sizing: border-box; }
 			html, body { margin: 0; padding: 0; background: white; font-family: 'Helvetica Neue', Arial, sans-serif; color: #1f1f1f; }
 			.print-page {
 				background: white;
-				width: 420mm; height: 297mm;
-				padding: 8mm 10mm;
+				padding: 0;
 				margin: 0;
 				display: flex; flex-direction: column;
 				page-break-after: always;
@@ -248,50 +253,53 @@
 			.print-page:last-child { page-break-after: auto; }
 			.page-head {
 				display: flex; justify-content: space-between; align-items: center;
-				border-bottom: 2px solid #1f1f1f; padding-bottom: 4mm; margin-bottom: 4mm;
-				gap: 6mm;
+				border-bottom: 2px solid #1f1f1f; padding-bottom: 3mm; margin-bottom: 4mm; gap: 6mm;
 			}
 			.page-head-left { display: flex; align-items: center; gap: 5mm; }
-			.page-logo { height: 16mm; width: 11mm; object-fit: contain; flex: none; }
-			.page-title-main { font-weight: 800; font-size: 14pt; letter-spacing: 0.02em; text-transform: uppercase; }
-			.page-section { font-size: 10pt; color: #444; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-			.page-sub { font-size: 9pt; color: #555; }
-			.cal-grid {
-				flex: 1; display: grid;
-				grid-template-columns: 22mm repeat(5, 1fr);
-				gap: 1.5mm;
-				min-height: 0;
+			.page-logo { height: 14mm; width: 10mm; object-fit: contain; flex: none; }
+			.page-title-main { font-weight: 800; font-size: 13pt; letter-spacing: 0.02em; text-transform: uppercase; }
+			.page-section { font-size: 9pt; color: #444; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+			.page-sub { font-size: 8pt; color: #555; }
+			.two-cols { display: flex; gap: 5mm; }
+			.col { flex: 1; min-width: 0; }
+			.cal-table {
+				width: 100%; border-collapse: collapse;
+				font-size: 10pt;
 			}
-			.cal-head, .cal-hour-label, .cal-cell {
-				border: 1px solid #1f1f1f;
-				padding: 1.5mm;
-				font-size: 8pt;
-				display: flex; flex-direction: column;
+			.cal-table th, .cal-table td {
+				border: 1px solid #333;
+				padding: 1.2mm 1.5mm;
+				text-align: center;
+				vertical-align: middle;
 			}
-			.cal-head {
-				font-weight: 800; font-size: 10pt;
-				background: #1f1f1f; color: white;
-				justify-content: center; text-align: center;
+			.cal-table th {
+				background: #e8e8e8;
+				font-weight: 700; font-size: 8pt;
+				text-transform: uppercase; letter-spacing: 0.04em;
+				padding: 1.5mm 1mm;
 			}
-			.cal-hour-label {
-				background: #f0f0f0;
+			.day-cell {
+				background: #f5f5f5;
 				font-weight: 700; font-size: 9pt;
-				justify-content: center; align-items: center;
+				border-right: 2px solid #333;
+				white-space: nowrap;
 			}
-			.cal-cell { min-height: 30mm; gap: 1mm; }
-			.cell-empty { background: repeating-linear-gradient(45deg, #fafafa, #fafafa 3mm, white 3mm, white 6mm); }
-			.cell-head {
-				display: flex; justify-content: space-between; align-items: baseline;
-				font-size: 8pt; font-weight: 700;
-				border-bottom: 1px solid #999; padding-bottom: 0.5mm;
+			.day-cell .d-num { font-size: 11pt; font-weight: 800; }
+			.day-cell .d-name { font-size: 7.5pt; color: #555; font-weight: 600; }
+			.hour-cell {
+				background: #fafafa;
+				font-weight: 700; font-size: 10pt;
+				border-right: 2px solid #333;
 			}
+			.billar-cell { font-weight: 700; font-size: 9pt; background: #fcfcfc; width: 9mm; }
+			.code-cell { font-weight: 800; font-size: 9pt; width: 14mm; }
 			.code-w { color: #1d6e3a; }
 			.code-l { color: #a30b1e; }
 			.code-gf { color: #6b3eb8; }
-			.cell-line { display: flex; align-items: center; gap: 1mm; font-size: 7.5pt; }
-			.line { flex: 1; border-bottom: 1px solid #1f1f1f; height: 3.5mm; }
-			.kv { font-size: 7pt; color: #555; font-weight: 600; }
-			.box { display: inline-block; border: 1px solid #1f1f1f; height: 3.5mm; width: 8mm; }
+			.player-cell { font-size: 9pt; min-width: 35mm; }
+			.player-line {
+				display: inline-block; width: 100%; border-bottom: 1px solid #1f1f1f; height: 4mm;
+			}
 		`;
 
 		const scriptOpen = '<' + 'script>';
@@ -306,10 +314,8 @@
 			scriptClose;
 
 		const html = `<!DOCTYPE html>
-<html lang="ca">
-<head><meta charset="utf-8" /><title>Calendari — ${(eventNom || 'Hàndicap').replace(/[<>&"]/g, '')}</title><style>${css}</style></head>
-<body>${innerHTML}${printScript}</body>
-</html>`;
+<html lang="ca"><head><meta charset="utf-8" /><title>Calendari — ${(eventNom || 'Hàndicap').replace(/[<>&"]/g, '')}</title><style>${css}</style></head>
+<body>${innerHTML}${printScript}</body></html>`;
 		w.document.open();
 		w.document.write(html);
 		w.document.close();
@@ -319,7 +325,7 @@
 <div class="modal-overlay print-portal" use:printPortal on:click|self={onClose} role="presentation">
 	<div class="modal-card" role="dialog" aria-modal="true">
 		<div class="modal-head no-print">
-			<h2 class="modal-title">Calendari A3 — pre-programació hàndicap</h2>
+			<h2 class="modal-title">Calendari A4 apaisat — pre-programació hàndicap</h2>
 			<button type="button" class="close-btn" on:click={onClose} aria-label="Tancar">×</button>
 		</div>
 
@@ -330,14 +336,20 @@
 				{:else if error}
 					<span class="err">{error}</span>
 				{:else}
-					<span>{weeks.length} setmana(es) · A3 apaisat</span>
-					<span class="hint">Al diàleg d'imprimir tria <strong>A3</strong> i orientació <strong>Apaisat</strong>.</span>
+					<span>{rows.length} partides programades</span>
+					<label class="count-label">
+						Jugadors:
+						<input type="number" min="2" max="128" bind:value={inputCount} class="count-input" />
+					</label>
+					<label class="count-label">
+						Format:
+						<select bind:value={columns} class="count-input">
+							<option value={2}>2 columnes (compacte)</option>
+							<option value={1}>1 columna (text gran)</option>
+						</select>
+					</label>
+					<button type="button" class="btn-secondary" on:click={regenerate} disabled={loading}>Recalcular</button>
 				{/if}
-				<label class="count-label">
-					Jugadors:
-					<input type="number" min="2" max="128" bind:value={inputCount} class="count-input" />
-				</label>
-				<button type="button" class="btn-secondary" on:click={regenerate} disabled={loading}>Recalcular</button>
 			</div>
 			<div class="toolbar-actions">
 				<button type="button" class="btn-secondary" on:click={onClose}>Tancar</button>
@@ -349,51 +361,60 @@
 
 		{#if !loading && !error}
 			<div class="preview">
-				{#each weeks as week, wi}
-					<section class="print-page">
-						<header class="page-head">
-							<div class="page-head-left">
-								<img src={logoDataUrl || `${base}/logo.png`} alt="" class="page-logo" />
-								<div>
-									<div class="page-title-main">CAMPIONAT SOCIAL HÀNDICAP{temporadaPretty ? ` ${temporadaPretty}` : ''}</div>
-									<div class="page-section">Calendari setmana {wi + 1}/{weeks.length} · {dateLabel(week.days[0])} — {dateLabel(week.days[4])}</div>
-								</div>
+				<section class="print-page">
+					<header class="page-head">
+						<div class="page-head-left">
+							<img src={logoDataUrl || `${base}/logo.png`} alt="" class="page-logo" />
+							<div>
+								<div class="page-title-main">CAMPIONAT SOCIAL HÀNDICAP{temporadaPretty ? ` ${temporadaPretty}` : ''}</div>
+								<div class="page-section">Calendari de partides ({rows.length})</div>
 							</div>
-							{#if eventNom}<div class="page-sub">{eventNom}</div>{/if}
-						</header>
-
-						<div class="cal-grid" style="grid-template-rows: 10mm repeat({horesUsades.length * billarsUsats.length}, 1fr);">
-							<!-- Capçalera columnes (dies) -->
-							<div class="cal-hour-label">Slot</div>
-							{#each week.days as day}
-								<div class="cal-head">{dateLabel(day)}</div>
-							{/each}
-
-							<!-- Files: hora + billar -->
-							{#each horesUsades as hora}
-								{#each billarsUsats as billar}
-									<div class="cal-hour-label">{hora}<br />B{billar}</div>
-									{#each week.days as day}
-										{@const cell = cellAt(day, hora, billar)}
-										<div class="cal-cell" class:cell-empty={!cell}>
-											{#if cell}
-												<div class="cell-head">
-													<span class="match-code {cell.bracket === 'winners' ? 'code-w' : cell.bracket === 'losers' ? 'code-l' : 'code-gf'}">{cell.code}</span>
-												</div>
-												<div class="cell-line">
-													<span class="line"></span>
-												</div>
-												<div class="cell-line">
-													<span class="line"></span>
-												</div>
-											{/if}
-										</div>
-									{/each}
-								{/each}
-							{/each}
 						</div>
-					</section>
-				{/each}
+						{#if eventNom}<div class="page-sub">{eventNom}</div>{/if}
+					</header>
+
+					<div class="two-cols">
+						{#each splitDays as colDays}
+							<div class="col">
+								<table class="cal-table">
+									<thead>
+										<tr>
+											<th>Dia</th>
+											<th>Hora</th>
+											<th>B</th>
+											<th>Match</th>
+											<th>Jugador 1</th>
+											<th>Jugador 2</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#each colDays as gd}
+											{#each gd.hours as gh, hIdx}
+												{#each gh.items as it, iIdx}
+													<tr>
+														{#if hIdx === 0 && iIdx === 0}
+															<td class="day-cell" rowspan={gd.total}>
+																<div class="d-num">{dateLabel(gd.date)}</div>
+																<div class="d-name">{diaNom(gd.date)}</div>
+															</td>
+														{/if}
+														{#if iIdx === 0}
+															<td class="hour-cell" rowspan={gh.items.length}>{gh.hora}</td>
+														{/if}
+														<td class="billar-cell">B{it.billar}</td>
+														<td class="code-cell {codeColorClass(it.bracket)}">{it.code}</td>
+														<td class="player-cell"><span class="player-line"></span></td>
+														<td class="player-cell"><span class="player-line"></span></td>
+													</tr>
+												{/each}
+											{/each}
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						{/each}
+					</div>
+				</section>
 			</div>
 		{/if}
 	</div>
@@ -407,7 +428,7 @@
 		padding: 1rem;
 	}
 	.modal-card {
-		background: white; width: 100%; max-width: 1500px;
+		background: white; width: 100%; max-width: 1400px;
 		max-height: 100%; display: flex; flex-direction: column;
 	}
 	.modal-head {
@@ -433,77 +454,72 @@
 	.btn-secondary { background: white; color: #1f1f1f; }
 	.btn-primary:disabled, .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 	.err { color: #a30b1e; font-weight: 600; }
-	.hint { color: #555; font-size: 0.8125rem; }
 	.count-label { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600; }
 	.count-input {
-		width: 4.5rem; padding: 0.25rem 0.4rem;
+		padding: 0.25rem 0.4rem;
 		border: 1px solid #333; border-radius: 0;
-		font-size: 0.875rem;
+		font-size: 0.8125rem; background: white;
 	}
 
 	.preview { overflow: auto; flex: 1; padding: 1rem; background: #ececec; }
 
 	.print-page {
 		background: white;
-		width: 420mm; height: 297mm;
-		padding: 8mm 10mm;
+		width: 297mm; min-height: 200mm; /* A4 apaisat */
+		padding: 8mm 8mm 6mm 8mm;
 		margin: 0 auto 1rem auto;
 		box-sizing: border-box;
 		display: flex; flex-direction: column;
-		page-break-after: always;
 	}
-	.print-page:last-child { page-break-after: auto; }
 
 	.page-head {
 		display: flex; justify-content: space-between; align-items: center;
-		border-bottom: 2px solid #1f1f1f; padding-bottom: 4mm; margin-bottom: 4mm;
-		gap: 6mm;
+		border-bottom: 2px solid #1f1f1f; padding-bottom: 3mm; margin-bottom: 4mm; gap: 6mm;
 	}
 	.page-head-left { display: flex; align-items: center; gap: 5mm; }
 	.page-logo {
-		height: 16mm; width: 11mm; flex: none;
+		height: 14mm; width: 10mm; flex: none;
 		object-fit: contain;
 		display: inline-flex; align-items: center; justify-content: center;
 	}
-	.page-title-main { font-weight: 800; font-size: 14pt; letter-spacing: 0.02em; text-transform: uppercase; }
-	.page-section { font-size: 10pt; color: #444; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-	.page-sub { font-size: 9pt; color: #555; }
+	.page-title-main { font-weight: 800; font-size: 13pt; letter-spacing: 0.02em; text-transform: uppercase; }
+	.page-section { font-size: 9pt; color: #444; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+	.page-sub { font-size: 8pt; color: #555; }
 
-	.cal-grid {
-		flex: 1; display: grid;
-		grid-template-columns: 22mm repeat(5, 1fr);
-		gap: 1.5mm;
-		min-height: 0;
+	.two-cols { display: flex; gap: 5mm; }
+	.col { flex: 1; min-width: 0; }
+	.cal-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+	.cal-table th, .cal-table td {
+		border: 1px solid #333;
+		padding: 1.2mm 1.5mm;
+		text-align: center; vertical-align: middle;
 	}
-	.cal-head, .cal-hour-label, .cal-cell {
-		border: 1px solid #1f1f1f;
-		padding: 1.5mm;
-		font-size: 8pt;
-		display: flex; flex-direction: column;
+	.cal-table th {
+		background: #e8e8e8;
+		font-weight: 700; font-size: 8pt;
+		text-transform: uppercase; letter-spacing: 0.04em;
+		padding: 1.5mm 1mm;
 	}
-	.cal-head {
-		font-weight: 800; font-size: 10pt;
-		background: #1f1f1f; color: white;
-		justify-content: center; text-align: center;
-	}
-	.cal-hour-label {
-		background: #f0f0f0;
+	.day-cell {
+		background: #f5f5f5;
 		font-weight: 700; font-size: 9pt;
-		justify-content: center; align-items: center;
-		text-align: center;
+		border-right: 2px solid #333;
+		white-space: nowrap;
 	}
-	.cal-cell { min-height: 30mm; gap: 1mm; }
-	.cell-empty { background: repeating-linear-gradient(45deg, #fafafa, #fafafa 3mm, white 3mm, white 6mm); }
-	.cell-head {
-		display: flex; justify-content: space-between; align-items: baseline;
-		font-size: 8pt; font-weight: 700;
-		border-bottom: 1px solid #999; padding-bottom: 0.5mm;
+	.day-cell .d-num { font-size: 11pt; font-weight: 800; }
+	.day-cell .d-name { font-size: 7.5pt; color: #555; font-weight: 600; }
+	.hour-cell {
+		background: #fafafa;
+		font-weight: 700; font-size: 10pt;
+		border-right: 2px solid #333;
 	}
+	.billar-cell { font-weight: 700; font-size: 9pt; background: #fcfcfc; }
+	.code-cell { font-weight: 800; font-size: 9pt; }
 	.code-w { color: #1d6e3a; }
 	.code-l { color: #a30b1e; }
 	.code-gf { color: #6b3eb8; }
-	.cell-line { display: flex; align-items: center; gap: 1mm; font-size: 7.5pt; }
-	.line { flex: 1; border-bottom: 1px solid #1f1f1f; height: 3.5mm; }
+	.player-cell { font-size: 9pt; min-width: 35mm; }
+	.player-line { display: inline-block; width: 100%; border-bottom: 1px solid #1f1f1f; height: 4mm; }
 
 	@media print {
 		:global(body > *:not(.print-portal)) { display: none !important; }
@@ -524,9 +540,8 @@
 		.modal-overlay { display: block !important; position: static !important; background: white !important; padding: 0 !important; }
 		.modal-card { display: block !important; max-width: none !important; max-height: none !important; box-shadow: none !important; }
 		.preview { display: block !important; background: white !important; padding: 0 !important; overflow: visible !important; flex: none !important; }
-		.print-page { margin: 0 !important; box-shadow: none !important; }
-		@page { size: A3 landscape; margin: 0; }
-		@page { size: 420mm 297mm; margin: 0; }
+		.print-page { margin: 0 !important; box-shadow: none !important; width: auto !important; min-height: 0 !important; }
+		@page { size: A4 landscape; margin: 8mm 8mm 6mm 8mm; }
 		:global(body) { background: white !important; margin: 0 !important; }
 		:global(html) { background: white !important; }
 	}
