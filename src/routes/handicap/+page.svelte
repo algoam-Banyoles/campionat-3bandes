@@ -15,7 +15,7 @@
 
 	const publicLinks = [
 		{ href: '/handicap/calendari', label: 'Calendari de partides', desc: 'Vista setmanal de les partides programades', icon: '📅' },
-		{ href: '/handicap/quadre', label: 'Brackets', desc: 'Quadre d\'eliminació doble', icon: '🏆' },
+		{ href: '/handicap/quadre', label: 'Quadre', desc: 'Quadre d\'eliminació doble', icon: '🏆' },
 		{ href: '/handicap/jugadors', label: 'Jugadors inscrits', desc: 'Llista dels participants del torneig', icon: '👥' }
 	];
 

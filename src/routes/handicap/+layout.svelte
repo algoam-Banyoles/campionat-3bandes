@@ -32,11 +32,11 @@
 
 	$: loading = !$adminChecked || accessLevel === 'loading';
 
-	// Admins always have access (admin level implies logged-in admin).
-	// 'public' level: tothom, incloent usuaris anònims.
-	// Usem effectiveIsAdmin perquè respecti el toggle viewMode.
-	$: canAccess =
-		!loading && ($effectiveIsAdmin || accessLevel === 'public');
+	// Calendari, quadre, jugadors, partides, historial… són sempre públics
+	// (no cal login). Només cal bloquejar el mòdul sencer si no hi ha cap event
+	// hàndicap creat. Les pàgines admin (configuracio, inscripcions, sorteig,
+	// simulacio) ja tenen els seus propis guards.
+	$: canAccess = !loading && ($effectiveIsAdmin || accessLevel !== 'dev');
 
 	$: showDevBanner = canAccess && accessLevel === 'dev' && $effectiveIsAdmin;
 	$: showAdminBanner = canAccess && accessLevel === 'admin' && $effectiveIsAdmin;
@@ -58,17 +58,11 @@
 		</div>
 	{/if}
 	<slot />
-{:else if accessLevel === 'dev'}
+{:else}
+	<!-- accessLevel === 'dev' i no admin -->
 	<div class="m-4 rounded border border-gray-300 bg-gray-50 p-8 text-center text-gray-600">
 		<div class="text-4xl mb-3">⚖️</div>
 		<h2 class="text-lg font-semibold mb-1">Campionat Hàndicap</h2>
 		<p class="text-sm">El mòdul hàndicap no està disponible en aquest moment.</p>
-	</div>
-{:else}
-	<!-- accessLevel === 'admin' i l'usuari no és admin (autenticat o anònim) -->
-	<div class="m-4 rounded border border-purple-200 bg-purple-50 p-8 text-center">
-		<div class="text-4xl mb-3">⚖️</div>
-		<h2 class="text-lg font-semibold text-purple-900 mb-1">Campionat Hàndicap</h2>
-		<p class="text-sm text-purple-700">El torneig està en preparació. Aviat estarà disponible per a tots els socis.</p>
 	</div>
 {/if}
