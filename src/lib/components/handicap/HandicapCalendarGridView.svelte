@@ -2,7 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import type { CalendarEntry } from '$lib/utils/handicap-types';
 	import type { TournamentConfig } from '$lib/utils/handicap-scheduler';
-	import { parseLocalDate, formatDate } from '$lib/utils/handicap-scheduler';
+	import { parseLocalDate } from '$lib/utils/handicap-scheduler';
 	import { formatarNomJugador } from '$lib/utils/playerUtils';
 	import {
 		deadlineStatus,
@@ -18,12 +18,14 @@
 	const dispatch = createEventDispatcher<{ matchclick: string }>();
 
 	const WEEKDAY_CODES: Record<number, string> = { 1: 'dl', 2: 'dt', 3: 'dc', 4: 'dj', 5: 'dv' };
-	const DAY_LABELS: Record<number, string> = {
+	const DAY_NAMES: Record<number, string> = {
+		0: 'Diumenge',
 		1: 'Dilluns',
 		2: 'Dimarts',
 		3: 'Dimecres',
 		4: 'Dijous',
-		5: 'Divendres'
+		5: 'Divendres',
+		6: 'Dissabte'
 	};
 	const STANDARD_HOURS = ['18:00', '19:00'];
 	const NUM_BILLARS = 3;
@@ -36,14 +38,17 @@
 	function isoOf(d: Date): string {
 		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 	}
+	function dateLabel(d: Date): string {
+		return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+	}
 	function shortName(name: string): string {
 		return formatarNomJugador(name);
 	}
-	function bracketLetter(b: 'winners' | 'losers' | 'grand_final'): string {
-		return b === 'winners' ? 'W' : b === 'losers' ? 'L' : 'GF';
-	}
-	function bracketClass(b: 'winners' | 'losers' | 'grand_final'): string {
-		return b === 'winners' ? 'is-winners' : b === 'losers' ? 'is-losers' : 'is-gf';
+	function bracketClass(b: 'winners' | 'losers' | 'grand_final' | null | undefined): string {
+		if (b === 'winners') return 'code-w';
+		if (b === 'losers') return 'code-l';
+		if (b === 'grand_final') return 'code-gf';
+		return '';
 	}
 	function deadlineCls(e: CalendarEntry): string {
 		const st = deadlineStatus(e.dataMaximaDisputa, today, e.estat);
@@ -70,68 +75,45 @@
 		return hours;
 	}
 
-	// Construïm el conjunt de "files" (date × hora × billar) per mostrar.
 	type CalRow = {
-		date: Date;
-		dateIso: string;
-		dateLabel: string; // 'Dl 02/06'
-		hora: string;
 		billar: number;
 		entry: CalendarEntry | null;
 	};
-
-	$: rows = (() => {
-		const out: CalRow[] = [];
-		for (let d = new Date(tournamentStart); d <= tournamentEnd; d.setDate(d.getDate() + 1)) {
-			const dayCode = WEEKDAY_CODES[d.getDay()];
-			if (!dayCode) continue; // cap setmana
-			const iso = isoOf(d);
-			if (bloquejatsSet.has(iso)) continue;
-			const hores = getHoursForDay(dayCode);
-			const dayShort = DAY_LABELS[d.getDay()].substring(0, 2);
-			const dateLabel = `${dayShort} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
-			for (const h of hores) {
-				for (let b = 1; b <= NUM_BILLARS; b++) {
-					const key = `${iso}|${h}|${b}`;
-					out.push({
-						date: new Date(d),
-						dateIso: iso,
-						dateLabel,
-						hora: h,
-						billar: b,
-						entry: entryByKey.get(key) ?? null
-					});
-				}
-			}
-		}
-		return out;
-	})();
+	type GroupHour = { hora: string; items: CalRow[] };
+	type GroupDay = { date: Date; dateIso: string; total: number; hours: GroupHour[] };
 
 	// Filtres
 	let filterMode: 'all' | 'occupied' | 'free' = 'all';
-	$: filteredRows = rows.filter((r) => {
-		if (filterMode === 'occupied') return !!r.entry;
-		if (filterMode === 'free') return !r.entry;
-		return true;
-	});
 
-	// Agrupació per dia (per pintar rowspans visuals)
-	type DayGroup = {
-		dateIso: string;
-		dateLabel: string;
-		rows: CalRow[];
-	};
-	$: dayGroups = (() => {
-		const map = new Map<string, DayGroup>();
-		for (const r of filteredRows) {
-			let g = map.get(r.dateIso);
-			if (!g) {
-				g = { dateIso: r.dateIso, dateLabel: r.dateLabel, rows: [] };
-				map.set(r.dateIso, g);
+	$: groupedDays = (() => {
+		const days: GroupDay[] = [];
+		for (let d = new Date(tournamentStart); d <= tournamentEnd; d.setDate(d.getDate() + 1)) {
+			const dayCode = WEEKDAY_CODES[d.getDay()];
+			if (!dayCode) continue;
+			const dIso = isoOf(d);
+			if (bloquejatsSet.has(dIso)) continue;
+			const hores = getHoursForDay(dayCode);
+			const groupHours: GroupHour[] = [];
+			let dayTotal = 0;
+			for (const h of hores) {
+				const items: CalRow[] = [];
+				for (let b = 1; b <= NUM_BILLARS; b++) {
+					const key = `${dIso}|${h}|${b}`;
+					const entry = entryByKey.get(key) ?? null;
+					if (filterMode === 'occupied' && !entry) continue;
+					if (filterMode === 'free' && entry) continue;
+					items.push({ billar: b, entry });
+				}
+				if (items.length > 0) {
+					groupHours.push({ hora: h, items });
+					dayTotal += items.length;
+				}
 			}
-			g.rows.push(r);
+			if (dayTotal > 0) {
+				days.push({ date: new Date(d), dateIso: dIso, total: dayTotal, hours: groupHours });
+			}
 		}
-		return [...map.values()];
+		return days;
 	})();
 
 	$: stats = {
@@ -139,11 +121,6 @@
 		played: entries.filter((e) => e.estat === 'jugada' || e.estat === 'walkover').length,
 		scheduled: entries.filter((e) => e.estat === 'programada').length
 	};
-
-	function rondaLabel(b: 'winners' | 'losers' | 'grand_final', r: number): string {
-		const letter = bracketLetter(b);
-		return `${letter}${r}`;
-	}
 </script>
 
 <div class="hcap-grid-root">
@@ -174,71 +151,80 @@
 	</div>
 
 	<div class="grid-scroll">
-		<table class="cal-grid">
+		<table class="cal-table">
 			<thead>
 				<tr>
 					<th class="col-day">Dia</th>
 					<th class="col-hora">Hora</th>
-					<th class="col-billar">Billar</th>
-					<th class="col-code">Codi</th>
-					<th class="col-players">Partida</th>
+					<th class="col-billar">B</th>
+					<th class="col-code">Match</th>
 					<th class="col-dest">Destí</th>
+					<th class="col-player">Jugador 1</th>
+					<th class="col-player">Jugador 2</th>
 					<th class="col-deadline">Data màx.</th>
 				</tr>
 			</thead>
 			<tbody>
-				{#each dayGroups as g}
-					{#each g.rows as r, i}
-						<tr
-							class:row-free={!r.entry}
-							class:row-occupied={!!r.entry}
-							class:row-first={i === 0}
-						>
-							{#if i === 0}
-								<td class="col-day" rowspan={g.rows.length}>
-									<span class="day-label">{g.dateLabel}</span>
-								</td>
-							{/if}
-							<td class="col-hora">{r.hora}</td>
-							<td class="col-billar">B{r.billar}</td>
-							{#if r.entry}
-								<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-								<td
-									class="col-code clickable {bracketClass(r.entry.bracket_type)}"
-									on:click={() => dispatch('matchclick', r.entry!.id)}
-								>
-									<span class="match-code">{r.entry.matchCode ?? rondaLabel(r.entry.bracket_type, r.entry.ronda)}</span>
-								</td>
-								<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-								<td
-									class="col-players clickable"
-									on:click={() => dispatch('matchclick', r.entry!.id)}
-								>
-									<span class="player-pair">
-										<span class="player">{shortName(r.entry.player1_name)}</span>
-										<span class="vs">vs</span>
-										<span class="player">{shortName(r.entry.player2_name)}</span>
-									</span>
-								</td>
-								<td class="col-dest">
-									{#if r.entry.winnerDest}
-										<span class="arrow-win">↗ {r.entry.winnerDest}</span>
-									{/if}
-									{#if r.entry.loserDest}
-										<span class="arrow-lose">↘ {r.entry.loserDest}</span>
-									{/if}
-								</td>
-								<td class="col-deadline">
-									{#if r.entry.dataMaximaDisputa}
-										<span class={deadlineCls(r.entry)} title="Data màxima: {r.entry.dataMaximaDisputa}">{formatDeadlineShort(r.entry.dataMaximaDisputa)}</span>
-									{/if}
-								</td>
-							{:else}
-								<td colspan="4" class="col-empty">— Lliure —</td>
-							{/if}
-						</tr>
+				{#each groupedDays as gd}
+					{#each gd.hours as gh, hIdx}
+						{#each gh.items as it, iIdx}
+							<tr
+								class:row-occupied={!!it.entry}
+								class:row-free={!it.entry}
+								class:row-day-first={hIdx === 0 && iIdx === 0}
+								class:row-hour-first={iIdx === 0}
+							>
+								{#if hIdx === 0 && iIdx === 0}
+									<td class="day-cell" rowspan={gd.total}>
+										<span class="d-num">{dateLabel(gd.date)}</span>
+										<span class="d-name">{DAY_NAMES[gd.date.getDay()]}</span>
+									</td>
+								{/if}
+								{#if iIdx === 0}
+									<td class="hour-cell" rowspan={gh.items.length}>{gh.hora}</td>
+								{/if}
+								<td class="billar-cell">B{it.billar}</td>
+								{#if it.entry}
+									<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+									<td
+										class="code-cell {bracketClass(it.entry.bracket_type)}"
+										on:click={() => dispatch('matchclick', it.entry.id)}
+									>{it.entry.matchCode ?? ''}</td>
+									<td class="dest-cell">
+										{#if it.entry.winnerDest}
+											<span class="arrow-win">↗G: <strong>{it.entry.winnerDest}</strong></span>
+										{/if}
+										{#if it.entry.loserDest}
+											<span class="arrow-lose">↘P: <strong>{it.entry.loserDest}</strong></span>
+										{/if}
+									</td>
+									<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+									<td
+										class="player-cell"
+										on:click={() => dispatch('matchclick', it.entry.id)}
+									>{shortName(it.entry.player1_name)}</td>
+									<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+									<td
+										class="player-cell"
+										on:click={() => dispatch('matchclick', it.entry.id)}
+									>{shortName(it.entry.player2_name)}</td>
+									<td class="deadline-cell">
+										{#if it.entry.dataMaximaDisputa}
+											<span class={deadlineCls(it.entry)} title="Data màxima: {it.entry.dataMaximaDisputa}">{formatDeadlineShort(it.entry.dataMaximaDisputa)}</span>
+										{/if}
+									</td>
+								{:else}
+									<td class="empty-cell" colspan="5">— Lliure —</td>
+								{/if}
+							</tr>
+						{/each}
 					{/each}
 				{/each}
+				{#if groupedDays.length === 0}
+					<tr>
+						<td colspan="8" class="empty-message">No hi ha cap slot que coincideixi amb el filtre.</td>
+					</tr>
+				{/if}
 			</tbody>
 		</table>
 	</div>
@@ -268,7 +254,6 @@
 		gap: 0.25rem;
 		border: 1px solid var(--rule-strong);
 		padding: 2px;
-		border-radius: 0;
 	}
 	.filters button {
 		padding: 0.25rem 0.625rem;
@@ -298,70 +283,105 @@
 		overflow-x: auto;
 		-webkit-overflow-scrolling: touch;
 	}
-	.cal-grid {
+	.cal-table {
 		width: 100%;
 		border-collapse: collapse;
 		font-size: 0.8125rem;
-		min-width: 720px;
+		min-width: 880px;
 	}
-	.cal-grid th {
-		text-align: left;
+	.cal-table th, .cal-table td {
+		border: 1px solid var(--rule-strong);
+		padding: 0.4rem 0.6rem;
+		text-align: center;
+		vertical-align: middle;
+	}
+	.cal-table th {
+		background: var(--paper);
 		font-weight: 700;
 		font-size: 0.6875rem;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
 		color: var(--ink-3);
-		background: var(--paper);
-		border-bottom: 2px solid var(--rule-strong);
-		padding: 0.5rem 0.625rem;
+		padding: 0.5rem 0.6rem;
 		position: sticky;
 		top: 0;
 		z-index: 1;
+		border-bottom: 2px solid var(--rule-strong);
 	}
-	.cal-grid td {
-		padding: 0.4rem 0.625rem;
-		border-bottom: 1px solid var(--rule);
-		vertical-align: middle;
-	}
-	.col-day {
-		font-weight: 700;
-		font-size: 0.8125rem;
+	.day-cell {
 		background: var(--paper);
+		font-weight: 700;
 		border-right: 2px solid var(--rule-strong);
 		white-space: nowrap;
-		width: 90px;
+		width: 110px;
 	}
-	.col-hora { width: 64px; font-weight: 600; color: var(--ink-soft); }
-	.col-billar { width: 56px; font-weight: 600; color: var(--ink-soft); }
-	.col-code { width: 80px; font-weight: 800; letter-spacing: 0.04em; }
-	.col-code.is-winners .match-code { color: var(--blue); }
-	.col-code.is-losers .match-code { color: var(--amber); }
-	.col-code.is-gf .match-code { color: var(--sec-handicap); }
-	.col-players { font-weight: 500; }
-	.col-dest { font-size: 0.6875rem; white-space: nowrap; }
-	.col-deadline { width: 90px; text-align: right; }
-	.col-empty {
+	.day-cell .d-num { display: block; font-size: 1.125rem; font-weight: 800; color: var(--ink); }
+	.day-cell .d-name { display: block; font-size: 0.75rem; color: var(--ink-soft); font-weight: 600; }
+	.hour-cell {
+		background: var(--paper);
+		font-weight: 700;
+		font-size: 0.9375rem;
+		border-right: 2px solid var(--rule-strong);
+		width: 70px;
+	}
+	.billar-cell {
+		background: var(--paper-elevated);
+		font-weight: 700;
+		font-size: 0.8125rem;
+		color: var(--ink-soft);
+		width: 50px;
+	}
+	.code-cell {
+		font-weight: 800;
+		font-size: 0.875rem;
+		letter-spacing: 0.04em;
+		width: 78px;
+		cursor: pointer;
+	}
+	.code-cell:hover { background: rgba(0, 0, 0, 0.04); }
+	.code-w { color: var(--blue); }
+	.code-l { color: var(--amber); }
+	.code-gf { color: var(--sec-handicap); }
+	.dest-cell {
+		font-size: 0.6875rem;
+		font-weight: 600;
+		text-align: left;
+		white-space: nowrap;
+		min-width: 100px;
+	}
+	.dest-cell .arrow-win, .dest-cell .arrow-lose { display: block; line-height: 1.25; }
+	.dest-cell .arrow-win { color: var(--green); }
+	.dest-cell .arrow-lose { color: var(--accent); }
+	.dest-cell strong { font-weight: 800; }
+	.player-cell {
+		text-align: left;
+		font-weight: 500;
+		min-width: 160px;
+		max-width: 240px;
+		cursor: pointer;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.player-cell:hover { background: rgba(0, 0, 0, 0.04); }
+	.deadline-cell {
+		width: 80px;
+		font-weight: 700;
+	}
+	.empty-cell {
 		color: var(--ink-3);
 		font-style: italic;
 		text-align: center;
+		background: var(--paper);
+	}
+	.empty-message {
+		padding: 2rem;
+		text-align: center;
+		color: var(--ink-soft);
+		font-style: italic;
 	}
 
-	.row-free { background: var(--paper); }
-	.row-free .col-empty { opacity: 0.6; }
-	.row-occupied:hover { background: var(--paper); }
-
-	.clickable { cursor: pointer; }
-	.clickable:hover { background: rgba(0, 0, 0, 0.03); }
-
-	.player-pair {
-		display: inline-flex;
-		align-items: baseline;
-		gap: 0.4rem;
-		flex-wrap: wrap;
-	}
-	.vs { font-size: 0.6875rem; color: var(--ink-3); }
-	.arrow-win { color: var(--green); margin-right: 0.5rem; font-weight: 700; }
-	.arrow-lose { color: var(--accent); font-weight: 700; }
+	.row-free .billar-cell { background: var(--paper); }
 
 	:global(.hcap-grid-root .hcap-deadline) {
 		display: inline-block;
