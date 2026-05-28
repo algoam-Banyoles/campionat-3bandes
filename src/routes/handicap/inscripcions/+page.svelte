@@ -734,7 +734,9 @@
 		// Fase 5c-S2b: socis ara ve directe via FK soci_numero
 		const raw = p.socis;
 		const s = Array.isArray(raw) ? raw[0] : raw;
-		return s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() || `Jugador ${p.id.slice(0, 6)}` : `Jugador ${p.id.slice(0, 6)}`;
+		if (!s) return `Jugador ${p.id.slice(0, 6)}`;
+		const full = `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim();
+		return full ? formatarNomJugador(full) : `Jugador ${p.id.slice(0, 6)}`;
 	}
 
 	function formatDies(dies: string[]): string {

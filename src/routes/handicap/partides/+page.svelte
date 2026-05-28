@@ -21,6 +21,7 @@
 	} from '$lib/utils/handicap-scheduler';
 	import { executeScheduling } from '$lib/utils/handicap-scheduler-db';
 	import { persistFullSchedule } from '$lib/utils/handicap-schedule-persist';
+	import { formatarNomJugador } from '$lib/utils/playerUtils';
 
 	// ── Tipus locals ──────────────────────────────────────────────────────────
 
@@ -330,10 +331,10 @@
 				matchPos,
 				estat: m.estat,
 				player1_name: p1
-					? (() => { const r = p1.socis; const s = Array.isArray(r) ? r[0] : r; return s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : '?'; })()
+					? (() => { const r = p1.socis; const s = Array.isArray(r) ? r[0] : r; const full = s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : ''; return full ? formatarNomJugador(full) : '?'; })()
 					: (() => { const s = slotSourceMap.get(m.slot1_id); return s ? `${s.role} ${s.code}` : 'Per determinar'; })(),
 				player2_name: p2
-					? (() => { const r = p2.socis; const s = Array.isArray(r) ? r[0] : r; return s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : '?'; })()
+					? (() => { const r = p2.socis; const s = Array.isArray(r) ? r[0] : r; const full = s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : ''; return full ? formatarNomJugador(full) : '?'; })()
 					: (() => { const s = slotSourceMap.get(m.slot2_id); return s ? `${s.role} ${s.code}` : 'Per determinar'; })(),
 				player1_distancia: p1?.distancia ?? m.distancia_jugador1 ?? null,
 				player2_distancia: p2?.distancia ?? m.distancia_jugador2 ?? null,
@@ -661,10 +662,19 @@
 			const r = await persistFullSchedule(supabase, eventId, {
 				diesBloquejats: [new Date('2026-06-24')]
 			});
+			const hardCount = r.warnings.filter(w => w.type === 'hard_conflict_assigned').length;
+			const hourCount = r.warnings.filter(w => w.type === 'reachable_hour_risk').length;
+			const dayCount = r.warnings.filter(w => w.type === 'reachable_day_risk').length;
+			const warningSummary = r.warnings.length === 0
+				? 'Sense conflictes detectats.'
+				: `Conflictes detectats: ${hardCount} durs (assignats), ${hourCount} risc d'hora, ${dayCount} risc de dia.\n`
+					+ r.warnings.slice(0, 8).map(w => `  • ${w.bracket}-R${w.ronda} ${w.scheduledDate} ${w.scheduledHora}: ${w.message}`).join('\n')
+					+ (r.warnings.length > 8 ? `\n  … (${r.warnings.length - 8} més)` : '');
 			alert(
 				`Programats: ${r.programats} (${r.nous} nous, ${r.actualitzats} actualitzats)\n`
 				+ `Data fi efectiva: ${r.dataFiEfectiva ?? '—'}\n`
-				+ (r.errors.length > 0 ? `Errors:\n${r.errors.slice(0, 5).join('\n')}` : 'Sense errors.')
+				+ (r.errors.length > 0 ? `Errors:\n${r.errors.slice(0, 5).join('\n')}\n` : '')
+				+ warningSummary
 			);
 			location.reload();
 		} catch (e: any) {

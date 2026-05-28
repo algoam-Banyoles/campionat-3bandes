@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { effectiveIsAdmin } from '$lib/stores/viewMode';
+	import { formatarNomJugador } from '$lib/utils/playerUtils';
 
 	const accions = [
 		{ href: '/handicap/configuracio', label: 'Configuració', desc: 'Sistema, distàncies, horaris', icon: '⚙️' },
@@ -103,7 +104,8 @@
 				.in('id', partIds);
 			const nameMap = new Map((parts ?? []).map((p: any) => {
 				const s = Array.isArray(p.socis) ? p.socis[0] : p.socis;
-				return [p.id as string, s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : '?'];
+				const full = s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : '';
+				return [p.id as string, full ? formatarNomJugador(full) : '?'];
 			}));
 
 			// Últimes 3 partides jugades
@@ -214,7 +216,7 @@
 						if (champ) {
 							const s = (champ as any).socis;
 							const sociObj = Array.isArray(s) ? s[0] : s;
-							if (sociObj) champName = `${sociObj.nom ?? ''} ${sociObj.cognoms ?? ''}`.trim();
+							if (sociObj) champName = formatarNomJugador(`${sociObj.nom ?? ''} ${sociObj.cognoms ?? ''}`.trim());
 						}
 					}
 				}
@@ -272,7 +274,7 @@
 						<div class="flex items-center gap-2 text-xs">
 							<span class="font-medium text-green-700">{m.winner_name}</span>
 							<span class="text-gray-400">guanya ·</span>
-							<span class="text-gray-500">{m.player1_name.split(' ')[0]} vs {m.player2_name.split(' ')[0]}</span>
+							<span class="text-gray-500">{m.player1_name} vs {m.player2_name}</span>
 						</div>
 					{/each}
 				</div>
@@ -286,7 +288,7 @@
 					{#each upcomingMatches as m}
 						<div class="flex items-center gap-2 text-xs">
 							<span class="text-gray-500">{m.data ? m.data.substring(8) + '/' + m.data.substring(5, 7) : '—'}{m.hora ? ' ' + m.hora : ''}</span>
-							<span class="text-gray-700">{m.player1_name.split(' ')[0]} vs {m.player2_name.split(' ')[0]}</span>
+							<span class="text-gray-700">{m.player1_name} vs {m.player2_name}</span>
 						</div>
 					{/each}
 				</div>

@@ -85,6 +85,47 @@ export interface ScheduledMatch {
 	dataMaximaDisputa: Date;
 }
 
+/**
+ * Categories de problemes detectats durant la pre-programació:
+ *
+ *  - `hard_conflict_assigned`: el match té els seus dos participants ja
+ *    assignats (típicament R1) i les seves preferències són mútuament
+ *    incompatibles (cap (dia, hora) satisfà ambdós). L'algoritme cau al
+ *    fallback i programa el match al millor slot disponible. **Cal revisió
+ *    manual** del slot triat.
+ *
+ *  - `reachable_hour_risk`: el slot triat (hora) és incompatible amb tots o
+ *    la majoria dels possibles candidats futurs del match (winners potencials
+ *    o perdedors potencials). El match s'ha programat però quan els
+ *    jugadors es resolguin podria haver-hi conflicte.
+ *
+ *  - `reachable_day_risk`: idem per al dia de la setmana del slot triat.
+ */
+export type SchedulingWarningType =
+	| 'hard_conflict_assigned'
+	| 'reachable_hour_risk'
+	| 'reachable_day_risk';
+
+export interface SchedulingWarning {
+	matchId: string;
+	bracket: Bracket;
+	ronda: number;
+	matchPos: number;
+	type: SchedulingWarningType;
+	message: string;
+	/** Participants involucrats (IDs). Per a `hard_conflict_assigned` són els
+	 *  ja assignats; per a `reachable_*` són els candidats que no poden jugar
+	 *  al slot triat. */
+	involvedParticipants: string[];
+	scheduledDate: string; // 'YYYY-MM-DD'
+	scheduledHora: string; // 'HH:MM'
+}
+
+export interface PreSchedulingResult {
+	scheduled: Map<string, ScheduledMatch>;
+	warnings: SchedulingWarning[];
+}
+
 const DIES_SETMANA = ['dg', 'dl', 'dt', 'dc', 'dj', 'dv', 'ds'];
 
 function diaCodi(date: Date): string {
@@ -128,16 +169,42 @@ function participantPotJugar(
 }
 
 /**
- * Calcula una programació estructural per a tots els matches del bracket.
- * Retorna un Map<matchId, ScheduledMatch>.
- *
- * Pot llençar Error si l'event no té prou dies per encabir tots els matches.
+ * Versió compacta (compatible amb la API anterior). Retorna només el Map
+ * de matches programats. Si necessites veure els warnings detectats, usa
+ * `preSchedulingForBracketDetailed`.
  */
 export function preSchedulingForBracket(
 	slots: PreSchedulerSlot[],
 	matches: PreSchedulerMatch[],
 	options: PreSchedulerOptions
 ): Map<string, ScheduledMatch> {
+	return preSchedulingForBracketDetailed(slots, matches, options).scheduled;
+}
+
+/**
+ * Calcula una programació estructural per a tots els matches del bracket,
+ * **prevenint riscos sistèmics de rondes futures** sempre que pot:
+ *
+ *   - Per a cada slot, propaga "el conjunt de participants que hi poden
+ *     arribar" (reachable set). Per a R1 és el participant ja assignat;
+ *     per a R2+ és la unió dels possibles guanyadors / perdedors dels matches
+ *     que el fan.
+ *   - En triar (data, hora, billar) per a un match, dins del primer dia
+ *     vàlid escull el slot amb **menor cost** segons aquest reachable set
+ *     (= nombre de candidats que NO podrien jugar al slot). Així evita
+ *     situacions com "el 19:00 quan els dos possibles guanyadors només
+ *     poden a les 18:00".
+ *   - Retorna també un llistat de `warnings` amb els conflictes que no s'han
+ *     pogut evitar (intersecció buida entre preferències ja assignades,
+ *     o slot triat amb candidats incompatibles).
+ *
+ * Pot llençar Error si l'event no té prou dies per encabir tots els matches.
+ */
+export function preSchedulingForBracketDetailed(
+	slots: PreSchedulerSlot[],
+	matches: PreSchedulerMatch[],
+	options: PreSchedulerOptions
+): PreSchedulingResult {
 	const billars = options.billars ?? 3;
 	const diesActius = options.diesActius ?? ['dl', 'dt', 'dc', 'dj', 'dv'];
 
@@ -256,6 +323,37 @@ export function preSchedulingForBracket(
 		throw new Error('Cicle detectat al graf de dependències del bracket.');
 	}
 
+	// ────────────────────────────────────────────────────────────────────────
+	// Propagació de "reachable participants" per slot.
+	//
+	// Per a cada slot, calculem el conjunt de participants que potencialment
+	// hi poden arribar. Per als slots de R1 amb `participant_id` assignat és
+	// {participant_id}; per als slots que reben winner/loser d'un match m, és
+	// la unió dels reachable dels dos slots de m. Iteració sobre `sortedMatches`
+	// (ordre topològic), una passada és suficient (DAG).
+	// ────────────────────────────────────────────────────────────────────────
+	const reachableBySlot = new Map<string, Set<string>>();
+	for (const s of slots) {
+		reachableBySlot.set(s.id, new Set(s.participant_id ? [s.participant_id] : []));
+	}
+	for (const m of sortedMatches) {
+		const union = new Set<string>();
+		const r1 = reachableBySlot.get(m.slot1_id);
+		const r2 = reachableBySlot.get(m.slot2_id);
+		if (r1) for (const p of r1) union.add(p);
+		if (r2) for (const p of r2) union.add(p);
+		if (m.winner_slot_dest_id) {
+			const dest = reachableBySlot.get(m.winner_slot_dest_id) ?? new Set<string>();
+			for (const p of union) dest.add(p);
+			reachableBySlot.set(m.winner_slot_dest_id, dest);
+		}
+		if (m.loser_slot_dest_id) {
+			const dest = reachableBySlot.get(m.loser_slot_dest_id) ?? new Set<string>();
+			for (const p of union) dest.add(p);
+			reachableBySlot.set(m.loser_slot_dest_id, dest);
+		}
+	}
+
 	// Generem una llista de slots cronològics (dia, hora, billar)
 	type Slot = { date: Date; hora: string; billar: number };
 	const allSlots: Slot[] = [];
@@ -285,6 +383,7 @@ export function preSchedulingForBracket(
 	}
 
 	const scheduled = new Map<string, ScheduledMatch>();
+	const warnings: SchedulingWarning[] = [];
 
 	function slotKey(s: Slot): string {
 		return `${isoDay(s.date)}|${s.hora}|${s.billar}`;
@@ -422,54 +521,160 @@ export function preSchedulingForBracket(
 		if (slot1Info?.participant_id) participants.push(slot1Info.participant_id);
 		if (slot2Info?.participant_id) participants.push(slot2Info.participant_id);
 
-		const tryFindSlot = (respectAvail: boolean): Slot | null => {
-			for (const s of allSlots) {
-				if (s.date < earliestDate) continue;
-				const k = slotKey(s);
-				if (used.has(k)) continue;
-				if (nivellMatch <= STRICT_LEVEL_MAX) {
-					const dKey = dayKeyOf(s.date);
-					const existing = levelsByDate.get(dKey);
-					if (existing) {
-						let conflict = false;
-						for (const lvl of existing) {
-							if (lvl !== nivellMatch && lvl <= STRICT_LEVEL_MAX) {
-								conflict = true;
-								break;
-							}
-						}
-						if (conflict) continue;
+		// Unió de "candidats reachable" del match: jugadors que potencialment
+		// hi acabaran arribant. Per a R1 coincideix amb `participants`; per a
+		// R2+ inclou tots els possibles guanyadors/perdedors que poden alimentar
+		// aquests slots.
+		const unionReachable = new Set<string>();
+		const r1Reach = reachableBySlot.get(m.slot1_id);
+		const r2Reach = reachableBySlot.get(m.slot2_id);
+		if (r1Reach) for (const p of r1Reach) unionReachable.add(p);
+		if (r2Reach) for (const p of r2Reach) unionReachable.add(p);
+
+		// Cost d'un slot per al match: nombre de candidates reachable que no
+		// hi poden jugar (per dia o per hora). Heurística — no és exhaustiu
+		// (no considera parells (a, b) simultàniament), però funciona bé per
+		// detectar restriccions sistèmiques.
+		const reachableCost = (date: Date, hora: string): number => {
+			if (!options.availabilities || unionReachable.size === 0) return 0;
+			let cost = 0;
+			for (const pid of unionReachable) {
+				const av = options.availabilities.get(pid);
+				if (!av) continue;
+				if (!participantPotJugar(av, date, hora)) cost++;
+			}
+			return cost;
+		};
+
+		// Filtres estructurals comuns (independents de la disponibilitat).
+		const slotPassesStructural = (s: Slot): boolean => {
+			if (s.date < earliestDate) return false;
+			const k = slotKey(s);
+			if (used.has(k)) return false;
+			if (nivellMatch <= STRICT_LEVEL_MAX) {
+				const dKey = dayKeyOf(s.date);
+				const existing = levelsByDate.get(dKey);
+				if (existing) {
+					for (const lvl of existing) {
+						if (lvl !== nivellMatch && lvl <= STRICT_LEVEL_MAX) return false;
 					}
 				}
-				if (gf1Sched
-					&& dayKeyOf(s.date) === dayKeyOf(gf1Sched.dataProgramada)
-					&& s.hora === gf1Sched.horaInici) {
-					continue;
-				}
+			}
+			if (gf1Sched
+				&& dayKeyOf(s.date) === dayKeyOf(gf1Sched.dataProgramada)
+				&& s.hora === gf1Sched.horaInici) return false;
+			return true;
+		};
+
+		// Cerca el slot dins del primer dia vàlid amb menor cost reachable.
+		// Si respectAvail és cert, descarta abans els slots incompatibles amb
+		// algun participant **ja assignat** (constraint dur).
+		const tryFindSlot = (respectAvail: boolean): { slot: Slot | null; cost: number } => {
+			let firstValidDate: Date | null = null;
+			let best: { slot: Slot; cost: number } | null = null;
+			for (const s of allSlots) {
+				if (!slotPassesStructural(s)) continue;
 				if (respectAvail && options.availabilities && participants.length > 0) {
 					let viola = false;
 					for (const pid of participants) {
 						const av = options.availabilities.get(pid);
 						if (!av) continue;
-						if (!participantPotJugar(av, s.date, s.hora)) {
-							viola = true;
-							break;
-						}
+						if (!participantPotJugar(av, s.date, s.hora)) { viola = true; break; }
 					}
 					if (viola) continue;
 				}
-				return s;
+				if (firstValidDate === null) firstValidDate = s.date;
+				else if (!isSameDay(s.date, firstValidDate)) {
+					// Sortim del primer dia. Tornem el millor trobat (si n'hi ha).
+					break;
+				}
+				const cost = reachableCost(s.date, s.hora);
+				if (best === null || cost < best.cost) {
+					best = { slot: s, cost };
+					if (cost === 0) break; // òptim local, no busquem més
+				}
 			}
-			return null;
+			return { slot: best?.slot ?? null, cost: best?.cost ?? 0 };
 		};
 
-		// Primer intent: respectant disponibilitats dels participants.
+		// Primer intent: respectant disponibilitats dels participants assignats.
 		// Fallback: ignorant-les (no podem deixar de programar el match).
-		let chosen: Slot | null = tryFindSlot(true);
-		if (!chosen) chosen = tryFindSlot(false);
+		let chosenResult = tryFindSlot(true);
+		let fellBackToUnsafe = false;
+		if (!chosenResult.slot) {
+			chosenResult = tryFindSlot(false);
+			fellBackToUnsafe = participants.length > 0; // només és "hard" si hi havia assignats
+		}
 
-		if (!chosen) {
+		if (!chosenResult.slot) {
 			throw new Error(`No hi ha prou slots per encabir tot el bracket (match ${m.id}).`);
+		}
+		const chosen = chosenResult.slot;
+
+		// ────────────────────────────────────────────────────────────────────
+		// Detecció de warnings.
+		// ────────────────────────────────────────────────────────────────────
+		if (fellBackToUnsafe) {
+			// Cap slot compatible amb els participants ja assignats → conflicte
+			// dur (típicament intersecció buida entre les seves preferències).
+			warnings.push({
+				matchId: m.id,
+				bracket,
+				ronda,
+				matchPos: Math.ceil((slot1Info?.posicio ?? 0) / 2),
+				type: 'hard_conflict_assigned',
+				message: `Conflicte dur al match ${m.id}: les preferències dels participants ja assignats no tenen cap (data, hora) en comú. Programat al millor slot disponible.`,
+				involvedParticipants: [...participants],
+				scheduledDate: isoDay(chosen.date),
+				scheduledHora: chosen.hora
+			});
+		} else if (options.availabilities && unionReachable.size > 0) {
+			// Mirem si al slot triat hi ha candidates reachable incompatibles.
+			// Distinguim entre risc d'hora (pertorba l'hora) i de dia (pertorba
+			// el dia de la setmana / dia bloquejat).
+			const incompatHour: string[] = [];
+			const incompatDay: string[] = [];
+			for (const pid of unionReachable) {
+				if (participants.includes(pid)) continue; // ja considerats abans
+				const av = options.availabilities.get(pid);
+				if (!av) continue;
+				if (!participantPotJugar(av, chosen.date, chosen.hora)) {
+					const codi = diaCodi(chosen.date);
+					const dayOk = av.preferenciesDies.length === 0 || av.preferenciesDies.includes(codi);
+					const dataInRange =
+						(!av.dataDisponibleDes || chosen.date >= av.dataDisponibleDes) &&
+						(!av.dataDisponibleFins || chosen.date <= av.dataDisponibleFins) &&
+						!av.diesNoDisponibles?.some(d => isoDay(d) === isoDay(chosen.date));
+					if (!dayOk || !dataInRange) incompatDay.push(pid);
+					else incompatHour.push(pid);
+				}
+			}
+			if (incompatHour.length > 0) {
+				warnings.push({
+					matchId: m.id,
+					bracket,
+					ronda,
+					matchPos: Math.ceil((slot1Info?.posicio ?? 0) / 2),
+					type: 'reachable_hour_risk',
+					message: `${incompatHour.length} candidats potencials del match ${m.id} no poden jugar a les ${chosen.hora}.`,
+					involvedParticipants: incompatHour,
+					scheduledDate: isoDay(chosen.date),
+					scheduledHora: chosen.hora
+				});
+			}
+			if (incompatDay.length > 0) {
+				warnings.push({
+					matchId: m.id,
+					bracket,
+					ronda,
+					matchPos: Math.ceil((slot1Info?.posicio ?? 0) / 2),
+					type: 'reachable_day_risk',
+					message: `${incompatDay.length} candidats potencials del match ${m.id} no poden jugar el ${isoDay(chosen.date)}.`,
+					involvedParticipants: incompatDay,
+					scheduledDate: isoDay(chosen.date),
+					scheduledHora: chosen.hora
+				});
+			}
 		}
 
 		used.add(slotKey(chosen));
@@ -530,5 +735,5 @@ export function preSchedulingForBracket(
 		if (entry) entry.dataMaximaDisputa = deadline;
 	}
 
-	return scheduled;
+	return { scheduled, warnings };
 }

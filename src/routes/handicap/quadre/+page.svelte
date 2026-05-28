@@ -11,7 +11,7 @@
 	import { buildMatchCodeMap, buildLoserDestCodeMap, buildSlotSourceMap } from '$lib/utils/handicap-types';
 	import { saveMatchResult, closeTournamentManual } from '$lib/utils/handicap-propagation';
 	import type { SaveResultError } from '$lib/utils/handicap-propagation';
-	import { shortName } from '$lib/utils/name-formatter';
+	import { formatarNomJugador } from '$lib/utils/playerUtils';
 	import { generateDoublEliminationBracket } from '$lib/utils/handicap-bracket-generator';
 	import { validateBracket } from '$lib/utils/handicap-bracket-validator';
 	import { insertBracketToDb } from '$lib/utils/handicap-bracket-db';
@@ -285,7 +285,7 @@
 					{
 						id: p.id,
 						name: `${nom} ${cognoms}`.trim(),
-						shortName: shortName(nom, cognoms),
+						shortName: formatarNomJugador(`${nom} ${cognoms}`.trim()),
 						distancia: p.distancia,
 						seed: p.seed
 					}

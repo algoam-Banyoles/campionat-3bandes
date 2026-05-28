@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { buildMatchCodeMap } from '$lib/utils/handicap-types';
+	import { formatarNomJugador } from '$lib/utils/playerUtils';
 
 	// ── Tipus ─────────────────────────────────────────────────────────────────
 
@@ -214,7 +215,8 @@
 			(parts ?? []).map((p: any) => {
 				const raw = p.socis;
 				const s = Array.isArray(raw) ? raw[0] : raw;
-				return [p.id as string, s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : '?'];
+				const full = s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : '';
+				return [p.id as string, full ? formatarNomJugador(full) : '?'];
 			})
 		);
 

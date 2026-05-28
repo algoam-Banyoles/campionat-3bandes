@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatarNomJugador } from '$lib/utils/playerUtils';
 	// Props
 	export let participants: any[] = [];         // array de handicap_participants amb socis niat (Fase 5c+)
 	export let horesDisponibles: string[] = [];  // ex: ['17:00','18:00','19:00']
@@ -70,7 +71,9 @@
 		// Fase 5c+: la relació va directament a `socis`. El fallback a
 		// `players.socis` és per registres antics abans de la migració.
 		const s = p.socis ?? p.players?.socis;
-		return s ? `${s.nom} ${s.cognoms}` : '—';
+		if (!s) return '—';
+		const full = `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim();
+		return full ? formatarNomJugador(full) : '—';
 	}
 </script>
 

@@ -12,9 +12,10 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-	preSchedulingForBracket,
+	preSchedulingForBracketDetailed,
 	type PreSchedulerSlot,
-	type PreSchedulerMatch
+	type PreSchedulerMatch,
+	type SchedulingWarning
 } from './handicap-pre-scheduler';
 import {
 	optimizeSchedule,
@@ -32,6 +33,10 @@ export interface PersistResult {
 	actualitzats: number;
 	errors: string[];
 	dataFiEfectiva: string | null;
+	/** Conflictes detectats durant la pre-programació (riscos a rondes
+	 *  futures, intersecció buida entre preferències, etc.). El calendari
+	 *  s'ha persistit igualment — l'admin ha de revisar aquests casos. */
+	warnings: SchedulingWarning[];
 }
 
 function pad(n: number): string {
@@ -101,7 +106,8 @@ export async function persistFullSchedule(
 		nous: 0,
 		actualitzats: 0,
 		errors: [],
-		dataFiEfectiva: null
+		dataFiEfectiva: null,
+		warnings: []
 	};
 
 	const { data: ev, error: evErr } = await supabase
@@ -188,7 +194,7 @@ export async function persistFullSchedule(
 
 	let scheduled;
 	try {
-		scheduled = preSchedulingForBracket(slots, playables, {
+		const detailed = preSchedulingForBracketDetailed(slots, playables, {
 			dataInici,
 			dataFi,
 			horesEstandard: ['18:00', '19:00'],
@@ -197,6 +203,8 @@ export async function persistFullSchedule(
 			diesBloquejats: options.diesBloquejats,
 			availabilities: availForPre
 		});
+		scheduled = detailed.scheduled;
+		result.warnings = detailed.warnings;
 	} catch (e: any) {
 		result.errors.push(`Error en pre-scheduling: ${e?.message ?? e}`);
 		return result;

@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { buildMatchCodeMap } from '$lib/utils/handicap-types';
+	import { formatarNomJugador } from '$lib/utils/playerUtils';
 
 	interface ParticipantStat {
 		id: string;
@@ -151,7 +152,7 @@
 				p.eliminat ? 'eliminat' : 'actiu';
 			return {
 				id: p.id,
-				nom: soci ? `${soci.nom ?? ''} ${soci.cognoms ?? ''}`.trim() : '?',
+				nom: soci ? formatarNomJugador(`${soci.nom ?? ''} ${soci.cognoms ?? ''}`.trim()) : '?',
 				distancia: p.distancia,
 				seed: p.seed,
 				eliminat: p.eliminat,
@@ -225,7 +226,8 @@
 		const nameMap = new Map((partNames ?? []).map((p: any) => {
 			const raw = p.socis;
 			const s = Array.isArray(raw) ? raw[0] : raw;
-			return [p.id as string, s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : '?'];
+			const full = s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : '';
+			return [p.id as string, full ? formatarNomJugador(full) : '?'];
 		}));
 
 		const entries: JornadaEntry[] = [];

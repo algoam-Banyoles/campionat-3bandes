@@ -3,6 +3,7 @@
 	import type { CalendarEntry } from '$lib/utils/handicap-types';
 	import type { TournamentConfig } from '$lib/utils/handicap-scheduler';
 	import { parseLocalDate, formatDate } from '$lib/utils/handicap-scheduler';
+	import { formatarNomJugador } from '$lib/utils/playerUtils';
 
 	export let entries: CalendarEntry[] = [];
 	export let config: TournamentConfig;
@@ -114,10 +115,9 @@
 		scheduled: weekEntries.filter((e) => e.estat === 'programada').length
 	};
 
+	// Si el nom ja arriba en format curt (ex: "J. Garcia") és idempotent.
 	function shortName(name: string): string {
-		const parts = name.trim().split(' ');
-		if (parts.length === 1) return parts[0];
-		return `${parts[0]} ${parts[parts.length - 1][0]}.`;
+		return formatarNomJugador(name);
 	}
 </script>
 
