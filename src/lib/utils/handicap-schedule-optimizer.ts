@@ -30,6 +30,9 @@ export interface ParticipantAvailability {
 	dataDisponibleDes?: Date;
 	/** Si el jugador no pot jugar a partir d'una data (vacances, etc.). */
 	dataDisponibleFins?: Date;
+	/** Dies concrets en què el jugador no pot jugar (vacances curtes,
+	 *  compromisos puntuals, parseats de `restriccions_especials`). */
+	diesNoDisponibles?: Date[];
 }
 
 export interface OptimizerInput {
@@ -77,6 +80,12 @@ function isAvailable(
 	if (!avail) return true; // si no tenim info, suposem disponible
 	if (avail.dataDisponibleDes && date < avail.dataDisponibleDes) return false;
 	if (avail.dataDisponibleFins && date > avail.dataDisponibleFins) return false;
+	if (avail.diesNoDisponibles) {
+		const targetIso = date.toISOString().slice(0, 10);
+		for (const d of avail.diesNoDisponibles) {
+			if (d.toISOString().slice(0, 10) === targetIso) return false;
+		}
+	}
 	const codi = diaCodi(date);
 	const okDia = avail.preferenciesDies.length === 0 || avail.preferenciesDies.includes(codi);
 	const okHora = avail.preferenciesHores.length === 0 || avail.preferenciesHores.includes(hora);

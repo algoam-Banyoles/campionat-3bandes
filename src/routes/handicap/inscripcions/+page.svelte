@@ -357,7 +357,7 @@
 		const rawS = p.socis;
 		selectedSoci = (Array.isArray(rawS) ? rawS[0] : rawS) || null;
 
-		playerSearch = selectedSoci ? `${selectedSoci.nom} ${selectedSoci.cognoms}` : '';
+		playerSearch = selectedSoci ? `${selectedSoci.nom} ${selectedSoci.cognoms}` : playerNom(p);
 		playerResults = [];
 
 		// Detectar si és grup o custom
@@ -385,7 +385,7 @@
 
 	// ─── Desar ────────────────────────────────────────────────
 	async function handleSave() {
-		if (!selectedSoci) { error = 'Selecciona un jugador.'; return; }
+		if (!editingId && !selectedSoci) { error = 'Selecciona un jugador.'; return; }
 
 		const distancia = distanciaMode === 'grup'
 			? distanciaGrups[distanciaGrupIdx]?.distancia
@@ -398,23 +398,14 @@
 		success = null;
 
 		try {
-			const payload: any = {
-				event_id: event.id,
-				soci_numero: selectedSoci.numero_soci,
-				distancia,
-				preferencies_dies,
-				preferencies_hores,
-				restriccions_especials: restriccions_especials || null
-			};
-
 			if (editingId) {
 				const { error: e } = await supabase
 					.from('handicap_participants')
 					.update({
-						distancia: payload.distancia,
-						preferencies_dies: payload.preferencies_dies,
-						preferencies_hores: payload.preferencies_hores,
-						restriccions_especials: payload.restriccions_especials
+						distancia,
+						preferencies_dies,
+						preferencies_hores,
+						restriccions_especials: restriccions_especials || null
 					})
 					.eq('id', editingId);
 				if (e) throw e;
@@ -422,7 +413,14 @@
 			} else {
 				const { error: e } = await supabase
 					.from('handicap_participants')
-					.insert(payload);
+					.insert({
+						event_id: event.id,
+						soci_numero: selectedSoci.numero_soci,
+						distancia,
+						preferencies_dies,
+						preferencies_hores,
+						restriccions_especials: restriccions_especials || null
+					});
 				if (e) throw e;
 				success = 'Jugador inscrit correctament.';
 			}
