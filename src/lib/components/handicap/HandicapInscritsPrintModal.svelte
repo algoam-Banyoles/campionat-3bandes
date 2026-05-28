@@ -175,6 +175,13 @@ ${printScript}
 						<option value="distancia">Caramboles (distància assignada)</option>
 					</select>
 				</label>
+				<label class="order-label">
+					Columnes:
+					<select bind:value={columns} class="order-select">
+						<option value={1}>1 columna</option>
+						<option value={2}>2 columnes (estalvia paper)</option>
+					</select>
+				</label>
 			</div>
 			<div class="toolbar-actions">
 				<button type="button" class="btn-secondary" on:click={onClose}>Tancar</button>
@@ -206,24 +213,29 @@ ${printScript}
 					{#if eventNom}<div class="page-sub">{eventNom}</div>{/if}
 				</header>
 
-				<table class="inscrits-table">
-					<thead>
-						<tr>
-							<th class="num-col">#</th>
-							<th class="name-col">Jugador</th>
-							<th class="dist-col">Distància assignada</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each rows as r, i}
-							<tr>
-								<td class="num-col tabular">{i + 1}</td>
-								<td class="name-col">{formatarNomJugador(`${r.nom} ${r.cognoms}`.trim())}</td>
-								<td class="dist-col tabular">{r.distancia ?? '—'}</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
+				<div class="tables-wrap" class:cols-2={columns === 2}>
+					{#each splitRows as colRows, colIdx}
+						{@const offset = colIdx === 0 ? 0 : splitRows[0].length}
+						<table class="inscrits-table">
+							<thead>
+								<tr>
+									<th class="num-col">#</th>
+									<th class="name-col">Jugador</th>
+									<th class="dist-col">Distància</th>
+								</tr>
+							</thead>
+							<tbody>
+								{#each colRows as r, i}
+									<tr>
+										<td class="num-col tabular">{offset + i + 1}</td>
+										<td class="name-col">{formatarNomJugador(`${r.nom} ${r.cognoms}`.trim())}</td>
+										<td class="dist-col tabular">{r.distancia ?? '—'}</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					{/each}
+				</div>
 
 				<footer class="page-foot">
 					<span>Imprès: {new Date().toLocaleDateString('ca-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
