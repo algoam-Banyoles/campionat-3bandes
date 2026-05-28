@@ -12,7 +12,7 @@
 	import { validateBracket } from '$lib/utils/handicap-bracket-validator';
 	import { insertBracketToDb } from '$lib/utils/handicap-bracket-db';
 	import { autoScheduleReadyMatches } from '$lib/utils/handicap-auto-schedule';
-	import { formatarNomJugador } from '$lib/utils/playerUtils';
+	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 
 	let loading = true;
 	let saving = false;
@@ -83,8 +83,7 @@
 		const raw = p.socis;
 		const s = Array.isArray(raw) ? raw[0] : raw;
 		if (!s) return '—';
-		const full = `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim();
-		return full ? formatarNomJugador(full) : '—';
+		return formatarNomJugadorParts(s.nom, s.cognoms) || '—';
 	}
 
 	// Ordenar participants per seed assignat (o per id si no té seed)

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatarNomJugador } from '$lib/utils/playerUtils';
+	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 	// Props
 	export let participants: any[] = [];         // array de handicap_participants amb socis niat (Fase 5c+)
 	export let horesDisponibles: string[] = [];  // ex: ['17:00','18:00','19:00']
@@ -72,8 +72,7 @@
 		// `players.socis` és per registres antics abans de la migració.
 		const s = p.socis ?? p.players?.socis;
 		if (!s) return '—';
-		const full = `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim();
-		return full ? formatarNomJugador(full) : '—';
+		return formatarNomJugadorParts(s.nom, s.cognoms) || '—';
 	}
 </script>
 

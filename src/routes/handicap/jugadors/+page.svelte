@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
-	import { formatarNomJugador } from '$lib/utils/playerUtils';
+	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 
 	type JugadorRow = {
 		participantId: string;
@@ -81,7 +81,7 @@
 					sociNumero: p.soci_numero,
 					nom,
 					cognoms,
-					nomComplet: formatarNomJugador(`${nom} ${cognoms}`.trim()),
+					nomComplet: formatarNomJugadorParts(nom, cognoms),
 					distancia: p.distancia ?? null,
 					seed: p.seed ?? null
 				};

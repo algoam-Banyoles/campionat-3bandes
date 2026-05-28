@@ -23,7 +23,7 @@
 	} from '$lib/utils/handicap-scheduler';
 	import { executeScheduling } from '$lib/utils/handicap-scheduler-db';
 	import { persistFullSchedule } from '$lib/utils/handicap-schedule-persist';
-	import { formatarNomJugador } from '$lib/utils/playerUtils';
+	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 
 	// ── Tipus locals ──────────────────────────────────────────────────────────
 
@@ -156,7 +156,9 @@
 			dataMaximaDisputa: m.dataMaximaDisputa,
 			matchCode: m.matchCode,
 			winnerDest: m.winnerDest ?? undefined,
-			loserDest: m.loserDest ?? undefined
+			loserDest: m.loserDest ?? undefined,
+			playersResolved:
+				m.player1_participant_id !== null && m.player2_participant_id !== null
 		})) as CalendarEntry[];
 
 	// ── Programació manual ────────────────────────────────────────────────────
@@ -371,10 +373,10 @@
 				matchPos,
 				estat: m.estat,
 				player1_name: p1
-					? (() => { const r = p1.socis; const s = Array.isArray(r) ? r[0] : r; const full = s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : ''; return full ? formatarNomJugador(full) : '?'; })()
+					? (() => { const r = p1.socis; const s = Array.isArray(r) ? r[0] : r; return s ? formatarNomJugadorParts(s.nom, s.cognoms) || '?' : '?'; })()
 					: (() => { const s = slotSourceMap.get(m.slot1_id); return s ? `${s.role} ${s.code}` : 'Per determinar'; })(),
 				player2_name: p2
-					? (() => { const r = p2.socis; const s = Array.isArray(r) ? r[0] : r; const full = s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : ''; return full ? formatarNomJugador(full) : '?'; })()
+					? (() => { const r = p2.socis; const s = Array.isArray(r) ? r[0] : r; return s ? formatarNomJugadorParts(s.nom, s.cognoms) || '?' : '?'; })()
 					: (() => { const s = slotSourceMap.get(m.slot2_id); return s ? `${s.role} ${s.code}` : 'Per determinar'; })(),
 				player1_distancia: p1?.distancia ?? m.distancia_jugador1 ?? null,
 				player2_distancia: p2?.distancia ?? m.distancia_jugador2 ?? null,

@@ -133,6 +133,10 @@ export interface CalendarEntry {
 	winnerDest?: string;
 	/** Codi del match destí del perdedor — opcional. */
 	loserDest?: string;
+	/** true si tots dos jugadors ja estan determinats. Si és false, la
+	 *  data programada és orientativa i s'ha de confirmar quan els
+	 *  jugadors es resolguin. */
+	playersResolved?: boolean;
 }
 
 export interface PlayerInfo {

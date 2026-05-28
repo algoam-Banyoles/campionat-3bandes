@@ -58,6 +58,13 @@
 		return '';
 	}
 
+	/** La partida està programada però algun jugador encara no s'ha
+	 *  resolt: la data és orientativa, s'ha de confirmar. */
+	function isTentative(e: CalendarEntry): boolean {
+		return e.playersResolved === false;
+	}
+	const TENTATIVE_TITLE = 'Data orientativa, a confirmar quan es determinin els jugadors';
+
 	$: entryByKey = new Map<string, CalendarEntry>(
 		entries.map((e) => [`${e.data_programada}|${e.hora_inici}|${e.taula_assignada}`, e])
 	);
@@ -171,6 +178,7 @@
 							<tr
 								class:row-occupied={!!it.entry}
 								class:row-free={!it.entry}
+								class:row-tentative={!!it.entry && isTentative(it.entry)}
 								class:row-day-first={hIdx === 0 && iIdx === 0}
 								class:row-hour-first={iIdx === 0}
 							>
@@ -188,8 +196,9 @@
 									<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
 									<td
 										class="code-cell {bracketClass(it.entry.bracket_type)}"
+										title={isTentative(it.entry) ? TENTATIVE_TITLE : ''}
 										on:click={() => dispatch('matchclick', it.entry.id)}
-									>{it.entry.matchCode ?? ''}</td>
+									>{it.entry.matchCode ?? ''}{#if isTentative(it.entry)} <span class="tentative-mark">*</span>{/if}</td>
 									<td class="dest-cell">
 										{#if it.entry.winnerDest}
 											<span class="arrow-win">↗G: <strong>{it.entry.winnerDest}</strong></span>
@@ -382,6 +391,20 @@
 	}
 
 	.row-free .billar-cell { background: var(--paper); }
+
+	/* Files amb data orientativa (jugadors no resolts): contingut en cursiva
+	   i marca * darrere del codi. */
+	.row-tentative .code-cell,
+	.row-tentative .player-cell,
+	.row-tentative .dest-cell {
+		font-style: italic;
+		color: var(--ink-soft);
+	}
+	.tentative-mark {
+		font-weight: 800;
+		color: var(--amber);
+		margin-left: 1px;
+	}
 
 	:global(.hcap-grid-root .hcap-deadline) {
 		display: inline-block;

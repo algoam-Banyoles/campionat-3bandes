@@ -425,6 +425,15 @@
 	function deadlineStatusFor(m: MatchView): DeadlineStatus {
 		return deadlineStatus(m.dataMaximaDisputa, today, m.estat);
 	}
+	/** Una partida té data orientativa quan està programada però algun
+	 *  dels jugadors encara no s'ha resolt (típicament R2+ abans que els
+	 *  predecessors hagin acabat). La data s'haurà de confirmar quan els
+	 *  jugadors es determinin. */
+	function isTentative(m: MatchView): boolean {
+		if (!m.data_hora) return false;
+		return !m.player1 || !m.player2;
+	}
+	const TENTATIVE_TITLE = 'Data orientativa, a confirmar quan es determinin els jugadors';
 	function deadlineLabelFor(m: MatchView): string {
 		return formatDeadlineShort(m.dataMaximaDisputa);
 	}
@@ -630,7 +639,11 @@
 									style="height: 17px;"
 								>
 									{#if match.data_hora}
-										<span class="truncate text-[9px] text-gray-400">{formatMatchInfo(match)}</span>
+										{#if isTentative(match)}
+											<span class="truncate text-[9px] italic text-gray-400" title={TENTATIVE_TITLE}>{formatMatchInfo(match)} *</span>
+										{:else}
+											<span class="truncate text-[9px] text-gray-400">{formatMatchInfo(match)}</span>
+										{/if}
 									{:else}
 										<span></span>
 									{/if}
@@ -746,9 +759,15 @@
 										style="height: 17px;"
 									>
 										{#if match.data_hora}
-											<span class="truncate text-[9px] text-purple-400"
-												>{formatMatchInfo(match)}</span
-											>
+											{#if isTentative(match)}
+												<span class="truncate text-[9px] italic text-purple-400" title={TENTATIVE_TITLE}
+													>{formatMatchInfo(match)} *</span
+												>
+											{:else}
+												<span class="truncate text-[9px] text-purple-400"
+													>{formatMatchInfo(match)}</span
+												>
+											{/if}
 										{/if}
 									</div>
 								</button>
@@ -924,7 +943,11 @@
 									style="height: 17px;"
 								>
 									{#if !gBye && match.data_hora}
-										<span class="truncate text-[9px] text-gray-400">{formatMatchInfo(match)}</span>
+										{#if isTentative(match)}
+											<span class="truncate text-[9px] italic text-gray-400" title={TENTATIVE_TITLE}>{formatMatchInfo(match)} *</span>
+										{:else}
+											<span class="truncate text-[9px] text-gray-400">{formatMatchInfo(match)}</span>
+										{/if}
 									{/if}
 								</div>
 							</button>

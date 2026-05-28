@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
-	import { formatarNomJugador } from '$lib/utils/playerUtils';
+	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 	import { printPortal } from '$lib/utils/print-portal';
 	import { loadLogoDataUrl } from '$lib/utils/load-logo';
 
@@ -228,7 +228,7 @@ ${printScript}
 								{#each colRows as r, i}
 									<tr>
 										<td class="num-col tabular">{offset + i + 1}</td>
-										<td class="name-col">{formatarNomJugador(`${r.nom} ${r.cognoms}`.trim())}</td>
+										<td class="name-col">{formatarNomJugadorParts(r.nom, r.cognoms)}</td>
 										<td class="dist-col tabular">{r.distancia ?? '—'}</td>
 									</tr>
 								{/each}

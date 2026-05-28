@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
 	import { effectiveIsAdmin } from '$lib/stores/viewMode';
-	import { formatarNomJugador } from '$lib/utils/playerUtils';
+	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 
 	const accions = [
 		{ href: '/handicap/configuracio', label: 'Configuració', desc: 'Sistema, distàncies, horaris', icon: '⚙️' },
@@ -104,8 +104,7 @@
 				.in('id', partIds);
 			const nameMap = new Map((parts ?? []).map((p: any) => {
 				const s = Array.isArray(p.socis) ? p.socis[0] : p.socis;
-				const full = s ? `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim() : '';
-				return [p.id as string, full ? formatarNomJugador(full) : '?'];
+				return [p.id as string, s ? formatarNomJugadorParts(s.nom, s.cognoms) || '?' : '?'];
 			}));
 
 			// Últimes 3 partides jugades
@@ -154,7 +153,15 @@
 				const db = (b.data ?? '') + (b.hora ?? '');
 				return da.localeCompare(db);
 			});
-			upcomingMatches = programades.slice(0, 3);
+			// Pròximes partides: tots els partits dels 2 propers dies amb partides programades
+			const distinctDays: string[] = [];
+			for (const m of programades) {
+				if (m.data && !distinctDays.includes(m.data)) {
+					distinctDays.push(m.data);
+					if (distinctDays.length === 2) break;
+				}
+			}
+			upcomingMatches = programades.filter((m) => m.data && distinctDays.includes(m.data));
 
 			// Campió: si totes les partides estan jugades i hi ha una GF jugada
 			if (pending === 0 && scheduled === 0 && played > 0) {
@@ -216,7 +223,7 @@
 						if (champ) {
 							const s = (champ as any).socis;
 							const sociObj = Array.isArray(s) ? s[0] : s;
-							if (sociObj) champName = formatarNomJugador(`${sociObj.nom ?? ''} ${sociObj.cognoms ?? ''}`.trim());
+							if (sociObj) champName = formatarNomJugadorParts(sociObj.nom, sociObj.cognoms);
 						}
 					}
 				}
@@ -237,12 +244,8 @@
 	</header>
 
 	<div class="mb-6 rounded-lg border border-purple-200 bg-white p-4 shadow-sm">
-		<h2 class="mb-1 text-lg font-semibold text-purple-800">Eliminacio doble</h2>
-		<p class="text-sm text-gray-600">
-			Bracket de guanyadors + bracket de perdedors + gran final amb possible reset match.
-		</p>
 		{#if participantsCount > 0}
-			<p class="mt-2 text-sm font-semibold text-purple-700">{participantsCount} jugador{participantsCount !== 1 ? 's' : ''} inscrit{participantsCount !== 1 ? 's' : ''}</p>
+			<p class="text-sm font-semibold text-purple-700">{participantsCount} jugador{participantsCount !== 1 ? 's' : ''} inscrit{participantsCount !== 1 ? 's' : ''}</p>
 		{/if}
 		{#if champion}
 			<div class="mt-3 rounded-lg bg-yellow-100 border border-yellow-300 px-4 py-3 text-center">

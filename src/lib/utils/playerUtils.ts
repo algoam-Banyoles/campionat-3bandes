@@ -73,6 +73,43 @@ export function formatarNomJugador(nomComplet: string): string {
 }
 
 /**
+ * Variant de `formatarNomJugador` que rep el nom i els cognoms PER SEPARAT,
+ * com vénen de la base de dades (`socis.nom`, `socis.cognoms`).
+ *
+ * Important: quan el nom és compost (ex: "Jose Antonio") concatenar i
+ * re-tallar és ambigu. Si tens els dos camps separats, **fes servir
+ * aquesta funció**, perquè preserva el límit nom/cognom.
+ *
+ * Exemples:
+ * - ("Jose Antonio", "Saucedo") → "J. A. Saucedo"
+ * - ("Albert", "Gómez Ametller") → "A. Gómez"
+ * - ("Joan", "Garcia i Pujol") → "J. Garcia"
+ * - ("Maria del Mar", "López") → "M. d. M. López"
+ *   (es manté el comportament d'inicialitzar cada paraula del nom)
+ */
+export function formatarNomJugadorParts(
+  nom: string | null | undefined,
+  cognoms: string | null | undefined
+): string {
+  const nomWords = (nom ?? '').trim().split(/\s+/).filter(w => w.length > 0);
+  const cognomsWords = (cognoms ?? '').trim().split(/\s+/).filter(w => w.length > 0);
+
+  if (nomWords.length === 0 && cognomsWords.length === 0) return '';
+
+  const inicials = nomWords
+    .map(w => w.charAt(0).toUpperCase() + '.')
+    .join(' ');
+
+  const primerCognom = cognomsWords[0] ?? '';
+
+  if (!inicials) return primerCognom;
+  // Sense cognom: mostrem el nom complet (sense abreujar) — més útil per
+  // identificar la persona quan només tenim nom de pila.
+  if (!primerCognom) return nomWords.join(' ');
+  return `${inicials} ${primerCognom}`;
+}
+
+/**
  * Formateja una llista de jugadors aplicant el format estàndard
  *
  * @param jugadors - Array d'objectes jugador amb propietat 'nom'
@@ -127,11 +164,13 @@ export function nomComplertSoci(soci: SociNomLike): string {
 }
 
 /**
- * Igual que `nomComplertSoci` però aplicant `formatarNomJugador` (inicials +
- * primer cognom).
+ * Igual que `nomComplertSoci` però aplicant el format estàndard
+ * (inicials del nom + primer cognom). Usa `formatarNomJugadorParts` perquè
+ * els noms composts (ex: "Jose Antonio") es preservin correctament.
  */
 export function nomFormatatSoci(soci: SociNomLike): string {
-  return formatarNomJugador(nomComplertSoci(soci));
+  if (!soci) return '';
+  return formatarNomJugadorParts(soci.nom, soci.cognoms);
 }
 
 /**

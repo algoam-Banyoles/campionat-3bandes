@@ -51,6 +51,13 @@
 		return '';
 	}
 
+	/** Data orientativa: programada però falta determinar algun jugador. */
+	function isTentative(m: MatchView): boolean {
+		if (!m.data_hora) return false;
+		return !m.player1 || !m.player2;
+	}
+	const TENTATIVE_TITLE = 'Data orientativa, a confirmar quan es determinin els jugadors';
+
 	function destinationCode(m: MatchView, which: 'winner' | 'loser'): string {
 		const destId = which === 'winner' ? m.winner_slot_dest_id : m.loser_slot_dest_id;
 		if (!destId) return '—';
@@ -180,7 +187,7 @@
 									{/if}
 								</div>
 								<div class="cell-foot">
-									<span class="sched">{m.data_hora ? fmtDataHora(m.data_hora) : '—'}{m.taula ? ` · B${m.taula}` : ''}</span>
+									<span class="sched" class:tentative={isTentative(m)} title={isTentative(m) ? TENTATIVE_TITLE : ''}>{m.data_hora ? fmtDataHora(m.data_hora) : '—'}{m.taula ? ` · B${m.taula}` : ''}{isTentative(m) ? ' *' : ''}</span>
 									{#if m.dataMaximaDisputa}
 										<span class={deadlinePillClass(m)} title="Data màxima: {m.dataMaximaDisputa}">màx {formatDeadlineShort(m.dataMaximaDisputa)}</span>
 									{/if}
@@ -238,7 +245,7 @@
 									{/if}
 								</div>
 								<div class="cell-foot">
-									<span class="sched">{m.data_hora ? fmtDataHora(m.data_hora) : '—'}{m.taula ? ` · B${m.taula}` : ''}</span>
+									<span class="sched" class:tentative={isTentative(m)} title={isTentative(m) ? TENTATIVE_TITLE : ''}>{m.data_hora ? fmtDataHora(m.data_hora) : '—'}{m.taula ? ` · B${m.taula}` : ''}{isTentative(m) ? ' *' : ''}</span>
 									{#if m.dataMaximaDisputa}
 										<span class={deadlinePillClass(m)} title="Data màxima: {m.dataMaximaDisputa}">màx {formatDeadlineShort(m.dataMaximaDisputa)}</span>
 									{/if}
@@ -294,7 +301,7 @@
 									{/if}
 								</div>
 								<div class="cell-foot">
-									<span class="sched">{m.data_hora ? fmtDataHora(m.data_hora) : '—'}{m.taula ? ` · B${m.taula}` : ''}</span>
+									<span class="sched" class:tentative={isTentative(m)} title={isTentative(m) ? TENTATIVE_TITLE : ''}>{m.data_hora ? fmtDataHora(m.data_hora) : '—'}{m.taula ? ` · B${m.taula}` : ''}{isTentative(m) ? ' *' : ''}</span>
 									{#if m.dataMaximaDisputa}
 										<span class={deadlinePillClass(m)} title="Data màxima: {m.dataMaximaDisputa}">màx {formatDeadlineShort(m.dataMaximaDisputa)}</span>
 									{/if}

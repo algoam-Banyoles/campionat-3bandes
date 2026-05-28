@@ -3,7 +3,9 @@
 	import type { CalendarEntry } from '$lib/utils/handicap-types';
 	import type { TournamentConfig } from '$lib/utils/handicap-scheduler';
 	import { parseLocalDate, formatDate } from '$lib/utils/handicap-scheduler';
-	import { formatarNomJugador } from '$lib/utils/playerUtils';
+	// Els noms arriben ja formatats des dels callers (formatarNomJugadorParts).
+	// No volem re-formatar aquí perquè "J. A. Saucedo" no és re-parseable
+	// (formatarNomJugador interpretaria "A." com a cognom).
 	import {
 		deadlineStatus,
 		formatDeadlineShort,
@@ -120,9 +122,9 @@
 		scheduled: weekEntries.filter((e) => e.estat === 'programada').length
 	};
 
-	// Si el nom ja arriba en format curt (ex: "J. Garcia") és idempotent.
+	// Pass-through: el nom ja arriba en format curt des del caller.
 	function shortName(name: string): string {
-		return formatarNomJugador(name);
+		return name;
 	}
 
 	const today = todayLocalIso();
@@ -133,6 +135,13 @@
 		if (st === 'safe') return 'hcap-deadline hcap-deadline-safe';
 		return '';
 	}
+
+	/** La partida està programada però algun jugador encara no s'ha resolt:
+	 *  la data és orientativa, a confirmar quan els jugadors es determinin. */
+	function isTentative(e: CalendarEntry): boolean {
+		return e.playersResolved === false;
+	}
+	const TENTATIVE_TITLE = 'Data orientativa, a confirmar quan es determinin els jugadors';
 </script>
 
 <div class="hcap-component-root rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -209,8 +218,11 @@
 														class="cursor-pointer rounded border p-1.5 text-xs transition-colors {ESTAT_BG[
 															entry.estat
 														] ?? 'bg-gray-50 border-gray-200 hover:bg-gray-100'}"
+														class:hcap-tentative={isTentative(entry)}
 														on:click={() => dispatch('matchclick', entry.id)}
-														title="{entry.player1_name} vs {entry.player2_name}"
+														title={isTentative(entry)
+															? `${entry.player1_name} vs ${entry.player2_name} — ${TENTATIVE_TITLE}`
+															: `${entry.player1_name} vs ${entry.player2_name}`}
 													>
 														<div class="flex items-center gap-1 mb-0.5">
 															<span
@@ -224,6 +236,9 @@
 																{BRACKET_LABELS[entry.bracket_type]} R{entry.ronda}
 															</span>
 															<span class="text-[9px] text-gray-400">T{taula}</span>
+															{#if isTentative(entry)}
+																<span class="text-[9px] font-bold text-amber-600" title={TENTATIVE_TITLE}>*</span>
+															{/if}
 														</div>
 														<div class="font-medium text-gray-800 leading-tight">
 															{shortName(entry.player1_name)}

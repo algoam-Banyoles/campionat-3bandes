@@ -13,7 +13,7 @@
 	import { computeDeadlines } from '$lib/utils/handicap-deadlines';
 	import { saveMatchResult, closeTournamentManual } from '$lib/utils/handicap-propagation';
 	import type { SaveResultError } from '$lib/utils/handicap-propagation';
-	import { formatarNomJugador } from '$lib/utils/playerUtils';
+	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 	import { generateDoublEliminationBracket } from '$lib/utils/handicap-bracket-generator';
 	import { validateBracket } from '$lib/utils/handicap-bracket-validator';
 	import { insertBracketToDb } from '$lib/utils/handicap-bracket-db';
@@ -288,7 +288,7 @@
 					{
 						id: p.id,
 						name: `${nom} ${cognoms}`.trim(),
-						shortName: formatarNomJugador(`${nom} ${cognoms}`.trim()),
+						shortName: formatarNomJugadorParts(nom, cognoms),
 						distancia: p.distancia,
 						seed: p.seed
 					}
@@ -633,7 +633,7 @@
 		<div class="mb-4 flex flex-wrap gap-3 print:hidden">
 			<!-- Filtres de bracket -->
 			<div class="flex rounded border border-gray-200 bg-white shadow-sm overflow-hidden text-sm">
-				{#each [['all','Tot'],['winners','Guanyadors'],['losers','Perdedors'],['grand_final','Gran Final']] as [val, label]}
+				{#each [['all','Tot'],['winners','Guanyadors'],['losers','Perdedors']] as [val, label]}
 					<button
 						type="button"
 						on:click={() => filter = val as typeof filter}

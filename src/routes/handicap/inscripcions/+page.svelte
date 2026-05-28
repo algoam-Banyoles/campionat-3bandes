@@ -14,7 +14,7 @@
 	import { adminChecked } from '$lib/stores/adminAuth';
 	import { effectiveIsAdmin } from '$lib/stores/viewMode';
 	import { showConfirm } from '$lib/stores/confirmDialogStore';
-	import { formatarNomJugador } from '$lib/utils/playerUtils';
+	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 	$: if ($adminChecked && !$effectiveIsAdmin) goto('/handicap');
 
 	// ─── State ────────────────────────────────────────────────
@@ -735,8 +735,7 @@
 		const raw = p.socis;
 		const s = Array.isArray(raw) ? raw[0] : raw;
 		if (!s) return `Jugador ${p.id.slice(0, 6)}`;
-		const full = `${s.nom ?? ''} ${s.cognoms ?? ''}`.trim();
-		return full ? formatarNomJugador(full) : `Jugador ${p.id.slice(0, 6)}`;
+		return formatarNomJugadorParts(s.nom, s.cognoms) || `Jugador ${p.id.slice(0, 6)}`;
 	}
 
 	function formatDies(dies: string[]): string {
@@ -1204,14 +1203,14 @@
 										on:click={() => selectSoci(s)}
 										class="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-purple-50"
 									>
-										<span class="font-medium">{formatarNomJugador(`${s.nom ?? ''} ${s.cognoms ?? ''}`.trim())}</span>
+										<span class="font-medium">{formatarNomJugadorParts(s.nom, s.cognoms)}</span>
 									</button>
 								{/each}
 							</div>
 						{/if}
 						{#if selectedSoci}
 							<p class="mt-1 text-xs text-purple-700">
-								Seleccionat: {formatarNomJugador(`${selectedSoci.nom ?? ''} ${selectedSoci.cognoms ?? ''}`.trim())}
+								Seleccionat: {formatarNomJugadorParts(selectedSoci.nom, selectedSoci.cognoms)}
 							</p>
 						{/if}
 					</div>
@@ -1406,7 +1405,7 @@
 											/>
 										</td>
 										<td class="px-3 py-2">
-											<span class="font-medium">{formatarNomJugador(`${imp.nom ?? ''} ${imp.cognoms ?? ''}`.trim())}</span>
+											<span class="font-medium">{formatarNomJugadorParts(imp.nom, imp.cognoms)}</span>
 											{#if imp.alreadyInscrit}
 												<span class="ml-1 text-xs text-green-600">(ja inscrit)</span>
 											{/if}

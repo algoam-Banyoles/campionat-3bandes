@@ -5,7 +5,7 @@
 	import HandicapWeeklyCalendar from '$lib/components/handicap/HandicapWeeklyCalendar.svelte';
 	import type { CalendarEntry } from '$lib/utils/handicap-types';
 	import type { TournamentConfig } from '$lib/utils/handicap-scheduler';
-	import { formatarNomJugador } from '$lib/utils/playerUtils';
+	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 
 	let loading = true;
 	let error: string | null = null;
@@ -102,7 +102,7 @@
 					.in('id', partIds);
 				for (const p of parts ?? []) {
 					const s = Array.isArray((p as any).socis) ? (p as any).socis[0] : (p as any).socis;
-					const nom = s ? formatarNomJugador(`${s.nom ?? ''} ${s.cognoms ?? ''}`.trim()) : '?';
+					const nom = s ? (formatarNomJugadorParts(s.nom, s.cognoms) || '?') : '?';
 					nameMap.set((p as any).id, nom);
 				}
 			}

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   formatarNomJugador,
+  formatarNomJugadorParts,
   obtenirInicials,
   nomComplertSoci,
   nomFormatatSoci,
@@ -53,6 +54,33 @@ describe('formatarNomJugador', () => {
 
   it('manté padding/spacing inconsistent', () => {
     expect(formatarNomJugador('  Joan   Garcia  ')).toBe('J. Garcia');
+  });
+});
+
+describe('formatarNomJugadorParts (nom + cognoms separats)', () => {
+  it('nom + cognom simples', () => {
+    expect(formatarNomJugadorParts('Joan', 'Garcia')).toBe('J. Garcia');
+  });
+
+  it('nom compost: "Jose Antonio" + "Saucedo" → "J. A. Saucedo"', () => {
+    expect(formatarNomJugadorParts('Jose Antonio', 'Saucedo')).toBe('J. A. Saucedo');
+  });
+
+  it('cognom compost: només es mostra el primer', () => {
+    expect(formatarNomJugadorParts('Albert', 'Gómez Ametller')).toBe('A. Gómez');
+  });
+
+  it('connector català: "Joan" + "Garcia i Pujol" → "J. Garcia"', () => {
+    expect(formatarNomJugadorParts('Joan', 'Garcia i Pujol')).toBe('J. Garcia');
+  });
+
+  it('camps null/buits no peten', () => {
+    expect(formatarNomJugadorParts(null, null)).toBe('');
+    expect(formatarNomJugadorParts('', '')).toBe('');
+    // Sense cognom: mostrem el nom complet (no només inicials).
+    expect(formatarNomJugadorParts('Joan', null)).toBe('Joan');
+    expect(formatarNomJugadorParts('Jose Antonio', '')).toBe('Jose Antonio');
+    expect(formatarNomJugadorParts(null, 'Garcia')).toBe('Garcia');
   });
 });
 

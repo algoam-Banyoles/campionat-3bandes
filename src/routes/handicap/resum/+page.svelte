@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { supabase } from '$lib/supabaseClient';
-	import { formatarNomJugador } from '$lib/utils/playerUtils';
+	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 
 	export const ssr = false;
 
@@ -109,7 +109,7 @@
 				return [
 					p.id as string,
 					{
-						name: s ? formatarNomJugador(`${s.nom ?? ''} ${s.cognoms ?? ''}`.trim()) : '?',
+						name: s ? formatarNomJugadorParts(s.nom, s.cognoms) || '?' : '?',
 						distancia: p.distancia as number,
 						eliminat: p.eliminat as boolean
 					}
