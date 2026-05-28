@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import { adminChecked } from '$lib/stores/adminAuth';
 	import { effectiveIsAdmin } from '$lib/stores/viewMode';
-	import { user } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabaseClient';
 
 	// 'dev'    → cap event creat; només admins (per preparació inicial)
@@ -59,11 +58,6 @@
 		</div>
 	{/if}
 	<slot />
-{:else if !$user}
-	<div class="m-4 rounded border border-amber-300 bg-amber-50 p-4 text-amber-800">
-		Cal iniciar sessió per accedir al mòdul Hàndicap. —
-		<a href="/general/login" class="underline">Iniciar sessió</a>
-	</div>
 {:else if accessLevel === 'dev'}
 	<div class="m-4 rounded border border-gray-300 bg-gray-50 p-8 text-center text-gray-600">
 		<div class="text-4xl mb-3">⚖️</div>
@@ -71,7 +65,7 @@
 		<p class="text-sm">El mòdul hàndicap no està disponible en aquest moment.</p>
 	</div>
 {:else}
-	<!-- accessLevel === 'admin' i l'usuari no és admin -->
+	<!-- accessLevel === 'admin' i l'usuari no és admin (autenticat o anònim) -->
 	<div class="m-4 rounded border border-purple-200 bg-purple-50 p-8 text-center">
 		<div class="text-4xl mb-3">⚖️</div>
 		<h2 class="text-lg font-semibold text-purple-900 mb-1">Campionat Hàndicap</h2>
