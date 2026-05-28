@@ -41,6 +41,16 @@ export interface OptimizerInput {
 	/** Data prevista de finalització del torneig. Si la data del darrer match
 	 *  supera aquesta data, hi ha penalització. */
 	dataPrevistaFi?: Date;
+	/** Configuració necessària per al pas "advance": data inici/fi, hores i
+	 *  billars. Si no es passa, l'optimizer salta el pas d'avançament. */
+	calendari?: {
+		dataInici: Date;
+		dataFi: Date;
+		horesEstandard: string[];
+		horarisExtra?: { franja: string; dies: string[] } | null;
+		billars?: number;
+		diesActius?: string[];
+	};
 }
 
 export interface OptimizerResult {
@@ -237,6 +247,139 @@ export function optimizeSchedule(input: OptimizerInput): OptimizerResult {
 					moviments++;
 					improved = true;
 				}
+			}
+		}
+	}
+
+	// ────────────────────────────────────────────────────────────────────────
+	// PAS 2: AVANÇAR matches conflictius a slots anteriors lliures.
+	// Per cada match amb cost > 0, intentem moure'l a un slot anterior
+	// del calendari sempre que (a) els seus predecessors ja s'hagin
+	// programat abans, (b) l'slot estigui lliure, (c) cap dels seus
+	// jugadors tingui ja una altra partida aquell dia.
+	// ────────────────────────────────────────────────────────────────────────
+	if (input.calendari) {
+		const cfg = input.calendari;
+		const billars = cfg.billars ?? 3;
+		const diesActius = cfg.diesActius ?? ['dl', 'dt', 'dc', 'dj', 'dv'];
+		const DIES_W = ['dg', 'dl', 'dt', 'dc', 'dj', 'dv', 'ds'];
+		const ymd = (d: Date) => d.toISOString().slice(0, 10);
+
+		// Generar tots els slots del calendari (mateixa lògica que pre-scheduler).
+		type Slot = { date: Date; hora: string; billar: number };
+		const allSlots: Slot[] = [];
+		for (let d = new Date(cfg.dataInici); d <= cfg.dataFi; d.setDate(d.getDate() + 1)) {
+			const codi = DIES_W[d.getDay()];
+			if (!diesActius.includes(codi)) continue;
+			const hores = [...cfg.horesEstandard];
+			if (cfg.horarisExtra && cfg.horarisExtra.dies.includes(codi)) {
+				hores.unshift(cfg.horarisExtra.franja);
+			}
+			for (const h of hores) {
+				for (let b = 1; b <= billars; b++) {
+					allSlots.push({ date: new Date(d), hora: h, billar: b });
+				}
+			}
+		}
+
+		const slotKey = (s: Slot) => `${ymd(s.date)}|${s.hora}|${s.billar}`;
+		const used = new Set<string>();
+		for (const sched of scheduled.values()) {
+			used.add(`${ymd(sched.dataProgramada)}|${sched.horaInici}|${sched.taulaAssignada}`);
+		}
+
+		// Predecessors: matches que alimenten m.slot1_id o m.slot2_id.
+		const predecessorsOf = new Map<string, string[]>();
+		for (const m of matches) predecessorsOf.set(m.id, []);
+		for (const m of matches) {
+			if (m.winner_slot_dest_id) {
+				for (const other of matches) {
+					if (other.slot1_id === m.winner_slot_dest_id || other.slot2_id === m.winner_slot_dest_id) {
+						predecessorsOf.get(other.id)!.push(m.id);
+						break;
+					}
+				}
+			}
+			if (m.loser_slot_dest_id) {
+				for (const other of matches) {
+					if (other.slot1_id === m.loser_slot_dest_id || other.slot2_id === m.loser_slot_dest_id) {
+						predecessorsOf.get(other.id)!.push(m.id);
+						break;
+					}
+				}
+			}
+		}
+
+		const matchById = new Map(matches.map(m => [m.id, m]));
+		const playersOfMatch = (mid: string): string[] => {
+			const m = matchById.get(mid);
+			if (!m) return [];
+			const s1 = slotsById.get(m.slot1_id);
+			const s2 = slotsById.get(m.slot2_id);
+			const out: string[] = [];
+			if (s1?.participant_id) out.push(s1.participant_id);
+			if (s2?.participant_id) out.push(s2.participant_id);
+			return out;
+		};
+
+		// Per cada match, intentem avançar si cost > 0.
+		for (const m of matches) {
+			const sched = scheduled.get(m.id);
+			if (!sched) continue;
+			const currentCost = matchCost(m.id, sched, matches, slotsById, availabilities);
+			if (currentCost === 0) continue;
+
+			// Data mínima possible: dia DESPRÉS del darrer predecessor.
+			const predDates = (predecessorsOf.get(m.id) ?? [])
+				.map(pid => scheduled.get(pid)?.dataProgramada)
+				.filter((d): d is Date => !!d);
+			const earliest = predDates.length > 0
+				? new Date(predDates.reduce((a, b) => (a > b ? a : b)).getTime() + 86400000)
+				: cfg.dataInici;
+
+			const players = playersOfMatch(m.id);
+			const currentKey = `${ymd(sched.dataProgramada)}|${sched.horaInici}|${sched.taulaAssignada}`;
+
+			for (const candidate of allSlots) {
+				if (candidate.date < earliest) continue;
+				if (candidate.date >= sched.dataProgramada) break;
+				const cKey = slotKey(candidate);
+				if (used.has(cKey)) continue;
+
+				// Cost si movem a aquest slot
+				const newSched: ScheduledMatch = {
+					...sched,
+					dataProgramada: candidate.date,
+					horaInici: candidate.hora,
+					taulaAssignada: candidate.billar
+				};
+				const newCost = matchCost(m.id, newSched, matches, slotsById, availabilities);
+				if (newCost >= currentCost) continue;
+
+				// Regla "no 2 partides/dia mateix jugador"
+				let conflict = false;
+				for (const pid of players) {
+					for (const other of matches) {
+						if (other.id === m.id) continue;
+						const oSched = scheduled.get(other.id);
+						if (!oSched) continue;
+						const otherPlayers = playersOfMatch(other.id);
+						if (!otherPlayers.includes(pid)) continue;
+						if (ymd(oSched.dataProgramada) === ymd(candidate.date)) {
+							conflict = true;
+							break;
+						}
+					}
+					if (conflict) break;
+				}
+				if (conflict) continue;
+
+				// Aplicar moviment
+				used.delete(currentKey);
+				used.add(cKey);
+				scheduled.set(m.id, newSched);
+				moviments++;
+				break;
 			}
 		}
 	}

@@ -7,6 +7,7 @@
 	import HandicapAvailabilityGrid from '$lib/components/handicap/HandicapAvailabilityGrid.svelte';
 	import HandicapBracketPrintModal from '$lib/components/handicap/HandicapBracketPrintModal.svelte';
 	import HandicapBracketPrintVisualModal from '$lib/components/handicap/HandicapBracketPrintVisualModal.svelte';
+	import HandicapCalendarPrintModal from '$lib/components/handicap/HandicapCalendarPrintModal.svelte';
 	import HandicapInscritsPrintModal from '$lib/components/handicap/HandicapInscritsPrintModal.svelte';
 	import { searchActivePlayers } from '$lib/api/socialLeagues';
 	import { debounce } from 'lodash-es';
@@ -88,6 +89,7 @@
 	// Modal d'impressió del bracket en blanc (per a sorteig manual a la pissarra)
 	let showPrintBracketModal = false;
 	let showPrintBracketVisualModal = false;
+	let showPrintCalendarModal = false;
 	let printBracketCount = 0;
 
 	// Arrodoneix cap amunt fins a la següent potència de 2 (mínim 4): 13→16, 30→32, 50→64.
@@ -789,6 +791,16 @@
 					title="Bracket visual amb columnes per ronda (més fulls, més espai per casella)"
 				>
 					Bracket A3 visual
+				</button>
+				<button
+					on:click={() => {
+						printBracketCount = nextBracketSize(participants.length);
+						showPrintCalendarModal = true;
+					}}
+					class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+					title="Calendari A3 setmanal amb la pre-programació (dies × hores × billars)"
+				>
+					Calendari A3
 				</button>
 				<button
 					on:click={openAddModal}

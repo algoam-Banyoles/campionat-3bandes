@@ -122,13 +122,19 @@ describe('Simulació amb dades reals del torneig hàndicap 2025-2026', () => {
 				});
 			}
 
-			// Optimitza
+			// Optimitza (swap + advance amb config de calendari)
 			const optim = optimizeSchedule({
 				slots: bracket.slots,
 				matches,
 				scheduled: baseScheduled,
 				availabilities,
-				dataPrevistaFi: DATA_FI
+				dataPrevistaFi: DATA_FI,
+				calendari: {
+					dataInici: DATA_INICI,
+					dataFi: DATA_FI,
+					horesEstandard: HORES,
+					billars: 3
+				}
 			});
 
 			// Comptar conflictes residuals (matches on un jugador no està disponible)

@@ -309,9 +309,9 @@ export function preSchedulingForBracket(
 			if (losersRondaPrev >= 1) {
 				const losersEnd = lastDateInRound.get(`losers-${losersRondaPrev}`);
 				if (losersEnd) {
-					const isPrimeraRondaCross = losersRondaPrev <= 3;
-					const margeExtraCross = isPrimeraRondaCross ? margeInici : 0;
-					const barrier = addDays(losersEnd, 1 + margeExtraCross);
+					// Sense marge addicional cross-bracket: només +1 dia
+					// (l'usuari prefereix no perdre dies entre L i W).
+					const barrier = addDays(losersEnd, 1);
 					if (barrier > earliestDate) earliestDate = barrier;
 				}
 			}
@@ -331,9 +331,8 @@ export function preSchedulingForBracket(
 			if (winnersRondaPrev !== null) {
 				const winnersEnd = lastDateInRound.get(`winners-${winnersRondaPrev}`);
 				if (winnersEnd) {
-					const isPrimera = winnersRondaPrev <= 2;
-					const margeExtra = isPrimera ? margeInici : 0;
-					const barrier = addDays(winnersEnd, 1 + margeExtra);
+					// Sense marge addicional cross-bracket: només +1 dia.
+					const barrier = addDays(winnersEnd, 1);
 					if (barrier > earliestDate) earliestDate = barrier;
 				}
 			}
