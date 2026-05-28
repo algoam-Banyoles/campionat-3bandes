@@ -11,6 +11,12 @@
 		{ href: '/handicap/simulacio', label: 'Simulació', desc: 'Predir la data de finalització', icon: '🎯' }
 	];
 
+	const publicLinks = [
+		{ href: '/handicap/calendari', label: 'Calendari de partides', desc: 'Vista setmanal de les partides programades', icon: '📅' },
+		{ href: '/handicap/quadre', label: 'Brackets', desc: 'Quadre d\'eliminació doble', icon: '🏆' },
+		{ href: '/handicap/jugadors', label: 'Jugadors inscrits', desc: 'Llista dels participants del torneig', icon: '👥' }
+	];
+
 	let participantsCount = 0;
 	let bracketStats: { total: number; played: number; pending: number; scheduled: number } | null = null;
 
@@ -286,6 +292,24 @@
 				</div>
 			</div>
 		{/if}
+	</div>
+
+	<!-- Navegació pública -->
+	<h2 class="mb-3 text-lg font-semibold text-gray-800">Consultar</h2>
+	<div class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+		{#each publicLinks as link}
+			<a
+				href={link.href}
+				class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-colors hover:border-purple-300 hover:bg-purple-50"
+			>
+				<div class="mb-1 text-2xl">{link.icon}</div>
+				<div class="font-medium text-gray-900">{link.label}</div>
+				<div class="text-xs text-gray-500">{link.desc}</div>
+				{#if link.label === 'Jugadors inscrits' && participantsCount > 0}
+					<div class="mt-1 text-xs font-semibold text-purple-700">{participantsCount} inscrits</div>
+				{/if}
+			</a>
+		{/each}
 	</div>
 
 	{#if $effectiveIsAdmin}
