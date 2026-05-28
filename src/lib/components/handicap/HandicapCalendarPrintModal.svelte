@@ -25,13 +25,16 @@
 	let error: string | null = null;
 	let inputCount = participantCount ?? 32;
 
-	// Llistat ordenat de partides amb dia/hora/billar/codi
+	// Cada slot del calendari (dia/hora/billar). Si té match assignat,
+	// inclou codi i destins; si no, queda buit.
 	type CalRow = {
 		date: Date;
 		hora: string;
 		billar: number;
-		code: string;
-		bracket: 'winners' | 'losers' | 'grand_final';
+		code: string | null;
+		bracket: 'winners' | 'losers' | 'grand_final' | null;
+		winnerDest: string | null;
+		loserDest: string | null;
 	};
 	let rows: CalRow[] = [];
 
@@ -137,26 +140,78 @@
 				codeByMatchId.set(e.m.id, code);
 			}
 
-			const tmp: CalRow[] = [];
+			// Map slot_id → match (per saber a quin match va el winner/loser dest)
+			const matchBySlot = new Map<string, typeof matches[number]>();
+			for (const m of matches) {
+				matchBySlot.set(m.slot1_id, m);
+				matchBySlot.set(m.slot2_id, m);
+			}
+			const destinationCode = (slotId: string | null): string | null => {
+				if (!slotId) return null;
+				const m = matchBySlot.get(slotId);
+				if (!m) return null;
+				return codeByMatchId.get(m.id) ?? null;
+			};
+
+			// Mapa slotKey → info de match (si n'hi ha)
+			type MatchInfo = {
+				code: string;
+				bracket: NonNullable<CalRow['bracket']>;
+				winnerDest: string | null;
+				loserDest: string | null;
+			};
+			const matchAtSlot = new Map<string, MatchInfo>();
 			for (const e of enriched) {
 				const sched = scheduled.get(e.m.id);
 				if (!sched) continue;
-				tmp.push({
-					date: sched.dataProgramada,
-					hora: sched.horaInici,
-					billar: sched.taulaAssignada,
+				const key = `${ymd(sched.dataProgramada)}|${sched.horaInici}|${sched.taulaAssignada}`;
+				matchAtSlot.set(key, {
 					code: codeByMatchId.get(e.m.id) ?? '?',
-					bracket: e.bracket
+					bracket: e.bracket as MatchInfo['bracket'],
+					winnerDest: destinationCode(e.m.winner_slot_dest_id),
+					loserDest: destinationCode(e.m.loser_slot_dest_id)
 				});
 			}
-			// Ordenar cronològicament: dia, hora, billar
-			tmp.sort((a, b) => {
-				const da = a.date.getTime();
-				const db = b.date.getTime();
-				if (da !== db) return da - db;
-				if (a.hora !== b.hora) return a.hora.localeCompare(b.hora);
-				return a.billar - b.billar;
-			});
+
+			// Generar TOTS els slots (dia × hora × billar) entre data_inici i data_fi
+			// per al rang amb almenys un match programat.
+			const allDates = [...new Set(
+				[...scheduled.values()].map(s => ymd(s.dataProgramada))
+			)].sort();
+			if (allDates.length === 0) {
+				rows = [];
+				loading = false;
+				return;
+			}
+			const minDate = new Date(allDates[0]);
+			const maxDate = new Date(allDates[allDates.length - 1]);
+			const dies = ['dg', 'dl', 'dt', 'dc', 'dj', 'dv', 'ds'];
+			const diesActius = ['dl', 'dt', 'dc', 'dj', 'dv'];
+
+			const tmp: CalRow[] = [];
+			for (let d = new Date(minDate); d <= maxDate; d.setDate(d.getDate() + 1)) {
+				const codi = dies[d.getDay()];
+				if (!diesActius.includes(codi)) continue;
+				const hores = [...['18:00', '19:00']];
+				if (horarisExtra && horarisExtra.dies.includes(codi)) {
+					hores.unshift(horarisExtra.franja);
+				}
+				for (const h of hores) {
+					for (let b = 1; b <= 3; b++) {
+						const key = `${ymd(d)}|${h}|${b}`;
+						const m = matchAtSlot.get(key) ?? null;
+						tmp.push({
+							date: new Date(d),
+							hora: h,
+							billar: b,
+							code: m?.code ?? null,
+							bracket: m?.bracket ?? null,
+							winnerDest: m?.winnerDest ?? null,
+							loserDest: m?.loserDest ?? null
+						});
+					}
+				}
+			}
 			rows = tmp;
 			loading = false;
 		} catch (e: any) {
@@ -218,6 +273,7 @@
 	})();
 
 	function codeColorClass(bracket: CalRow['bracket']): string {
+		if (!bracket) return '';
 		return bracket === 'winners' ? 'code-w' : bracket === 'losers' ? 'code-l' : 'code-gf';
 	}
 
@@ -298,10 +354,11 @@
 			.code-w { color: #1d6e3a; }
 			.code-l { color: #a30b1e; }
 			.code-gf { color: #6b3eb8; }
-			.player-cell { font-size: 9pt; min-width: 35mm; }
-			.player-line {
-				display: inline-block; width: 100%; border-bottom: 1px solid #1f1f1f; height: 4mm;
-			}
+			.dest-cell { font-size: 8.5pt; font-weight: 700; min-width: 14mm; }
+			.arrow-win { color: #1d6e3a; }
+			.arrow-lose { color: #a30b1e; }
+			.slot-empty { background: repeating-linear-gradient(45deg, #fafafa, #fafafa 2mm, white 2mm, white 4mm); color: #ccc; }
+			.slot-empty .billar-cell { background: transparent; }
 		`;
 
 		const scriptOpen = '<' + 'script>';
@@ -385,15 +442,15 @@
 											<th>Hora</th>
 											<th>B</th>
 											<th>Match</th>
-											<th>Jugador 1</th>
-											<th>Jugador 2</th>
+											<th>→ Winner</th>
+											<th>→ Loser</th>
 										</tr>
 									</thead>
 									<tbody>
 										{#each colDays as gd}
 											{#each gd.hours as gh, hIdx}
 												{#each gh.items as it, iIdx}
-													<tr>
+													<tr class:slot-empty={!it.code}>
 														{#if hIdx === 0 && iIdx === 0}
 															<td class="day-cell" rowspan={gd.total}>
 																<div class="d-num">{dateLabel(gd.date)}</div>
@@ -404,9 +461,9 @@
 															<td class="hour-cell" rowspan={gh.items.length}>{gh.hora}</td>
 														{/if}
 														<td class="billar-cell">B{it.billar}</td>
-														<td class="code-cell {codeColorClass(it.bracket)}">{it.code}</td>
-														<td class="player-cell"><span class="player-line"></span></td>
-														<td class="player-cell"><span class="player-line"></span></td>
+														<td class="code-cell {codeColorClass(it.bracket)}">{it.code ?? ''}</td>
+														<td class="dest-cell arrow-win">{it.winnerDest ?? ''}</td>
+														<td class="dest-cell arrow-lose">{it.loserDest ?? ''}</td>
 													</tr>
 												{/each}
 											{/each}
@@ -520,8 +577,11 @@
 	.code-w { color: #1d6e3a; }
 	.code-l { color: #a30b1e; }
 	.code-gf { color: #6b3eb8; }
-	.player-cell { font-size: 9pt; min-width: 35mm; }
-	.player-line { display: inline-block; width: 100%; border-bottom: 1px solid #1f1f1f; height: 4mm; }
+	.dest-cell { font-size: 8.5pt; font-weight: 700; min-width: 14mm; }
+	.arrow-win { color: #1d6e3a; }
+	.arrow-lose { color: #a30b1e; }
+	.slot-empty { background: repeating-linear-gradient(45deg, #fafafa, #fafafa 2mm, white 2mm, white 4mm); color: #ccc; }
+	.slot-empty .billar-cell { background: transparent; }
 
 	@media print {
 		:global(body > *:not(.print-portal)) { display: none !important; }
