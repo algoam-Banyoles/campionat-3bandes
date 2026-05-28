@@ -357,8 +357,9 @@
 			.dest-cell { font-size: 8.5pt; font-weight: 700; min-width: 14mm; }
 			.arrow-win { color: #1d6e3a; }
 			.arrow-lose { color: #a30b1e; }
-			.slot-empty { background: repeating-linear-gradient(45deg, #fafafa, #fafafa 2mm, white 2mm, white 4mm); color: #ccc; }
-			.slot-empty .billar-cell { background: transparent; }
+			.slot-empty { background: repeating-linear-gradient(45deg, #fafafa, #fafafa 2mm, white 2mm, white 4mm); }
+			.slot-empty .billar-cell { background: transparent; color: #1f1f1f; }
+			.slot-empty .day-cell, .slot-empty .hour-cell { color: #1f1f1f; }
 		`;
 
 		const scriptOpen = '<' + 'script>';
