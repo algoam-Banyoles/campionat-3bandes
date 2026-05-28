@@ -4,6 +4,11 @@
 	import type { TournamentConfig } from '$lib/utils/handicap-scheduler';
 	import { parseLocalDate, formatDate } from '$lib/utils/handicap-scheduler';
 	import { formatarNomJugador } from '$lib/utils/playerUtils';
+	import {
+		deadlineStatus,
+		formatDeadlineShort,
+		todayLocalIso
+	} from '$lib/utils/handicap-deadlines';
 
 	export let entries: CalendarEntry[] = [];
 	export let config: TournamentConfig;
@@ -119,6 +124,15 @@
 	function shortName(name: string): string {
 		return formatarNomJugador(name);
 	}
+
+	const today = todayLocalIso();
+	function deadlineClass(entry: CalendarEntry): string {
+		const st = deadlineStatus(entry.dataMaximaDisputa, today, entry.estat);
+		if (st === 'passed') return 'hcap-deadline hcap-deadline-passed';
+		if (st === 'soon') return 'hcap-deadline hcap-deadline-soon';
+		if (st === 'safe') return 'hcap-deadline hcap-deadline-safe';
+		return '';
+	}
 </script>
 
 <div class="hcap-component-root rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -217,6 +231,11 @@
 														<div class="text-gray-500 leading-tight">
 															vs {shortName(entry.player2_name)}
 														</div>
+														{#if entry.dataMaximaDisputa}
+															<div class="mt-0.5">
+																<span class={deadlineClass(entry)} title="Data màxima: {entry.dataMaximaDisputa}">màx {formatDeadlineShort(entry.dataMaximaDisputa)}</span>
+															</div>
+														{/if}
 													</div>
 												{:else}
 													<div
@@ -302,4 +321,30 @@
 
 	.hcap-component-root :global(table),
 	.hcap-component-root :global(button) { font-family: var(--font-sans); }
+
+	/* ── Pill de data màxima de disputa ───────────────────────────── */
+	.hcap-component-root :global(.hcap-deadline) {
+		display: inline-block;
+		font-size: 8.5px;
+		font-weight: 700;
+		line-height: 1;
+		letter-spacing: 0.02em;
+		padding: 1px 4px;
+		border: 1px solid currentColor;
+		border-radius: 2px;
+		white-space: nowrap;
+	}
+	.hcap-component-root :global(.hcap-deadline-safe) {
+		color: var(--ink-soft);
+		opacity: 0.65;
+	}
+	.hcap-component-root :global(.hcap-deadline-soon) {
+		color: var(--amber);
+		background: rgba(255, 176, 0, 0.08);
+	}
+	.hcap-component-root :global(.hcap-deadline-passed) {
+		color: var(--accent);
+		background: rgba(217, 25, 25, 0.08);
+		font-weight: 800;
+	}
 </style>

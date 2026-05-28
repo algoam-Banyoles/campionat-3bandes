@@ -9,6 +9,7 @@
 	import HandicapMatchResult from '$lib/components/handicap/HandicapMatchResult.svelte';
 	import type { CalendarEntry, BranchMatchInput } from '$lib/utils/handicap-types';
 	import { buildMatchCodeMap, buildSlotSourceMap } from '$lib/utils/handicap-types';
+	import { computeDeadlines } from '$lib/utils/handicap-deadlines';
 	import { saveMatchResult, type SaveResultError } from '$lib/utils/handicap-propagation';
 	import { showConfirm } from '$lib/stores/confirmDialogStore';
 	import {
@@ -44,6 +45,7 @@
 		data_programada: string | null; // 'YYYY-MM-DD'
 		hora_inici: string | null; // 'HH:MM'
 		taula_assignada: number | null;
+		dataMaximaDisputa: string | null; // 'YYYY-MM-DD'
 	}
 
 	// ── Estat ─────────────────────────────────────────────────────────────────
@@ -146,7 +148,8 @@
 			estat: m.estat,
 			data_programada: m.data_programada!,
 			hora_inici: m.hora_inici!,
-			taula_assignada: m.taula_assignada!
+			taula_assignada: m.taula_assignada!,
+			dataMaximaDisputa: m.dataMaximaDisputa
 		})) as CalendarEntry[];
 
 	// ── Programació manual ────────────────────────────────────────────────────
@@ -315,6 +318,24 @@
 		});
 		const codeMap = buildMatchCodeMap(codeInputs);
 		const slotSourceMap = buildSlotSourceMap(rawMatches, codeMap);
+
+		// Càlcul de la data màxima de disputa per cada match. Es basa en els
+		// successors estructurals (winner_slot_dest_id / loser_slot_dest_id):
+		// la deadline és el dia anterior a la primera data programada d'un
+		// successor. Si el match no té successor (final winners / GF / final
+		// losers), la deadline és config.data_fi.
+		const deadlineInputs = rawMatches.map((m) => ({
+			id: m.id,
+			slot1_id: m.slot1_id,
+			slot2_id: m.slot2_id,
+			winner_slot_dest_id: m.winner_slot_dest_id,
+			loser_slot_dest_id: m.loser_slot_dest_id,
+			data_programada: m.calendari_partida_id
+				? (partidaMap.get(m.calendari_partida_id)?.data_programada as string | undefined) ?? null
+				: null
+		}));
+		const deadlines = computeDeadlines(deadlineInputs, config?.data_fi ?? null);
+
 		matches = rawMatches
 			.map((m) => {
 			const slot1 = slotMap.get(m.slot1_id);
@@ -348,7 +369,8 @@
 					: null,
 				hora_inici: partida ? (partida.hora_inici as string).substring(0, 5) : null,
 				taula_assignada: partida?.taula_assignada ?? null,
-				matchCode: codeMap.get(m.id) ?? ''
+				matchCode: codeMap.get(m.id) ?? '',
+				dataMaximaDisputa: deadlines.get(m.id) ?? null
 			} satisfies MatchDisplay;
 		})
 		.filter((m) => m.estat !== 'bye')
