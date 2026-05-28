@@ -5,6 +5,9 @@
 	import { generateDoublEliminationBracket } from '$lib/utils/handicap-bracket-generator';
 	import { preSchedulingForBracket, type ScheduledMatch } from '$lib/utils/handicap-pre-scheduler';
 	import { printPortal } from '$lib/utils/print-portal';
+	import { loadLogoSvg } from '$lib/utils/load-logo';
+
+	let logoSvg = '';
 
 	export let eventId: string | null = null;
 	export let participantCount: number | null = null;
@@ -49,7 +52,10 @@
 
 	let inputCount = participantCount ?? 32;
 
-	onMount(loadAll);
+	onMount(async () => {
+		logoSvg = await loadLogoSvg();
+		await loadAll();
+	});
 
 	async function regenerate() {
 		if (eventId) return;
@@ -328,7 +334,12 @@
 				border-bottom: 2px solid #1f1f1f; padding-bottom: 3mm; margin-bottom: 3mm; gap: 6mm; flex: none;
 			}
 			.page-head-left { display: flex; align-items: center; gap: 5mm; min-width: 0; }
-			.page-logo { height: 16mm; width: 11mm; flex: none; object-fit: contain; }
+			.page-logo {
+				height: 16mm; width: 11mm; flex: none;
+				object-fit: contain;
+				display: inline-flex; align-items: center; justify-content: center;
+			}
+			.page-logo svg { width: 100%; height: 100%; display: block; }
 			.page-head-titles { display: flex; flex-direction: column; gap: 1mm; min-width: 0; }
 			.page-title-main { font-weight: 800; font-size: 14pt; letter-spacing: 0.02em; line-height: 1.1; text-transform: uppercase; }
 			.page-section { font-size: 10pt; color: #444; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
@@ -450,7 +461,11 @@ ${printScript}
 					<section class="print-page">
 						<header class="page-head">
 							<div class="page-head-left">
-								<img src="/logo-billar.svg" alt="" class="page-logo" />
+								{#if logoSvg}
+									<div class="page-logo">{@html logoSvg}</div>
+								{:else}
+									<img src="{base}/logo-billar.svg" alt="" class="page-logo" />
+								{/if}
 								<div class="page-head-titles">
 									<div class="page-title-main">CAMPIONAT SOCIAL HÀNDICAP{temporadaPretty ? ` ${temporadaPretty}` : ''}</div>
 									<div class="page-section">{page.sectionLabel}</div>
@@ -582,6 +597,10 @@ ${printScript}
 		/* viewBox 1024×1536 → ratio 2:3 */
 		height: 16mm; width: 11mm; flex: none;
 		object-fit: contain;
+		display: inline-flex; align-items: center; justify-content: center;
+	}
+	.page-logo :global(svg) {
+		width: 100%; height: 100%; display: block;
 	}
 	.page-head-titles { display: flex; flex-direction: column; gap: 1mm; min-width: 0; }
 	.page-title-main { font-weight: 800; font-size: 14pt; letter-spacing: 0.02em; line-height: 1.1; text-transform: uppercase; }

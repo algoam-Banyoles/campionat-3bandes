@@ -137,19 +137,61 @@ export function preSchedulingForBracket(
 		for (const s of succs) predecessorsOf.get(s)!.push(matchId);
 	}
 
-	// Ordre topològic: per ronda (i bracket dins de la ronda)
+	// Ordenament topològic estable: tots els predecessors d'un match abans que
+	// ell. El "criteri secundari" (per desempatar) és bracket+ronda+posició.
 	const order: Record<Bracket, number> = { winners: 0, losers: 1, grand_final: 2 };
-	const sortedMatches = [...playables].sort((a, b) => {
-		const sa = slotById.get(a.slot1_id);
-		const sb = slotById.get(b.slot1_id);
-		const ra = sa?.ronda ?? 0;
-		const rb = sb?.ronda ?? 0;
-		const oa = order[sa?.bracket_type ?? 'winners'];
-		const ob = order[sb?.bracket_type ?? 'winners'];
-		if (ra !== rb) return ra - rb;
-		if (oa !== ob) return oa - ob;
-		return (sa?.posicio ?? 0) - (sb?.posicio ?? 0);
-	});
+	const matchInfo = (m: PreSchedulerMatch) => {
+		const s = slotById.get(m.slot1_id);
+		return {
+			bracket: s?.bracket_type ?? 'winners',
+			ronda: s?.ronda ?? 0,
+			posicio: s?.posicio ?? 0
+		};
+	};
+	const matchKey = (m: PreSchedulerMatch) => {
+		const i = matchInfo(m);
+		// Grand Final sempre va a la "ronda virtual" més alta perquè depèn de
+		// la final del Winners i del Losers.
+		const rondaVirtual = i.bracket === 'grand_final' ? 9999 + i.ronda : i.ronda;
+		return [order[i.bracket as Bracket], rondaVirtual, i.posicio] as const;
+	};
+	const indegree = new Map<string, number>();
+	for (const m of playables) indegree.set(m.id, (predecessorsOf.get(m.id) ?? []).length);
+
+	const sortedMatches: PreSchedulerMatch[] = [];
+	const playablesById = new Map(playables.map(m => [m.id, m]));
+	// Cua amb ordenament estable per matchKey
+	const sortQueue = (q: string[]) => {
+		q.sort((a, b) => {
+			const ma = playablesById.get(a)!;
+			const mb = playablesById.get(b)!;
+			const ka = matchKey(ma);
+			const kb = matchKey(mb);
+			for (let i = 0; i < ka.length; i++) {
+				if (ka[i] !== kb[i]) return (ka[i] as number) - (kb[i] as number);
+			}
+			return 0;
+		});
+	};
+
+	const queue: string[] = [];
+	for (const m of playables) if ((indegree.get(m.id) ?? 0) === 0) queue.push(m.id);
+	sortQueue(queue);
+
+	while (queue.length > 0) {
+		const id = queue.shift()!;
+		const m = playablesById.get(id);
+		if (m) sortedMatches.push(m);
+		for (const succ of successorsOf.get(id) ?? []) {
+			indegree.set(succ, (indegree.get(succ) ?? 0) - 1);
+			if (indegree.get(succ) === 0) queue.push(succ);
+		}
+		sortQueue(queue);
+	}
+
+	if (sortedMatches.length !== playables.length) {
+		throw new Error('Cicle detectat al graf de dependències del bracket.');
+	}
 
 	// Generem una llista de slots cronològics (dia, hora, billar)
 	type Slot = { date: Date; hora: string; billar: number };
