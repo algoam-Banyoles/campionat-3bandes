@@ -3,6 +3,7 @@
 	import { base } from '$app/paths';
 	import { supabase } from '$lib/supabaseClient';
 	import { generateDoublEliminationBracket } from '$lib/utils/handicap-bracket-generator';
+	import { preSchedulingForBracket, type ScheduledMatch } from '$lib/utils/handicap-pre-scheduler';
 	import { printPortal } from '$lib/utils/print-portal';
 
 	// Dos modes:
@@ -37,6 +38,7 @@
 		slot2Pos: number;
 		winnerDest: string;
 		loserDest: string;
+		schedule?: ScheduledMatch | null;
 	};
 
 	let loading = true;
@@ -115,6 +117,40 @@
 				return;
 			}
 
+			// Calcular pre-programació estructural (dia/hora/billar/deadline per
+			// cada match) si tenim un event hàndicap actiu amb dates.
+			let scheduleById = new Map<string, ScheduledMatch>();
+			try {
+				const { data: ev } = await supabase
+					.from('events')
+					.select('id, data_inici, data_fi')
+					.eq('tipus_competicio', 'handicap')
+					.eq('actiu', true)
+					.limit(1)
+					.maybeSingle();
+				if (ev?.data_inici && ev?.data_fi) {
+					const { data: cfg } = await supabase
+						.from('handicap_config')
+						.select('horaris_extra')
+						.eq('event_id', ev.id)
+						.maybeSingle();
+					scheduleById = preSchedulingForBracket(
+						slots,
+						matches,
+						{
+							dataInici: new Date(ev.data_inici),
+							dataFi: new Date(ev.data_fi),
+							horesEstandard: ['18:00', '19:00'],
+							horarisExtra: cfg?.horaris_extra ?? null,
+							billars: 3
+						}
+					);
+				}
+			} catch (e) {
+				// Si la pre-programació falla, continuem sense (cells sense slot).
+				console.warn('Pre-scheduling no disponible:', e);
+			}
+
 			const slotById = new Map<string, Slot>(slots.map(s => [s.id, s]));
 			const matchBySlot = new Map<string, MatchRaw>();
 			for (const m of matches) {
@@ -168,7 +204,8 @@
 					slot1Pos: s1?.posicio ?? 0,
 					slot2Pos: s2?.posicio ?? 0,
 					winnerDest: destinationCode(e.m.winner_slot_dest_id),
-					loserDest: destinationCode(e.m.loser_slot_dest_id)
+					loserDest: destinationCode(e.m.loser_slot_dest_id),
+					schedule: scheduleById.get(e.m.id) ?? null
 				};
 			});
 
@@ -238,6 +275,12 @@
 	}
 
 	$: totalFulls = winnersPages.length + losersPages.length;
+
+	function fmtDate(d: Date): string {
+		const dd = String(d.getDate()).padStart(2, '0');
+		const mm = String(d.getMonth() + 1).padStart(2, '0');
+		return `${dd}/${mm}`;
+	}
 
 	function rondaLabel(bracket: Bracket, num: number): string {
 		if (num === 99) return 'Gran Final';
@@ -325,6 +368,14 @@
 			.line { flex: 1; border-bottom: 1px solid #1f1f1f; height: 5mm; }
 			.box { display: inline-block; border: 1px solid #1f1f1f; height: 5mm; width: 14mm; }
 			.box.small { width: 9mm; }
+			.schedule-row {
+				display: flex; justify-content: space-between; align-items: baseline;
+				gap: 2mm; margin-top: 1mm; padding-top: 1mm;
+				border-top: 1px dashed #999;
+				font-size: 7.5pt;
+			}
+			.sched-slot { font-weight: 700; color: #1f1f1f; }
+			.sched-deadline { color: #a30b1e; font-weight: 600; }
 		`;
 
 		// Concatenem `<script>` separat perquè el parser de Svelte
@@ -462,6 +513,12 @@ ${printScript}
 												<div class="entries-row">
 													<span class="kv">Entrades</span><span class="box"></span>
 												</div>
+												{#if mv.schedule}
+													<div class="schedule-row">
+														<span class="sched-slot">{fmtDate(mv.schedule.dataProgramada)} · {mv.schedule.horaInici} · B{mv.schedule.taulaAssignada}</span>
+														<span class="sched-deadline">màx: {fmtDate(mv.schedule.dataMaximaDisputa)}</span>
+													</div>
+												{/if}
 											</div>
 										{/each}
 									</div>
@@ -511,6 +568,12 @@ ${printScript}
 												<div class="entries-row">
 													<span class="kv">Entrades</span><span class="box"></span>
 												</div>
+												{#if mv.schedule}
+													<div class="schedule-row">
+														<span class="sched-slot">{fmtDate(mv.schedule.dataProgramada)} · {mv.schedule.horaInici} · B{mv.schedule.taulaAssignada}</span>
+														<span class="sched-deadline">màx: {fmtDate(mv.schedule.dataMaximaDisputa)}</span>
+													</div>
+												{/if}
 											</div>
 										{/each}
 									</div>
@@ -656,6 +719,14 @@ ${printScript}
 		display: flex; align-items: center; gap: 1.5mm;
 		font-size: 8pt;
 	}
+	.schedule-row {
+		display: flex; justify-content: space-between; align-items: baseline;
+		gap: 2mm; margin-top: 1mm; padding-top: 1mm;
+		border-top: 1px dashed #999;
+		font-size: 7.5pt;
+	}
+	.sched-slot { font-weight: 700; color: #1f1f1f; }
+	.sched-deadline { color: #a30b1e; font-weight: 600; }
 	.label {
 		font-weight: 700; font-size: 7.5pt; text-transform: uppercase;
 		color: #555; min-width: 11mm;

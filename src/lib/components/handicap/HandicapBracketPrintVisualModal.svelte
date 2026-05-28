@@ -3,6 +3,7 @@
 	import { base } from '$app/paths';
 	import { supabase } from '$lib/supabaseClient';
 	import { generateDoublEliminationBracket } from '$lib/utils/handicap-bracket-generator';
+	import { preSchedulingForBracket, type ScheduledMatch } from '$lib/utils/handicap-pre-scheduler';
 	import { printPortal } from '$lib/utils/print-portal';
 
 	export let eventId: string | null = null;
@@ -33,6 +34,7 @@
 		slot2Pos: number;
 		winnerDest: string;
 		loserDest: string;
+		schedule?: ScheduledMatch | null;
 	};
 
 	type PageDef = {
@@ -107,6 +109,33 @@
 				return;
 			}
 
+			let scheduleById = new Map<string, ScheduledMatch>();
+			try {
+				const { data: ev } = await supabase
+					.from('events')
+					.select('id, data_inici, data_fi')
+					.eq('tipus_competicio', 'handicap')
+					.eq('actiu', true)
+					.limit(1)
+					.maybeSingle();
+				if (ev?.data_inici && ev?.data_fi) {
+					const { data: cfg } = await supabase
+						.from('handicap_config')
+						.select('horaris_extra')
+						.eq('event_id', ev.id)
+						.maybeSingle();
+					scheduleById = preSchedulingForBracket(slots, matches, {
+						dataInici: new Date(ev.data_inici),
+						dataFi: new Date(ev.data_fi),
+						horesEstandard: ['18:00', '19:00'],
+						horarisExtra: cfg?.horaris_extra ?? null,
+						billars: 3
+					});
+				}
+			} catch (e) {
+				console.warn('Pre-scheduling no disponible:', e);
+			}
+
 			const slotById = new Map<string, Slot>(slots.map(s => [s.id, s]));
 			const matchBySlot = new Map<string, MatchRaw>();
 			for (const m of matches) {
@@ -159,7 +188,8 @@
 					slot1Pos: s1?.posicio ?? 0,
 					slot2Pos: s2?.posicio ?? 0,
 					winnerDest: destinationCode(e.m.winner_slot_dest_id),
-					loserDest: destinationCode(e.m.loser_slot_dest_id)
+					loserDest: destinationCode(e.m.loser_slot_dest_id),
+					schedule: scheduleById.get(e.m.id) ?? null
 				};
 			});
 
@@ -247,6 +277,12 @@
 		];
 	}
 
+	function fmtDate(d: Date): string {
+		const dd = String(d.getDate()).padStart(2, '0');
+		const mm = String(d.getMonth() + 1).padStart(2, '0');
+		return `${dd}/${mm}`;
+	}
+
 	function rondaLabel(bracket: Bracket, num: number): string {
 		const prefix = bracket === 'winners' ? 'R' : 'L';
 		return `${prefix}${num}`;
@@ -325,6 +361,14 @@
 			.line { flex: 1; border-bottom: 1px solid #1f1f1f; height: 4.5mm; }
 			.box { display: inline-block; border: 1px solid #1f1f1f; height: 4.5mm; width: 10mm; }
 			.box.small { width: 7mm; }
+			.schedule-row {
+				display: flex; justify-content: space-between; align-items: baseline;
+				gap: 1.5mm; margin-top: 0.6mm; padding-top: 0.6mm;
+				border-top: 1px dashed #999;
+				font-size: 6.5pt;
+			}
+			.sched-slot { font-weight: 700; color: #1f1f1f; }
+			.sched-deadline { color: #a30b1e; font-weight: 600; }
 		`;
 
 		const scriptOpen = '<' + 'script>';
@@ -446,6 +490,12 @@ ${printScript}
 												<div class="entries-row">
 													<span class="kv">Entrades</span><span class="box"></span>
 												</div>
+												{#if mv.schedule}
+													<div class="schedule-row">
+														<span class="sched-slot">{fmtDate(mv.schedule.dataProgramada)} · {mv.schedule.horaInici} · B{mv.schedule.taulaAssignada}</span>
+														<span class="sched-deadline">màx: {fmtDate(mv.schedule.dataMaximaDisputa)}</span>
+													</div>
+												{/if}
 											</div>
 										{/each}
 									</div>
@@ -579,6 +629,14 @@ ${printScript}
 	.arrows { display: flex; gap: 1.5mm; flex-wrap: wrap; font-size: 7pt; color: #333; }
 	.arrows strong { font-weight: 700; }
 	.player-row, .entries-row { display: flex; align-items: center; gap: 1mm; font-size: 7.5pt; }
+	.schedule-row {
+		display: flex; justify-content: space-between; align-items: baseline;
+		gap: 1.5mm; margin-top: 0.6mm; padding-top: 0.6mm;
+		border-top: 1px dashed #999;
+		font-size: 6.5pt;
+	}
+	.sched-slot { font-weight: 700; color: #1f1f1f; }
+	.sched-deadline { color: #a30b1e; font-weight: 600; }
 	.label { font-weight: 700; font-size: 7pt; color: #555; min-width: 4mm; }
 	.kv { font-size: 7pt; color: #555; font-weight: 600; }
 	.line { flex: 1; border-bottom: 1px solid #1f1f1f; height: 4.5mm; }
