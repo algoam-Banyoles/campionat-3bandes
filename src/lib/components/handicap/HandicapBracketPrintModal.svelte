@@ -318,13 +318,13 @@
 		}
 
 		const css = String.raw`
-			@page { size: A3 landscape; margin: 0; }
-			@page { size: 420mm 297mm; margin: 0; }
+			@page { size: A3 landscape; margin: 5mm; }
+			@page { size: 420mm 297mm; margin: 5mm; }
 			* { box-sizing: border-box; }
 			html, body { margin: 0; padding: 0; background: white; font-family: 'Helvetica Neue', Arial, sans-serif; color: #1f1f1f; }
 			.print-page {
 				background: white;
-				width: 420mm; height: 297mm;
+				width: 420mm; height: 287mm; /* buffer 10mm per evitar tall en impressora */
 				padding: 8mm 10mm;
 				margin: 0;
 				box-sizing: border-box;
@@ -666,7 +666,7 @@ ${printScript}
 
 	.print-page {
 		background: white;
-		width: 420mm; height: 297mm; /* A3 landscape */
+		width: 420mm; height: 287mm; /* A3 landscape — buffer 10mm */
 		padding: 8mm 10mm;
 		margin: 0 auto 1rem auto;
 		box-sizing: border-box;
@@ -815,11 +815,10 @@ ${printScript}
 			box-shadow: none !important;
 		}
 		.print-page:last-child { page-break-after: auto; break-after: auto; }
-		/* Doble especificació: 'A3 landscape' per a navegadors que respecten la
-		   sintaxi nominal, i dimensions explícites 420×297 mm com a fallback per
-		   a Chrome/Edge que sovint només respecten width × height. */
-		@page { size: A3 landscape; margin: 0; }
-		@page { size: 420mm 297mm; margin: 0; }
+		/* Marge físic 5mm: alguns navegadors no respecten margin:0 i afegeixen
+		   marges propis que retallen el contingut. Amb 5mm explícit ho controlem. */
+		@page { size: A3 landscape; margin: 5mm; }
+		@page { size: 420mm 297mm; margin: 5mm; }
 		:global(body) { background: white !important; margin: 0 !important; }
 		:global(html) { background: white !important; }
 	}

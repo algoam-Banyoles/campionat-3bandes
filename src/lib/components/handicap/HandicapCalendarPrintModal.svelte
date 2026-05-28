@@ -240,7 +240,9 @@
 		}
 
 		const css = String.raw`
-			@page { size: A4 landscape; margin: 8mm 8mm 6mm 8mm; }
+			/* A3 portrait per encabir més slots verticalment a 2 columnes. */
+			@page { size: A3 portrait; margin: 8mm; }
+			@page { size: 297mm 420mm; margin: 8mm; }
 			* { box-sizing: border-box; }
 			html, body { margin: 0; padding: 0; background: white; font-family: 'Helvetica Neue', Arial, sans-serif; color: #1f1f1f; }
 			.print-page {
@@ -325,7 +327,7 @@
 <div class="modal-overlay print-portal" use:printPortal on:click|self={onClose} role="presentation">
 	<div class="modal-card" role="dialog" aria-modal="true">
 		<div class="modal-head no-print">
-			<h2 class="modal-title">Calendari A4 apaisat — pre-programació hàndicap</h2>
+			<h2 class="modal-title">Calendari A3 vertical — pre-programació hàndicap</h2>
 			<button type="button" class="close-btn" on:click={onClose} aria-label="Tancar">×</button>
 		</div>
 
@@ -465,7 +467,7 @@
 
 	.print-page {
 		background: white;
-		width: 297mm; min-height: 200mm; /* A4 apaisat */
+		width: 297mm; min-height: 410mm; /* A3 portrait (297×420mm) */
 		padding: 8mm 8mm 6mm 8mm;
 		margin: 0 auto 1rem auto;
 		box-sizing: border-box;
@@ -541,7 +543,8 @@
 		.modal-card { display: block !important; max-width: none !important; max-height: none !important; box-shadow: none !important; }
 		.preview { display: block !important; background: white !important; padding: 0 !important; overflow: visible !important; flex: none !important; }
 		.print-page { margin: 0 !important; box-shadow: none !important; width: auto !important; min-height: 0 !important; }
-		@page { size: A4 landscape; margin: 8mm 8mm 6mm 8mm; }
+		@page { size: A3 portrait; margin: 8mm; }
+		@page { size: 297mm 420mm; margin: 8mm; }
 		:global(body) { background: white !important; margin: 0 !important; }
 		:global(html) { background: white !important; }
 	}
