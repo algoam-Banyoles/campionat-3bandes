@@ -345,7 +345,7 @@ function tryScheduleOne(
 	}
 
 	// Incompatibilitat de disponibilitats → coin flip
-	if (r && !r.scheduled && NO_OVERLAP_PATTERN.test(r.motiu)) {
+	if (r && r.scheduled === false && NO_OVERLAP_PATTERN.test(r.motiu)) {
 		const winner = rng() < 0.5 ? a1 : a2;
 		const a1Forced: ParticipantAvailability = {
 			participant_id: p1Id,
