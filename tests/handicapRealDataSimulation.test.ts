@@ -18,6 +18,7 @@ interface RealParticipant {
 	dies: string[];
 	hores: string[];
 	restriccions?: string | null;
+	dataDisponibleDes?: Date;
 }
 
 const REAL_PARTICIPANTS: RealParticipant[] = [
@@ -27,7 +28,7 @@ const REAL_PARTICIPANTS: RealParticipant[] = [
 	{ nom: 'José María Campos', distancia: 20, dies: ['dl', 'dt', 'dc', 'dj', 'dv'], hores: ['18:00'] },
 	{ nom: 'Rafael Cervantes', distancia: 20, dies: ['dl', 'dt', 'dc', 'dj', 'dv'], hores: ['18:00', '19:00'] },
 	{ nom: 'Luís Chuecos', distancia: 20, dies: ['dl', 'dt', 'dc', 'dj', 'dv'], hores: ['18:00', '19:00'] },
-	{ nom: 'Jordi Domingo', distancia: 20, dies: ['dl', 'dt', 'dc', 'dv'], hores: ['18:00', '19:00'], restriccions: 'a partir del 9 juny' },
+	{ nom: 'Jordi Domingo', distancia: 20, dies: ['dl', 'dt', 'dc', 'dv'], hores: ['18:00', '19:00'], restriccions: 'a partir del 9 juny', dataDisponibleDes: new Date('2026-06-09') },
 	{ nom: 'Joaquim Gibernau', distancia: 15, dies: ['dl', 'dt', 'dv'], hores: ['18:00', '19:00'] },
 	{ nom: 'Albert Gómez', distancia: 20, dies: ['dl', 'dt', 'dc', 'dj', 'dv'], hores: ['18:00', '19:00'] },
 	{ nom: 'Jorge Gómez', distancia: 15, dies: ['dl', 'dt', 'dc', 'dj', 'dv'], hores: ['18:00', '19:00'] },
@@ -116,7 +117,8 @@ describe('Simulació amb dades reals del torneig hàndicap 2025-2026', () => {
 				availabilities.set(participants[i].id, {
 					participantId: participants[i].id,
 					preferenciesDies: shuffled[i].dies,
-					preferenciesHores: shuffled[i].hores
+					preferenciesHores: shuffled[i].hores,
+					dataDisponibleDes: shuffled[i].dataDisponibleDes
 				});
 			}
 
@@ -142,6 +144,10 @@ describe('Simulació amb dades reals del torneig hàndicap 2025-2026', () => {
 					if (!pid) continue;
 					const av = availabilities.get(pid);
 					if (!av) continue;
+					if (av.dataDisponibleDes && sched.dataProgramada < av.dataDisponibleDes) {
+						conflicts++;
+						continue;
+					}
 					const okDia = av.preferenciesDies.length === 0 || av.preferenciesDies.includes(dayCode);
 					const okHora = av.preferenciesHores.length === 0 || av.preferenciesHores.includes(sched.horaInici);
 					if (!okDia || !okHora) conflicts++;

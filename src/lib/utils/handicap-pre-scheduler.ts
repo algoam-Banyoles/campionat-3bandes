@@ -48,6 +48,13 @@ export interface PreSchedulerOptions {
 	billars?: number;
 	/** Dies de la setmana en què hi ha activitat (per defecte dl..dv). */
 	diesActius?: string[];
+	/**
+	 * Dies addicionals de marge entre el predecessor i el successor a les
+	 * PRIMERES rondes (R1 i R2 de Winners; L1, L2 i L3 de Losers). Per defecte
+	 * 1, és a dir, separació total de 2 dies entre matches consecutius. Posa
+	 * 0 per al comportament minimalista (sense marge extra).
+	 */
+	diesMargeRondesInicials?: number;
 }
 
 export interface ScheduledMatch {
@@ -222,6 +229,8 @@ export function preSchedulingForBracket(
 		return `${s.date.toISOString().slice(0, 10)}|${s.hora}|${s.billar}`;
 	}
 
+	const margeInici = options.diesMargeRondesInicials ?? 1;
+
 	for (const m of sortedMatches) {
 		const matchSlot = slotById.get(m.slot1_id);
 		const bracket = matchSlot?.bracket_type ?? 'winners';
@@ -229,15 +238,26 @@ export function preSchedulingForBracket(
 		// Data mínima: dia després del darrer predecessor (per evitar mateix dia
 		// que el predecessor). Excepció: a la grand_final, el mateix dia que la
 		// final del winners es permet.
+		// A més, si el predecessor està a R1/R2 de Winners o L1/L2/L3 de Losers,
+		// donem un dia addicional de marge per donar més joc als jugadors per
+		// recuperar (configurable via diesMargeRondesInicials).
 		let earliestDate = options.dataInici;
 		for (const predId of predecessorsOf.get(m.id) ?? []) {
 			const pred = scheduled.get(predId);
 			if (!pred) continue;
+			const predMatch = playablesById.get(predId);
+			const predSlot = predMatch ? slotById.get(predMatch.slot1_id) : null;
+			const predBracket = predSlot?.bracket_type;
+			const predRonda = predSlot?.ronda ?? 0;
+			const isPrimeraRondaWinners = predBracket === 'winners' && predRonda <= 2;
+			const isPrimeraRondaLosers = predBracket === 'losers' && predRonda <= 3;
+			const margeExtra = (isPrimeraRondaWinners || isPrimeraRondaLosers) ? margeInici : 0;
+
 			let candidate: Date;
 			if (bracket === 'grand_final') {
 				candidate = pred.dataProgramada; // pot ser mateix dia
 			} else {
-				candidate = addDays(pred.dataProgramada, 1);
+				candidate = addDays(pred.dataProgramada, 1 + margeExtra);
 			}
 			if (candidate > earliestDate) earliestDate = candidate;
 		}

@@ -26,6 +26,10 @@ export interface ParticipantAvailability {
 	participantId: string;
 	preferenciesDies: string[]; // ['dl','dt',...] buit = qualsevol
 	preferenciesHores: string[]; // ['18:00',...] buit = qualsevol
+	/** Si el jugador només es pot incorporar a partir d'una data concreta. */
+	dataDisponibleDes?: Date;
+	/** Si el jugador no pot jugar a partir d'una data (vacances, etc.). */
+	dataDisponibleFins?: Date;
 }
 
 export interface OptimizerInput {
@@ -61,6 +65,8 @@ function isAvailable(
 	hora: string
 ): boolean {
 	if (!avail) return true; // si no tenim info, suposem disponible
+	if (avail.dataDisponibleDes && date < avail.dataDisponibleDes) return false;
+	if (avail.dataDisponibleFins && date > avail.dataDisponibleFins) return false;
 	const codi = diaCodi(date);
 	const okDia = avail.preferenciesDies.length === 0 || avail.preferenciesDies.includes(codi);
 	const okHora = avail.preferenciesHores.length === 0 || avail.preferenciesHores.includes(hora);
