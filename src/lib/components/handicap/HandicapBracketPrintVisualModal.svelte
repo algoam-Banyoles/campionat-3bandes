@@ -366,6 +366,9 @@
 			.match-code { font-weight: 800; font-size: 9.5pt; letter-spacing: 0.04em; }
 			.arrows { display: flex; gap: 1.5mm; flex-wrap: wrap; font-size: 7pt; color: #333; }
 			.arrows strong { font-weight: 700; }
+	.arrow-win { color: #1d6e3a; }
+	.arrow-lose { color: #a30b1e; }
+	.arrow-win strong, .arrow-lose strong { color: inherit; }
 			.player-row, .entries-row { display: flex; align-items: center; gap: 1mm; font-size: 7.5pt; }
 			.label { font-weight: 700; font-size: 7pt; color: #555; min-width: 4mm; }
 			.kv { font-size: 7pt; color: #555; font-weight: 600; }
@@ -486,7 +489,7 @@ ${printScript}
 													<span class="arrows">
 														<span class="arrow-win">↗W:<strong>{mv.winnerDest}</strong></span>
 														{#if mv.loserDest !== '—'}
-															<span>↘L:<strong>{mv.loserDest}</strong></span>
+															<span class="arrow-lose">↘L:<strong>{mv.loserDest}</strong></span>
 														{/if}
 													</span>
 												</div>
@@ -647,6 +650,9 @@ ${printScript}
 	.match-code { font-weight: 800; font-size: 9.5pt; letter-spacing: 0.04em; }
 	.arrows { display: flex; gap: 1.5mm; flex-wrap: wrap; font-size: 7pt; color: #333; }
 	.arrows strong { font-weight: 700; }
+	.arrow-win { color: #1d6e3a; }
+	.arrow-lose { color: #a30b1e; }
+	.arrow-win strong, .arrow-lose strong { color: inherit; }
 	.player-row, .entries-row { display: flex; align-items: center; gap: 1mm; font-size: 7.5pt; }
 	.schedule-row {
 		display: flex; justify-content: space-between; align-items: baseline;
