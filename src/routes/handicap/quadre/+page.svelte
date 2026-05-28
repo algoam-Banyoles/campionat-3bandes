@@ -147,22 +147,6 @@
 		}
 	}
 
-	// ── Estadístiques ─────────────────────────────────────────────────────────
-
-	$: totalMatches = matchViews.filter((m) => m.estat !== 'bye').length;
-	$: playedMatches = matchViews.filter((m) => m.estat === 'jugada' || m.estat === 'walkover').length;
-	$: pendingMatches = matchViews.filter((m) => m.estat === 'pendent' || m.estat === 'programada').length;
-	$: eliminatedCount = participants.filter((p) => p.eliminat).length;
-	$: activeCount = participants.length - eliminatedCount;
-
-	$: currentRound = (() => {
-		const played = matchViews
-			.filter((m) => (m.estat === 'jugada' || m.estat === 'walkover') && m.bracket_type === 'winners')
-			.map((m) => m.ronda);
-		if (played.length === 0) return 1;
-		return Math.max(...played);
-	})();
-
 	// ── Càrrega de dades ──────────────────────────────────────────────────────
 
 	let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
@@ -604,30 +588,6 @@
 				🏆 Torneig finalitzat — mode de sola lectura
 			</div>
 		{/if}
-
-		<!-- ── Estadístiques ───────────────────────────────────────────────────── -->
-		<div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5 print:hidden">
-			<div class="rounded border border-gray-200 bg-white p-3 text-center shadow-sm">
-				<div class="text-xl font-bold text-gray-800">{playedMatches}/{totalMatches}</div>
-				<div class="text-xs text-gray-500">Partides jugades</div>
-			</div>
-			<div class="rounded border border-gray-200 bg-white p-3 text-center shadow-sm">
-				<div class="text-xl font-bold text-blue-700">{pendingMatches}</div>
-				<div class="text-xs text-gray-500">Pendents</div>
-			</div>
-			<div class="rounded border border-gray-200 bg-white p-3 text-center shadow-sm">
-				<div class="text-xl font-bold text-green-700">{activeCount}</div>
-				<div class="text-xs text-gray-500">Jugadors actius</div>
-			</div>
-			<div class="rounded border border-gray-200 bg-white p-3 text-center shadow-sm">
-				<div class="text-xl font-bold text-red-600">{eliminatedCount}</div>
-				<div class="text-xs text-gray-500">Eliminats</div>
-			</div>
-			<div class="rounded border border-gray-200 bg-white p-3 text-center shadow-sm">
-				<div class="text-xl font-bold text-purple-700">G-R{currentRound}</div>
-				<div class="text-xs text-gray-500">Ronda actual</div>
-			</div>
-		</div>
 
 		<!-- ── Controls ───────────────────────────────────────────────────────── -->
 		<div class="mb-4 flex flex-wrap gap-3 print:hidden">
