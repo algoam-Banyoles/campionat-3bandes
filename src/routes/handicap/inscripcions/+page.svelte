@@ -89,6 +89,13 @@
 	let showPrintBracketModal = false;
 	let showPrintBracketVisualModal = false;
 	let printBracketCount = 0;
+
+	// Arrodoneix cap amunt fins a la següent potència de 2 (mínim 4): 13→16, 30→32, 50→64.
+	function nextBracketSize(n: number): number {
+		const minimum = 4;
+		if (n <= minimum) return minimum;
+		return 2 ** Math.ceil(Math.log2(n));
+	}
 	// Modal d'impressió del llistat d'inscrits
 	let showPrintInscritsModal = false;
 
@@ -765,7 +772,7 @@
 				</button>
 				<button
 					on:click={() => {
-						printBracketCount = Math.max(participants.length, 4);
+						printBracketCount = nextBracketSize(participants.length);
 						showPrintBracketModal = true;
 					}}
 					class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -775,7 +782,7 @@
 				</button>
 				<button
 					on:click={() => {
-						printBracketCount = Math.max(participants.length, 4);
+						printBracketCount = nextBracketSize(participants.length);
 						showPrintBracketVisualModal = true;
 					}}
 					class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
