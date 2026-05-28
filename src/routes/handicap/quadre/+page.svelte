@@ -31,7 +31,7 @@
 
 	// Filtres
 	let filter: 'all' | 'winners' | 'losers' | 'grand_final' = 'all';
-	let bracketMode: 'visual' | 'compact' = 'visual';
+	let bracketMode: 'visual' | 'compact' = 'compact';
 	let searchTerm = '';
 
 	// Modal detall partida
