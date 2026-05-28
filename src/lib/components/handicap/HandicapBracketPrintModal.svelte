@@ -5,9 +5,9 @@
 	import { generateDoublEliminationBracket } from '$lib/utils/handicap-bracket-generator';
 	import { preSchedulingForBracket, type ScheduledMatch } from '$lib/utils/handicap-pre-scheduler';
 	import { printPortal } from '$lib/utils/print-portal';
-	import { loadLogoSvg } from '$lib/utils/load-logo';
+	import { loadLogoDataUrl } from '$lib/utils/load-logo';
 
-	let logoSvg = '';
+	let logoDataUrl = '';
 
 	// Dos modes:
 	//   - eventId definit       → bracket REAL: carrega slots/matches de la BBDD.
@@ -55,7 +55,7 @@
 	let inputCount = participantCount ?? 32;
 
 	onMount(async () => {
-		logoSvg = await loadLogoSvg();
+		logoDataUrl = await loadLogoDataUrl();
 		await loadAll();
 	});
 
@@ -485,11 +485,11 @@ ${printScript}
 					<section class="print-page">
 						<header class="page-head">
 							<div class="page-head-left">
-								{#if logoSvg}
-									<div class="page-logo">{@html logoSvg}</div>
-								{:else}
-									<img src="{base}/logo-billar.svg" alt="" class="page-logo" />
-								{/if}
+								<img
+									src={logoDataUrl || `${base}/logo.png`}
+									alt=""
+									class="page-logo"
+								/>
 								<div class="page-head-titles">
 									<div class="page-title-main">CAMPIONAT SOCIAL HÀNDICAP{temporadaPretty ? ` ${temporadaPretty}` : ''}</div>
 									<div class="page-section">Bracket Principal {winnersPages.length > 1 ? `(${pi + 1}/${winnersPages.length})` : ''}</div>
@@ -507,9 +507,9 @@ ${printScript}
 												<div class="cell-head">
 													<span class="match-code">{mv.code}</span>
 													<span class="arrows">
-														<span>↗W: <strong>{mv.winnerDest}</strong></span>
+														<span class="arrow-win">↗W: <strong>{mv.winnerDest}</strong></span>
 														{#if mv.loserDest !== '—'}
-															<span>↘L: <strong>{mv.loserDest}</strong></span>
+															<span class="arrow-lose">↘L: <strong>{mv.loserDest}</strong></span>
 														{/if}
 													</span>
 												</div>
@@ -547,11 +547,11 @@ ${printScript}
 					<section class="print-page">
 						<header class="page-head">
 							<div class="page-head-left">
-								{#if logoSvg}
-									<div class="page-logo">{@html logoSvg}</div>
-								{:else}
-									<img src="{base}/logo-billar.svg" alt="" class="page-logo" />
-								{/if}
+								<img
+									src={logoDataUrl || `${base}/logo.png`}
+									alt=""
+									class="page-logo"
+								/>
 								<div class="page-head-titles">
 									<div class="page-title-main">CAMPIONAT SOCIAL HÀNDICAP{temporadaPretty ? ` ${temporadaPretty}` : ''}</div>
 									<div class="page-section">Bracket Repesca {losersPages.length > 1 ? `(${pi + 1}/${losersPages.length})` : ''}</div>
@@ -569,7 +569,7 @@ ${printScript}
 												<div class="cell-head">
 													<span class="match-code">{mv.code}</span>
 													<span class="arrows">
-														<span>↗W: <strong>{mv.winnerDest}</strong></span>
+														<span class="arrow-win">↗W: <strong>{mv.winnerDest}</strong></span>
 													</span>
 												</div>
 												<div class="player-row">

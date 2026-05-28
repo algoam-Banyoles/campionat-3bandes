@@ -5,9 +5,9 @@
 	import { generateDoublEliminationBracket } from '$lib/utils/handicap-bracket-generator';
 	import { preSchedulingForBracket, type ScheduledMatch } from '$lib/utils/handicap-pre-scheduler';
 	import { printPortal } from '$lib/utils/print-portal';
-	import { loadLogoSvg } from '$lib/utils/load-logo';
+	import { loadLogoDataUrl } from '$lib/utils/load-logo';
 
-	let logoSvg = '';
+	let logoDataUrl = '';
 
 	export let eventId: string | null = null;
 	export let participantCount: number | null = null;
@@ -53,7 +53,7 @@
 	let inputCount = participantCount ?? 32;
 
 	onMount(async () => {
-		logoSvg = await loadLogoSvg();
+		logoDataUrl = await loadLogoDataUrl();
 		await loadAll();
 	});
 
@@ -461,11 +461,11 @@ ${printScript}
 					<section class="print-page">
 						<header class="page-head">
 							<div class="page-head-left">
-								{#if logoSvg}
-									<div class="page-logo">{@html logoSvg}</div>
-								{:else}
-									<img src="{base}/logo-billar.svg" alt="" class="page-logo" />
-								{/if}
+								<img
+									src={logoDataUrl || `${base}/logo.png`}
+									alt=""
+									class="page-logo"
+								/>
 								<div class="page-head-titles">
 									<div class="page-title-main">CAMPIONAT SOCIAL HÀNDICAP{temporadaPretty ? ` ${temporadaPretty}` : ''}</div>
 									<div class="page-section">{page.sectionLabel}</div>

@@ -231,35 +231,49 @@ export function preSchedulingForBracket(
 
 	const margeInici = options.diesMargeRondesInicials ?? 1;
 
+	// Tracking de la data més tardana de cada (bracket, ronda) ja processada.
+	// Serveix per aplicar una "barrera de ronda": cap match d'una ronda r es
+	// programa fins almenys 1 dia després que acabi l'últim de la ronda r-1
+	// (mateix bracket). Així es respecta el "dia al mig" entre rondes.
+	const lastDateInRound = new Map<string, Date>();
+
 	for (const m of sortedMatches) {
 		const matchSlot = slotById.get(m.slot1_id);
 		const bracket = matchSlot?.bracket_type ?? 'winners';
+		const ronda = matchSlot?.ronda ?? 0;
 
 		// Data mínima: dia després del darrer predecessor (per evitar mateix dia
 		// que el predecessor). Excepció: a la grand_final, el mateix dia que la
 		// final del winners es permet.
-		// A més, si el predecessor està a R1/R2 de Winners o L1/L2/L3 de Losers,
-		// donem un dia addicional de marge per donar més joc als jugadors per
-		// recuperar (configurable via diesMargeRondesInicials).
 		let earliestDate = options.dataInici;
 		for (const predId of predecessorsOf.get(m.id) ?? []) {
 			const pred = scheduled.get(predId);
 			if (!pred) continue;
-			const predMatch = playablesById.get(predId);
-			const predSlot = predMatch ? slotById.get(predMatch.slot1_id) : null;
-			const predBracket = predSlot?.bracket_type;
-			const predRonda = predSlot?.ronda ?? 0;
-			const isPrimeraRondaWinners = predBracket === 'winners' && predRonda <= 2;
-			const isPrimeraRondaLosers = predBracket === 'losers' && predRonda <= 3;
-			const margeExtra = (isPrimeraRondaWinners || isPrimeraRondaLosers) ? margeInici : 0;
 
 			let candidate: Date;
 			if (bracket === 'grand_final') {
 				candidate = pred.dataProgramada; // pot ser mateix dia
 			} else {
-				candidate = addDays(pred.dataProgramada, 1 + margeExtra);
+				candidate = addDays(pred.dataProgramada, 1);
 			}
 			if (candidate > earliestDate) earliestDate = candidate;
+		}
+
+		// Barrera de ronda: tots els matches d'una ronda han d'haver acabat
+		// abans de començar la següent al mateix bracket, amb 1 dia al mig.
+		// A més, a R1/R2 Winners i L1/L2/L3 Losers afegim el marge addicional
+		// (diesMargeRondesInicials) perquè els jugadors tinguin més temps per
+		// recuperar.
+		if (ronda > 1 && bracket !== 'grand_final') {
+			const prevKey = `${bracket}-${ronda - 1}`;
+			const prevEnd = lastDateInRound.get(prevKey);
+			if (prevEnd) {
+				const isPrimeraRondaWinners = bracket === 'winners' && (ronda - 1) <= 2;
+				const isPrimeraRondaLosers = bracket === 'losers' && (ronda - 1) <= 3;
+				const margeExtra = (isPrimeraRondaWinners || isPrimeraRondaLosers) ? margeInici : 0;
+				const barrier = addDays(prevEnd, 1 + margeExtra);
+				if (barrier > earliestDate) earliestDate = barrier;
+			}
 		}
 
 		// Cerquem el primer slot disponible ≥ earliestDate.

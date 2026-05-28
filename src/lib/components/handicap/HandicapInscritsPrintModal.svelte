@@ -3,10 +3,10 @@
 	import { base } from '$app/paths';
 	import { formatarNomJugador } from '$lib/utils/playerUtils';
 	import { printPortal } from '$lib/utils/print-portal';
-	import { loadLogoSvg } from '$lib/utils/load-logo';
+	import { loadLogoDataUrl } from '$lib/utils/load-logo';
 
-	let logoSvg = '';
-	onMount(async () => { logoSvg = await loadLogoSvg(); });
+	let logoDataUrl = '';
+	onMount(async () => { logoDataUrl = await loadLogoDataUrl(); });
 
 	export let participants: any[] = [];
 	export let eventNom: string = '';
@@ -177,11 +177,11 @@ ${printScript}
 			<section class="print-page">
 				<header class="page-head">
 					<div class="page-head-left">
-						{#if logoSvg}
-							<div class="page-logo">{@html logoSvg}</div>
-						{:else}
-							<img src="{base}/logo-billar.svg" alt="" class="page-logo" />
-						{/if}
+						<img
+							src={logoDataUrl || `${base}/logo.png`}
+							alt=""
+							class="page-logo"
+						/>
 						<div class="page-head-titles">
 							<div class="page-title-main">CAMPIONAT SOCIAL HÀNDICAP{temporadaPretty ? ` ${temporadaPretty}` : ''}</div>
 							<div class="page-section">Llistat d'inscrits ({rows.length}) · per {orderLabel}</div>
