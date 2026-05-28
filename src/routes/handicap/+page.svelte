@@ -270,19 +270,48 @@
 		</div>
 	{/if}
 
+	<!-- Navegació pública -->
+	<h2 class="mb-3 text-lg font-semibold text-gray-800">Consultar</h2>
+	<div class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+		{#each publicLinks as link}
+			<a
+				href={link.href}
+				class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-colors hover:border-purple-300 hover:bg-purple-50"
+			>
+				<div class="mb-1 text-2xl">{link.icon}</div>
+				<div class="font-medium text-gray-900">{link.label}</div>
+				<div class="text-xs text-gray-500">{link.desc}</div>
+				{#if link.label === 'Jugadors inscrits' && participantsCount > 0}
+					<div class="mt-1 text-xs font-semibold text-purple-700">{participantsCount} inscrits</div>
+				{/if}
+			</a>
+		{/each}
+	</div>
+
 	{#if recentMatches.length > 0}
-		<div class="mb-6 rounded-lg border border-purple-200 bg-white p-4 shadow-sm">
-			<div class="text-xs font-semibold uppercase text-purple-600 mb-2">Últims resultats</div>
-			<div class="space-y-1.5">
+		<section class="ump-section">
+			<header class="ump-head">
+				<div class="editorial-eyebrow ump-eyebrow">Resultats</div>
+				<h2 class="ump-title">Últims resultats</h2>
+			</header>
+			<ol class="ump-list">
 				{#each recentMatches as m}
-					<div class="flex items-center gap-2 text-xs">
-						<span class="font-medium text-green-700">{m.winner_name}</span>
-						<span class="text-gray-400">guanya ·</span>
-						<span class="text-gray-500">{m.player1_name} vs {m.player2_name}</span>
-					</div>
+					<li class="ump-row">
+						<div class="ump-date">
+							<div class="ump-date-day tabular-nums">{formatDateCa(m.data)}</div>
+						</div>
+						<div class="ump-info">
+							<div class="ump-opponent">
+								<strong class="ump-winner">{m.winner_name}</strong> guanya
+							</div>
+							<div class="ump-meta">
+								{m.player1_name} vs {m.player2_name} · {bracketLabel(m.bracket_type)} · Ronda {m.ronda}
+							</div>
+						</div>
+					</li>
 				{/each}
-			</div>
-		</div>
+			</ol>
+		</section>
 	{/if}
 
 	{#if upcomingMatches.length > 0}
@@ -313,24 +342,6 @@
 			</ol>
 		</section>
 	{/if}
-
-	<!-- Navegació pública -->
-	<h2 class="mb-3 text-lg font-semibold text-gray-800">Consultar</h2>
-	<div class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-		{#each publicLinks as link}
-			<a
-				href={link.href}
-				class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-colors hover:border-purple-300 hover:bg-purple-50"
-			>
-				<div class="mb-1 text-2xl">{link.icon}</div>
-				<div class="font-medium text-gray-900">{link.label}</div>
-				<div class="text-xs text-gray-500">{link.desc}</div>
-				{#if link.label === 'Jugadors inscrits' && participantsCount > 0}
-					<div class="mt-1 text-xs font-semibold text-purple-700">{participantsCount} inscrits</div>
-				{/if}
-			</a>
-		{/each}
-	</div>
 
 	{#if $effectiveIsAdmin}
 		<!-- Quick actions -->
@@ -532,6 +543,7 @@
 		color: var(--ink-2);
 	}
 	.ump-opponent strong { color: var(--ink); }
+	.ump-opponent strong.ump-winner { color: var(--green); }
 	.ump-meta {
 		margin-top: 0.2rem;
 		font-size: 0.8125rem;

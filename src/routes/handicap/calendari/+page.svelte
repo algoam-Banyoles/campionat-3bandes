@@ -1,20 +1,45 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
-	import HandicapWeeklyCalendar from '$lib/components/handicap/HandicapWeeklyCalendar.svelte';
-	import type { CalendarEntry } from '$lib/utils/handicap-types';
-	import type { TournamentConfig } from '$lib/utils/handicap-scheduler';
+	import { buildMatchCodeMap } from '$lib/utils/handicap-types';
 	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 
 	let loading = true;
 	let error: string | null = null;
 	let eventNom = '';
 	let eventTemporada = '';
-	let config: TournamentConfig | null = null;
-	let calendarEntries: CalendarEntry[] = [];
 
 	$: temporadaPretty = (eventTemporada || '').replace('-', '/');
+
+	type CalRow = {
+		date: Date;
+		hora: string;
+		billar: number;
+		code: string | null;
+		bracket: 'winners' | 'losers' | 'grand_final' | null;
+		winnerDest: string | null;
+		loserDest: string | null;
+		player1: string | null;
+		player2: string | null;
+		estat: string | null;
+	};
+	let rows: CalRow[] = [];
+	let columns: 1 | 2 = 2;
+
+	function ymd(d: Date): string {
+		const y = d.getFullYear();
+		const m = String(d.getMonth() + 1).padStart(2, '0');
+		const dd = String(d.getDate()).padStart(2, '0');
+		return `${y}-${m}-${dd}`;
+	}
+	function diaNom(d: Date): string {
+		return ['Diumenge', 'Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte'][d.getDay()];
+	}
+	function dateLabel(d: Date): string {
+		const dd = String(d.getDate()).padStart(2, '0');
+		const mm = String(d.getMonth() + 1).padStart(2, '0');
+		return `${dd}/${mm}`;
+	}
 
 	onMount(async () => {
 		try {
@@ -35,28 +60,16 @@
 			eventNom = ev.nom ?? '';
 			eventTemporada = ev.temporada ?? '';
 
-			if (!ev.data_inici || !ev.data_fi) {
-				error = "L'event hàndicap no té dates de competició configurades.";
-				loading = false;
-				return;
-			}
-
 			const { data: cfg } = await supabase
 				.from('handicap_config')
 				.select('horaris_extra')
 				.eq('event_id', ev.id)
 				.maybeSingle();
+			const horarisExtra: any = cfg?.horaris_extra ?? null;
 
-			config = {
-				data_inici: ev.data_inici as string,
-				data_fi: ev.data_fi as string,
-				horaris_extra: (cfg?.horaris_extra as any) ?? undefined
-			} as TournamentConfig;
-
-			// Carregar matches amb calendari_partida_id
 			const { data: rawMatches, error: mErr } = await supabase
 				.from('handicap_matches')
-				.select('id, estat, slot1_id, slot2_id, calendari_partida_id')
+				.select('id, estat, slot1_id, slot2_id, calendari_partida_id, winner_slot_dest_id, loser_slot_dest_id')
 				.eq('event_id', ev.id)
 				.neq('estat', 'bye');
 
@@ -66,34 +79,23 @@
 				return;
 			}
 
-			const calIds = rawMatches
-				.filter((m: any) => m.calendari_partida_id)
-				.map((m: any) => m.calendari_partida_id as string);
 			const slotIds = rawMatches.flatMap((m: any) => [m.slot1_id, m.slot2_id]);
+			const calIds = rawMatches.filter((m: any) => m.calendari_partida_id).map((m: any) => m.calendari_partida_id as string);
 
 			const [{ data: slots }, { data: cals }] = await Promise.all([
 				supabase
 					.from('handicap_bracket_slots')
-					.select('id, bracket_type, ronda, participant_id')
+					.select('id, bracket_type, ronda, posicio, participant_id')
 					.in('id', slotIds),
 				calIds.length > 0
-					? supabase
-							.from('calendari_partides')
-							.select('id, data_programada, hora_inici, taula_assignada')
-							.in('id', calIds)
+					? supabase.from('calendari_partides').select('id, data_programada, hora_inici, taula_assignada').in('id', calIds)
 					: Promise.resolve({ data: [] as any[] })
 			]);
 
 			const slotMap = new Map((slots ?? []).map((s: any) => [s.id, s]));
 			const calMap = new Map((cals ?? []).map((c: any) => [c.id, c]));
 
-			// Noms de jugadors
-			const partIds = [...new Set(
-				(slots ?? [])
-					.filter((s: any) => s.participant_id)
-					.map((s: any) => s.participant_id as string)
-			)];
-
+			const partIds = [...new Set((slots ?? []).filter((s: any) => s.participant_id).map((s: any) => s.participant_id as string))];
 			const nameMap = new Map<string, string>();
 			if (partIds.length > 0) {
 				const { data: parts } = await supabase
@@ -107,34 +109,159 @@
 				}
 			}
 
-			calendarEntries = rawMatches
-				.map((m: any) => {
-					const cal = m.calendari_partida_id ? calMap.get(m.calendari_partida_id) : null;
-					const s1 = slotMap.get(m.slot1_id);
-					const s2 = slotMap.get(m.slot2_id);
-					if (!cal || !s1 || !s2) return null;
-					if (!cal.data_programada || !cal.hora_inici || !cal.taula_assignada) return null;
-					const data = (cal.data_programada as string).substring(0, 10);
-					const hora = (cal.hora_inici as string).substring(0, 5);
-					return {
-						id: m.id,
-						player1_name: nameMap.get(s1.participant_id) ?? '?',
-						player2_name: nameMap.get(s2.participant_id) ?? '?',
-						bracket_type: s1.bracket_type as 'winners' | 'losers' | 'grand_final',
-						ronda: s1.ronda as number,
-						estat: m.estat,
-						data_programada: data,
-						hora_inici: hora,
-						taula_assignada: cal.taula_assignada as number
-					} satisfies CalendarEntry;
-				})
-				.filter((x: CalendarEntry | null): x is CalendarEntry => x !== null);
+			// Codis de match (W1.1, L2.3, GF1) usant matchPos = ceil(posicio / 2)
+			const codeInputs = rawMatches.map((m: any) => {
+				const s1: any = slotMap.get(m.slot1_id);
+				return {
+					id: m.id as string,
+					bracket_type: (s1?.bracket_type ?? 'winners') as string,
+					ronda: (s1?.ronda ?? 1) as number,
+					matchPos: s1 ? Math.ceil((s1.posicio as number) / 2) : 0
+				};
+			});
+			const codeMap = buildMatchCodeMap(codeInputs);
+
+			// Mapa slot_id → match (per resoldre winner/loser dest)
+			const matchBySlot = new Map<string, any>();
+			for (const m of rawMatches) {
+				matchBySlot.set(m.slot1_id, m);
+				matchBySlot.set(m.slot2_id, m);
+			}
+			const destCode = (slotId: string | null): string | null => {
+				if (!slotId) return null;
+				const m = matchBySlot.get(slotId);
+				if (!m) return null;
+				return codeMap.get(m.id) ?? null;
+			};
+
+			// Mapa slotKey (data|hora|billar) → info de match programat
+			type MatchInfo = {
+				code: string;
+				bracket: 'winners' | 'losers' | 'grand_final';
+				winnerDest: string | null;
+				loserDest: string | null;
+				player1: string | null;
+				player2: string | null;
+				estat: string;
+			};
+			const matchAtSlot = new Map<string, MatchInfo>();
+			const scheduledDates = new Set<string>();
+			for (const m of rawMatches as any[]) {
+				const cal = m.calendari_partida_id ? calMap.get(m.calendari_partida_id) : null;
+				if (!cal || !cal.data_programada || !cal.hora_inici || !cal.taula_assignada) continue;
+				const s1: any = slotMap.get(m.slot1_id);
+				const s2: any = slotMap.get(m.slot2_id);
+				if (!s1 || !s2) continue;
+				const dKey = (cal.data_programada as string).substring(0, 10);
+				const hKey = (cal.hora_inici as string).substring(0, 5);
+				const bKey = cal.taula_assignada as number;
+				const key = `${dKey}|${hKey}|${bKey}`;
+				scheduledDates.add(dKey);
+				matchAtSlot.set(key, {
+					code: codeMap.get(m.id) ?? '?',
+					bracket: (s1.bracket_type ?? 'winners') as MatchInfo['bracket'],
+					winnerDest: destCode(m.winner_slot_dest_id),
+					loserDest: destCode(m.loser_slot_dest_id),
+					player1: s1.participant_id ? (nameMap.get(s1.participant_id) ?? null) : null,
+					player2: s2.participant_id ? (nameMap.get(s2.participant_id) ?? null) : null,
+					estat: m.estat as string
+				});
+			}
+
+			if (scheduledDates.size === 0) {
+				rows = [];
+				loading = false;
+				return;
+			}
+
+			const sortedDates = [...scheduledDates].sort();
+			const minDate = new Date(sortedDates[0]);
+			const maxDate = new Date(sortedDates[sortedDates.length - 1]);
+			const dies = ['dg', 'dl', 'dt', 'dc', 'dj', 'dv', 'ds'];
+			const diesActius = ['dl', 'dt', 'dc', 'dj', 'dv'];
+
+			const tmp: CalRow[] = [];
+			for (let d = new Date(minDate); d <= maxDate; d.setDate(d.getDate() + 1)) {
+				const codi = dies[d.getDay()];
+				if (!diesActius.includes(codi)) continue;
+				const hores = ['18:00', '19:00'];
+				if (horarisExtra && Array.isArray(horarisExtra.dies) && horarisExtra.dies.includes(codi) && horarisExtra.franja) {
+					hores.unshift(horarisExtra.franja);
+				}
+				for (const h of hores) {
+					for (let b = 1; b <= 3; b++) {
+						const key = `${ymd(d)}|${h}|${b}`;
+						const mi = matchAtSlot.get(key) ?? null;
+						tmp.push({
+							date: new Date(d),
+							hora: h,
+							billar: b,
+							code: mi?.code ?? null,
+							bracket: mi?.bracket ?? null,
+							winnerDest: mi?.winnerDest ?? null,
+							loserDest: mi?.loserDest ?? null,
+							player1: mi?.player1 ?? null,
+							player2: mi?.player2 ?? null,
+							estat: mi?.estat ?? null
+						});
+					}
+				}
+			}
+			rows = tmp;
 		} catch (e: any) {
 			error = e?.message ?? String(e);
 		} finally {
 			loading = false;
 		}
 	});
+
+	// Agrupació per dia → hora per als rowspans
+	type GroupHour = { hora: string; items: CalRow[] };
+	type GroupDay = { date: Date; total: number; hours: GroupHour[] };
+	$: groupedDays = (() => {
+		const byDay = new Map<string, GroupDay>();
+		for (const r of rows) {
+			const key = ymd(r.date);
+			let gd = byDay.get(key);
+			if (!gd) {
+				gd = { date: r.date, total: 0, hours: [] };
+				byDay.set(key, gd);
+			}
+			let gh = gd.hours.find((h) => h.hora === r.hora);
+			if (!gh) {
+				gh = { hora: r.hora, items: [] };
+				gd.hours.push(gh);
+			}
+			gh.items.push(r);
+			gd.total++;
+		}
+		return [...byDay.values()].sort((a, b) => a.date.getTime() - b.date.getTime());
+	})();
+
+	$: splitDays = (() => {
+		if (columns === 1) return [groupedDays];
+		const total = groupedDays.reduce((a, g) => a + g.total, 0);
+		const target = total / 2;
+		const left: GroupDay[] = [];
+		const right: GroupDay[] = [];
+		let acc = 0;
+		for (const g of groupedDays) {
+			if (acc < target) {
+				left.push(g);
+				acc += g.total;
+			} else {
+				right.push(g);
+			}
+		}
+		return [left, right];
+	})();
+
+	function codeColorClass(bracket: CalRow['bracket']): string {
+		if (!bracket) return '';
+		return bracket === 'winners' ? 'code-w' : bracket === 'losers' ? 'code-l' : 'code-gf';
+	}
+
+	$: scheduledCount = rows.filter((r) => r.code !== null).length;
 </script>
 
 <svelte:head>
@@ -153,8 +280,8 @@
 			{/if}
 		</div>
 		<div class="stat-chip">
-			<span class="stat-num">{calendarEntries.length}</span>
-			<span class="stat-lbl">partid{calendarEntries.length === 1 ? 'a' : 'es'}</span>
+			<span class="stat-num">{scheduledCount}</span>
+			<span class="stat-lbl">partid{scheduledCount === 1 ? 'a' : 'es'}</span>
 		</div>
 	</header>
 
@@ -162,27 +289,76 @@
 		<p class="muted">Carregant...</p>
 	{:else if error}
 		<div class="alert-error">{error}</div>
-	{:else if !config}
-		<div class="alert-error">Configuració no disponible.</div>
-	{:else if calendarEntries.length === 0}
+	{:else if rows.length === 0}
 		<div class="empty">Encara no hi ha cap partida programada.</div>
 	{:else}
-		<HandicapWeeklyCalendar
-			entries={calendarEntries}
-			{config}
-			on:matchclick={() => goto('/handicap/quadre')}
-		/>
+		<div class="toolbar">
+			<label class="col-label">
+				Format:
+				<select bind:value={columns} class="col-select">
+					<option value={2}>2 columnes</option>
+					<option value={1}>1 columna</option>
+				</select>
+			</label>
+		</div>
+
+		<div class="two-cols" class:single={columns === 1}>
+			{#each splitDays as colDays}
+				<div class="col">
+					<table class="cal-table">
+						<thead>
+							<tr>
+								<th>Dia</th>
+								<th>Hora</th>
+								<th>B</th>
+								<th>Match</th>
+								<th>Destí</th>
+								<th>Jugador 1</th>
+								<th>Jugador 2</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each colDays as gd}
+								{#each gd.hours as gh, hIdx}
+									{#each gh.items as it, iIdx}
+										<tr class:played={it.estat === 'jugada' || it.estat === 'walkover'}>
+											{#if hIdx === 0 && iIdx === 0}
+												<td class="day-cell" rowspan={gd.total}>
+													<div class="d-num">{dateLabel(gd.date)}</div>
+													<div class="d-name">{diaNom(gd.date)}</div>
+												</td>
+											{/if}
+											{#if iIdx === 0}
+												<td class="hour-cell" rowspan={gh.items.length}>{gh.hora}</td>
+											{/if}
+											<td class="billar-cell">B{it.billar}</td>
+											<td class="code-cell {codeColorClass(it.bracket)}">{it.code ?? ''}</td>
+											<td class="dest-cell">
+												{#if it.winnerDest}<div class="arrow-win">↗G: <strong>{it.winnerDest}</strong></div>{/if}
+												{#if it.loserDest}<div class="arrow-lose">↘P: <strong>{it.loserDest}</strong></div>{/if}
+											</td>
+											<td class="player-cell">{it.player1 ?? ''}</td>
+											<td class="player-cell">{it.player2 ?? ''}</td>
+										</tr>
+									{/each}
+								{/each}
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/each}
+		</div>
 	{/if}
 </div>
 
 <style>
 	.hcap-root {
-		max-width: 64rem;
+		max-width: 80rem;
 		margin: 0 auto;
 		padding: 1rem;
 		display: flex;
 		flex-direction: column;
-		gap: 1.5rem;
+		gap: 1.25rem;
 		font-family: var(--font-sans);
 		color: var(--ink);
 	}
@@ -228,5 +404,68 @@
 		text-align: center;
 		color: var(--ink-2);
 		background: var(--paper-elevated);
+	}
+
+	.toolbar { display: flex; justify-content: flex-end; }
+	.col-label { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 600; color: var(--ink-2); }
+	.col-select { padding: 0.25rem 0.5rem; border: 1px solid var(--ink); background: white; font-size: 0.85rem; }
+
+	.two-cols { display: flex; gap: 1rem; align-items: flex-start; }
+	.two-cols.single { display: block; }
+	.col { flex: 1; min-width: 0; }
+
+	.cal-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; background: white; }
+	.cal-table th, .cal-table td {
+		border: 1px solid #333;
+		padding: 0.3rem 0.4rem;
+		text-align: center;
+		vertical-align: middle;
+	}
+	.cal-table th {
+		background: #e8e8e8;
+		font-weight: 700;
+		font-size: 0.7rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		padding: 0.4rem 0.3rem;
+	}
+	.day-cell {
+		background: #f5f5f5;
+		font-weight: 700;
+		border-right: 2px solid #333;
+		white-space: nowrap;
+		min-width: 3.5rem;
+	}
+	.day-cell .d-num { font-size: 1rem; font-weight: 800; }
+	.day-cell .d-name { font-size: 0.7rem; color: #555; font-weight: 600; }
+	.hour-cell {
+		background: #fafafa;
+		font-weight: 700;
+		border-right: 2px solid #333;
+		min-width: 3rem;
+	}
+	.billar-cell { font-weight: 700; font-size: 0.8rem; background: #fcfcfc; width: 2rem; }
+	.code-cell { font-weight: 800; font-size: 0.8rem; width: 3rem; white-space: nowrap; }
+	.code-w { color: #1d6e3a; }
+	.code-l { color: #a30b1e; }
+	.code-gf { color: #6b3eb8; }
+	.dest-cell {
+		font-size: 0.7rem;
+		font-weight: 600;
+		min-width: 4rem;
+		text-align: left;
+		line-height: 1.25;
+		padding: 0.25rem 0.4rem;
+	}
+	.dest-cell .arrow-win, .dest-cell .arrow-lose { display: block; }
+	.dest-cell strong { font-weight: 800; }
+	.arrow-win { color: #1d6e3a; }
+	.arrow-lose { color: #a30b1e; }
+	.player-cell { font-size: 0.8rem; min-width: 7rem; text-align: left; padding: 0.25rem 0.5rem; }
+
+	tr.played .player-cell, tr.played .code-cell { opacity: 0.6; }
+
+	@media (max-width: 900px) {
+		.two-cols { flex-direction: column; }
 	}
 </style>
