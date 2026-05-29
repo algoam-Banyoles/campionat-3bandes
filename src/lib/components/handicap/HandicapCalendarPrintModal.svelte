@@ -338,24 +338,41 @@
 		return [...byDay.values()].sort((a, b) => a.date.getTime() - b.date.getTime());
 	})();
 
-	// Per a 2 columnes: dividim els dies en dues meitats balancejades
+	// Paginació. Cada `pages[i]` és un full; cada full té 1 o 2 columnes (segons
+	// `columns`). Els dies són atòmics dins d'una columna i s'ordenen per
+	// "newspaper column flow" (omplim primer la col. esquerra fins al límit,
+	// després la dreta, després nou full). Així mai un dia ni dos dies
+	// consecutius es parteixen entre fulls diferents en la mateixa columna.
+	//
+	// MAX_ROWS_PER_COL: heurística per A3 portrait (~404mm útils − ~30mm
+	// capçalera = ~370mm; cada fila ~5.5mm → ~67 files). Anem una mica
+	// conservadors per protegir-nos contra les capçaleres de hora i el
+	// repintat de marges.
 	let columns: 1 | 2 = 2;
-	$: splitDays = (() => {
-		if (columns === 1) return [groupedDays];
-		const total = groupedDays.reduce((a, g) => a + g.total, 0);
-		const target = total / 2;
-		const left: GroupDay[] = [];
-		const right: GroupDay[] = [];
-		let acc = 0;
-		for (const g of groupedDays) {
-			if (acc < target) {
-				left.push(g);
-				acc += g.total;
-			} else {
-				right.push(g);
+	const MAX_ROWS_PER_COL = 56;
+	$: pages = (() => {
+		const result: GroupDay[][][] = [];
+		const cols = columns;
+		let currentPage: GroupDay[][] = Array.from({ length: cols }, () => []);
+		let currentColIdx = 0;
+		let accRows = 0;
+		for (const day of groupedDays) {
+			// Si afegir aquest dia desbordaria la columna, passa a la següent.
+			if (accRows > 0 && accRows + day.total > MAX_ROWS_PER_COL) {
+				currentColIdx++;
+				accRows = 0;
+				if (currentColIdx >= cols) {
+					result.push(currentPage);
+					currentPage = Array.from({ length: cols }, () => []);
+					currentColIdx = 0;
+				}
 			}
+			currentPage[currentColIdx].push(day);
+			accRows += day.total;
 		}
-		return [left, right];
+		// Tanca l'últim full si té contingut.
+		if (currentPage.some((c) => c.length > 0)) result.push(currentPage);
+		return result;
 	})();
 
 	function codeColorClass(bracket: CalRow['bracket']): string {
@@ -405,7 +422,9 @@
 			.page-section { font-size: 9pt; color: #444; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
 			.page-sub { font-size: 8pt; color: #555; }
 			.two-cols { display: flex; gap: 5mm; }
+			.two-cols.single { display: block; }
 			.col { flex: 1; min-width: 0; }
+			.day-group { page-break-inside: avoid; break-inside: avoid; }
 			.cal-table {
 				width: 100%; border-collapse: collapse;
 				font-size: 10pt;
@@ -509,65 +528,67 @@
 
 		{#if !loading && !error}
 			<div class="preview">
-				<section class="print-page">
-					<header class="page-head">
-						<div class="page-head-left">
-							<img src={logoDataUrl || `${base}/logo.png`} alt="" class="page-logo" />
-							<div>
-								<div class="page-title-main">CAMPIONAT SOCIAL HÀNDICAP{temporadaPretty ? ` ${temporadaPretty}` : ''}</div>
-								<div class="page-section">Calendari de partides ({rows.length})</div>
+				{#each pages as pageCols, pIdx}
+					<section class="print-page">
+						<header class="page-head">
+							<div class="page-head-left">
+								<img src={logoDataUrl || `${base}/logo.png`} alt="" class="page-logo" />
+								<div>
+									<div class="page-title-main">CAMPIONAT SOCIAL HÀNDICAP{temporadaPretty ? ` ${temporadaPretty}` : ''}</div>
+									<div class="page-section">Calendari de partides ({rows.length}){pages.length > 1 ? ` · Full ${pIdx + 1}/${pages.length}` : ''}</div>
+								</div>
 							</div>
-						</div>
-						{#if eventNom}<div class="page-sub">{eventNom}</div>{/if}
-					</header>
+							{#if eventNom}<div class="page-sub">{eventNom}</div>{/if}
+						</header>
 
-					<div class="two-cols">
-						{#each splitDays as colDays}
-							<div class="col">
-								<table class="cal-table">
-									<thead>
-										<tr>
-											<th>Dia</th>
-											<th>Hora</th>
-											<th>B</th>
-											<th>Match</th>
-											<th>Destí</th>
-											<th>Jugador 1</th>
-											<th>Jugador 2</th>
-										</tr>
-									</thead>
-									<tbody>
+						<div class="two-cols" class:single={columns === 1}>
+							{#each pageCols as colDays}
+								<div class="col">
+									<table class="cal-table">
+										<thead>
+											<tr>
+												<th>Dia</th>
+												<th>Hora</th>
+												<th>B</th>
+												<th>Match</th>
+												<th>Destí</th>
+												<th>Jugador 1</th>
+												<th>Jugador 2</th>
+											</tr>
+										</thead>
 										{#each colDays as gd}
-											{#each gd.hours as gh, hIdx}
-												{#each gh.items as it, iIdx}
-													<tr>
-														{#if hIdx === 0 && iIdx === 0}
-															<td class="day-cell" rowspan={gd.total}>
-																<div class="d-num">{dateLabel(gd.date)}</div>
-																<div class="d-name">{diaNom(gd.date)}</div>
+											<tbody class="day-group">
+												{#each gd.hours as gh, hIdx}
+													{#each gh.items as it, iIdx}
+														<tr>
+															{#if hIdx === 0 && iIdx === 0}
+																<td class="day-cell" rowspan={gd.total}>
+																	<div class="d-num">{dateLabel(gd.date)}</div>
+																	<div class="d-name">{diaNom(gd.date)}</div>
+																</td>
+															{/if}
+															{#if iIdx === 0}
+																<td class="hour-cell" rowspan={gh.items.length}>{gh.hora}</td>
+															{/if}
+															<td class="billar-cell">B{it.billar}</td>
+															<td class="code-cell {codeColorClass(it.bracket)}">{it.code ?? ''}</td>
+															<td class="dest-cell">
+																{#if it.winnerDest}<div class="arrow-win">↗G: <strong>{it.winnerDest}</strong></div>{/if}
+																{#if it.loserDest}<div class="arrow-lose">↘P: <strong>{it.loserDest}</strong></div>{/if}
 															</td>
-														{/if}
-														{#if iIdx === 0}
-															<td class="hour-cell" rowspan={gh.items.length}>{gh.hora}</td>
-														{/if}
-														<td class="billar-cell">B{it.billar}</td>
-														<td class="code-cell {codeColorClass(it.bracket)}">{it.code ?? ''}</td>
-														<td class="dest-cell">
-															{#if it.winnerDest}<div class="arrow-win">↗G: <strong>{it.winnerDest}</strong></div>{/if}
-															{#if it.loserDest}<div class="arrow-lose">↘P: <strong>{it.loserDest}</strong></div>{/if}
-														</td>
-														<td class="player-cell">{it.player1 ?? ''}</td>
-														<td class="player-cell">{it.player2 ?? ''}</td>
-													</tr>
+															<td class="player-cell">{it.player1 ?? ''}</td>
+															<td class="player-cell">{it.player2 ?? ''}</td>
+														</tr>
+													{/each}
 												{/each}
-											{/each}
+											</tbody>
 										{/each}
-									</tbody>
-								</table>
-							</div>
-						{/each}
-					</div>
-				</section>
+									</table>
+								</div>
+							{/each}
+						</div>
+					</section>
+				{/each}
 			</div>
 		{/if}
 	</div>
@@ -651,7 +672,9 @@
 	.page-sub { font-size: 8pt; color: #555; }
 
 	.two-cols { display: flex; gap: 5mm; }
+	.two-cols.single { display: block; }
 	.col { flex: 1; min-width: 0; }
+	.day-group { page-break-inside: avoid; break-inside: avoid; }
 	.cal-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
 	.cal-table th, .cal-table td {
 		border: 1px solid #333;

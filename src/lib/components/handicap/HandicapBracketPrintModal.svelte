@@ -354,24 +354,34 @@
 		}
 	}
 
-	// Divideix un bracket en N pàgines respectant un MÀXIM de matches per
-	// pàgina. Cap ronda es parteix entre fulls (les rondes són atòmiques).
+	// Divideix un bracket en N pàgines. Cap ronda es parteix entre fulls
+	// (les rondes són atòmiques). Dos límits:
+	//   - MAX_MATCHES_PER_PAGE: per evitar que una ronda gran (R1) comparteixi
+	//     full amb altres.
+	//   - MAX_RONDES_PER_PAGE: cada round-section consumeix uns 40mm verticals
+	//     (títol + 1 fila de matches × 32mm min-height + 4mm gap). A3 landscape
+	//     deixa només ~255mm útils dins .rounds (overflow:hidden), per tant més
+	//     de 4 rondes apilades fan que l'última (L8 / GF) es retalli.
 	const MAX_MATCHES_PER_PAGE = 18;
+	const MAX_RONDES_PER_PAGE = 5;
 	function splitInPages(
 		rondesSorted: Array<[number, MatchView[]]>,
 		total: number
 	): Array<Array<[number, MatchView[]]>> {
 		if (rondesSorted.length === 0) return [];
-		if (total <= MAX_MATCHES_PER_PAGE || rondesSorted.length <= 1) {
+		if (total <= MAX_MATCHES_PER_PAGE
+			&& rondesSorted.length <= MAX_RONDES_PER_PAGE) {
 			return [rondesSorted];
 		}
 		const pages: Array<Array<[number, MatchView[]]>> = [];
 		let current: Array<[number, MatchView[]]> = [];
 		let acc = 0;
 		for (const entry of rondesSorted) {
-			// Si afegir aquesta ronda excedeix el màxim i ja hi ha contingut,
-			// tanca la pàgina actual i obre una de nova.
-			if (acc > 0 && acc + entry[1].length > MAX_MATCHES_PER_PAGE) {
+			// Tanca la pàgina actual si afegir aquesta ronda excediria
+			// el màxim de matches o el màxim de rondes (i ja hi ha contingut).
+			const wouldExceedMatches = acc + entry[1].length > MAX_MATCHES_PER_PAGE;
+			const wouldExceedRondes = current.length + 1 > MAX_RONDES_PER_PAGE;
+			if (acc > 0 && (wouldExceedMatches || wouldExceedRondes)) {
 				pages.push(current);
 				current = [];
 				acc = 0;
