@@ -40,9 +40,15 @@
 		 *  resolts). Null vol dir "casella buida — escriure a mà". */
 		player1: string | null;
 		player2: string | null;
+		/** Fila de dia festiu (no programable). */
+		festiu?: boolean;
 	};
 	let rows: CalRow[] = [];
 	let usingRealData = false;
+
+	// Dies marcats com a festius (no programables). Hardcoded coherent amb
+	// el pre-scheduler.
+	const FESTIUS = new Set(['2026-06-24']);
 
 	onMount(async () => {
 		logoDataUrl = await loadLogoDataUrl();
@@ -255,27 +261,48 @@
 				});
 			}
 
-			// Generar TOTS els slots (dia × hora × billar) entre data_inici i data_fi
-			// per al rang amb almenys un match programat.
+			// Rang del calendari imprès: agafem TOTS els dies hàbils entre
+			// l'inici i el final de l'event (no només l'interval de partides ja
+			// programades), perquè la impressió mostri caselles buides per
+			// encabir partides futures. Si hi ha partides fora del rang
+			// nominal (per programació manual), eixamplem.
 			const allDates = [...new Set(
 				[...scheduled.values()].map(s => ymd(s.dataProgramada))
 			)].sort();
-			if (allDates.length === 0) {
+			const evStart = ev.data_inici ? new Date(ev.data_inici as string) : (allDates[0] ? new Date(allDates[0]) : null);
+			const evEnd = ev.data_fi ? new Date(ev.data_fi as string) : (allDates[allDates.length - 1] ? new Date(allDates[allDates.length - 1]) : null);
+			if (!evStart || !evEnd) {
 				rows = [];
 				loading = false;
 				return;
 			}
-			const minDate = new Date(allDates[0]);
-			const maxDate = new Date(allDates[allDates.length - 1]);
+			const firstSched = allDates[0] ? new Date(allDates[0]) : evStart;
+			const lastSched = allDates[allDates.length - 1] ? new Date(allDates[allDates.length - 1]) : evEnd;
+			const minDate = firstSched < evStart ? firstSched : evStart;
+			const maxDate = lastSched > evEnd ? lastSched : evEnd;
 			const dies = ['dg', 'dl', 'dt', 'dc', 'dj', 'dv', 'ds'];
 			const diesActius = ['dl', 'dt', 'dc', 'dj', 'dv'];
-			const diesBloquejatsSet = new Set(['2026-06-24']);
 
 			const tmp: CalRow[] = [];
 			for (let d = new Date(minDate); d <= maxDate; d.setDate(d.getDate() + 1)) {
 				const codi = dies[d.getDay()];
 				if (!diesActius.includes(codi)) continue;
-				if (diesBloquejatsSet.has(ymd(d))) continue;
+				// Dies festius: una sola fila marcada (no genera slots).
+				if (FESTIUS.has(ymd(d))) {
+					tmp.push({
+						date: new Date(d),
+						hora: '',
+						billar: 0,
+						code: null,
+						bracket: null,
+						winnerDest: null,
+						loserDest: null,
+						player1: null,
+						player2: null,
+						festiu: true
+					});
+					continue;
+				}
 				const hores = [...['18:00', '19:00']];
 				if (horarisExtra && horarisExtra.dies.includes(codi)) {
 					hores.unshift(horarisExtra.franja);
@@ -427,6 +454,17 @@
 			.two-cols.single { display: block; }
 			.col { flex: 1; min-width: 0; page-break-inside: avoid; break-inside: avoid; }
 			.day-group { page-break-inside: avoid; break-inside: avoid; }
+			.festiu-cell {
+				background: #fff7e6;
+				border: 1px solid #d97706 !important;
+				color: #b85c00;
+				font-weight: 800;
+				font-size: 10pt;
+				letter-spacing: 0.2em;
+				text-align: center;
+				padding: 2.5mm 1mm;
+			}
+			.festiu-row .day-cell { background: #fff7e6; }
 			.cal-table {
 				width: 100%; border-collapse: collapse;
 				font-size: 10pt;
@@ -560,29 +598,39 @@
 										</thead>
 										{#each colDays as gd}
 											<tbody class="day-group">
-												{#each gd.hours as gh, hIdx}
-													{#each gh.items as it, iIdx}
-														<tr>
-															{#if hIdx === 0 && iIdx === 0}
-																<td class="day-cell" rowspan={gd.total}>
-																	<div class="d-num">{dateLabel(gd.date)}</div>
-																	<div class="d-name">{diaNom(gd.date)}</div>
+												{#if gd.hours[0]?.items[0]?.festiu}
+													<tr class="festiu-row">
+														<td class="day-cell">
+															<div class="d-num">{dateLabel(gd.date)}</div>
+															<div class="d-name">{diaNom(gd.date)}</div>
+														</td>
+														<td class="festiu-cell" colspan="6">FESTIU</td>
+													</tr>
+												{:else}
+													{#each gd.hours as gh, hIdx}
+														{#each gh.items as it, iIdx}
+															<tr>
+																{#if hIdx === 0 && iIdx === 0}
+																	<td class="day-cell" rowspan={gd.total}>
+																		<div class="d-num">{dateLabel(gd.date)}</div>
+																		<div class="d-name">{diaNom(gd.date)}</div>
+																	</td>
+																{/if}
+																{#if iIdx === 0}
+																	<td class="hour-cell" rowspan={gh.items.length}>{gh.hora}</td>
+																{/if}
+																<td class="billar-cell">B{it.billar}</td>
+																<td class="code-cell {codeColorClass(it.bracket)}">{it.code ?? ''}</td>
+																<td class="dest-cell">
+																	{#if it.winnerDest}<div class="arrow-win">↗G: <strong>{it.winnerDest}</strong></div>{/if}
+																	{#if it.loserDest}<div class="arrow-lose">↘P: <strong>{it.loserDest}</strong></div>{/if}
 																</td>
-															{/if}
-															{#if iIdx === 0}
-																<td class="hour-cell" rowspan={gh.items.length}>{gh.hora}</td>
-															{/if}
-															<td class="billar-cell">B{it.billar}</td>
-															<td class="code-cell {codeColorClass(it.bracket)}">{it.code ?? ''}</td>
-															<td class="dest-cell">
-																{#if it.winnerDest}<div class="arrow-win">↗G: <strong>{it.winnerDest}</strong></div>{/if}
-																{#if it.loserDest}<div class="arrow-lose">↘P: <strong>{it.loserDest}</strong></div>{/if}
-															</td>
-															<td class="player-cell">{it.player1 ?? ''}</td>
-															<td class="player-cell">{it.player2 ?? ''}</td>
-														</tr>
+																<td class="player-cell">{it.player1 ?? ''}</td>
+																<td class="player-cell">{it.player2 ?? ''}</td>
+															</tr>
+														{/each}
 													{/each}
-												{/each}
+												{/if}
 											</tbody>
 										{/each}
 									</table>
