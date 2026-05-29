@@ -544,6 +544,20 @@
 
 	tr.played .player-cell, tr.played .code-cell { opacity: 0.6; }
 
+	.festiu-cell {
+		background: #fff7e6;
+		border: 1px solid #d97706 !important;
+		color: #b85c00;
+		font-weight: 800;
+		font-size: 0.85rem;
+		letter-spacing: 0.18em;
+		text-align: center;
+		padding: 0.5rem 0.4rem;
+	}
+	tr.festiu-row .day-cell {
+		background: #fff7e6;
+	}
+
 	tr.tentative .player-cell {
 		font-style: italic;
 		color: var(--ink-2, #555);
