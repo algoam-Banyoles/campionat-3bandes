@@ -423,9 +423,9 @@
 			.page-title-main { font-weight: 800; font-size: 13pt; letter-spacing: 0.02em; text-transform: uppercase; }
 			.page-section { font-size: 9pt; color: #444; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
 			.page-sub { font-size: 8pt; color: #555; }
-			.two-cols { display: flex; gap: 5mm; }
+			.two-cols { display: flex; gap: 5mm; align-items: flex-start; }
 			.two-cols.single { display: block; }
-			.col { flex: 1; min-width: 0; }
+			.col { flex: 1; min-width: 0; page-break-inside: avoid; break-inside: avoid; }
 			.day-group { page-break-inside: avoid; break-inside: avoid; }
 			.cal-table {
 				width: 100%; border-collapse: collapse;
@@ -673,9 +673,9 @@
 	.page-section { font-size: 9pt; color: #444; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
 	.page-sub { font-size: 8pt; color: #555; }
 
-	.two-cols { display: flex; gap: 5mm; }
+	.two-cols { display: flex; gap: 5mm; align-items: flex-start; }
 	.two-cols.single { display: block; }
-	.col { flex: 1; min-width: 0; }
+	.col { flex: 1; min-width: 0; page-break-inside: avoid; break-inside: avoid; }
 	.day-group { page-break-inside: avoid; break-inside: avoid; }
 	.cal-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
 	.cal-table th, .cal-table td {
