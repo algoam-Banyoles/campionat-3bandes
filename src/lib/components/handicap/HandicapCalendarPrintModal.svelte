@@ -725,6 +725,17 @@
 	.two-cols.single { display: block; }
 	.col { flex: 1; min-width: 0; page-break-inside: avoid; break-inside: avoid; }
 	.day-group { page-break-inside: avoid; break-inside: avoid; }
+	.festiu-cell {
+		background: #fff7e6;
+		border: 1px solid #d97706 !important;
+		color: #b85c00;
+		font-weight: 800;
+		font-size: 10pt;
+		letter-spacing: 0.2em;
+		text-align: center;
+		padding: 2.5mm 1mm;
+	}
+	.festiu-row .day-cell { background: #fff7e6; }
 	.cal-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
 	.cal-table th, .cal-table td {
 		border: 1px solid #333;
