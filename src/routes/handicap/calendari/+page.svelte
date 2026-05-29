@@ -24,9 +24,15 @@
 		estat: string | null;
 		/** True quan els 2 jugadors són reals. False = data orientativa. */
 		playersResolved: boolean;
+		/** Si és un dia festiu (cap partida programable). */
+		festiu?: boolean;
 	};
 	let rows: CalRow[] = [];
 	let columns: 1 | 2 = 2;
+
+	// Dies marcats com a festius (no programables). Coherent amb el
+	// pre-scheduler i els modals d'impressió.
+	const FESTIUS = new Set(['2026-06-24']);
 
 	function ymd(d: Date): string {
 		const y = d.getFullYear();
@@ -189,15 +195,16 @@
 				});
 			}
 
-			if (scheduledDates.size === 0) {
-				rows = [];
-				loading = false;
-				return;
-			}
-
 			const sortedDates = [...scheduledDates].sort();
-			const minDate = new Date(sortedDates[0]);
-			const maxDate = new Date(sortedDates[sortedDates.length - 1]);
+			// El rang del calendari abasta des de data_inici fins a data_fi
+			// de l'event (no només l'interval de partides programades), perquè
+			// es vegin els dies disponibles per a partides futures.
+			const evStart = ev.data_inici ? new Date(ev.data_inici as string) : (sortedDates[0] ? new Date(sortedDates[0]) : new Date());
+			const evEnd = ev.data_fi ? new Date(ev.data_fi as string) : (sortedDates[sortedDates.length - 1] ? new Date(sortedDates[sortedDates.length - 1]) : new Date());
+			const lastSched = sortedDates[sortedDates.length - 1] ? new Date(sortedDates[sortedDates.length - 1]) : evStart;
+			const firstSched = sortedDates[0] ? new Date(sortedDates[0]) : evStart;
+			const minDate = firstSched < evStart ? firstSched : evStart;
+			const maxDate = lastSched > evEnd ? lastSched : evEnd;
 			const dies = ['dg', 'dl', 'dt', 'dc', 'dj', 'dv', 'ds'];
 			const diesActius = ['dl', 'dt', 'dc', 'dj', 'dv'];
 
@@ -205,6 +212,24 @@
 			for (let d = new Date(minDate); d <= maxDate; d.setDate(d.getDate() + 1)) {
 				const codi = dies[d.getDay()];
 				if (!diesActius.includes(codi)) continue;
+				// Festiu: una sola fila marcada (no genera slots de billar).
+				if (FESTIUS.has(ymd(d))) {
+					tmp.push({
+						date: new Date(d),
+						hora: '',
+						billar: 0,
+						code: null,
+						bracket: null,
+						winnerDest: null,
+						loserDest: null,
+						player1: null,
+						player2: null,
+						estat: null,
+						playersResolved: true,
+						festiu: true
+					});
+					continue;
+				}
 				const hores = ['18:00', '19:00'];
 				if (horarisExtra && Array.isArray(horarisExtra.dies) && horarisExtra.dies.includes(codi) && horarisExtra.franja) {
 					hores.unshift(horarisExtra.franja);
@@ -352,6 +377,15 @@
 						</thead>
 						<tbody>
 							{#each colDays as gd}
+								{#if gd.hours[0]?.items[0]?.festiu}
+									<tr class="festiu-row">
+										<td class="day-cell">
+											<div class="d-num">{dateLabel(gd.date)}</div>
+											<div class="d-name">{diaNom(gd.date)}</div>
+										</td>
+										<td class="festiu-cell" colspan="6">FESTIU</td>
+									</tr>
+								{:else}
 								{#each gd.hours as gh, hIdx}
 									{#each gh.items as it, iIdx}
 										<tr
@@ -386,6 +420,7 @@
 										</tr>
 									{/each}
 								{/each}
+								{/if}
 							{/each}
 						</tbody>
 					</table>
