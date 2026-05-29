@@ -388,39 +388,46 @@
 	}
 
 	// Divideix un bracket en N pàgines. Cap ronda es parteix entre fulls
-	// (les rondes són atòmiques). Dos límits:
-	//   - MAX_MATCHES_PER_PAGE: per evitar que una ronda gran (R1) comparteixi
-	//     full amb altres.
-	//   - MAX_RONDES_PER_PAGE: cada round-section consumeix uns 40mm verticals
-	//     (títol + 1 fila de matches × 32mm min-height + 4mm gap). A3 landscape
-	//     deixa només ~255mm útils dins .rounds (overflow:hidden), per tant més
-	//     de 4 rondes apilades fan que l'última (L8 / GF) es retalli.
+	// (les rondes són atòmiques). El criteri d'acceptació és l'alçada
+	// estimada de cada ronda dins de `.rounds` (que té overflow:hidden i
+	// limita l'alçada a ~257mm a A3 landscape).
+	//
+	// Una ronda ocupa: títol (≈8mm) + 2mm + ceil(N/5) × 35mm. Després,
+	// gap entre rondes = 4mm. Amb una W2 de 8 matches que necessita 2 files
+	// (80mm) + 4 rondes d'1 fila (45mm × 4 = 180mm) + 4 gaps = 276mm, per
+	// això un MAX_RONDES_PER_PAGE = 5 fallava (GF queda retallat). Limitem
+	// pel total estimat en mm.
 	const MAX_MATCHES_PER_PAGE = 18;
-	const MAX_RONDES_PER_PAGE = 5;
+	const COLS_PER_ROW = 5;
+	const PAGE_AVAILABLE_MM = 210; // conservador: marge per a cel·les amb
+	// contingut variable (schedule + deadline + noms llargs poden créixer +5mm).
+	function rondaHeightMm(matchCount: number): number {
+		const gridRows = Math.max(1, Math.ceil(matchCount / COLS_PER_ROW));
+		return 8 + 2 + gridRows * 35; // títol + intern-gap + files
+	}
 	function splitInPages(
 		rondesSorted: Array<[number, MatchView[]]>,
 		total: number
 	): Array<Array<[number, MatchView[]]>> {
 		if (rondesSorted.length === 0) return [];
-		if (total <= MAX_MATCHES_PER_PAGE
-			&& rondesSorted.length <= MAX_RONDES_PER_PAGE) {
-			return [rondesSorted];
-		}
 		const pages: Array<Array<[number, MatchView[]]>> = [];
 		let current: Array<[number, MatchView[]]> = [];
-		let acc = 0;
+		let accMatches = 0;
+		let accHeight = 0;
 		for (const entry of rondesSorted) {
-			// Tanca la pàgina actual si afegir aquesta ronda excediria
-			// el màxim de matches o el màxim de rondes (i ja hi ha contingut).
-			const wouldExceedMatches = acc + entry[1].length > MAX_MATCHES_PER_PAGE;
-			const wouldExceedRondes = current.length + 1 > MAX_RONDES_PER_PAGE;
-			if (acc > 0 && (wouldExceedMatches || wouldExceedRondes)) {
+			const h = rondaHeightMm(entry[1].length);
+			const additional = current.length === 0 ? h : h + 4; // 4mm gap
+			const wouldExceedMatches = accMatches + entry[1].length > MAX_MATCHES_PER_PAGE;
+			const wouldExceedHeight = accHeight + additional > PAGE_AVAILABLE_MM;
+			if (current.length > 0 && (wouldExceedMatches || wouldExceedHeight)) {
 				pages.push(current);
 				current = [];
-				acc = 0;
+				accMatches = 0;
+				accHeight = 0;
 			}
 			current.push(entry);
-			acc += entry[1].length;
+			accMatches += entry[1].length;
+			accHeight += current.length === 1 ? h : h + 4;
 		}
 		if (current.length > 0) pages.push(current);
 		return pages;
