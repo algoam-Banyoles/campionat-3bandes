@@ -166,9 +166,41 @@
 						dataProgramada: new Date(cp.data_programada),
 						horaInici: (cp.hora_inici as string).substring(0, 5),
 						taulaAssignada: cp.taula_assignada as number,
-						dataMaximaDisputa: new Date(cp.data_programada)
+						dataMaximaDisputa: new Date(cp.data_programada) // placeholder, recalculat avall
 					});
 				}
+
+				// Recalcular deadlines round-level (mateixa lògica que /handicap/quadre).
+				// La dataMaximaDisputa = primer dia de la ronda que segueix a aquest
+				// match − 1, perquè tots els matches d'una mateixa ronda comparteixin
+				// la mateixa deadline.
+				{
+					const slotById = new Map(slots.map((s) => [s.id, s]));
+					const deadlineInputs = matches.map((m) => {
+						const s1 = slotById.get(m.slot1_id);
+						const sched = scheduleById.get(m.id);
+						const isoDay = sched ? `${sched.dataProgramada.getFullYear()}-${String(sched.dataProgramada.getMonth() + 1).padStart(2, '0')}-${String(sched.dataProgramada.getDate()).padStart(2, '0')}` : null;
+						return {
+							id: m.id,
+							slot1_id: m.slot1_id,
+							slot2_id: m.slot2_id,
+							winner_slot_dest_id: m.winner_slot_dest_id,
+							loser_slot_dest_id: m.loser_slot_dest_id,
+							data_programada: isoDay,
+							bracket_type: (s1?.bracket_type ?? 'winners') as 'winners' | 'losers' | 'grand_final',
+							ronda: s1?.ronda ?? 1
+						};
+					});
+					const dataFi = ev?.data_fi
+						? (ev.data_fi as string).substring(0, 10)
+						: null;
+					const deadlines = computeDeadlines(deadlineInputs, dataFi);
+					for (const [matchId, sched] of scheduleById) {
+						const dl = deadlines.get(matchId);
+						if (dl) sched.dataMaximaDisputa = new Date(dl + 'T12:00:00');
+					}
+				}
+
 				useRealData = true;
 				hasRealBracket = true;
 			} else if (inputCount && inputCount >= 2) {
