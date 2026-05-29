@@ -175,6 +175,7 @@
 					});
 				}
 				useRealData = true;
+				hasRealBracket = true;
 			} else if (inputCount && inputCount >= 2) {
 				// Mode BLANC: genera estructura amb participants ficticis (només per dibuixar
 				// el bracket). Seeds seqüencials, distancia=0, sense persistir res.
@@ -563,7 +564,7 @@ ${printScript}
 						Per a PDF: destinació <em>Guardar com a PDF</em>.
 					</span>
 				{/if}
-				{#if !eventId}
+				{#if !eventId && !hasRealBracket}
 					<label class="count-label">
 						Jugadors:
 						<input

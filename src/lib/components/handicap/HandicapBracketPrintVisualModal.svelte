@@ -6,6 +6,7 @@
 	import { preSchedulingForBracket, type ScheduledMatch } from '$lib/utils/handicap-pre-scheduler';
 	import { printPortal } from '$lib/utils/print-portal';
 	import { loadLogoDataUrl } from '$lib/utils/load-logo';
+	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 
 	let logoDataUrl = '';
 
@@ -18,7 +19,14 @@
 	$: temporadaPretty = (eventTemporada || '').replace('-', '/');
 
 	type Bracket = 'winners' | 'losers' | 'grand_final';
-	type Slot = { id: string; bracket_type: Bracket; ronda: number; posicio: number };
+	type Slot = {
+		id: string;
+		bracket_type: Bracket;
+		ronda: number;
+		posicio: number;
+		participant_id?: string | null;
+		is_bye?: boolean;
+	};
 	type MatchRaw = {
 		id: string;
 		slot1_id: string;
@@ -35,6 +43,8 @@
 		posicioMin: number;
 		slot1Pos: number;
 		slot2Pos: number;
+		slot1Name: string | null;
+		slot2Name: string | null;
 		winnerDest: string;
 		loserDest: string;
 		schedule?: ScheduledMatch | null;
@@ -49,6 +59,7 @@
 	let loading = true;
 	let error: string | null = null;
 	let pages: PageDef[] = [];
+	let hasRealBracket = false;
 
 	let inputCount = participantCount ?? 32;
 
