@@ -344,12 +344,14 @@
 	// després la dreta, després nou full). Així mai un dia ni dos dies
 	// consecutius es parteixen entre fulls diferents en la mateixa columna.
 	//
-	// MAX_ROWS_PER_COL: heurística per A3 portrait (~404mm útils − ~30mm
-	// capçalera = ~370mm; cada fila ~5.5mm → ~67 files). Anem una mica
-	// conservadors per protegir-nos contra les capçaleres de hora i el
-	// repintat de marges.
+	// MAX_ROWS_PER_COL: límit estricte perquè el navegador NO trenqui cap
+	// columna a mig render. Cada fila ≈ 6-7mm (padding 2.4mm + 10pt font + col·lapse
+	// border). A3 portrait deixa ~377mm útils dins l'àrea de taula
+	// (420 − 16 margins − 21 page-head − 6 thead). A 7mm/fila → ~53 files
+	// teòriques. Anem MOLT conservadors (40) per absorbir cel·les amb noms
+	// llargs que poden ocupar 2 línies i la variabilitat entre navegadors.
 	let columns: 1 | 2 = 2;
-	const MAX_ROWS_PER_COL = 56;
+	const MAX_ROWS_PER_COL = 40;
 	$: pages = (() => {
 		const result: GroupDay[][][] = [];
 		const cols = columns;
@@ -464,7 +466,7 @@
 			.dest-cell strong { font-weight: 800; }
 			.arrow-win { color: #1d6e3a; }
 			.arrow-lose { color: #a30b1e; }
-			.player-cell { font-size: 9pt; min-width: 30mm; }
+			.player-cell { font-size: 9pt; min-width: 30mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0; }
 			.player-line { display: inline-block; width: 100%; border-bottom: 1px solid #1f1f1f; height: 4mm; }
 		`;
 
@@ -710,7 +712,7 @@
 	.dest-cell strong { font-weight: 800; }
 	.arrow-win { color: #1d6e3a; }
 	.arrow-lose { color: #a30b1e; }
-	.player-cell { font-size: 9pt; min-width: 30mm; }
+	.player-cell { font-size: 9pt; min-width: 30mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0; }
 
 	@media print {
 		:global(body > *:not(.print-portal)) { display: none !important; }
