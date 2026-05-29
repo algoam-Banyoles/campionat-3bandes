@@ -239,7 +239,7 @@ ${printScript}
 
 				<footer class="page-foot">
 					<span>Imprès: {new Date().toLocaleDateString('ca-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-					<span>Foment Martinenc · Secció billar 3 bandes</span>
+					<span>Foment Martinenc · Secció billar</span>
 				</footer>
 			</section>
 		</div>

@@ -12,6 +12,7 @@
 	} from '$lib/utils/handicap-pre-scheduler';
 	import { printPortal } from '$lib/utils/print-portal';
 	import { loadLogoDataUrl } from '$lib/utils/load-logo';
+	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 
 	export let participantCount: number | null = null;
 	export let eventNom: string = '';
@@ -35,8 +36,13 @@
 		bracket: 'winners' | 'losers' | 'grand_final' | null;
 		winnerDest: string | null;
 		loserDest: string | null;
+		/** Nom abreujat del jugador 1 si ja és conegut (R1 post-sorteig o R2+
+		 *  resolts). Null vol dir "casella buida — escriure a mà". */
+		player1: string | null;
+		player2: string | null;
 	};
 	let rows: CalRow[] = [];
+	let usingRealData = false;
 
 	onMount(async () => {
 		logoDataUrl = await loadLogoDataUrl();
@@ -57,35 +63,6 @@
 		rows = [];
 
 		try {
-			if (!inputCount || inputCount < 2) {
-				error = 'Cal indicar un nombre de participants ≥ 2.';
-				loading = false;
-				return;
-			}
-
-			const fakes: ParticipantInput[] = Array.from({ length: inputCount }, (_, i) => ({
-				id: `fake-${i + 1}`,
-				seed: i + 1,
-				distancia: 0
-			}));
-			const result = generateDoublEliminationBracket('preview', fakes);
-			const slots = result.slots.map(s => ({
-				id: s.id,
-				bracket_type: s.bracket_type,
-				ronda: s.ronda,
-				posicio: s.posicio
-			}));
-			const matches = result.matches
-				.filter(m => m.estat !== 'bye')
-				.map(m => ({
-					id: m.id,
-					slot1_id: m.slot1_id,
-					slot2_id: m.slot2_id,
-					winner_slot_dest_id: m.winner_slot_dest_id,
-					loser_slot_dest_id: m.loser_slot_dest_id,
-					estat: m.estat
-				}));
-
 			const { data: ev } = await supabase
 				.from('events')
 				.select('id, data_inici, data_fi')
@@ -105,14 +82,110 @@
 				.maybeSingle();
 			const horarisExtra = cfg?.horaris_extra ?? null;
 
-			const scheduled = preSchedulingForBracket(slots, matches, {
-				dataInici: new Date(ev.data_inici),
-				dataFi: new Date(ev.data_fi),
-				horesEstandard: ['18:00', '19:00'],
-				horarisExtra,
-				billars: 3,
-				diesBloquejats: [new Date('2026-06-24')]
-			});
+			// ── Mode real: si ja hi ha sorteig (bracket generat a la BD),
+			// usar les dades reals (slots/matches/calendari/jugadors) en
+			// lloc de la previsualització amb fakes.
+			const { count: realSlotsCount } = await supabase
+				.from('handicap_bracket_slots')
+				.select('id', { count: 'exact', head: true })
+				.eq('event_id', ev.id);
+			usingRealData = (realSlotsCount ?? 0) > 0;
+
+			let slots: Array<{ id: string; bracket_type: 'winners' | 'losers' | 'grand_final'; ronda: number; posicio: number; participant_id?: string | null }>;
+			let matches: Array<{ id: string; slot1_id: string; slot2_id: string; winner_slot_dest_id: string | null; loser_slot_dest_id: string | null; estat: string }>;
+			let scheduled: Map<string, ScheduledMatch>;
+			let nameMap: Map<string, string>;
+
+			if (usingRealData) {
+				// Slots reals + matches reals + calendari + noms
+				const [{ data: realSlots }, { data: realMatches }] = await Promise.all([
+					supabase
+						.from('handicap_bracket_slots')
+						.select('id, bracket_type, ronda, posicio, participant_id')
+						.eq('event_id', ev.id),
+					supabase
+						.from('handicap_matches')
+						.select('id, slot1_id, slot2_id, winner_slot_dest_id, loser_slot_dest_id, calendari_partida_id, estat')
+						.eq('event_id', ev.id)
+				]);
+				slots = (realSlots ?? []).map((s: any) => ({
+					id: s.id, bracket_type: s.bracket_type, ronda: s.ronda, posicio: s.posicio, participant_id: s.participant_id
+				}));
+				const playableMatches = (realMatches ?? []).filter((m: any) => m.estat !== 'bye');
+				matches = playableMatches.map((m: any) => ({
+					id: m.id, slot1_id: m.slot1_id, slot2_id: m.slot2_id,
+					winner_slot_dest_id: m.winner_slot_dest_id, loser_slot_dest_id: m.loser_slot_dest_id,
+					estat: m.estat
+				}));
+
+				const calIds = playableMatches.filter((m: any) => m.calendari_partida_id).map((m: any) => m.calendari_partida_id as string);
+				const { data: cals } = calIds.length
+					? await supabase.from('calendari_partides').select('id, data_programada, hora_inici, taula_assignada').in('id', calIds)
+					: { data: [] as any[] };
+				const calById = new Map<string, any>((cals ?? []).map((c: any) => [c.id, c]));
+				scheduled = new Map<string, ScheduledMatch>();
+				for (const m of playableMatches) {
+					const cp = m.calendari_partida_id ? calById.get(m.calendari_partida_id) : null;
+					if (!cp || !cp.data_programada || !cp.hora_inici || !cp.taula_assignada) continue;
+					scheduled.set(m.id, {
+						matchId: m.id,
+						dataProgramada: new Date(cp.data_programada),
+						horaInici: (cp.hora_inici as string).substring(0, 5),
+						taulaAssignada: cp.taula_assignada,
+						dataMaximaDisputa: new Date(ev.data_fi)
+					});
+				}
+
+				const partIds = [...new Set(slots.filter(s => s.participant_id).map(s => s.participant_id as string))];
+				nameMap = new Map<string, string>();
+				if (partIds.length) {
+					const { data: parts } = await supabase
+						.from('handicap_participants')
+						.select('id, socis!handicap_participants_soci_numero_fkey(nom, cognoms)')
+						.in('id', partIds);
+					for (const p of parts ?? []) {
+						const s = Array.isArray((p as any).socis) ? (p as any).socis[0] : (p as any).socis;
+						const nom = s ? (formatarNomJugadorParts(s.nom, s.cognoms) || '?') : '?';
+						nameMap.set((p as any).id, nom);
+					}
+				}
+			} else {
+				// Mode preview: fakes
+				if (!inputCount || inputCount < 2) {
+					error = 'Cal indicar un nombre de participants ≥ 2.';
+					loading = false;
+					return;
+				}
+				const fakes: ParticipantInput[] = Array.from({ length: inputCount }, (_, i) => ({
+					id: `fake-${i + 1}`,
+					seed: i + 1,
+					distancia: 0
+				}));
+				const result = generateDoublEliminationBracket('preview', fakes);
+				slots = result.slots.map(s => ({
+					id: s.id,
+					bracket_type: s.bracket_type,
+					ronda: s.ronda,
+					posicio: s.posicio
+				}));
+				matches = result.matches
+					.filter(m => m.estat !== 'bye')
+					.map(m => ({
+						id: m.id, slot1_id: m.slot1_id, slot2_id: m.slot2_id,
+						winner_slot_dest_id: m.winner_slot_dest_id,
+						loser_slot_dest_id: m.loser_slot_dest_id,
+						estat: m.estat
+					}));
+				scheduled = preSchedulingForBracket(slots, matches, {
+					dataInici: new Date(ev.data_inici),
+					dataFi: new Date(ev.data_fi),
+					horesEstandard: ['18:00', '19:00'],
+					horarisExtra,
+					billars: 3,
+					diesBloquejats: [new Date('2026-06-24')]
+				});
+				nameMap = new Map<string, string>();
+			}
 
 			const order: Record<string, number> = { winners: 0, losers: 1, grand_final: 2 };
 			const slotById = new Map(slots.map(s => [s.id, s]));
@@ -160,17 +233,25 @@
 				bracket: NonNullable<CalRow['bracket']>;
 				winnerDest: string | null;
 				loserDest: string | null;
+				player1: string | null;
+				player2: string | null;
 			};
 			const matchAtSlot = new Map<string, MatchInfo>();
 			for (const e of enriched) {
 				const sched = scheduled.get(e.m.id);
 				if (!sched) continue;
 				const key = `${ymd(sched.dataProgramada)}|${sched.horaInici}|${sched.taulaAssignada}`;
+				const s1 = slotById.get(e.m.slot1_id);
+				const s2 = slotById.get(e.m.slot2_id);
+				const p1 = s1?.participant_id ? (nameMap.get(s1.participant_id) ?? null) : null;
+				const p2 = s2?.participant_id ? (nameMap.get(s2.participant_id) ?? null) : null;
 				matchAtSlot.set(key, {
 					code: codeByMatchId.get(e.m.id) ?? '?',
 					bracket: e.bracket as MatchInfo['bracket'],
 					winnerDest: destinationCode(e.m.winner_slot_dest_id),
-					loserDest: destinationCode(e.m.loser_slot_dest_id)
+					loserDest: destinationCode(e.m.loser_slot_dest_id),
+					player1: p1,
+					player2: p2
 				});
 			}
 
@@ -210,7 +291,9 @@
 							code: m?.code ?? null,
 							bracket: m?.bracket ?? null,
 							winnerDest: m?.winnerDest ?? null,
-							loserDest: m?.loserDest ?? null
+							loserDest: m?.loserDest ?? null,
+							player1: m?.player1 ?? null,
+							player2: m?.player2 ?? null
 						});
 					}
 				}
@@ -401,9 +484,10 @@
 					<span class="err">{error}</span>
 				{:else}
 					<span>{rows.length} partides programades</span>
-					<label class="count-label">
+					<span class="mode-pill">{usingRealData ? 'Dades reals' : 'Previsualització'}</span>
+					<label class="count-label" class:disabled={usingRealData}>
 						Jugadors:
-						<input type="number" min="2" max="128" bind:value={inputCount} class="count-input" />
+						<input type="number" min="2" max="128" bind:value={inputCount} class="count-input" disabled={usingRealData} />
 					</label>
 					<label class="count-label">
 						Format:
@@ -472,8 +556,8 @@
 															{#if it.winnerDest}<div class="arrow-win">↗G: <strong>{it.winnerDest}</strong></div>{/if}
 															{#if it.loserDest}<div class="arrow-lose">↘P: <strong>{it.loserDest}</strong></div>{/if}
 														</td>
-														<td class="player-cell"></td>
-														<td class="player-cell"></td>
+														<td class="player-cell">{it.player1 ?? ''}</td>
+														<td class="player-cell">{it.player2 ?? ''}</td>
 													</tr>
 												{/each}
 											{/each}
@@ -524,6 +608,17 @@
 	.btn-primary:disabled, .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 	.err { color: #a30b1e; font-weight: 600; }
 	.count-label { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600; }
+	.count-label.disabled { opacity: 0.55; }
+	.mode-pill {
+		display: inline-block;
+		padding: 0.15rem 0.5rem;
+		font-size: 0.7rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		border: 1px solid #333;
+		background: #f1f1f1;
+	}
 	.count-input {
 		padding: 0.25rem 0.4rem;
 		border: 1px solid #333; border-radius: 0;
