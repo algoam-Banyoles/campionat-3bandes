@@ -76,25 +76,100 @@
 	async function loadAll() {
 		loading = true;
 		error = null;
+		hasRealBracket = false;
 		try {
 			let slots: Slot[];
 			let matches: MatchRaw[];
+			const nameMap = new Map<string, string>();
+			let scheduleById = new Map<string, ScheduledMatch>();
+			let useRealData = false;
 
-			if (eventId) {
+			// Detectar si hi ha un event hàndicap actiu amb sorteig ja generat.
+			const { data: ev } = await supabase
+				.from('events')
+				.select('id, data_inici, data_fi')
+				.eq('tipus_competicio', 'handicap')
+				.eq('actiu', true)
+				.limit(1)
+				.maybeSingle();
+
+			let realEventId: string | null = eventId;
+			if (!realEventId && ev?.id) {
+				const { count } = await supabase
+					.from('handicap_bracket_slots')
+					.select('id', { count: 'exact', head: true })
+					.eq('event_id', ev.id);
+				if ((count ?? 0) > 0) {
+					realEventId = ev.id;
+				}
+			}
+
+			if (realEventId) {
 				const { data: slotsData, error: sErr } = await supabase
 					.from('handicap_bracket_slots')
-					.select('id, bracket_type, ronda, posicio')
-					.eq('event_id', eventId);
+					.select('id, bracket_type, ronda, posicio, participant_id, is_bye')
+					.eq('event_id', realEventId);
 				if (sErr) throw sErr;
 
 				const { data: matchesData, error: mErr } = await supabase
 					.from('handicap_matches')
-					.select('id, slot1_id, slot2_id, winner_slot_dest_id, loser_slot_dest_id, estat')
-					.eq('event_id', eventId);
+					.select('id, slot1_id, slot2_id, winner_slot_dest_id, loser_slot_dest_id, estat, calendari_partida_id')
+					.eq('event_id', realEventId);
 				if (mErr) throw mErr;
 
 				slots = (slotsData ?? []) as Slot[];
-				matches = (matchesData ?? []) as MatchRaw[];
+				matches = (matchesData ?? []).map((m: any) => ({
+					id: m.id,
+					slot1_id: m.slot1_id,
+					slot2_id: m.slot2_id,
+					winner_slot_dest_id: m.winner_slot_dest_id,
+					loser_slot_dest_id: m.loser_slot_dest_id,
+					estat: m.estat
+				}));
+
+				const { data: partsData, error: pErr } = await supabase
+					.from('handicap_participants')
+					.select('id, socis!handicap_participants_soci_numero_fkey(nom, cognoms)')
+					.eq('event_id', realEventId);
+				if (pErr) throw pErr;
+				for (const p of (partsData ?? []) as any[]) {
+					const raw = p.socis;
+					const s = Array.isArray(raw) ? raw[0] : raw;
+					nameMap.set(p.id, formatarNomJugadorParts(s?.nom ?? '', s?.cognoms ?? ''));
+				}
+
+				const calIds = (matchesData ?? [])
+					.map((m: any) => m.calendari_partida_id)
+					.filter((id: string | null): id is string => !!id);
+				let calMap = new Map<string, { data_programada: string | null; hora_inici: string | null; taula_assignada: number | null }>();
+				if (calIds.length > 0) {
+					const { data: calData, error: cErr } = await supabase
+						.from('calendari_partides')
+						.select('id, data_programada, hora_inici, taula_assignada')
+						.in('id', calIds);
+					if (cErr) throw cErr;
+					for (const c of (calData ?? []) as any[]) {
+						calMap.set(c.id, {
+							data_programada: c.data_programada,
+							hora_inici: c.hora_inici,
+							taula_assignada: c.taula_assignada
+						});
+					}
+				}
+				for (const m of (matchesData ?? []) as any[]) {
+					if (!m.calendari_partida_id) continue;
+					const cp = calMap.get(m.calendari_partida_id);
+					if (!cp || !cp.data_programada || !cp.hora_inici || cp.taula_assignada == null) continue;
+					scheduleById.set(m.id, {
+						matchId: m.id,
+						dataProgramada: new Date(cp.data_programada),
+						horaInici: (cp.hora_inici as string).substring(0, 5),
+						taulaAssignada: cp.taula_assignada as number,
+						dataMaximaDisputa: new Date(cp.data_programada)
+					});
+				}
+				useRealData = true;
+				hasRealBracket = true;
 			} else if (inputCount && inputCount >= 2) {
 				const fakes = Array.from({ length: inputCount }, (_, i) => ({
 					id: `fake-${i + 1}`,
@@ -126,32 +201,26 @@
 				return;
 			}
 
-			let scheduleById = new Map<string, ScheduledMatch>();
-			try {
-				const { data: ev } = await supabase
-					.from('events')
-					.select('id, data_inici, data_fi')
-					.eq('tipus_competicio', 'handicap')
-					.eq('actiu', true)
-					.limit(1)
-					.maybeSingle();
-				if (ev?.data_inici && ev?.data_fi) {
-					const { data: cfg } = await supabase
-						.from('handicap_config')
-						.select('horaris_extra')
-						.eq('event_id', ev.id)
-						.maybeSingle();
-					scheduleById = preSchedulingForBracket(slots, matches, {
-						dataInici: new Date(ev.data_inici),
-						dataFi: new Date(ev.data_fi),
-						horesEstandard: ['18:00', '19:00'],
-						horarisExtra: cfg?.horaris_extra ?? null,
-						billars: 3,
-						diesBloquejats: [new Date('2026-06-24')]
-					});
+			if (!useRealData) {
+				try {
+					if (ev?.data_inici && ev?.data_fi) {
+						const { data: cfg } = await supabase
+							.from('handicap_config')
+							.select('horaris_extra')
+							.eq('event_id', ev.id)
+							.maybeSingle();
+						scheduleById = preSchedulingForBracket(slots, matches, {
+							dataInici: new Date(ev.data_inici),
+							dataFi: new Date(ev.data_fi),
+							horesEstandard: ['18:00', '19:00'],
+							horarisExtra: cfg?.horaris_extra ?? null,
+							billars: 3,
+							diesBloquejats: [new Date('2026-06-24')]
+						});
+					}
+				} catch (e) {
+					console.warn('Pre-scheduling no disponible:', e);
 				}
-			} catch (e) {
-				console.warn('Pre-scheduling no disponible:', e);
 			}
 
 			const slotById = new Map<string, Slot>(slots.map(s => [s.id, s]));
@@ -194,6 +263,15 @@
 				return codeByMatchId.get(m.id) ?? '—';
 			};
 
+			const slotName = (s: Slot | undefined): string | null => {
+				if (!s) return null;
+				if (s.is_bye) return 'BYE';
+				if (s.participant_id) {
+					return nameMap.get(s.participant_id) ?? null;
+				}
+				return null;
+			};
+
 			const matchViews: MatchView[] = enriched.map(e => {
 				const s1 = slotById.get(e.m.slot1_id);
 				const s2 = slotById.get(e.m.slot2_id);
@@ -205,6 +283,8 @@
 					posicioMin: e.posicioMin,
 					slot1Pos: s1?.posicio ?? 0,
 					slot2Pos: s2?.posicio ?? 0,
+					slot1Name: slotName(s1),
+					slot2Name: slotName(s2),
 					winnerDest: destinationCode(e.m.winner_slot_dest_id),
 					loserDest: destinationCode(e.m.loser_slot_dest_id),
 					schedule: scheduleById.get(e.m.id) ?? null
@@ -401,6 +481,13 @@
 			.label { font-weight: 700; font-size: 7pt; color: #555; min-width: 4mm; }
 			.kv { font-size: 7pt; color: #555; font-weight: 600; }
 			.line { flex: 1; border-bottom: 1px solid #1f1f1f; height: 4.5mm; }
+			.line.filled {
+				display: flex; align-items: center;
+				font-size: 7.5pt; font-weight: 700; color: #1f1f1f;
+				padding: 0 1mm; line-height: 4.5mm; height: 4.5mm;
+				white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+				min-width: 0;
+			}
 			.box { display: inline-block; border: 1px solid #1f1f1f; height: 4.5mm; width: 10mm; }
 			.box.small { width: 7mm; }
 			.schedule-row {
@@ -465,7 +552,7 @@ ${printScript}
 						Per a PDF: destinació <em>Guardar com a PDF</em>.
 					</span>
 				{/if}
-				{#if !eventId}
+				{#if !eventId && !hasRealBracket}
 					<label class="count-label">
 						Jugadors:
 						<input type="number" min="2" max="128" bind:value={inputCount} class="count-input" />
@@ -523,13 +610,21 @@ ${printScript}
 												</div>
 												<div class="player-row">
 													<span class="label">{mv.bracket === 'winners' && mv.ronda === 1 ? `#${mv.slot1Pos}` : '1'}</span>
-													<span class="line"></span>
+													{#if mv.slot1Name}
+														<span class="line filled">{mv.slot1Name}</span>
+													{:else}
+														<span class="line"></span>
+													{/if}
 													<span class="kv">D</span><span class="box small"></span>
 													<span class="kv">C</span><span class="box small"></span>
 												</div>
 												<div class="player-row">
 													<span class="label">{mv.bracket === 'winners' && mv.ronda === 1 ? `#${mv.slot2Pos}` : '2'}</span>
-													<span class="line"></span>
+													{#if mv.slot2Name}
+														<span class="line filled">{mv.slot2Name}</span>
+													{:else}
+														<span class="line"></span>
+													{/if}
 													<span class="kv">D</span><span class="box small"></span>
 													<span class="kv">C</span><span class="box small"></span>
 												</div>
@@ -693,6 +788,13 @@ ${printScript}
 	.label { font-weight: 700; font-size: 7pt; color: #555; min-width: 4mm; }
 	.kv { font-size: 7pt; color: #555; font-weight: 600; }
 	.line { flex: 1; border-bottom: 1px solid #1f1f1f; height: 4.5mm; }
+	.line.filled {
+		display: flex; align-items: center;
+		font-size: 7.5pt; font-weight: 700; color: #1f1f1f;
+		padding: 0 1mm; line-height: 4.5mm; height: 4.5mm;
+		white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+		min-width: 0;
+	}
 	.box { display: inline-block; border: 1px solid #1f1f1f; height: 4.5mm; width: 10mm; }
 	.box.small { width: 7mm; }
 
