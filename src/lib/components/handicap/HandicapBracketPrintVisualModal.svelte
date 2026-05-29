@@ -4,6 +4,7 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { generateDoublEliminationBracket } from '$lib/utils/handicap-bracket-generator';
 	import { preSchedulingForBracket, type ScheduledMatch } from '$lib/utils/handicap-pre-scheduler';
+	import { computeDeadlines } from '$lib/utils/handicap-deadlines';
 	import { printPortal } from '$lib/utils/print-portal';
 	import { loadLogoDataUrl } from '$lib/utils/load-logo';
 	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
