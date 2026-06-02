@@ -301,20 +301,37 @@
 			partidaMap = new Map((partides ?? []).map((p: any) => [p.id, p]));
 		}
 
-		// 5. Tots els slots ocupats (per SlotPicker i scheduler)
+		// 5. Tots els slots ocupats (per SlotPicker i scheduler).
+		// Inclou la `id` de calendari_partides per poder mapar els slots dels
+		// partits hàndicap a la llista de participants (necessari per detectar
+		// conflictes de jugador en taules diferents).
 		if (config) {
 			const { data: allPartides } = await supabase
 				.from('calendari_partides')
-				.select('data_programada, hora_inici, taula_assignada')
+				.select('id, data_programada, hora_inici, taula_assignada')
 				.gte('data_programada', `${config.data_inici}T00:00:00`)
 				.lte('data_programada', `${config.data_fi}T23:59:59`)
 				.not('data_programada', 'is', null)
 				.not('taula_assignada', 'is', null);
 
+			// Map: calendari_partida_id → [participant_id slot1, participant_id slot2]
+			// (només per matches hàndicap; matches socials queden buits)
+			const participantsByPartidaId = new Map<string, string[]>();
+			for (const m of rawMatches) {
+				if (!m.calendari_partida_id) continue;
+				const s1: any = slotMap.get(m.slot1_id);
+				const s2: any = slotMap.get(m.slot2_id);
+				const ids: string[] = [];
+				if (s1?.participant_id) ids.push(s1.participant_id);
+				if (s2?.participant_id) ids.push(s2.participant_id);
+				if (ids.length > 0) participantsByPartidaId.set(m.calendari_partida_id, ids);
+			}
+
 			allOccupiedSlots = (allPartides ?? []).map((p: any) => ({
 				data: (p.data_programada as string).substring(0, 10),
 				hora: (p.hora_inici as string).substring(0, 5),
-				taula: p.taula_assignada as number
+				taula: p.taula_assignada as number,
+				participantIds: participantsByPartidaId.get(p.id as string) ?? []
 			}));
 		}
 

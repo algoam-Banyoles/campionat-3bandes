@@ -64,6 +64,10 @@ export interface OccupiedSlot {
 	data: string; // 'YYYY-MM-DD'
 	hora: string; // 'HH:MM'
 	taula: number; // 1, 2 o 3
+	/** IDs de participants hàndicap que juguen en aquest slot. S'usa per
+	 *  detectar conflictes de jugador (mateix participant a dues partides
+	 *  alhora a billars diferents). Buit / undefined per a slots no hàndicap. */
+	participantIds?: string[];
 }
 
 /** Resultat de la programació d'una partida. */

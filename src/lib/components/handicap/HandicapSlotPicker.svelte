@@ -67,19 +67,41 @@
 	}
 
 	// ── Slots ocupats (excloent el slot actual de la partida) ─────────────────
-	$: occupiedSet = new Set(
-		occupiedSlots
-			.filter(
-				(s) =>
-					!currentSlot ||
-					!(
-						s.data === currentSlot.data &&
-						s.hora === currentSlot.hora &&
-						s.taula === currentSlot.taula
-					)
+	$: filteredOccupied = occupiedSlots.filter(
+		(s) =>
+			!currentSlot ||
+			!(
+				s.data === currentSlot.data &&
+				s.hora === currentSlot.hora &&
+				s.taula === currentSlot.taula
 			)
-			.map((s) => `${s.data}|${s.hora}|${s.taula}`)
 	);
+	$: occupiedSet = new Set(
+		filteredOccupied.map((s) => `${s.data}|${s.hora}|${s.taula}`)
+	);
+
+	// Jugadors ocupats per (data, hora) en QUALSEVOL taula. Un slot està
+	// "ocupat per jugador" quan algun dels dos participants del match que
+	// volem programar (avail1/avail2) ja juga en aquesta franja horària.
+	$: playerBusyAt = (() => {
+		const map = new Map<string, Set<string>>();
+		for (const s of filteredOccupied) {
+			if (!s.participantIds || s.participantIds.length === 0) continue;
+			const key = `${s.data}|${s.hora}`;
+			let set = map.get(key);
+			if (!set) { set = new Set(); map.set(key, set); }
+			for (const pid of s.participantIds) set.add(pid);
+		}
+		return map;
+	})();
+	function isPlayerBusy(data: string, hora: string): boolean {
+		const set = playerBusyAt.get(`${data}|${hora}`);
+		if (!set) return false;
+		return (
+			(!!avail1?.participant_id && set.has(avail1.participant_id)) ||
+			(!!avail2?.participant_id && set.has(avail2.participant_id))
+		);
+	}
 
 	// ── Dies de la setmana actual (filtrats per rang del torneig) ─────────────
 	$: weekDays = Array.from({ length: 5 }, (_, i) => {
@@ -126,7 +148,10 @@
 			currentSlot.taula === taula
 		)
 			return 'current';
+		// Ocupat: el billar ja és pres O un dels jugadors ja juga en una altra
+		// taula en aquesta mateixa franja horària.
 		if (occupiedSet.has(`${data}|${hora}|${taula}`)) return 'occupied';
+		if (isPlayerBusy(data, hora)) return 'occupied';
 		const p1 = isPlayerAvail(avail1, dayCode, hora);
 		const p2 = isPlayerAvail(avail2, dayCode, hora);
 		if (p1 && p2) return 'both';
