@@ -3,6 +3,7 @@
 	import { supabase } from '$lib/supabaseClient';
 	import { buildMatchCodeMap, buildSlotSourceMap } from '$lib/utils/handicap-types';
 	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
+	import { effectiveIsAdmin } from '$lib/stores/viewMode';
 
 	let loading = true;
 	let error: string | null = null;
@@ -26,6 +27,8 @@
 		playersResolved: boolean;
 		/** Si és un dia festiu (cap partida programable). */
 		festiu?: boolean;
+		/** match_id (per a les accions admin com programar/resultat). */
+		matchId?: string;
 	};
 	let rows: CalRow[] = [];
 	let columns: 1 | 2 = 2;
@@ -166,6 +169,7 @@
 				player2: string | null;
 				estat: string;
 				playersResolved: boolean;
+				matchId: string;
 			};
 			const matchAtSlot = new Map<string, MatchInfo>();
 			const scheduledDates = new Set<string>();
@@ -191,7 +195,8 @@
 					player1: p1,
 					player2: p2,
 					estat: m.estat as string,
-					playersResolved: resolved
+					playersResolved: resolved,
+					matchId: m.id as string
 				});
 			}
 
@@ -208,10 +213,33 @@
 			const dies = ['dg', 'dl', 'dt', 'dc', 'dj', 'dv', 'ds'];
 			const diesActius = ['dl', 'dt', 'dc', 'dj', 'dv'];
 
+			// "Avui" en format YYYY-MM-DD (components locals) per filtrar dies passats.
+			const todayObj = new Date();
+			const todayYmd = ymd(todayObj);
+
+			// Conjunt de dies passats que contenen alguna partida NO jugada
+			// (estat pendent/programada). Aquests dies SÍ es mantenen al
+			// calendari perquè cal seguir poden gestionar-los.
+			const pastDaysWithPending = new Set<string>();
+			for (const mi of matchAtSlot.values()) {
+				// matchAtSlot ja és només de partides amb data programada
+			}
+			for (const [key, mi] of matchAtSlot) {
+				const dKey = key.split('|')[0]; // 'YYYY-MM-DD'
+				if (dKey >= todayYmd) continue; // futur o avui: gestionat pel filtre general
+				if (mi.estat === 'pendent' || mi.estat === 'programada') {
+					pastDaysWithPending.add(dKey);
+				}
+			}
+
 			const tmp: CalRow[] = [];
 			for (let d = new Date(minDate); d <= maxDate; d.setDate(d.getDate() + 1)) {
 				const codi = dies[d.getDay()];
 				if (!diesActius.includes(codi)) continue;
+				// Filtre de dies passats: ometre dies anteriors a avui, excepte
+				// si tenen alguna partida pendent / programada (no jugada).
+				const dYmd = ymd(d);
+				if (dYmd < todayYmd && !pastDaysWithPending.has(dYmd)) continue;
 				// Festiu: una sola fila marcada (no genera slots de billar).
 				if (FESTIUS.has(ymd(d))) {
 					tmp.push({
@@ -249,7 +277,8 @@
 							player1: mi?.player1 ?? null,
 							player2: mi?.player2 ?? null,
 							estat: mi?.estat ?? null,
-							playersResolved: mi?.playersResolved ?? true
+							playersResolved: mi?.playersResolved ?? true,
+							matchId: mi?.matchId
 						});
 					}
 				}
@@ -373,6 +402,7 @@
 								<th>Destí</th>
 								<th>Jugador 1</th>
 								<th>Jugador 2</th>
+								{#if $effectiveIsAdmin}<th class="actions-th">Accions</th>{/if}
 							</tr>
 						</thead>
 						<tbody>
@@ -383,7 +413,7 @@
 											<div class="d-num">{dateLabel(gd.date)}</div>
 											<div class="d-name">{diaNom(gd.date)}</div>
 										</td>
-										<td class="festiu-cell" colspan="6">FESTIU</td>
+										<td class="festiu-cell" colspan={$effectiveIsAdmin ? 7 : 6}>FESTIU</td>
 									</tr>
 								{:else}
 								{#each gd.hours as gh, hIdx}
@@ -417,6 +447,17 @@
 											</td>
 											<td class="player-cell">{it.player1 ?? ''}</td>
 											<td class="player-cell">{it.player2 ?? ''}</td>
+											{#if $effectiveIsAdmin}
+												<td class="actions-cell">
+													{#if it.matchId}
+														<a
+															href={`/handicap/partides?focus=${it.matchId}`}
+															class="action-link"
+															title="Programar / Reprogramar / Pujar resultat"
+														>Editar →</a>
+													{/if}
+												</td>
+											{/if}
 										</tr>
 									{/each}
 								{/each}
@@ -541,6 +582,20 @@
 	.arrow-win { color: #1d6e3a; }
 	.arrow-lose { color: #a30b1e; }
 	.player-cell { font-size: 0.8rem; min-width: 7rem; text-align: left; padding: 0.25rem 0.5rem; }
+	.actions-th { text-align: center; }
+	.actions-cell { text-align: center; padding: 0.2rem 0.4rem; min-width: 4.5rem; }
+	.action-link {
+		display: inline-block;
+		padding: 0.15rem 0.5rem;
+		font-size: 0.7rem;
+		font-weight: 700;
+		color: var(--ink);
+		border: 1px solid var(--rule);
+		background: var(--paper-elevated);
+		text-decoration: none;
+		white-space: nowrap;
+	}
+	.action-link:hover { background: var(--accent); color: white; border-color: var(--accent); }
 
 	tr.played .player-cell, tr.played .code-cell { opacity: 0.6; }
 

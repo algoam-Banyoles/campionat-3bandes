@@ -719,6 +719,25 @@
 
 		await loadData();
 		loading = false;
+
+		// Si la URL conté ?focus=<matchId>, fer scroll i obrir el panell de
+		// programació (per a la integració des del /handicap/calendari).
+		if (typeof window !== 'undefined') {
+			const focusId = new URLSearchParams(window.location.search).get('focus');
+			if (focusId) {
+				setTimeout(() => {
+					const match = matches.find((m) => m.id === focusId);
+					if (!match) return;
+					if (match.player1_participant_id && match.player2_participant_id && !isFinalitzat) {
+						schedulingMatchId = focusId;
+					}
+					const el = document.querySelector(`tr[data-match-id="${focusId}"]`);
+					el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+					el?.classList.add('focused');
+					setTimeout(() => el?.classList.remove('focused'), 2500);
+				}, 200);
+			}
+		}
 	});
 
 	async function regenerarHorariComplet() {
@@ -1218,7 +1237,7 @@
 					</thead>
 					<tbody class="divide-y divide-gray-50">
 						{#each filteredMatches as match (match.id)}
-							<tr class="hover:bg-gray-50/50">
+							<tr class="hover:bg-gray-50/50" data-match-id={match.id}>
 								<td class="px-3 py-2 text-center font-mono text-xs text-gray-500">{match.matchCode}</td>
 								<td class="px-3 py-2">
 									<span
@@ -1551,5 +1570,10 @@
 	.hcap-page-root :global(table td) {
 		border-bottom: 1px solid var(--rule);
 		color: var(--ink) !important;
+	}
+	.hcap-page-root :global(tr.focused) {
+		background: #fff7e6 !important;
+		box-shadow: inset 4px 0 0 0 #d97706;
+		transition: background 0.3s, box-shadow 0.3s;
 	}
 </style>
