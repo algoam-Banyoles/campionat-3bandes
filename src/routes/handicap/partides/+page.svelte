@@ -24,6 +24,8 @@
 	import { executeScheduling } from '$lib/utils/handicap-scheduler-db';
 	import { persistFullSchedule } from '$lib/utils/handicap-schedule-persist';
 	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
+	import { checkCompatibility, type CompatibilityIssue, type CompatibilityMatchInput, type AlternativeSlot } from '$lib/utils/handicap-compatibility';
+	import HandicapCompatibilityCheckModal from '$lib/components/handicap/HandicapCompatibilityCheckModal.svelte';
 
 	// ── Tipus locals ──────────────────────────────────────────────────────────
 
@@ -65,6 +67,11 @@
 	let matches: MatchDisplay[] = [];
 	let participantMap = new Map<string, ParticipantAvailability>();
 	let allOccupiedSlots: OccupiedSlot[] = []; // tots els slots ocupats del torneig
+
+	// ── Revisió d'incompatibilitats ───────────────────────────────────────────
+	let checkingCompat = false;
+	let showCompatModal = false;
+	let compatIssues: CompatibilityIssue[] = [];
 
 	// ── Estat del torneig ─────────────────────────────────────────────────────
 
@@ -749,6 +756,96 @@
 			regenerantHorari = false;
 		}
 	}
+
+	// ── Revisar incompatibilitats ─────────────────────────────────────────────
+	async function revisarIncompatibilitats() {
+		if (!config || !eventId) return;
+		checkingCompat = true;
+		try {
+			const programmed = matches.filter(
+				(m) => m.estat === 'programada'
+					&& m.data_programada && m.hora_inici && m.taula_assignada
+					&& m.player1_participant_id && m.player2_participant_id
+			);
+			const inputs: CompatibilityMatchInput[] = [];
+			for (const m of programmed) {
+				const p1 = participantMap.get(m.player1_participant_id as string);
+				const p2 = participantMap.get(m.player2_participant_id as string);
+				if (!p1 || !p2) continue;
+				inputs.push({
+					matchId: m.id,
+					matchCode: m.matchCode,
+					player1Name: m.player1_name,
+					player2Name: m.player2_name,
+					player1: p1,
+					player2: p2,
+					data: m.data_programada as string,
+					hora: m.hora_inici as string,
+					taula: m.taula_assignada as number
+				});
+			}
+			compatIssues = checkCompatibility(inputs, {
+				dataInici: config.data_inici,
+				dataFi: config.data_fi,
+				horesEstandard: ['18:00', '19:00'],
+				horarisExtra: config.horaris_extra ?? null,
+				billars: 3,
+				diesActius: ['dl', 'dt', 'dc', 'dj', 'dv'],
+				diesBloquejats: ['2026-06-24'],
+				occupiedSlots: allOccupiedSlots,
+				maxAlternatives: 3
+			});
+			showCompatModal = true;
+		} catch (e: any) {
+			alert(`Error revisant: ${e?.message ?? e}`);
+		} finally {
+			checkingCompat = false;
+		}
+	}
+
+	async function applyCompatAlternative(matchId: string, slot: AlternativeSlot) {
+		if (!eventId || saving) return;
+		const match = matches.find((m) => m.id === matchId);
+		if (!match) return;
+		saving = true;
+		error = null;
+		try {
+			// Esborrar el cp antic si en té
+			if (match.calendari_partida_id) {
+				const { error: delErr } = await supabase
+					.from('calendari_partides')
+					.delete()
+					.eq('id', match.calendari_partida_id);
+				if (delErr) throw new Error(`Error esborrant slot anterior: ${delErr.message}`);
+			}
+			const { data: newPartida, error: insertErr } = await supabase
+				.from('calendari_partides')
+				.insert({
+					event_id: eventId,
+					categoria_id: null,
+					jugador1_soci_numero: match.player1_soci_numero,
+					jugador2_soci_numero: match.player2_soci_numero,
+					data_programada: `${slot.data}T${slot.hora}:00`,
+					hora_inici: slot.hora,
+					taula_assignada: slot.taula,
+					estat: 'generat'
+				})
+				.select('id')
+				.single();
+			if (insertErr || !newPartida) throw new Error(insertErr?.message ?? 'Error creant la partida');
+			const { error: updateErr } = await supabase
+				.from('handicap_matches')
+				.update({ calendari_partida_id: newPartida.id, estat: 'programada' })
+				.eq('id', matchId);
+			if (updateErr) throw new Error(updateErr.message);
+			compatIssues = compatIssues.filter((i) => i.matchId !== matchId);
+			await loadData();
+		} catch (e: any) {
+			error = e?.message ?? String(e);
+		} finally {
+			saving = false;
+		}
+	}
 </script>
 
 <div class="hcap-page-root">
@@ -760,15 +857,26 @@
 			<h1 class="page-title">Partides</h1>
 		</div>
 		{#if $effectiveIsAdmin && eventId}
-			<button
-				type="button"
-				on:click={regenerarHorariComplet}
-				disabled={regenerantHorari}
-				class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-				title="Aplica pre-scheduler + optimizer i desa l'horari sencer (incloent pre-reserves de R2+)"
-			>
-				{regenerantHorari ? 'Regenerant…' : 'Regenerar horari complet'}
-			</button>
+			<div class="flex flex-wrap gap-2">
+				<button
+					type="button"
+					on:click={() => revisarIncompatibilitats()}
+					disabled={checkingCompat}
+					class="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+					title="Detecta partides programades on algun jugador no té disponibilitat i proposa alternatives"
+				>
+					{checkingCompat ? 'Revisant…' : 'Revisar incompatibilitats'}
+				</button>
+				<button
+					type="button"
+					on:click={regenerarHorariComplet}
+					disabled={regenerantHorari}
+					class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+					title="Aplica pre-scheduler + optimizer i desa l'horari sencer (incloent pre-reserves de R2+)"
+				>
+					{regenerantHorari ? 'Regenerant…' : 'Regenerar horari complet'}
+				</button>
+			</div>
 		{/if}
 	</header>
 
@@ -1304,6 +1412,15 @@
 			</div>
 		</div>
 	</div>
+{/if}
+
+{#if showCompatModal && $effectiveIsAdmin}
+	<HandicapCompatibilityCheckModal
+		issues={compatIssues}
+		loading={checkingCompat}
+		onClose={() => (showCompatModal = false)}
+		on:apply={(e) => applyCompatAlternative(e.detail.matchId, e.detail.slot)}
+	/>
 {/if}
 
 <style>
