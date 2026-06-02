@@ -44,12 +44,17 @@ export async function autoScheduleReadyMatches(
 	};
 
 	// ── 2. Obtenir partides pendents (no bye) ─────────────────────────────────
+	// Filtres clau per minimitzar canvis al calendari pre-definit:
+	//   - estat = 'pendent' (no toquem partides ja 'programada' ni 'jugada')
+	//   - calendari_partida_id IS NULL (no creem un segon slot per a una
+	//     partida que ja en té; preserva el que va fer el pre-scheduler)
 
 	const { data: rawMatches } = await supabase
 		.from('handicap_matches')
 		.select('id, slot1_id, slot2_id')
 		.eq('event_id', eventId)
-		.eq('estat', 'pendent');
+		.eq('estat', 'pendent')
+		.is('calendari_partida_id', null);
 
 	if (!rawMatches || rawMatches.length === 0) return null;
 

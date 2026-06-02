@@ -3,7 +3,10 @@
 	import type { CalendarEntry } from '$lib/utils/handicap-types';
 	import type { TournamentConfig } from '$lib/utils/handicap-scheduler';
 	import { parseLocalDate } from '$lib/utils/handicap-scheduler';
-	import { formatarNomJugador } from '$lib/utils/playerUtils';
+	// Els noms arriben ja formatats des del caller (formatarNomJugadorParts).
+	// NO els re-formatem aquí perquè "J. A. Saucedo" no és re-parseable:
+	// formatarNomJugador interpretaria "A." com a primer cognom i el "Saucedo"
+	// quedaria fora.
 	import {
 		deadlineStatus,
 		formatDeadlineShort,
@@ -42,7 +45,8 @@
 		return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
 	}
 	function shortName(name: string): string {
-		return formatarNomJugador(name);
+		// Pass-through: el nom ja arriba en format curt des del caller.
+		return name;
 	}
 	function bracketClass(b: 'winners' | 'losers' | 'grand_final' | null | undefined): string {
 		if (b === 'winners') return 'code-w';
