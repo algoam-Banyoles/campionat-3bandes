@@ -40,6 +40,22 @@
 		winner_slot_dest_id: string | null;
 		loser_slot_dest_id: string | null;
 		estat?: string;
+		guanyador_participant_id?: string | null;
+		distancia_jugador1?: number | null;
+		distancia_jugador2?: number | null;
+		caramboles1?: number | null;
+		caramboles2?: number | null;
+		entrades?: number | null;
+	};
+	type MatchResult = {
+		estat: 'jugada' | 'walkover';
+		isWalkover: boolean;
+		caramboles1: number | null;
+		caramboles2: number | null;
+		entrades: number | null;
+		distancia1: number | null;
+		distancia2: number | null;
+		winnerSlot: 1 | 2 | null;
 	};
 	type MatchView = {
 		id: string;
@@ -53,6 +69,7 @@
 		winnerDest: string;
 		loserDest: string;
 		schedule?: ScheduledMatch | null;
+		result?: MatchResult | null;
 	};
 
 	let loading = true;
@@ -117,7 +134,7 @@
 
 				const { data: matchesData, error: mErr } = await supabase
 					.from('handicap_matches')
-					.select('id, slot1_id, slot2_id, winner_slot_dest_id, loser_slot_dest_id, estat, calendari_partida_id')
+					.select('id, slot1_id, slot2_id, winner_slot_dest_id, loser_slot_dest_id, estat, guanyador_participant_id, distancia_jugador1, distancia_jugador2, calendari_partida_id')
 					.eq('event_id', realEventId);
 				if (mErr) throw mErr;
 
@@ -128,7 +145,10 @@
 					slot2_id: m.slot2_id,
 					winner_slot_dest_id: m.winner_slot_dest_id,
 					loser_slot_dest_id: m.loser_slot_dest_id,
-					estat: m.estat
+					estat: m.estat,
+					guanyador_participant_id: m.guanyador_participant_id ?? null,
+					distancia_jugador1: m.distancia_jugador1 ?? null,
+					distancia_jugador2: m.distancia_jugador2 ?? null
 				}));
 
 				// Carrega noms reals dels participants (FK directa via soci_numero).
@@ -147,19 +167,35 @@
 				const calIds = (matchesData ?? [])
 					.map((m: any) => m.calendari_partida_id)
 					.filter((id: string | null): id is string => !!id);
-				let calMap = new Map<string, { data_programada: string | null; hora_inici: string | null; taula_assignada: number | null }>();
+				let calMap = new Map<string, { data_programada: string | null; hora_inici: string | null; taula_assignada: number | null; caramboles_jugador1: number | null; caramboles_jugador2: number | null; entrades: number | null }>();
 				if (calIds.length > 0) {
 					const { data: calData, error: cErr } = await supabase
 						.from('calendari_partides')
-						.select('id, data_programada, hora_inici, taula_assignada')
+						.select('id, data_programada, hora_inici, taula_assignada, caramboles_jugador1, caramboles_jugador2, entrades')
 						.in('id', calIds);
 					if (cErr) throw cErr;
 					for (const c of (calData ?? []) as any[]) {
 						calMap.set(c.id, {
 							data_programada: c.data_programada,
 							hora_inici: c.hora_inici,
-							taula_assignada: c.taula_assignada
+							taula_assignada: c.taula_assignada,
+							caramboles_jugador1: c.caramboles_jugador1 ?? null,
+							caramboles_jugador2: c.caramboles_jugador2 ?? null,
+							entrades: c.entrades ?? null
 						});
+					}
+				}
+				// Propaga caramboles/entrades del calendari als matches (per a la cel·la del bracket).
+				{
+					const matchById = new Map(matches.map(mm => [mm.id, mm]));
+					for (const m of (matchesData ?? []) as any[]) {
+						const mm = matchById.get(m.id);
+						if (!mm || !m.calendari_partida_id) continue;
+						const cp = calMap.get(m.calendari_partida_id);
+						if (!cp) continue;
+						mm.caramboles1 = cp.caramboles_jugador1;
+						mm.caramboles2 = cp.caramboles_jugador2;
+						mm.entrades = cp.entrades;
 					}
 				}
 				// Construïm scheduleById a partir del calendari real.
@@ -328,6 +364,26 @@
 				return null;
 			};
 
+			const buildResult = (raw: MatchRaw, s1: Slot | undefined, s2: Slot | undefined): MatchResult | null => {
+				const estat = raw.estat;
+				if (estat !== 'jugada' && estat !== 'walkover') return null;
+				const winnerId = raw.guanyador_participant_id ?? null;
+				if (!winnerId) return null;
+				let winnerSlot: 1 | 2 | null = null;
+				if (s1?.participant_id && s1.participant_id === winnerId) winnerSlot = 1;
+				else if (s2?.participant_id && s2.participant_id === winnerId) winnerSlot = 2;
+				return {
+					estat,
+					isWalkover: estat === 'walkover',
+					caramboles1: raw.caramboles1 ?? null,
+					caramboles2: raw.caramboles2 ?? null,
+					entrades: raw.entrades ?? null,
+					distancia1: raw.distancia_jugador1 ?? null,
+					distancia2: raw.distancia_jugador2 ?? null,
+					winnerSlot
+				};
+			};
+
 			const matchViews: MatchView[] = enriched.map(e => {
 				const s1 = slotById.get(e.m.slot1_id);
 				const s2 = slotById.get(e.m.slot2_id);
@@ -342,7 +398,8 @@
 					slot2Name: slotName(s2),
 					winnerDest: destinationCode(e.m.winner_slot_dest_id),
 					loserDest: destinationCode(e.m.loser_slot_dest_id),
-					schedule: scheduleById.get(e.m.id) ?? null
+					schedule: scheduleById.get(e.m.id) ?? null,
+					result: useRealData ? buildResult(e.m, s1, s2) : null
 				};
 			});
 
@@ -547,6 +604,14 @@
 			}
 			.box { display: inline-block; border: 1px solid #1f1f1f; height: 5mm; width: 14mm; }
 			.box.small { width: 9mm; }
+			.box.filled-box {
+				display: inline-flex; align-items: center; justify-content: center;
+				font-size: 8.5pt; font-weight: 700; color: #1f1f1f; background: #f5f5f5;
+			}
+			.winner-row { font-weight: 800; }
+			.winner-row .line.filled { font-weight: 800; }
+			.winner-mark { color: #1d6e3a; font-weight: 800; margin-right: 0.6mm; }
+			.loser-row { opacity: 0.55; }
 			.schedule-row {
 				display: flex; justify-content: space-between; align-items: baseline;
 				gap: 2mm; margin-top: 1mm; padding-top: 1mm;
@@ -671,7 +736,7 @@ ${printScript}
 									<h3 class="round-title">{rondaLabel(items[0].bracket, ronda)}</h3>
 									<div class="match-grid">
 										{#each items as mv}
-											<div class="match-cell">
+											<div class="match-cell" class:played={!!mv.result}>
 												<div class="cell-head">
 													<span class="match-code">{mv.code}</span>
 													<span class="arrows">
@@ -681,28 +746,57 @@ ${printScript}
 														{/if}
 													</span>
 												</div>
-												<div class="player-row">
-													<span class="label">{mv.ronda === 1 ? `#${mv.slot1Pos}` : 'Jug 1'}</span>
+												<div
+													class="player-row"
+													class:winner-row={mv.result?.winnerSlot === 1}
+													class:loser-row={!!mv.result && mv.result.winnerSlot === 2}
+												>
+													<span class="label">
+														{#if mv.result?.winnerSlot === 1}<span class="winner-mark">▶</span>{/if}
+														{mv.ronda === 1 ? `#${mv.slot1Pos}` : 'Jug 1'}
+													</span>
 													{#if mv.slot1Name}
 														<span class="line filled">{mv.slot1Name}</span>
 													{:else}
 														<span class="line"></span>
 													{/if}
-													<span class="kv">Dist</span><span class="box small"></span>
-													<span class="kv">Car</span><span class="box small"></span>
+													{#if mv.result}
+														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia1 ?? ''}</span>
+														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles1 ?? '')}</span>
+													{:else}
+														<span class="kv">Dist</span><span class="box small"></span>
+														<span class="kv">Car</span><span class="box small"></span>
+													{/if}
 												</div>
-												<div class="player-row">
-													<span class="label">{mv.ronda === 1 ? `#${mv.slot2Pos}` : 'Jug 2'}</span>
+												<div
+													class="player-row"
+													class:winner-row={mv.result?.winnerSlot === 2}
+													class:loser-row={!!mv.result && mv.result.winnerSlot === 1}
+												>
+													<span class="label">
+														{#if mv.result?.winnerSlot === 2}<span class="winner-mark">▶</span>{/if}
+														{mv.ronda === 1 ? `#${mv.slot2Pos}` : 'Jug 2'}
+													</span>
 													{#if mv.slot2Name}
 														<span class="line filled">{mv.slot2Name}</span>
 													{:else}
 														<span class="line"></span>
 													{/if}
-													<span class="kv">Dist</span><span class="box small"></span>
-													<span class="kv">Car</span><span class="box small"></span>
+													{#if mv.result}
+														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia2 ?? ''}</span>
+														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles2 ?? '')}</span>
+													{:else}
+														<span class="kv">Dist</span><span class="box small"></span>
+														<span class="kv">Car</span><span class="box small"></span>
+													{/if}
 												</div>
 												<div class="entries-row">
-													<span class="kv">Entrades</span><span class="box"></span>
+													<span class="kv">Entrades</span>
+													{#if mv.result}
+														<span class="box filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.entrades ?? '')}</span>
+													{:else}
+														<span class="box"></span>
+													{/if}
 												</div>
 												{#if mv.schedule}
 													<div class="schedule-row">
@@ -741,35 +835,64 @@ ${printScript}
 									<h3 class="round-title">{rondaLabel(items[0].bracket, ronda)}</h3>
 									<div class="match-grid">
 										{#each items as mv}
-											<div class="match-cell">
+											<div class="match-cell" class:played={!!mv.result}>
 												<div class="cell-head">
 													<span class="match-code">{mv.code}</span>
 													<span class="arrows">
 														<span class="arrow-win">↗W: <strong>{mv.winnerDest}</strong></span>
 													</span>
 												</div>
-												<div class="player-row">
-													<span class="label">Jug 1</span>
+												<div
+													class="player-row"
+													class:winner-row={mv.result?.winnerSlot === 1}
+													class:loser-row={!!mv.result && mv.result.winnerSlot === 2}
+												>
+													<span class="label">
+														{#if mv.result?.winnerSlot === 1}<span class="winner-mark">▶</span>{/if}
+														Jug 1
+													</span>
 													{#if mv.slot1Name}
 														<span class="line filled">{mv.slot1Name}</span>
 													{:else}
 														<span class="line"></span>
 													{/if}
-													<span class="kv">Dist</span><span class="box small"></span>
-													<span class="kv">Car</span><span class="box small"></span>
+													{#if mv.result}
+														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia1 ?? ''}</span>
+														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles1 ?? '')}</span>
+													{:else}
+														<span class="kv">Dist</span><span class="box small"></span>
+														<span class="kv">Car</span><span class="box small"></span>
+													{/if}
 												</div>
-												<div class="player-row">
-													<span class="label">Jug 2</span>
+												<div
+													class="player-row"
+													class:winner-row={mv.result?.winnerSlot === 2}
+													class:loser-row={!!mv.result && mv.result.winnerSlot === 1}
+												>
+													<span class="label">
+														{#if mv.result?.winnerSlot === 2}<span class="winner-mark">▶</span>{/if}
+														Jug 2
+													</span>
 													{#if mv.slot2Name}
 														<span class="line filled">{mv.slot2Name}</span>
 													{:else}
 														<span class="line"></span>
 													{/if}
-													<span class="kv">Dist</span><span class="box small"></span>
-													<span class="kv">Car</span><span class="box small"></span>
+													{#if mv.result}
+														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia2 ?? ''}</span>
+														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles2 ?? '')}</span>
+													{:else}
+														<span class="kv">Dist</span><span class="box small"></span>
+														<span class="kv">Car</span><span class="box small"></span>
+													{/if}
 												</div>
 												<div class="entries-row">
-													<span class="kv">Entrades</span><span class="box"></span>
+													<span class="kv">Entrades</span>
+													{#if mv.result}
+														<span class="box filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.entrades ?? '')}</span>
+													{:else}
+														<span class="box"></span>
+													{/if}
 												</div>
 												{#if mv.schedule}
 													<div class="schedule-row">
@@ -959,6 +1082,15 @@ ${printScript}
 		height: 5mm; width: 14mm;
 	}
 	.box.small { width: 9mm; }
+	.box.filled-box {
+		display: inline-flex; align-items: center; justify-content: center;
+		font-size: 8.5pt; font-weight: 700; color: #1f1f1f;
+		background: #f5f5f5;
+	}
+	.winner-row { font-weight: 800; }
+	.winner-row :global(.line.filled) { font-weight: 800; }
+	.winner-mark { color: #1d6e3a; font-weight: 800; margin-right: 0.6mm; }
+	.loser-row { opacity: 0.55; }
 
 	@media print {
 		:global(body > *:not(.print-portal)) { display: none !important; }

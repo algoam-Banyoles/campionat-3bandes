@@ -49,11 +49,12 @@ function addDays(iso: string, n: number): string {
  * Per cada match retorna la seva deadline ('YYYY-MM-DD'). Si no es pot
  * determinar (cap successor té data) i tampoc tenim `dataFi`, retorna null.
  *
- * Regla (replica `handicap-pre-scheduler.ts` línies 703-736): la deadline
- * és el primer dia de la ronda del successor − 1 dia (no la data individual
- * del successor concret). Així tots els matches d'una mateixa ronda
- * comparteixen la mateixa data màxima, que és el comportament que produeix
- * el pre-scheduler en generar el bracket.
+ * Regla: la deadline es calcula a partir de la **data individual** de cada
+ * successor (no el primer dia de la ronda). Per als matches de winners hi ha
+ * dos successors (winner_slot_dest_id i loser_slot_dest_id); per als de
+ * losers només n'hi ha un (el loser_slot_dest_id és null perquè el perdedor
+ * queda eliminat). Es pren la data programada de la més primerenca de
+ * les dues, menys 1 dia.
  */
 export function computeDeadlines(
 	matches: DeadlineInput[],
@@ -65,42 +66,23 @@ export function computeDeadlines(
 		matchBySlot.set(m.slot2_id, m);
 	}
 
-	// Per cada (bracket, ronda), el primer dia programat de la ronda.
-	const firstDateInRound = new Map<string, string>(); // 'bracket-ronda' → 'YYYY-MM-DD'
-	for (const m of matches) {
-		const d = toIsoDay(m.data_programada);
-		if (!d || !m.bracket_type || m.ronda == null) continue;
-		const key = `${m.bracket_type}-${m.ronda}`;
-		const existing = firstDateInRound.get(key);
-		if (!existing || d < existing) firstDateInRound.set(key, d);
-	}
-
 	const fallback = toIsoDay(dataFi);
 	const result = new Map<string, string | null>();
 	for (const m of matches) {
-		const succRoundDates: string[] = [];
+		const succDates: string[] = [];
 		for (const slotId of [m.winner_slot_dest_id, m.loser_slot_dest_id]) {
 			if (!slotId) continue;
 			const succ = matchBySlot.get(slotId);
 			if (!succ) continue;
-			// Si tenim bracket+ronda, usa el primer dia de la ronda del
-			// successor (round-level deadline). Si no, cau a la data
-			// individual del successor.
-			if (succ.bracket_type && succ.ronda != null) {
-				const key = `${succ.bracket_type}-${succ.ronda}`;
-				const d = firstDateInRound.get(key);
-				if (d) succRoundDates.push(d);
-			} else {
-				const d = toIsoDay(succ.data_programada);
-				if (d) succRoundDates.push(d);
-			}
+			const d = toIsoDay(succ.data_programada);
+			if (d) succDates.push(d);
 		}
-		if (succRoundDates.length === 0) {
+		if (succDates.length === 0) {
 			result.set(m.id, fallback);
 			continue;
 		}
-		succRoundDates.sort();
-		result.set(m.id, addDays(succRoundDates[0], -1));
+		succDates.sort();
+		result.set(m.id, addDays(succDates[0], -1));
 	}
 	return result;
 }

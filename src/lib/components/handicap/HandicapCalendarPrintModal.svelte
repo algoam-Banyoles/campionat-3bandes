@@ -284,9 +284,13 @@
 			const diesActius = ['dl', 'dt', 'dc', 'dj', 'dv'];
 
 			const tmp: CalRow[] = [];
+			// Filtre: només dies futurs (avui inclòs) — no imprimim dies passats
+			const _today = new Date();
+			const _todayYmd = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, '0')}-${String(_today.getDate()).padStart(2, '0')}`;
 			for (let d = new Date(minDate); d <= maxDate; d.setDate(d.getDate() + 1)) {
 				const codi = dies[d.getDay()];
 				if (!diesActius.includes(codi)) continue;
+				if (ymd(d) < _todayYmd) continue;
 				// Dies festius: una sola fila marcada (no genera slots).
 				if (FESTIUS.has(ymd(d))) {
 					tmp.push({
