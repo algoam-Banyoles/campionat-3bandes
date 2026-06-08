@@ -13,7 +13,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { autoScheduleReadyMatches } from './handicap-auto-schedule';
+import { autoScheduleReadyMatches, promoteReservedReadyMatches } from './handicap-auto-schedule';
 import type { SchedulingExecutionResult } from './handicap-scheduler-db';
 
 // ── Tipus ─────────────────────────────────────────────────────────────────────
@@ -229,6 +229,12 @@ export async function saveMatchResult(
 	let newSchedulableCount = 0;
 
 	if (!isChampion) {
+		// Primer promou les partides que ja tenien un slot reservat pel pre-scheduler
+		// i que ara han quedat amb ambdós jugadors assignats (omple soci_numeros +
+		// estat='programada'). autoScheduleReadyMatches no les toca perquè ja tenen
+		// calendari_partida_id.
+		await promoteReservedReadyMatches(supabase, eventId);
+
 		autoScheduled = await autoScheduleReadyMatches(supabase, eventId);
 		// newSchedulableCount reflecteix les que no s'han pogut programar (conflictes)
 		if (autoScheduled) {

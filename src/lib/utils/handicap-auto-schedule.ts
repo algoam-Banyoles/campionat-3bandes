@@ -158,3 +158,92 @@ export async function autoScheduleReadyMatches(
 	const scheduleResults = scheduleMatches({ matches: matchesInput, config, participants, occupiedSlots });
 	return executeScheduling(supabase, eventId, matchesInput, scheduleResults);
 }
+
+/**
+ * Promou les partides pendents que ja tenen un slot de calendari reservat
+ * (pre-scheduler) i que acaben de quedar amb ambdós jugadors assignats.
+ *
+ * `autoScheduleReadyMatches` ignora deliberadament aquestes partides
+ * (`calendari_partida_id IS NOT NULL`) per no duplicar slots. Però quan la
+ * propagació d'un resultat omple el participant que faltava, ningú escrivia
+ * els `soci_numero` a la partida reservada ni passava l'estat a 'programada',
+ * de manera que es quedaven invisibles a "Pròximes partides" i al widget de
+ * properes partides del soci (que filtra per `jugadorX_soci_numero`).
+ *
+ * Aquesta funció tanca aquest forat: omple els jugadors a la partida reservada
+ * i marca el match com a 'programada'. Idempotent.
+ *
+ * @returns nombre de partides promogudes.
+ */
+export async function promoteReservedReadyMatches(
+	supabase: SupabaseClient,
+	eventId: string
+): Promise<number> {
+	const { data: rawMatches } = await supabase
+		.from('handicap_matches')
+		.select('id, slot1_id, slot2_id, calendari_partida_id')
+		.eq('event_id', eventId)
+		.eq('estat', 'pendent')
+		.not('calendari_partida_id', 'is', null);
+
+	if (!rawMatches || rawMatches.length === 0) return 0;
+
+	const slotIds = rawMatches.flatMap((m: any) => [m.slot1_id as string, m.slot2_id as string]);
+	const { data: slots } = await supabase
+		.from('handicap_bracket_slots')
+		.select('id, is_bye, participant_id')
+		.in('id', slotIds);
+
+	if (!slots) return 0;
+	const slotMap = new Map((slots as any[]).map((s) => [s.id as string, s]));
+
+	const ready = rawMatches.filter((m: any) => {
+		const s1 = slotMap.get(m.slot1_id as string);
+		const s2 = slotMap.get(m.slot2_id as string);
+		return s1 && s2 && !s1.is_bye && !s2.is_bye && s1.participant_id && s2.participant_id;
+	});
+
+	if (ready.length === 0) return 0;
+
+	const pids = [
+		...new Set(
+			ready.flatMap((m: any) => [
+				slotMap.get(m.slot1_id as string)!.participant_id as string,
+				slotMap.get(m.slot2_id as string)!.participant_id as string
+			])
+		)
+	];
+
+	const { data: partsRows } = await supabase
+		.from('handicap_participants')
+		.select('id, soci_numero')
+		.in('id', pids);
+
+	const sociById = new Map((partsRows ?? []).map((p: any) => [p.id as string, p.soci_numero as number]));
+
+	let promoted = 0;
+	for (const m of ready) {
+		const s1 = slotMap.get(m.slot1_id as string)!;
+		const s2 = slotMap.get(m.slot2_id as string)!;
+		const soci1 = sociById.get(s1.participant_id as string);
+		const soci2 = sociById.get(s2.participant_id as string);
+		if (soci1 == null || soci2 == null) continue;
+
+		// Omplir els jugadors a la partida reservada (slot1 → jugador1, slot2 → jugador2)
+		const { error: cpErr } = await supabase
+			.from('calendari_partides')
+			.update({ jugador1_soci_numero: soci1, jugador2_soci_numero: soci2 })
+			.eq('id', m.calendari_partida_id as string);
+		if (cpErr) continue;
+
+		const { error: hmErr } = await supabase
+			.from('handicap_matches')
+			.update({ estat: 'programada' })
+			.eq('id', m.id as string);
+		if (hmErr) continue;
+
+		promoted++;
+	}
+
+	return promoted;
+}

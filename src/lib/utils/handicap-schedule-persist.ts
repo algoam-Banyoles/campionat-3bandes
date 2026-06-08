@@ -267,6 +267,12 @@ export async function persistFullSchedule(
 			estat: 'generat'
 		};
 
+		// Només les partides amb els dos jugadors resolts passen a 'programada'.
+		// Les pre-reserves de R2+ (algun jugador encara per determinar) conserven
+		// 'pendent' — tenen data orientativa però no compten com a partida concreta.
+		const bothResolved = soci1 !== null && soci2 !== null;
+		const targetEstat = bothResolved ? 'programada' : m.estat;
+
 		if (m.calendari_partida_id) {
 			const { error } = await supabase
 				.from('calendari_partides')
@@ -275,6 +281,15 @@ export async function persistFullSchedule(
 			if (error) {
 				result.errors.push(`UPDATE ${m.id}: ${error.message}`);
 			} else {
+				if (targetEstat !== m.estat) {
+					const { error: estatErr } = await supabase
+						.from('handicap_matches')
+						.update({ estat: targetEstat })
+						.eq('id', m.id);
+					if (estatErr) {
+						result.errors.push(`ESTAT ${m.id}: ${estatErr.message}`);
+					}
+				}
 				result.actualitzats++;
 				result.programats++;
 			}
@@ -290,7 +305,7 @@ export async function persistFullSchedule(
 			}
 			const { error: linkErr } = await supabase
 				.from('handicap_matches')
-				.update({ calendari_partida_id: newRow.id })
+				.update({ calendari_partida_id: newRow.id, estat: targetEstat })
 				.eq('id', m.id);
 			if (linkErr) {
 				result.errors.push(`LINK ${m.id}: ${linkErr.message}`);
