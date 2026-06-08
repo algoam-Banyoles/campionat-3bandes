@@ -7,9 +7,21 @@
 	} from '$lib/utils/handicap-scheduler';
 	import { parseLocalDate, formatDate } from '$lib/utils/handicap-scheduler';
 
-	export let avail1: ParticipantAvailability;
-	export let avail2: ParticipantAvailability;
+	// Poden ser null quan la partida és una pre-reserva (algun jugador encara
+	// no està definit). En aquest cas el jugador absent es tracta com a
+	// "sense restriccions" (disponible a tot arreu) per permetre l'assignació
+	// manual orientativa.
+	export let avail1: ParticipantAvailability | null = null;
+	export let avail2: ParticipantAvailability | null = null;
 	export let config: TournamentConfig;
+
+	const EMPTY_AVAIL: ParticipantAvailability = {
+		participant_id: '',
+		preferencies_dies: [],
+		preferencies_hores: []
+	};
+	$: a1 = avail1 ?? EMPTY_AVAIL;
+	$: a2 = avail2 ?? EMPTY_AVAIL;
 	export let occupiedSlots: OccupiedSlot[] = [];
 	/** Slot actual assignat a la partida (es marca en blau; no es considera "ocupat"). */
 	export let currentSlot: { data: string; hora: string; taula: number } | null = null;
@@ -98,8 +110,8 @@
 		const set = playerBusyAt.get(`${data}|${hora}`);
 		if (!set) return false;
 		return (
-			(!!avail1?.participant_id && set.has(avail1.participant_id)) ||
-			(!!avail2?.participant_id && set.has(avail2.participant_id))
+			(!!a1.participant_id && set.has(a1.participant_id)) ||
+			(!!a2.participant_id && set.has(a2.participant_id))
 		);
 	}
 
@@ -152,8 +164,8 @@
 		// taula en aquesta mateixa franja horària.
 		if (occupiedSet.has(`${data}|${hora}|${taula}`)) return 'occupied';
 		if (isPlayerBusy(data, hora)) return 'occupied';
-		const p1 = isPlayerAvail(avail1, dayCode, hora);
-		const p2 = isPlayerAvail(avail2, dayCode, hora);
+		const p1 = isPlayerAvail(a1, dayCode, hora);
+		const p2 = isPlayerAvail(a2, dayCode, hora);
 		if (p1 && p2) return 'both';
 		if (p1 || p2) return 'one';
 		return 'none';

@@ -482,10 +482,14 @@
 				throw new Error(insertErr?.message ?? 'Error creant la partida al calendari');
 			}
 
-			// Actualitzar handicap_match
+			// Actualitzar handicap_match. Les pre-reserves (algun rival per
+			// determinar) conserven 'pendent' amb data orientativa; només passen
+			// a 'programada' quan els dos jugadors estan definits.
+			const bothResolved =
+				match.player1_participant_id !== null && match.player2_participant_id !== null;
 			const { error: updateErr } = await supabase
 				.from('handicap_matches')
-				.update({ calendari_partida_id: newPartida.id, estat: 'programada' })
+				.update({ calendari_partida_id: newPartida.id, estat: bothResolved ? 'programada' : 'pendent' })
 				.eq('id', match.id);
 
 			if (updateErr) throw new Error(updateErr.message);
@@ -728,7 +732,7 @@
 				setTimeout(() => {
 					const match = matches.find((m) => m.id === focusId);
 					if (!match) return;
-					if (match.player1_participant_id && match.player2_participant_id && !isFinalitzat) {
+					if (!isFinalitzat) {
 						schedulingMatchId = focusId;
 					}
 					const el = document.querySelector(`tr[data-match-id="${focusId}"]`);
@@ -1278,7 +1282,7 @@
 								<td class="px-3 py-2 text-right">
 									{#if $effectiveIsAdmin}
 									{#if !isFinalitzat && (match.estat === 'pendent' || match.estat === 'programada')}
-										{#if match.player1_participant_id && match.player2_participant_id && config}
+										{#if config}
 											{#if schedulingMatchId === match.id}
 												<button
 													type="button"
@@ -1293,12 +1297,15 @@
 													on:click={() => (schedulingMatchId = match.id)}
 													disabled={saving}
 													class="rounded border border-purple-300 bg-purple-50 px-2 py-1 text-xs text-purple-700 hover:bg-purple-100 disabled:opacity-50"
+													title={match.player1_participant_id && match.player2_participant_id
+														? ''
+														: 'Pre-reserva: data orientativa (rival per determinar)'}
 												>
-													{match.estat === 'programada' ? 'Reprogramar' : 'Programar'}
+													{match.data_programada ? 'Reprogramar' : 'Programar'}
 												</button>
 											{/if}
 										{/if}
-										{#if match.estat === 'programada' && match.calendari_partida_id}
+										{#if match.calendari_partida_id}
 											<button
 												type="button"
 												on:click={() => unschedule(match)}
@@ -1324,7 +1331,7 @@
 							</tr>
 
 							<!-- Slot Picker inline -->
-							{#if schedulingMatchId === match.id && slotPickerAvail1 && slotPickerAvail2 && config}
+							{#if schedulingMatchId === match.id && config}
 								<tr>
 									<td colspan="7" class="bg-gray-50 px-4 py-3">
 										<div class="mb-2 text-xs font-semibold text-gray-600">
