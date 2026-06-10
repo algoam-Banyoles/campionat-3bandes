@@ -97,6 +97,10 @@
 	// Guanyadors amb més de 4 rondes (~32 jugadors) es reparteixen en 2 fulls:
 	// rondes 1-4 partides per meitats (dalt/baix) i la ronda 5 i següents al full 1.
 	const V_SPLIT_ROUND = 4;
+	// Tram curt (mm) que surt cap a la dreta quan el guanyador avança a un
+	// match que es a l'altre full (p. ex. W4.2 -> W5.1 a la pagina 2).
+	const V_STUB_LEN = 7;
+	const V_STUB_LABEL_W = 24;
 
 	// Per al mode "blanc": l'usuari pot ajustar el nombre de jugadors sense tancar el modal.
 	let inputCount = participantCount ?? 32;
@@ -548,22 +552,31 @@
 	type TreeCell = { mv: MatchView; x: number; top: number };
 	type TreeCol = { x: number; label: string };
 	type TreeLine = { x1: number; y1: number; x2: number; y2: number };
-	type TreeSheet = { columns: TreeCol[]; cells: TreeCell[]; lines: TreeLine[]; naturalW: number; naturalH: number; scale: number; suffix: string };
+	type TreeSheet = { columns: TreeCol[]; cells: TreeCell[]; lines: TreeLine[]; stubs: Array<{ x: number; y: number; label: string }>; naturalW: number; naturalH: number; scale: number; suffix: string };
 
 	// Linies de connector entre cel.les d'un MATEIX full (agrupant per la
 	// destinacio de guanyador; les que creuen de full no es dibuixen).
 	function buildSheetLines(
 		cells: TreeCell[],
 		posByCode: Map<string, { x: number; right: number; centerY: number }>
-	): TreeLine[] {
+	): { lines: TreeLine[]; stubs: Array<{ x: number; y: number; label: string }> } {
+		const lines: TreeLine[] = [];
+		const stubs: Array<{ x: number; y: number; label: string }> = [];
 		const sourcesByTarget = new Map<string, TreeCell[]>();
 		for (const c of cells) {
 			const tgt = c.mv.winnerDest;
-			if (!tgt || tgt === '—' || !posByCode.has(tgt)) continue;
-			if (!sourcesByTarget.has(tgt)) sourcesByTarget.set(tgt, []);
-			sourcesByTarget.get(tgt)!.push(c);
+			if (!tgt || tgt === '—') continue;
+			const sp = posByCode.get(c.mv.code);
+			if (!sp) continue;
+			if (posByCode.has(tgt)) {
+				if (!sourcesByTarget.has(tgt)) sourcesByTarget.set(tgt, []);
+				sourcesByTarget.get(tgt)!.push(c);
+			} else {
+				// Desti en un altre full: tram curt + etiqueta cap a la dreta.
+				lines.push({ x1: sp.right, y1: sp.centerY, x2: sp.right + V_STUB_LEN, y2: sp.centerY });
+				stubs.push({ x: sp.right + V_STUB_LEN, y: sp.centerY, label: tgt });
+			}
 		}
-		const lines: TreeLine[] = [];
 		for (const [target, srcs] of sourcesByTarget) {
 			const tp = posByCode.get(target)!;
 			const sorted = srcs
@@ -590,7 +603,7 @@
 				}
 			}
 		}
-		return lines;
+		return { lines, stubs };
 	}
 
 	// Empaqueta un subconjunt de cel.les en un full A3 apaisat: desplaca
@@ -605,12 +618,14 @@
 		const cells: TreeCell[] = src.map((c) => ({ mv: c.mv, x: c.x, top: c.topFull - yShift }));
 		const posByCode = new Map<string, { x: number; right: number; centerY: number }>();
 		for (const c of cells) posByCode.set(c.mv.code, { x: c.x, right: c.x + V_CELL_W, centerY: c.top + V_CELL_H / 2 });
-		const lines = buildSheetLines(cells, posByCode);
+		const { lines, stubs } = buildSheetLines(cells, posByCode);
 		const usedCols = columns.filter((col) => cells.some((c) => c.x === col.x));
-		const naturalW = usedCols.length > 0 ? Math.max(...usedCols.map((col) => col.x + V_CELL_W)) : V_CELL_W;
+		const colsRight = usedCols.length > 0 ? Math.max(...usedCols.map((col) => col.x + V_CELL_W)) : V_CELL_W;
+		const stubsRight = stubs.length > 0 ? Math.max(...stubs.map((st) => st.x + V_STUB_LABEL_W)) : 0;
+		const naturalW = Math.max(colsRight, stubsRight);
 		const naturalH = Math.max(V_HEADER_H + V_SLOT, ...cells.map((c) => c.top + V_CELL_H)) + 2;
 		const scale = Math.min(1, V_LAND_W / naturalW, V_LAND_H / naturalH);
-		return { columns: usedCols, cells, lines, naturalW, naturalH, scale, suffix };
+		return { columns: usedCols, cells, lines, stubs, naturalW, naturalH, scale, suffix };
 	}
 
 	function buildSheets(views: MatchView[], kind: 'winners' | 'losers'): TreeSheet[] {
@@ -808,6 +823,7 @@
 			.tree-canvas { position: relative; transform-origin: 0 0; }
 			.tree-svg { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
 			.col-head { position: absolute; top: 0; height: 6mm; display: flex; align-items: center; font-size: 11pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1f1f1f; border-left: 3px solid #1f1f1f; padding-left: 1.5mm; }
+			.stub-label { position: absolute; font-size: 9pt; font-weight: 700; color: #1f1f1f; white-space: nowrap; display: flex; align-items: center; }
 			.match-cell.vcell { position: absolute; min-height: 0; overflow: visible; background: white; z-index: 1; gap: 1mm; }
 			.match-cell.vcell .match-code { font-size: 13pt; }
 			.match-cell.vcell .cell-head { font-size: 9.5pt; }
@@ -1134,6 +1150,9 @@ ${printScript}
 									{#each sheet.columns as col}
 										<div class="col-head" style="left:{col.x}mm; width:{V_CELL_W}mm;">{col.label}</div>
 									{/each}
+									{#each sheet.stubs as st}
+										<div class="stub-label" style="left:{st.x + 1}mm; top:{st.y - 2}mm;">&rarr; {st.label}</div>
+									{/each}
 									{#each sheet.cells as cell}
 										<div class="match-cell vcell" class:played={!!cell.mv.result} style="left:{cell.x}mm; top:{cell.top}mm; width:{V_CELL_W}mm; height:{V_CELL_H}mm;">
 											<div class="cell-head">
@@ -1354,6 +1373,7 @@ ${printScript}
 	.tree-canvas { position: relative; transform-origin: 0 0; }
 	.tree-svg { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
 	.col-head { position: absolute; top: 0; height: 6mm; display: flex; align-items: center; font-size: 11pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1f1f1f; border-left: 3px solid #1f1f1f; padding-left: 1.5mm; }
+	.stub-label { position: absolute; font-size: 9pt; font-weight: 700; color: #1f1f1f; white-space: nowrap; display: flex; align-items: center; }
 	.match-cell.vcell { position: absolute; min-height: 0; overflow: visible; background: white; z-index: 1; gap: 1mm; }
 	.match-cell.vcell .match-code { font-size: 13pt; }
 	.match-cell.vcell .cell-head { font-size: 9.5pt; }
