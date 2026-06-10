@@ -656,6 +656,13 @@
 		const sheets: TreeSheet[] = [];
 		const s1 = packSheet(allCells.filter(onSheet1), columns, 0, '· dalt + final (1/2)');
 		const s2 = packSheet(allCells.filter((c) => !onSheet1(c)), columns, cellsAreaH / 2, '· baix (2/2)');
+		// Mateixa escala als dos fulls perquè les rondes W1–W4 quedin alineades
+		// a la mateixa vertical (mateixa mida i posició de columna) en apilar-los.
+		if (s1 && s2) {
+			const common = Math.min(s1.scale, s2.scale);
+			s1.scale = common;
+			s2.scale = common;
+		}
 		if (s1) sheets.push(s1);
 		if (s2) sheets.push(s2);
 		return sheets;
