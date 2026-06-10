@@ -85,12 +85,16 @@
 
 	// Dimensions (mm) per a la disposicio VISUAL en arbre a A3 apaisat.
 	const V_CELL_W = 64;
-	const V_CELL_H = 32;
-	const V_SLOT = 40;
+	const V_CELL_H = 38;
+	const V_SLOT = 46;
 	const V_COL_GAP = 15;
 	const V_HEADER_H = 7;
-	const V_PAGE_W = 388;
-	const V_PAGE_H = 232;
+	// Àrea útil (mm) d'un full A3 APAÏSAT (capçalera i marges descomptats).
+	const V_LAND_W = 388;
+	const V_LAND_H = 232;
+	// Guanyadors amb més de 4 rondes (~32 jugadors) es reparteixen en 2 fulls:
+	// rondes 1-4 partides per meitats (dalt/baix) i la ronda 5 i següents al full 1.
+	const V_SPLIT_ROUND = 4;
 
 	// Per al mode "blanc": l'usuari pot ajustar el nombre de jugadors sense tancar el modal.
 	let inputCount = participantCount ?? 32;
@@ -530,69 +534,26 @@
 	type TreeCell = { mv: MatchView; x: number; top: number };
 	type TreeCol = { x: number; label: string };
 	type TreeLine = { x1: number; y1: number; x2: number; y2: number };
-	type TreeLayout = { columns: TreeCol[]; cells: TreeCell[]; lines: TreeLine[]; naturalW: number; naturalH: number; scale: number };
+	type TreeSheet = { columns: TreeCol[]; cells: TreeCell[]; lines: TreeLine[]; naturalW: number; naturalH: number; scale: number; suffix: string };
 
-	function buildTree(views: MatchView[], kind: 'winners' | 'losers'): TreeLayout | null {
-		if (!views || views.length === 0) return null;
-		const main = views.filter((v) => v.bracket === (kind === 'winners' ? 'winners' : 'losers'));
-		const gf = kind === 'winners' ? views.filter((v) => v.bracket === 'grand_final') : [];
-		if (main.length === 0 && gf.length === 0) return null;
-
-		const mainRounds = [...new Set(main.map((v) => v.ronda))].sort((a, b) => a - b);
-		const gfRounds = [...new Set(gf.map((v) => v.ronda))].sort((a, b) => a - b);
-
-		const baseCount = Math.max(1, main.filter((v) => v.ronda === mainRounds[0]).length);
-		const cellsAreaH = baseCount * V_SLOT;
-		const naturalH = V_HEADER_H + cellsAreaH;
-
-		const columns: TreeCol[] = [];
-		const colXByKey = new Map<string, number>();
-		let ci = 0;
-		for (const r of mainRounds) {
-			const x = ci * (V_CELL_W + V_COL_GAP);
-			columns.push({ x, label: treeRoundLabel(kind, r, mainRounds) });
-			colXByKey.set(`m${r}`, x);
-			ci++;
-		}
-		for (const r of gfRounds) {
-			const x = ci * (V_CELL_W + V_COL_GAP);
-			columns.push({ x, label: treeRoundLabel(kind, 0, [], true, r) });
-			colXByKey.set(`gf${r}`, x);
-			ci++;
-		}
-
-		const cells: TreeCell[] = [];
-		const posByCode = new Map<string, { x: number; right: number; centerY: number }>();
-		for (const v of main) {
-			const x = colXByKey.get(`m${v.ronda}`) ?? 0;
-			const factor = kind === 'winners'
-				? Math.pow(2, v.ronda - 1)
-				: Math.pow(2, Math.ceil(v.ronda / 2) - 1);
-			const top = V_HEADER_H + (v.matchPos - 0.5) * factor * V_SLOT - V_CELL_H / 2;
-			cells.push({ mv: v, x, top });
-			posByCode.set(v.code, { x, right: x + V_CELL_W, centerY: top + V_CELL_H / 2 });
-		}
-		for (const v of gf) {
-			const x = colXByKey.get(`gf${v.ronda}`) ?? 0;
-			const top = V_HEADER_H + cellsAreaH / 2 - V_CELL_H / 2;
-			cells.push({ mv: v, x, top });
-			posByCode.set(v.code, { x, right: x + V_CELL_W, centerY: top + V_CELL_H / 2 });
-		}
-
-		// Connectors: agrupem les partides font per la seva destinació de guanyador
-		// (codi), restringint-nos a les destinacions presents en aquesta secció.
-		const sourcesByTarget = new Map<string, MatchView[]>();
-		for (const v of [...main, ...gf]) {
-			const tgt = v.winnerDest;
+	// Linies de connector entre cel.les d'un MATEIX full (agrupant per la
+	// destinacio de guanyador; les que creuen de full no es dibuixen).
+	function buildSheetLines(
+		cells: TreeCell[],
+		posByCode: Map<string, { x: number; right: number; centerY: number }>
+	): TreeLine[] {
+		const sourcesByTarget = new Map<string, TreeCell[]>();
+		for (const c of cells) {
+			const tgt = c.mv.winnerDest;
 			if (!tgt || tgt === '—' || !posByCode.has(tgt)) continue;
 			if (!sourcesByTarget.has(tgt)) sourcesByTarget.set(tgt, []);
-			sourcesByTarget.get(tgt)!.push(v);
+			sourcesByTarget.get(tgt)!.push(c);
 		}
 		const lines: TreeLine[] = [];
 		for (const [target, srcs] of sourcesByTarget) {
 			const tp = posByCode.get(target)!;
 			const sorted = srcs
-				.map((sv) => posByCode.get(sv.code))
+				.map((c) => posByCode.get(c.mv.code))
 				.filter((pp): pp is { x: number; right: number; centerY: number } => !!pp)
 				.sort((a, b) => a.centerY - b.centerY);
 			if (sorted.length === 0) continue;
@@ -615,15 +576,96 @@
 				}
 			}
 		}
-
-		const naturalW = columns.length > 0 ? columns[columns.length - 1].x + V_CELL_W : V_CELL_W;
-		const scale = Math.min(1, V_PAGE_W / naturalW, V_PAGE_H / naturalH);
-		return { columns, cells, lines, naturalW, naturalH, scale };
+		return lines;
 	}
 
-	$: visualWinners = buildTree(allViews.filter((v) => v.bracket !== 'losers'), 'winners');
-	$: visualLosers = buildTree(allViews.filter((v) => v.bracket === 'losers'), 'losers');
-	$: visualFulls = (visualWinners ? 1 : 0) + (visualLosers ? 1 : 0);
+	// Empaqueta un subconjunt de cel.les en un full A3 apaisat: desplaca
+	// verticalment (yShift) i calcula posicions, linies i escala d'ajust.
+	function packSheet(
+		src: Array<{ mv: MatchView; x: number; topFull: number }>,
+		columns: TreeCol[],
+		yShift: number,
+		suffix: string
+	): TreeSheet | null {
+		if (src.length === 0) return null;
+		const cells: TreeCell[] = src.map((c) => ({ mv: c.mv, x: c.x, top: c.topFull - yShift }));
+		const posByCode = new Map<string, { x: number; right: number; centerY: number }>();
+		for (const c of cells) posByCode.set(c.mv.code, { x: c.x, right: c.x + V_CELL_W, centerY: c.top + V_CELL_H / 2 });
+		const lines = buildSheetLines(cells, posByCode);
+		const usedCols = columns.filter((col) => cells.some((c) => c.x === col.x));
+		const naturalW = usedCols.length > 0 ? Math.max(...usedCols.map((col) => col.x + V_CELL_W)) : V_CELL_W;
+		const naturalH = Math.max(V_HEADER_H + V_SLOT, ...cells.map((c) => c.top + V_CELL_H)) + 2;
+		const scale = Math.min(1, V_LAND_W / naturalW, V_LAND_H / naturalH);
+		return { columns: usedCols, cells, lines, naturalW, naturalH, scale, suffix };
+	}
+
+	function buildSheets(views: MatchView[], kind: 'winners' | 'losers'): TreeSheet[] {
+		if (!views || views.length === 0) return [];
+		const main = views.filter((v) => v.bracket === (kind === 'winners' ? 'winners' : 'losers'));
+		const gf = kind === 'winners' ? views.filter((v) => v.bracket === 'grand_final') : [];
+		if (main.length === 0 && gf.length === 0) return [];
+
+		const mainRounds = [...new Set(main.map((v) => v.ronda))].sort((a, b) => a - b);
+		const gfRounds = [...new Set(gf.map((v) => v.ronda))].sort((a, b) => a - b);
+
+		const baseCount = Math.max(1, main.filter((v) => v.ronda === mainRounds[0]).length);
+		const cellsAreaH = baseCount * V_SLOT;
+
+		const columns: TreeCol[] = [];
+		const colXByKey = new Map<string, number>();
+		let ci = 0;
+		for (const r of mainRounds) {
+			const x = ci * (V_CELL_W + V_COL_GAP);
+			columns.push({ x, label: treeRoundLabel(kind, r, mainRounds) });
+			colXByKey.set(`m${r}`, x);
+			ci++;
+		}
+		for (const r of gfRounds) {
+			const x = ci * (V_CELL_W + V_COL_GAP);
+			columns.push({ x, label: treeRoundLabel(kind, 0, [], true, r) });
+			colXByKey.set(`gf${r}`, x);
+			ci++;
+		}
+
+		const allCells: Array<{ mv: MatchView; x: number; topFull: number }> = [];
+		for (const v of main) {
+			const x = colXByKey.get(`m${v.ronda}`) ?? 0;
+			const factor = kind === 'winners'
+				? Math.pow(2, v.ronda - 1)
+				: Math.pow(2, Math.ceil(v.ronda / 2) - 1);
+			const topFull = V_HEADER_H + (v.matchPos - 0.5) * factor * V_SLOT - V_CELL_H / 2;
+			allCells.push({ mv: v, x, topFull });
+		}
+		for (const v of gf) {
+			const x = colXByKey.get(`gf${v.ronda}`) ?? 0;
+			const topFull = V_HEADER_H + cellsAreaH / 2 - V_CELL_H / 2;
+			allCells.push({ mv: v, x, topFull });
+		}
+
+		// Partim nomes els guanyadors amb mes de 4 rondes (la resta cap en 1 full).
+		const maxRound = mainRounds[mainRounds.length - 1] ?? 0;
+		const needsSplit = kind === 'winners' && maxRound > V_SPLIT_ROUND;
+		if (!needsSplit) {
+			const sheet = packSheet(allCells, columns, 0, '');
+			return sheet ? [sheet] : [];
+		}
+
+		const splitMid = V_HEADER_H + cellsAreaH / 2;
+		const onSheet1 = (c: { mv: MatchView; topFull: number }) =>
+			c.mv.bracket !== 'winners' || c.mv.ronda > V_SPLIT_ROUND || (c.topFull + V_CELL_H / 2) < splitMid;
+		const sheets: TreeSheet[] = [];
+		const s1 = packSheet(allCells.filter(onSheet1), columns, 0, '· dalt + final (1/2)');
+		const s2 = packSheet(allCells.filter((c) => !onSheet1(c)), columns, cellsAreaH / 2, '· baix (2/2)');
+		if (s1) sheets.push(s1);
+		if (s2) sheets.push(s2);
+		return sheets;
+	}
+
+	$: visualSheets = [
+		...buildSheets(allViews.filter((v) => v.bracket !== 'losers'), 'winners').map((sh) => ({ ...sh, section: 'Bracket Principal' })),
+		...buildSheets(allViews.filter((v) => v.bracket === 'losers'), 'losers').map((sh) => ({ ...sh, section: 'Bracket Repesca' }))
+	];
+	$: visualFulls = visualSheets.length;
 
 	function doPrint() {
 		// Obrir una finestra nova amb HTML i CSS independents. Així evitem que
@@ -745,7 +787,7 @@
 			.tree-canvas { position: relative; transform-origin: 0 0; }
 			.tree-svg { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
 			.col-head { position: absolute; top: 0; height: 6mm; display: flex; align-items: center; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1f1f1f; border-left: 3px solid #1f1f1f; padding-left: 1.5mm; }
-			.match-cell.vcell { position: absolute; min-height: 0; overflow: hidden; background: white; z-index: 1; gap: 1mm; }
+			.match-cell.vcell { position: absolute; min-height: 0; overflow: visible; background: white; z-index: 1; gap: 1mm; }
 		`;
 
 		// Concatenem `<script>` separat perquè el parser de Svelte
@@ -1040,30 +1082,30 @@ ${printScript}
 					</section>
 				{/each}
 			{:else}
-				{#each [{ layout: visualWinners, section: 'Bracket Principal' }, { layout: visualLosers, section: 'Bracket Repesca' }] as sec}
-					{#if sec.layout}
+				{#each visualSheets as sheet}
+					{#if sheet}
 						<section class="print-page">
 							<header class="page-head">
 								<div class="page-head-left">
 									<img src={logoDataUrl || `${base}/logo.png`} alt="" class="page-logo" />
 									<div class="page-head-titles">
 										<div class="page-title-main">CAMPIONAT SOCIAL HÀNDICAP{temporadaPretty ? ` ${temporadaPretty}` : ''}</div>
-										<div class="page-section">{sec.section}</div>
+										<div class="page-section">{sheet.section} {sheet.suffix}</div>
 									</div>
 								</div>
 								{#if eventNom}<div class="page-sub">{eventNom}</div>{/if}
 							</header>
-							<div class="tree-wrap" style="width:{sec.layout.naturalW * sec.layout.scale}mm; height:{sec.layout.naturalH * sec.layout.scale}mm;">
-								<div class="tree-canvas" style="width:{sec.layout.naturalW}mm; height:{sec.layout.naturalH}mm; transform: scale({sec.layout.scale});">
-									<svg class="tree-svg" width="{sec.layout.naturalW}mm" height="{sec.layout.naturalH}mm" viewBox="0 0 {sec.layout.naturalW} {sec.layout.naturalH}" preserveAspectRatio="none">
-										{#each sec.layout.lines as l}
+							<div class="tree-wrap" style="width:{sheet.naturalW * sheet.scale}mm; height:{sheet.naturalH * sheet.scale}mm;">
+								<div class="tree-canvas" style="width:{sheet.naturalW}mm; height:{sheet.naturalH}mm; transform: scale({sheet.scale});">
+									<svg class="tree-svg" width="{sheet.naturalW}mm" height="{sheet.naturalH}mm" viewBox="0 0 {sheet.naturalW} {sheet.naturalH}" preserveAspectRatio="none">
+										{#each sheet.lines as l}
 											<line x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="#1f1f1f" stroke-width="0.3" />
 										{/each}
 									</svg>
-									{#each sec.layout.columns as col}
+									{#each sheet.columns as col}
 										<div class="col-head" style="left:{col.x}mm; width:{V_CELL_W}mm;">{col.label}</div>
 									{/each}
-									{#each sec.layout.cells as cell}
+									{#each sheet.cells as cell}
 										<div class="match-cell vcell" class:played={!!cell.mv.result} style="left:{cell.x}mm; top:{cell.top}mm; width:{V_CELL_W}mm; height:{V_CELL_H}mm;">
 											<div class="cell-head">
 												<span class="match-code">{cell.mv.code}</span>
@@ -1283,7 +1325,7 @@ ${printScript}
 	.tree-canvas { position: relative; transform-origin: 0 0; }
 	.tree-svg { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
 	.col-head { position: absolute; top: 0; height: 6mm; display: flex; align-items: center; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1f1f1f; border-left: 3px solid #1f1f1f; padding-left: 1.5mm; }
-	.match-cell.vcell { position: absolute; min-height: 0; overflow: hidden; background: white; z-index: 1; gap: 1mm; }
+	.match-cell.vcell { position: absolute; min-height: 0; overflow: visible; background: white; z-index: 1; gap: 1mm; }
 
 	@media print {
 		:global(body > *:not(.print-portal)) { display: none !important; }
