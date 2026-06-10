@@ -552,16 +552,17 @@
 	type TreeCell = { mv: MatchView; x: number; top: number };
 	type TreeCol = { x: number; label: string };
 	type TreeLine = { x1: number; y1: number; x2: number; y2: number };
-	type TreeSheet = { columns: TreeCol[]; cells: TreeCell[]; lines: TreeLine[]; stubs: Array<{ x: number; y: number; label: string }>; naturalW: number; naturalH: number; scale: number; suffix: string };
+	type TreeSheet = { columns: TreeCol[]; cells: TreeCell[]; lines: TreeLine[]; stubs: Array<{ x: number; y: number; label: string }>; notes: Array<{ x: number; y: number; label: string }>; naturalW: number; naturalH: number; scale: number; suffix: string };
 
 	// Linies de connector entre cel.les d'un MATEIX full (agrupant per la
 	// destinacio de guanyador; les que creuen de full no es dibuixen).
 	function buildSheetLines(
 		cells: TreeCell[],
 		posByCode: Map<string, { x: number; right: number; centerY: number }>
-	): { lines: TreeLine[]; stubs: Array<{ x: number; y: number; label: string }> } {
+	): { lines: TreeLine[]; stubs: Array<{ x: number; y: number; label: string }>; notes: Array<{ x: number; y: number; label: string }> } {
 		const lines: TreeLine[] = [];
 		const stubs: Array<{ x: number; y: number; label: string }> = [];
+		const notes: Array<{ x: number; y: number; label: string }> = [];
 		const sourcesByTarget = new Map<string, TreeCell[]>();
 		for (const c of cells) {
 			const tgt = c.mv.winnerDest;
@@ -571,6 +572,11 @@
 			if (posByCode.has(tgt)) {
 				if (!sourcesByTarget.has(tgt)) sourcesByTarget.set(tgt, []);
 				sourcesByTarget.get(tgt)!.push(c);
+				// GF1 -> GF2 (reset): nomes es juga si J1 (campio del quadre de
+				// guanyadors) perd; si J1 guanya, ja es campio.
+				if (c.mv.bracket === 'grand_final' && c.mv.ronda === 1) {
+					notes.push({ x: sp.right, y: sp.centerY, label: 'si J1 perd' });
+				}
 			} else {
 				// Desti en un altre full: tram curt + etiqueta cap a la dreta.
 				lines.push({ x1: sp.right, y1: sp.centerY, x2: sp.right + V_STUB_LEN, y2: sp.centerY });
@@ -603,7 +609,7 @@
 				}
 			}
 		}
-		return { lines, stubs };
+		return { lines, stubs, notes };
 	}
 
 	// Empaqueta un subconjunt de cel.les en un full A3 apaisat: desplaca
@@ -618,14 +624,14 @@
 		const cells: TreeCell[] = src.map((c) => ({ mv: c.mv, x: c.x, top: c.topFull - yShift }));
 		const posByCode = new Map<string, { x: number; right: number; centerY: number }>();
 		for (const c of cells) posByCode.set(c.mv.code, { x: c.x, right: c.x + V_CELL_W, centerY: c.top + V_CELL_H / 2 });
-		const { lines, stubs } = buildSheetLines(cells, posByCode);
+		const { lines, stubs, notes } = buildSheetLines(cells, posByCode);
 		const usedCols = columns.filter((col) => cells.some((c) => c.x === col.x));
 		const colsRight = usedCols.length > 0 ? Math.max(...usedCols.map((col) => col.x + V_CELL_W)) : V_CELL_W;
 		const stubsRight = stubs.length > 0 ? Math.max(...stubs.map((st) => st.x + V_STUB_LABEL_W)) : 0;
 		const naturalW = Math.max(colsRight, stubsRight);
 		const naturalH = Math.max(V_HEADER_H + V_SLOT, ...cells.map((c) => c.top + V_CELL_H)) + 2;
 		const scale = Math.min(1, V_LAND_W / naturalW, V_LAND_H / naturalH);
-		return { columns: usedCols, cells, lines, stubs, naturalW, naturalH, scale, suffix };
+		return { columns: usedCols, cells, lines, stubs, notes, naturalW, naturalH, scale, suffix };
 	}
 
 	function buildSheets(views: MatchView[], kind: 'winners' | 'losers'): TreeSheet[] {
@@ -824,6 +830,7 @@
 			.tree-svg { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
 			.col-head { position: absolute; top: 0; height: 6mm; display: flex; align-items: center; font-size: 11pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1f1f1f; border-left: 3px solid #1f1f1f; padding-left: 1.5mm; }
 			.stub-label { position: absolute; font-size: 9pt; font-weight: 700; color: #1f1f1f; white-space: nowrap; display: flex; align-items: center; }
+			.cond-label { position: absolute; font-size: 7.5pt; font-style: italic; font-weight: 600; color: #1f1f1f; white-space: nowrap; }
 			.match-cell.vcell { position: absolute; min-height: 0; overflow: visible; background: white; z-index: 1; gap: 1mm; }
 			.match-cell.vcell .match-code { font-size: 13pt; }
 			.match-cell.vcell .cell-head { font-size: 9.5pt; }
@@ -1153,6 +1160,9 @@ ${printScript}
 									{#each sheet.stubs as st}
 										<div class="stub-label" style="left:{st.x + 1}mm; top:{st.y - 2}mm;">&rarr; {st.label}</div>
 									{/each}
+									{#each sheet.notes as nt}
+										<div class="cond-label" style="left:{nt.x + 1}mm; top:{nt.y - 4.5}mm;">{nt.label}</div>
+									{/each}
 									{#each sheet.cells as cell}
 										<div class="match-cell vcell" class:played={!!cell.mv.result} style="left:{cell.x}mm; top:{cell.top}mm; width:{V_CELL_W}mm; height:{V_CELL_H}mm;">
 											<div class="cell-head">
@@ -1374,6 +1384,7 @@ ${printScript}
 	.tree-svg { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
 	.col-head { position: absolute; top: 0; height: 6mm; display: flex; align-items: center; font-size: 11pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1f1f1f; border-left: 3px solid #1f1f1f; padding-left: 1.5mm; }
 	.stub-label { position: absolute; font-size: 9pt; font-weight: 700; color: #1f1f1f; white-space: nowrap; display: flex; align-items: center; }
+	.cond-label { position: absolute; font-size: 7.5pt; font-style: italic; font-weight: 600; color: #1f1f1f; white-space: nowrap; }
 	.match-cell.vcell { position: absolute; min-height: 0; overflow: visible; background: white; z-index: 1; gap: 1mm; }
 	.match-cell.vcell .match-code { font-size: 13pt; }
 	.match-cell.vcell .cell-head { font-size: 9.5pt; }
