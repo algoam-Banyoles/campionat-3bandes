@@ -796,8 +796,8 @@
 		{#if showResultForm && selectedMatch.estat === 'programada' && selectedMatch.slot1.participant_id && selectedMatch.slot2.participant_id}
 			<div class="border-t border-gray-200 px-5 py-4">
 				<HandicapMatchResult
-					player1Name={selectedMatch.player1?.name ?? 'Jugador 1'}
-					player2Name={selectedMatch.player2?.name ?? 'Jugador 2'}
+					player1Name={selectedMatch.player1?.shortName ?? 'Jugador 1'}
+					player2Name={selectedMatch.player2?.shortName ?? 'Jugador 2'}
 					player1Distancia={selectedMatch.distancia_jugador1 ?? selectedMatch.player1?.distancia ?? null}
 					player2Distancia={selectedMatch.distancia_jugador2 ?? selectedMatch.player2?.distancia ?? null}
 					player1ParticipantId={selectedMatch.slot1.participant_id}

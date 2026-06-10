@@ -145,7 +145,7 @@
 		<div class="grid gap-3 text-sm" class:grid-cols-2={!entradesRequired} class:grid-cols-3={entradesRequired}>
 			<div>
 				<label for="hcp-car-p1" class="block text-xs font-medium text-gray-600 mb-1">
-					Car. {player1Name.split(' ')[0]}
+					Car. {player1Name}
 					{#if player1Distancia}
 						<span class="font-normal text-gray-400">/ {player1Distancia}</span>
 					{/if}
@@ -169,7 +169,7 @@
 			</div>
 			<div>
 				<label for="hcp-car-p2" class="block text-xs font-medium text-gray-600 mb-1">
-					Car. {player2Name.split(' ')[0]}
+					Car. {player2Name}
 					{#if player2Distancia}
 						<span class="font-normal text-gray-400">/ {player2Distancia}</span>
 					{/if}
@@ -223,7 +223,7 @@
 						? 'border-green-400 bg-green-50 text-green-800'
 						: 'border-gray-200 text-gray-600 hover:bg-gray-50'}"
 			>
-				{player1Name.split(' ')[0]}
+				{player1Name}
 				{#if suggestedWinner === player1ParticipantId && !manualWinner}
 					<span class="ml-1 text-xs text-green-600">★</span>
 				{/if}
@@ -236,7 +236,7 @@
 						? 'border-green-400 bg-green-50 text-green-800'
 						: 'border-gray-200 text-gray-600 hover:bg-gray-50'}"
 			>
-				{player2Name.split(' ')[0]}
+				{player2Name}
 				{#if suggestedWinner === player2ParticipantId && !manualWinner}
 					<span class="ml-1 text-xs text-green-600">★</span>
 				{/if}

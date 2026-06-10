@@ -60,6 +60,7 @@
 	type MatchView = {
 		id: string;
 		code: string;
+		matchPos: number;
 		bracket: Bracket;
 		ronda: number;
 		slot1Pos: number;
@@ -79,6 +80,17 @@
 	let winnersPages: Array<Array<[number, MatchView[]]>> = [];
 	let losersPages: Array<Array<[number, MatchView[]]>> = [];
 	let totalMatches = 0;
+	let allViews: MatchView[] = [];
+	let layoutMode: 'visual' | 'compact' = 'visual';
+
+	// Dimensions (mm) per a la disposicio VISUAL en arbre a A3 apaisat.
+	const V_CELL_W = 64;
+	const V_CELL_H = 32;
+	const V_SLOT = 40;
+	const V_COL_GAP = 15;
+	const V_HEADER_H = 7;
+	const V_PAGE_W = 388;
+	const V_PAGE_H = 232;
 
 	// Per al mode "blanc": l'usuari pot ajustar el nombre de jugadors sense tancar el modal.
 	let inputCount = participantCount ?? 32;
@@ -338,6 +350,7 @@
 			// Codis seqüencials dins de cada (bracket, ronda)
 			const codeByMatchId = new Map<string, string>();
 			const counterByKey = new Map<string, number>();
+			const matchPosByMatchId = new Map<string, number>();
 			for (const e of enriched) {
 				const key = `${e.bracket}-${e.ronda}`;
 				const next = (counterByKey.get(key) ?? 0) + 1;
@@ -346,6 +359,7 @@
 					? `GF${e.ronda}`
 					: `${e.bracket === 'winners' ? 'W' : 'L'}${e.ronda}.${next}`;
 				codeByMatchId.set(e.m.id, code);
+				matchPosByMatchId.set(e.m.id, next);
 			}
 
 			const destinationCode = (slotId: string | null): string => {
@@ -390,6 +404,7 @@
 				return {
 					id: e.m.id,
 					code: codeByMatchId.get(e.m.id) ?? '?',
+					matchPos: matchPosByMatchId.get(e.m.id) ?? 1,
 					bracket: e.bracket,
 					ronda: e.ronda,
 					slot1Pos: s1?.posicio ?? 0,
@@ -403,6 +418,7 @@
 				};
 			});
 
+			allViews = matchViews;
 			totalMatches = matchViews.length;
 
 			// Agrupar per bracket (Grand Final s'afegeix al final de winners en l'última pàgina)
@@ -503,6 +519,111 @@
 		const prefix = bracket === 'winners' ? 'Principal' : 'Repesca';
 		return `${prefix} — Ronda ${num}`;
 	}
+
+	// ── Disposició VISUAL en arbre (per a impressió A3) ──────────────────────
+	function treeRoundLabel(kind: 'winners' | 'losers', r: number, rounds: number[], isGf = false, gfR = 0): string {
+		if (isGf) return gfR === 1 ? 'Gran Final' : 'Reset';
+		if (kind === 'winners') return r === rounds[rounds.length - 1] ? 'Final principal' : `Principal R${r}`;
+		return r === rounds[rounds.length - 1] ? 'Final repesca' : `Repesca R${r}`;
+	}
+
+	type TreeCell = { mv: MatchView; x: number; top: number };
+	type TreeCol = { x: number; label: string };
+	type TreeLine = { x1: number; y1: number; x2: number; y2: number };
+	type TreeLayout = { columns: TreeCol[]; cells: TreeCell[]; lines: TreeLine[]; naturalW: number; naturalH: number; scale: number };
+
+	function buildTree(views: MatchView[], kind: 'winners' | 'losers'): TreeLayout | null {
+		if (!views || views.length === 0) return null;
+		const main = views.filter((v) => v.bracket === (kind === 'winners' ? 'winners' : 'losers'));
+		const gf = kind === 'winners' ? views.filter((v) => v.bracket === 'grand_final') : [];
+		if (main.length === 0 && gf.length === 0) return null;
+
+		const mainRounds = [...new Set(main.map((v) => v.ronda))].sort((a, b) => a - b);
+		const gfRounds = [...new Set(gf.map((v) => v.ronda))].sort((a, b) => a - b);
+
+		const baseCount = Math.max(1, main.filter((v) => v.ronda === mainRounds[0]).length);
+		const cellsAreaH = baseCount * V_SLOT;
+		const naturalH = V_HEADER_H + cellsAreaH;
+
+		const columns: TreeCol[] = [];
+		const colXByKey = new Map<string, number>();
+		let ci = 0;
+		for (const r of mainRounds) {
+			const x = ci * (V_CELL_W + V_COL_GAP);
+			columns.push({ x, label: treeRoundLabel(kind, r, mainRounds) });
+			colXByKey.set(`m${r}`, x);
+			ci++;
+		}
+		for (const r of gfRounds) {
+			const x = ci * (V_CELL_W + V_COL_GAP);
+			columns.push({ x, label: treeRoundLabel(kind, 0, [], true, r) });
+			colXByKey.set(`gf${r}`, x);
+			ci++;
+		}
+
+		const cells: TreeCell[] = [];
+		const posByCode = new Map<string, { x: number; right: number; centerY: number }>();
+		for (const v of main) {
+			const x = colXByKey.get(`m${v.ronda}`) ?? 0;
+			const factor = kind === 'winners'
+				? Math.pow(2, v.ronda - 1)
+				: Math.pow(2, Math.ceil(v.ronda / 2) - 1);
+			const top = V_HEADER_H + (v.matchPos - 0.5) * factor * V_SLOT - V_CELL_H / 2;
+			cells.push({ mv: v, x, top });
+			posByCode.set(v.code, { x, right: x + V_CELL_W, centerY: top + V_CELL_H / 2 });
+		}
+		for (const v of gf) {
+			const x = colXByKey.get(`gf${v.ronda}`) ?? 0;
+			const top = V_HEADER_H + cellsAreaH / 2 - V_CELL_H / 2;
+			cells.push({ mv: v, x, top });
+			posByCode.set(v.code, { x, right: x + V_CELL_W, centerY: top + V_CELL_H / 2 });
+		}
+
+		// Connectors: agrupem les partides font per la seva destinació de guanyador
+		// (codi), restringint-nos a les destinacions presents en aquesta secció.
+		const sourcesByTarget = new Map<string, MatchView[]>();
+		for (const v of [...main, ...gf]) {
+			const tgt = v.winnerDest;
+			if (!tgt || tgt === '—' || !posByCode.has(tgt)) continue;
+			if (!sourcesByTarget.has(tgt)) sourcesByTarget.set(tgt, []);
+			sourcesByTarget.get(tgt)!.push(v);
+		}
+		const lines: TreeLine[] = [];
+		for (const [target, srcs] of sourcesByTarget) {
+			const tp = posByCode.get(target)!;
+			const sorted = srcs
+				.map((sv) => posByCode.get(sv.code))
+				.filter((pp): pp is { x: number; right: number; centerY: number } => !!pp)
+				.sort((a, b) => a.centerY - b.centerY);
+			if (sorted.length === 0) continue;
+			const srcRight = sorted[0].right;
+			const midX = srcRight + (tp.x - srcRight) / 2;
+			if (sorted.length >= 2) {
+				const y1 = sorted[0].centerY;
+				const y2 = sorted[sorted.length - 1].centerY;
+				for (const sp of sorted) lines.push({ x1: sp.right, y1: sp.centerY, x2: midX, y2: sp.centerY });
+				lines.push({ x1: midX, y1, x2: midX, y2 });
+				lines.push({ x1: midX, y1: tp.centerY, x2: tp.x, y2: tp.centerY });
+			} else {
+				const sp = sorted[0];
+				if (Math.abs(sp.centerY - tp.centerY) < 0.5) {
+					lines.push({ x1: sp.right, y1: sp.centerY, x2: tp.x, y2: tp.centerY });
+				} else {
+					lines.push({ x1: sp.right, y1: sp.centerY, x2: midX, y2: sp.centerY });
+					lines.push({ x1: midX, y1: sp.centerY, x2: midX, y2: tp.centerY });
+					lines.push({ x1: midX, y1: tp.centerY, x2: tp.x, y2: tp.centerY });
+				}
+			}
+		}
+
+		const naturalW = columns.length > 0 ? columns[columns.length - 1].x + V_CELL_W : V_CELL_W;
+		const scale = Math.min(1, V_PAGE_W / naturalW, V_PAGE_H / naturalH);
+		return { columns, cells, lines, naturalW, naturalH, scale };
+	}
+
+	$: visualWinners = buildTree(allViews.filter((v) => v.bracket !== 'losers'), 'winners');
+	$: visualLosers = buildTree(allViews.filter((v) => v.bracket === 'losers'), 'losers');
+	$: visualFulls = (visualWinners ? 1 : 0) + (visualLosers ? 1 : 0);
 
 	function doPrint() {
 		// Obrir una finestra nova amb HTML i CSS independents. Així evitem que
@@ -620,6 +741,11 @@
 			}
 			.sched-slot { font-weight: 700; color: #1f1f1f; }
 			.sched-deadline { color: #a30b1e; font-weight: 600; }
+			.tree-wrap { position: relative; overflow: hidden; margin: 0 auto; }
+			.tree-canvas { position: relative; transform-origin: 0 0; }
+			.tree-svg { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
+			.col-head { position: absolute; top: 0; height: 6mm; display: flex; align-items: center; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1f1f1f; border-left: 3px solid #1f1f1f; padding-left: 1.5mm; }
+			.match-cell.vcell { position: absolute; min-height: 0; overflow: hidden; background: white; z-index: 1; gap: 1mm; }
 		`;
 
 		// Concatenem `<script>` separat perquè el parser de Svelte
@@ -671,7 +797,7 @@ ${printScript}
 					<span class="err">{error}</span>
 				{:else}
 					<span>
-						{totalMatches} partides · {totalFulls} fulls A3
+						{totalMatches} partides · {layoutMode === 'visual' ? visualFulls : totalFulls} fulls A3
 						({winnersPages.length} principal + {losersPages.length} repesca)
 					</span>
 					<span class="hint">
@@ -695,6 +821,10 @@ ${printScript}
 					</button>
 				{/if}
 			</div>
+			<div class="layout-toggle no-print">
+				<button type="button" class:active={layoutMode === 'visual'} on:click={() => (layoutMode = 'visual')}>Visual (arbre)</button>
+				<button type="button" class:active={layoutMode === 'compact'} on:click={() => (layoutMode = 'compact')}>Compacte</button>
+			</div>
 			<div class="toolbar-actions">
 				<button type="button" class="btn-secondary" on:click={onClose}>Tancar</button>
 				<button
@@ -714,6 +844,7 @@ ${printScript}
 				⚠ <strong>Important:</strong> al diàleg d'imprimir, tria <strong>paper A3</strong> i orientació <strong>Apaisat / Horitzontal</strong>. Si el navegador imprimeix amb A4 vertical, el bracket sortirà tallat.
 			</div>
 			<div class="print-preview">
+			{#if layoutMode === 'compact'}
 				{#each winnersPages as page, pi}
 					<section class="print-page">
 						<header class="page-head">
@@ -908,6 +1039,59 @@ ${printScript}
 						</div>
 					</section>
 				{/each}
+			{:else}
+				{#each [{ layout: visualWinners, section: 'Bracket Principal' }, { layout: visualLosers, section: 'Bracket Repesca' }] as sec}
+					{#if sec.layout}
+						<section class="print-page">
+							<header class="page-head">
+								<div class="page-head-left">
+									<img src={logoDataUrl || `${base}/logo.png`} alt="" class="page-logo" />
+									<div class="page-head-titles">
+										<div class="page-title-main">CAMPIONAT SOCIAL HÀNDICAP{temporadaPretty ? ` ${temporadaPretty}` : ''}</div>
+										<div class="page-section">{sec.section}</div>
+									</div>
+								</div>
+								{#if eventNom}<div class="page-sub">{eventNom}</div>{/if}
+							</header>
+							<div class="tree-wrap" style="width:{sec.layout.naturalW * sec.layout.scale}mm; height:{sec.layout.naturalH * sec.layout.scale}mm;">
+								<div class="tree-canvas" style="width:{sec.layout.naturalW}mm; height:{sec.layout.naturalH}mm; transform: scale({sec.layout.scale});">
+									<svg class="tree-svg" width="{sec.layout.naturalW}mm" height="{sec.layout.naturalH}mm" viewBox="0 0 {sec.layout.naturalW} {sec.layout.naturalH}" preserveAspectRatio="none">
+										{#each sec.layout.lines as l}
+											<line x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="#1f1f1f" stroke-width="0.3" />
+										{/each}
+									</svg>
+									{#each sec.layout.columns as col}
+										<div class="col-head" style="left:{col.x}mm; width:{V_CELL_W}mm;">{col.label}</div>
+									{/each}
+									{#each sec.layout.cells as cell}
+										<div class="match-cell vcell" class:played={!!cell.mv.result} style="left:{cell.x}mm; top:{cell.top}mm; width:{V_CELL_W}mm; height:{V_CELL_H}mm;">
+											<div class="cell-head">
+												<span class="match-code">{cell.mv.code}</span>
+												<span class="arrows">
+													<span class="arrow-win">↗W <strong>{cell.mv.winnerDest}</strong></span>
+													{#if cell.mv.loserDest !== '—'}<span class="arrow-lose">↘L <strong>{cell.mv.loserDest}</strong></span>{/if}
+												</span>
+											</div>
+											<div class="player-row" class:winner-row={cell.mv.result?.winnerSlot === 1} class:loser-row={!!cell.mv.result && cell.mv.result.winnerSlot === 2}>
+												<span class="label">{#if cell.mv.result?.winnerSlot === 1}<span class="winner-mark">▶</span>{/if}{cell.mv.bracket === 'winners' && cell.mv.ronda === 1 ? `#${cell.mv.slot1Pos}` : 'J1'}</span>
+												{#if cell.mv.slot1Name}<span class="line filled">{cell.mv.slot1Name}</span>{:else}<span class="line"></span>{/if}
+												{#if cell.mv.result}<span class="kv">D</span><span class="box small filled-box">{cell.mv.result.distancia1 ?? ''}</span><span class="kv">C</span><span class="box small filled-box">{cell.mv.result.isWalkover ? 'WO' : (cell.mv.result.caramboles1 ?? '')}</span>{:else}<span class="kv">D</span><span class="box small"></span><span class="kv">C</span><span class="box small"></span>{/if}
+											</div>
+											<div class="player-row" class:winner-row={cell.mv.result?.winnerSlot === 2} class:loser-row={!!cell.mv.result && cell.mv.result.winnerSlot === 1}>
+												<span class="label">{#if cell.mv.result?.winnerSlot === 2}<span class="winner-mark">▶</span>{/if}{cell.mv.bracket === 'winners' && cell.mv.ronda === 1 ? `#${cell.mv.slot2Pos}` : 'J2'}</span>
+												{#if cell.mv.slot2Name}<span class="line filled">{cell.mv.slot2Name}</span>{:else}<span class="line"></span>{/if}
+												{#if cell.mv.result}<span class="kv">D</span><span class="box small filled-box">{cell.mv.result.distancia2 ?? ''}</span><span class="kv">C</span><span class="box small filled-box">{cell.mv.result.isWalkover ? 'WO' : (cell.mv.result.caramboles2 ?? '')}</span>{:else}<span class="kv">D</span><span class="box small"></span><span class="kv">C</span><span class="box small"></span>{/if}
+											</div>
+											<div class="entries-row"><span class="kv">Ent</span>{#if cell.mv.result}<span class="box filled-box">{cell.mv.result.isWalkover ? 'WO' : (cell.mv.result.entrades ?? '')}</span>{:else}<span class="box"></span>{/if}</div>
+											{#if cell.mv.schedule}<div class="schedule-row"><span class="sched-slot">{fmtDate(cell.mv.schedule.dataProgramada)} · {cell.mv.schedule.horaInici} · B{cell.mv.schedule.taulaAssignada}</span><span class="sched-deadline">màx: {fmtDate(cell.mv.schedule.dataMaximaDisputa)}</span></div>{/if}
+										</div>
+									{/each}
+								</div>
+							</div>
+						</section>
+					{/if}
+				{/each}
+			{/if}
 			</div>
 		{/if}
 	</div>
@@ -956,6 +1140,10 @@ ${printScript}
 	.btn-primary { background: #1f1f1f; color: white; }
 	.btn-secondary { background: white; color: #1f1f1f; }
 	.err { color: #a30b1e; font-weight: 600; }
+	.layout-toggle { display: inline-flex; border: 1px solid #333; }
+	.layout-toggle button { padding: 0.35rem 0.7rem; font-size: 0.8125rem; font-weight: 600; background: white; color: #1f1f1f; border: none; border-right: 1px solid #333; cursor: pointer; }
+	.layout-toggle button:last-child { border-right: none; }
+	.layout-toggle button.active { background: #1f1f1f; color: white; }
 
 	.print-preview { overflow: auto; flex: 1; padding: 1rem; background: #ececec; }
 	.print-warning {
@@ -1091,6 +1279,11 @@ ${printScript}
 	.winner-row :global(.line.filled) { font-weight: 800; }
 	.winner-mark { color: #1d6e3a; font-weight: 800; margin-right: 0.6mm; }
 	.loser-row { opacity: 0.55; }
+	.tree-wrap { position: relative; overflow: hidden; margin: 0 auto; }
+	.tree-canvas { position: relative; transform-origin: 0 0; }
+	.tree-svg { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
+	.col-head { position: absolute; top: 0; height: 6mm; display: flex; align-items: center; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1f1f1f; border-left: 3px solid #1f1f1f; padding-left: 1.5mm; }
+	.match-cell.vcell { position: absolute; min-height: 0; overflow: hidden; background: white; z-index: 1; gap: 1mm; }
 
 	@media print {
 		:global(body > *:not(.print-portal)) { display: none !important; }
