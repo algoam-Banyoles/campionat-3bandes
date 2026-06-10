@@ -807,8 +807,16 @@
 			.tree-wrap { position: relative; overflow: hidden; margin: 0; }
 			.tree-canvas { position: relative; transform-origin: 0 0; }
 			.tree-svg { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
-			.col-head { position: absolute; top: 0; height: 6mm; display: flex; align-items: center; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1f1f1f; border-left: 3px solid #1f1f1f; padding-left: 1.5mm; }
+			.col-head { position: absolute; top: 0; height: 6mm; display: flex; align-items: center; font-size: 11pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1f1f1f; border-left: 3px solid #1f1f1f; padding-left: 1.5mm; }
 			.match-cell.vcell { position: absolute; min-height: 0; overflow: visible; background: white; z-index: 1; gap: 1mm; }
+			.match-cell.vcell .match-code { font-size: 13pt; }
+			.match-cell.vcell .cell-head { font-size: 9.5pt; }
+			.match-cell.vcell .arrows { font-size: 9pt; }
+			.match-cell.vcell .player-row, .match-cell.vcell .entries-row { font-size: 10pt; }
+			.match-cell.vcell .label, .match-cell.vcell .kv { font-size: 9pt; }
+			.match-cell.vcell .line.filled { font-size: 11pt; }
+			.match-cell.vcell .box.filled-box { font-size: 10pt; }
+			.match-cell.vcell .schedule-row { font-size: 9pt; }
 		`;
 
 		// Concatenem `<script>` separat perquè el parser de Svelte
@@ -1345,8 +1353,16 @@ ${printScript}
 	.tree-wrap { position: relative; overflow: hidden; margin: 0; }
 	.tree-canvas { position: relative; transform-origin: 0 0; }
 	.tree-svg { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
-	.col-head { position: absolute; top: 0; height: 6mm; display: flex; align-items: center; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1f1f1f; border-left: 3px solid #1f1f1f; padding-left: 1.5mm; }
+	.col-head { position: absolute; top: 0; height: 6mm; display: flex; align-items: center; font-size: 11pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1f1f1f; border-left: 3px solid #1f1f1f; padding-left: 1.5mm; }
 	.match-cell.vcell { position: absolute; min-height: 0; overflow: visible; background: white; z-index: 1; gap: 1mm; }
+	.match-cell.vcell .match-code { font-size: 13pt; }
+	.match-cell.vcell .cell-head { font-size: 9.5pt; }
+	.match-cell.vcell .arrows { font-size: 9pt; }
+	.match-cell.vcell .player-row, .match-cell.vcell .entries-row { font-size: 10pt; }
+	.match-cell.vcell .label, .match-cell.vcell .kv { font-size: 9pt; }
+	.match-cell.vcell .line.filled { font-size: 11pt; }
+	.match-cell.vcell .box.filled-box { font-size: 10pt; }
+	.match-cell.vcell .schedule-row { font-size: 9pt; }
 
 	@media print {
 		:global(body > *:not(.print-portal)) { display: none !important; }
