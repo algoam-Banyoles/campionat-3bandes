@@ -292,18 +292,15 @@
     }
 
     if (mySociNumero && eventId && canIChallenge) {
-      for (const r of rows) {
-        if (r.reptable) {
-          const chk = await canCreateChallenge(
-            supabase,
-            eventId,
-            mySociNumero,
-            r.soci_numero
-          );
-          r.canChallenge = chk.ok;
-          r.reason = chk.ok ? chk.warning : chk.reason;
-        }
-      }
+      await Promise.all(
+        rows
+          .filter((r) => r.reptable)
+          .map(async (r) => {
+            const chk = await canCreateChallenge(supabase, eventId!, mySociNumero!, r.soci_numero);
+            r.canChallenge = chk.ok;
+            r.reason = chk.ok ? chk.warning : chk.reason;
+          })
+      );
     }
   }
 

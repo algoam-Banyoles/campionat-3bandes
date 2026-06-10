@@ -85,6 +85,9 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     const now = new Date().toISOString();
+    if (data_iso !== null && new Date(data_iso) <= new Date()) {
+      return json({ ok: false, error: 'La data proposada ja ha passat' }, { status: 400 });
+    }
     if (data_iso !== null) {
       const dates = Array.isArray(challenge.dates_proposades) ? challenge.dates_proposades : [];
       if (!dates.includes(data_iso)) {

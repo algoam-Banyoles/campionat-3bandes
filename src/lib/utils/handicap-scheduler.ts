@@ -174,8 +174,19 @@ export function scheduleMatches(input: ScheduleInput): ScheduleItemResult[] {
 	// Slots usats en aquesta sessió de programació (mutable)
 	const usedSlots = new Set<string>();
 
-	// Dies on cada participant ja té una partida programada (mutable)
+	// Dies on cada participant ja té una partida programada (mutable).
+	// Sembrar des dels slots ocupats ja existents (inter-batch): si un slot
+	// ocupat conté participantIds, aquell jugador ja té partida aquell dia i
+	// hora, evitant que rebi una segona partida en un billar diferent.
 	const playerDayBusy = new Map<string, Set<string>>();
+	for (const s of occupiedSlots) {
+		if (s.participantIds && s.participantIds.length > 0) {
+			for (const pid of s.participantIds) {
+				if (!playerDayBusy.has(pid)) playerDayBusy.set(pid, new Set());
+				playerDayBusy.get(pid)!.add(s.data);
+			}
+		}
+	}
 
 	// ── Helpers d'estat mutable ─────────────────────────────────────────────
 	function isSlotFree(data: string, hora: string, taula: number): boolean {

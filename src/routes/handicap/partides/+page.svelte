@@ -23,6 +23,7 @@
 	} from '$lib/utils/handicap-scheduler';
 	import { executeScheduling } from '$lib/utils/handicap-scheduler-db';
 	import { persistFullSchedule } from '$lib/utils/handicap-schedule-persist';
+	import { loadBlockedDates } from '$lib/utils/handicap-blocked-dates';
 	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 	import { checkCompatibility, type CompatibilityIssue, type CompatibilityMatchInput, type AlternativeSlot } from '$lib/utils/handicap-compatibility';
 	import HandicapCompatibilityCheckModal from '$lib/components/handicap/HandicapCompatibilityCheckModal.svelte';
@@ -62,6 +63,7 @@
 
 	let eventId: string | null = null;
 	let config: TournamentConfig | null = null;
+	let blockedDatesSet = new Set<string>();
 	let sistemaPuntuacio: string = 'distancia';
 	let limitEntrades: number | null = null;
 	let matches: MatchDisplay[] = [];
@@ -738,6 +740,9 @@
 			horaris_extra: cfg.horaris_extra ?? undefined
 		} as TournamentConfig;
 
+		// Carregar dates bloquejades des de handicap_config.blocked_periods
+		blockedDatesSet = await loadBlockedDates(supabase, ev.id as string);
+
 		await loadData();
 		loading = false;
 
@@ -773,7 +778,7 @@
 		regenerantHorari = true;
 		try {
 			const r = await persistFullSchedule(supabase, eventId, {
-				diesBloquejats: [new Date('2026-06-24')]
+				diesBloquejats: [...blockedDatesSet].map(d => { const [y, m, day] = d.split('-').map(Number); return new Date(y, m - 1, day); })
 			});
 			const hardCount = r.warnings.filter(w => w.type === 'hard_conflict_assigned').length;
 			const hourCount = r.warnings.filter(w => w.type === 'reachable_hour_risk').length;
@@ -831,7 +836,7 @@
 				horarisExtra: config.horaris_extra ?? null,
 				billars: 3,
 				diesActius: ['dl', 'dt', 'dc', 'dj', 'dv'],
-				diesBloquejats: ['2026-06-24'],
+				diesBloquejats: [...blockedDatesSet],
 				occupiedSlots: allOccupiedSlots,
 				maxAlternatives: 3
 			});
@@ -1165,7 +1170,7 @@
 				<HandicapCalendarGridView
 					entries={calendarEntries}
 					{config}
-					diesBloquejats={[new Date('2026-06-24')]}
+					diesBloquejats={[...blockedDatesSet].map(d => { const [y, m, day] = d.split('-').map(Number); return new Date(y, m - 1, day); })}
 					on:matchclick={(e) => {
 						const m = matches.find((x) => x.id === e.detail);
 						if (m) {

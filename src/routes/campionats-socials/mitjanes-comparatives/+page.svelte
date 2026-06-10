@@ -12,6 +12,9 @@
 		millor_mitjana: number | null;
 	};
 
+	// Conjunt complet carregat de la BD (canvia només quan modalitat/anys canvien)
+	let jugadorsCarregats: JugadorMitjanes[] = [];
+	// Vista filtrada per nom (client-side, sense nova petició)
 	let jugadors: JugadorMitjanes[] = [];
 	let carregant = true;
 	let error = '';
@@ -80,7 +83,7 @@
 	async function carregarDades() {
 		carregant = true;
 		error = '';
-		jugadors = [];
+		jugadorsCarregats = [];
 
 		try {
 			if (!filtreModalitat) {
@@ -161,17 +164,7 @@
 				return j;
 			});
 
-			// 6) Filtrar per nom si cal
-			if (cercaNom) {
-				const q = cercaNom.toLowerCase();
-				llista = llista.filter(
-					(j) =>
-						j.nom?.toLowerCase().includes(q) ||
-						j.cognoms?.toLowerCase().includes(q)
-				);
-			}
-
-			// 7) Ordenar per millor mitjana (desc)
+			// 6) Ordenar per millor mitjana (desc)
 			llista.sort((a, b) => {
 				if (a.millor_mitjana === null && b.millor_mitjana === null) return 0;
 				if (a.millor_mitjana === null) return 1;
@@ -179,13 +172,28 @@
 				return b.millor_mitjana - a.millor_mitjana;
 			});
 
-			jugadors = llista;
-			totalJugadors = jugadors.length;
+			// Desa el conjunt complet; el filtre de nom s'aplica reactiu client-side
+			jugadorsCarregats = llista;
 		} catch (e: any) {
 			error = `Error: ${e.message}`;
 		} finally {
 			carregant = false;
 		}
+	}
+
+	// Filtre de nom aplicat client-side sobre el conjunt ja carregat.
+	// Quan canvia cercaNom NO es fa cap petició a la BD.
+	$: {
+		if (cercaNom) {
+			const q = cercaNom.toLowerCase();
+			jugadors = jugadorsCarregats.filter(
+				(j) => j.nom?.toLowerCase().includes(q) || j.cognoms?.toLowerCase().includes(q)
+			);
+		} else {
+			jugadors = jugadorsCarregats;
+		}
+		totalJugadors = jugadors.length;
+		paginaActual = 1;
 	}
 
 	$: jugadorsPaginats = jugadors.slice(
@@ -222,8 +230,8 @@
 		URL.revokeObjectURL(url);
 	}
 
+	// Crida carregarDades quan la modalitat canvia (el filtre de nom és reactiu client-side).
 	function handleFilterChange() {
-		paginaActual = 1;
 		carregarDades();
 	}
 </script>
@@ -274,7 +282,6 @@
 					id="cerca-nom"
 					type="text"
 					bind:value={cercaNom}
-					on:input={handleFilterChange}
 					placeholder="Nom o cognoms…"
 					class="w-full md:max-w-md border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
 				/>

@@ -260,9 +260,13 @@
 
   $: if (selectedEventId) {
     selectedEvent = events.find(e => e.id === selectedEventId);
+    // Carreguem inscripcions i socis ONLY per a admins: les sub-vistes preparation/pagaments/DragDrop
+    // que consumeixen aquestes dades no són accessibles a usuaris normals.
     if (selectedEvent && selectedEventId !== _lastLoadedEventId && (activeView === 'preparation' || activeView === 'active')) {
       _lastLoadedEventId = selectedEventId;
-      loadInscriptionsData();
+      if (isUserAdmin) {
+        loadInscriptionsData();
+      }
       if (activeView === 'preparation') {
         checkCalendarStatus();
       }
@@ -366,9 +370,12 @@
     }
   }
 
-  // Carregar dades d'inscripcions i socis
+  // Carregar dades d'inscripcions i socis (només per a admins)
   async function loadInscriptionsData() {
     if (!selectedEventId) return;
+
+    // Guard de resposta obsoleta: capturem l'event al moment de la crida
+    const calledForEventId = selectedEventId;
 
     try {
       loadingSocis = true;
@@ -423,6 +430,9 @@
         });
       }
 
+      // Descarta resultats si l'event ha canviat mentre esperàvem la xarxa
+      if (calledForEventId !== selectedEventId) return;
+
       socis = socisWithAverages;
 
       // Carregar inscripcions de l'event
@@ -440,11 +450,14 @@
           restriccions_especials,
           socis!inscripcions_soci_numero_fkey(numero_soci, nom, cognoms, data_naixement)
         `)
-        .eq('event_id', selectedEventId);
+        .eq('event_id', calledForEventId);
 
       if (inscriptionsError) {
         console.error('Error loading inscriptions:', inscriptionsError);
       }
+
+      // Descarta si canvi d'event concurrent
+      if (calledForEventId !== selectedEventId) return;
 
       inscriptions = inscriptionsData || [];
 

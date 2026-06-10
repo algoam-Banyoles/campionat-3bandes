@@ -186,27 +186,32 @@
     myPos = rows.find((r) => r.soci_numero === mySociNumero)?.posicio ?? null;
     if (!(mySociNumero && myPos && eventId)) return;
 
+    // Separar files que necessiten RPC de les que ja podem resoldre localment
+    const needsRpc: typeof rows = [];
     for (const r of rows) {
       if (r.soci_numero === mySociNumero) continue;
-      
-      // Verificar restriccions de posició
       if (r.posicio >= myPos) {
         r.canChallenge = false;
         r.reason = 'Només pots reptar jugadors per sobre teu al rànquing';
         continue;
       }
-      
       if (myPos - r.posicio > 2) {
         r.canChallenge = false;
         r.reason = 'Només fins a 2 posicions per sobre';
         continue;
       }
-      
-      // Verificar altres restriccions (cooldown, etc.)
-      const chk = await canCreateChallenge(supabase, eventId, mySociNumero, r.soci_numero);
-      r.canChallenge = chk.ok;
-      r.reason = chk.ok ? chk.warning : chk.reason;
+      needsRpc.push(r);
     }
+
+    // Crida concurrent per a les files que passen els filtres de posició
+    await Promise.all(
+      needsRpc.map(async (r) => {
+        const chk = await canCreateChallenge(supabase, eventId!, mySociNumero!, r.soci_numero);
+        r.canChallenge = chk.ok;
+        r.reason = chk.ok ? chk.warning : chk.reason;
+      })
+    );
+
     // Força reactivitat de Svelte (mutació in-place no la detecta)
     rows = rows;
   }

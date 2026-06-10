@@ -40,7 +40,7 @@
   let okMsg: string | null = null;
   let rows: ChallengeRow[] = [];
   let busy: string | null = null; // id en acció
-  const REPRO_LIMIT = 3;
+  const REPRO_LIMIT = 1;
   let reproLimit = REPRO_LIMIT;
 
   const challengeStateLabel = (state: string): string =>

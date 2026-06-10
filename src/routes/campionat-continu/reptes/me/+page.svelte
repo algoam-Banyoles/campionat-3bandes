@@ -41,7 +41,7 @@ let current: Challenge[] = [];
 export let data: { settings: AppSettings };
 let settings: AppSettings = data.settings;
 let isAdmin = false;
-const REPRO_LIMIT = 3;
+const REPRO_LIMIT = 1;
 let reproLimit = REPRO_LIMIT;
 
 const challengeStateLabel = (state: string): string => CHALLENGE_STATE_LABEL[state] ?? state;
@@ -81,11 +81,24 @@ async function load() {
     }
     mySociNumero = soci.numero_soci;
 
-    const { data: ch, error: e2 } = await supabase
+    // Resolem l'event actiu per filtrar els reptes
+    const { data: ev } = await supabase
+      .from('events')
+      .select('id')
+      .eq('actiu', true)
+      .eq('tipus_competicio', 'ranking_continu')
+      .order('data_inici', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const activeEventId: string | null = (ev as any)?.id ?? null;
+
+    let challengeQuery = supabase
       .from('challenges')
       .select('id,event_id,tipus,reptador_soci_numero,reptat_soci_numero,estat,dates_proposades,data_proposta,data_acceptacio,data_programada,reprogram_count,pos_reptador,pos_reptat')
       .or(`reptador_soci_numero.eq.${mySociNumero},reptat_soci_numero.eq.${mySociNumero}`)
       .order('data_proposta', { ascending: false });
+    if (activeEventId) challengeQuery = challengeQuery.eq('event_id', activeEventId);
+    const { data: ch, error: e2 } = await challengeQuery;
     if (e2) throw e2;
 
     const sociIds = Array.from(

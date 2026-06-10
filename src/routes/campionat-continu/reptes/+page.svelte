@@ -14,7 +14,7 @@
     data_proposta: string;
     data_acceptacio: string | null;
     data_programada: string | null;
-    reprogramacions: number | null;
+    reprogram_count: number | null;
     reptador_nom?: string;
     reptat_nom?: string;
   };
@@ -35,7 +35,7 @@
   let mySociNumero: number | null = null;
   let supabase: SupabaseClient;
   let dateDrafts: Record<string, string> = {};
-  const REPRO_LIMIT = 3;
+  const REPRO_LIMIT = 1;
   let reproLimit = REPRO_LIMIT;
   const DEFAULT_ACCEPT_DAYS = 7;
   const DEFAULT_PLAY_DAYS = 7;
@@ -98,12 +98,25 @@
         mySociNumero = soci?.numero_soci ?? null;
       }
 
-      // Reptes actius
-      const { data: ch, error: cErr } = await supabase
+      // Resolem l'event actiu de rànquing continu per filtrar les queries
+      const { data: ev } = await supabase
+        .from('events')
+        .select('id')
+        .eq('actiu', true)
+        .eq('tipus_competicio', 'ranking_continu')
+        .order('data_inici', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const eventId: string | null = (ev as any)?.id ?? null;
+
+      // Reptes actius (exclou 'refusat'; filtra per event actiu si disponible)
+      let challengeQuery = supabase
         .from('challenges')
-        .select('id,reptador_soci_numero,reptat_soci_numero,estat,data_proposta,data_acceptacio,data_programada,reprogramacions')
-        .in('estat', ['proposat', 'acceptat', 'programat', 'refusat'])
+        .select('id,reptador_soci_numero,reptat_soci_numero,estat,data_proposta,data_acceptacio,data_programada,reprogram_count')
+        .in('estat', ['proposat', 'acceptat', 'programat'])
         .order('data_proposta', { ascending: true });
+      if (eventId) challengeQuery = challengeQuery.eq('event_id', eventId);
+      const { data: ch, error: cErr } = await challengeQuery;
       if (cErr) throw cErr;
       actius = (ch ?? []) as any[];
 
@@ -129,12 +142,26 @@
         reptat_nom: nameBySoci.get(c.reptat_soci_numero) ?? '—'
       }));
 
-      // Darrers resultats
-      const { data: m, error: mErr } = await supabase
+      // Darrers resultats — filtrem per challenges de l'event actiu
+      let recentChalIds: string[] = [];
+      if (eventId) {
+        const { data: eventChalls } = await supabase
+          .from('challenges')
+          .select('id')
+          .eq('event_id', eventId)
+          .eq('estat', 'jugat')
+          .order('data_proposta', { ascending: false })
+          .limit(20);
+        recentChalIds = (eventChalls ?? []).map((c: any) => c.id);
+      }
+
+      let matchQuery = supabase
         .from('matches')
         .select('id,challenge_id,data_joc,caramboles_reptador,caramboles_reptat')
         .order('data_joc', { ascending: false })
         .limit(5);
+      if (recentChalIds.length > 0) matchQuery = matchQuery.in('challenge_id', recentChalIds);
+      const { data: m, error: mErr } = await matchQuery;
       if (mErr) throw mErr;
       const matches = m ?? [];
       const chalIds = matches.map((mm: any) => mm.challenge_id);
@@ -216,7 +243,7 @@
       error = null;
       await scheduleChallenge(supabase, ch.id, iso);
       if (ch.data_programada) {
-        ch.reprogramacions = (ch.reprogramacions ?? 0) + 1;
+        ch.reprogram_count = (ch.reprogram_count ?? 0) + 1;
       }
       ch.data_programada = iso;
       dateDrafts[ch.id] = '';
@@ -258,7 +285,7 @@
                 • {CHALLENGE_STATE_LABEL.programat}: {fmtDate(r.data_programada)}
               {/if}
             </div>
-            <div class="text-sm text-slate-600">Reprogramacions: {r.reprogramacions ?? 0} / {reproLimit}</div>
+            <div class="text-sm text-slate-600">Reprogramacions: {r.reprogram_count ?? 0} / {reproLimit}</div>
               {#if isExpiredAccept(r)}
                 <div class="text-xs text-red-600 font-bold">ATENCIÓ: Termini d'acceptació vençut — pendent de penalització.</div>
               {/if}
@@ -282,7 +309,7 @@
               </div>
             {/if}
             {#if r.estat !== 'refusat' && mySociNumero && (mySociNumero === r.reptador_soci_numero || mySociNumero === r.reptat_soci_numero)}
-              {#if !(r.reprogramacions != null && r.reprogramacions >= reproLimit)}
+              {#if !(r.reprogram_count != null && r.reprogram_count >= reproLimit)}
                 <div class="mt-2 flex gap-2 items-center">
                   <input
                     type="datetime-local"

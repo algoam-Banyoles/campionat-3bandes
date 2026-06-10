@@ -21,6 +21,7 @@ import {
 	optimizeSchedule,
 	type ParticipantAvailability
 } from './handicap-schedule-optimizer';
+import { expandBlockedPeriods } from './handicap-blocked-dates';
 
 export interface PersistOptions {
 	/** Dies festius o vetats (no es programen partides). */
@@ -122,7 +123,7 @@ export async function persistFullSchedule(
 
 	const { data: cfg } = await supabase
 		.from('handicap_config')
-		.select('horaris_extra')
+		.select('horaris_extra, blocked_periods')
 		.eq('event_id', eventId)
 		.maybeSingle();
 
@@ -192,6 +193,20 @@ export async function persistFullSchedule(
 		});
 	}
 
+	// Combinar les dates bloquejades de la configuració (BD) amb les que
+	// el caller pugui passar com a opció (dies festius puntuals o tests).
+	// La BD té prioritat semàntica però tots dos es fusionen.
+	const dbBlockedDates: Date[] = Array.isArray((cfg as any)?.blocked_periods)
+		? [...expandBlockedPeriods((cfg as any).blocked_periods)].map(s => {
+				const [y, m, d] = s.split('-').map(Number);
+				return new Date(y, m - 1, d);
+			})
+		: [];
+	const mergedDiesBloquejats: Date[] = [
+		...dbBlockedDates,
+		...(options.diesBloquejats ?? [])
+	];
+
 	let scheduled;
 	try {
 		const detailed = preSchedulingForBracketDetailed(slots, playables, {
@@ -200,7 +215,7 @@ export async function persistFullSchedule(
 			horesEstandard: ['18:00', '19:00'],
 			horarisExtra: cfg?.horaris_extra ?? null,
 			billars: 3,
-			diesBloquejats: options.diesBloquejats,
+			diesBloquejats: mergedDiesBloquejats.length > 0 ? mergedDiesBloquejats : undefined,
 			availabilities: availForPre
 		});
 		scheduled = detailed.scheduled;
