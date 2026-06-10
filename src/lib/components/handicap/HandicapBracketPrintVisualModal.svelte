@@ -568,6 +568,10 @@
 			}
 			.match-code { font-weight: 800; font-size: 10pt; letter-spacing: 0.04em; }
 			.arrows { display: flex; gap: 1.5mm; flex-wrap: wrap; font-size: 7.5pt; color: #333; }
+			.match-cell.bridge-boost .match-code { font-size: 11pt; }
+			.match-cell.bridge-boost .arrows { font-size: 8.25pt; }
+			.match-cell.bridge-boost .arrow-win { font-size: 8.25pt; }
+			.match-cell.bridge-boost .arrow-win strong { font-size: 8.5pt; }
 			.arrows strong { font-weight: 700; }
 	.arrow-win { color: #1d6e3a; }
 	.arrow-lose { color: #a30b1e; }
@@ -701,7 +705,7 @@ ${printScript}
 									<div class="round-label">{col.rondaLabel}</div>
 									<div class="round-matches">
 										{#each col.matches as mv}
-											<div class="match-cell" class:played={!!mv.result}>
+											<div class="match-cell" class:played={!!mv.result} class:bridge-boost={mv.code === 'W4.2'}>
 												<div class="cell-head">
 													<span class="match-code">{mv.code}</span>
 													<span class="arrows">
@@ -904,6 +908,10 @@ ${printScript}
 	}
 	.match-code { font-weight: 800; font-size: 10.5pt; letter-spacing: 0.04em; }
 	.arrows { display: flex; gap: 1.2mm; flex-wrap: wrap; font-size: 7.75pt; color: #333; }
+	.match-cell.bridge-boost .match-code { font-size: 11pt; }
+	.match-cell.bridge-boost .arrows { font-size: 8.25pt; }
+	.match-cell.bridge-boost .arrow-win { font-size: 8.25pt; }
+	.match-cell.bridge-boost .arrow-win strong { font-size: 8.5pt; }
 	.arrows strong { font-weight: 700; }
 	.arrow-win { color: #1d6e3a; }
 	.arrow-lose { color: #a30b1e; }
