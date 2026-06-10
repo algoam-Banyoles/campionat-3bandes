@@ -382,18 +382,33 @@
 	// teòriques. Anem MOLT conservadors (40) per absorbir cel·les amb noms
 	// llargs que poden ocupar 2 línies i la variabilitat entre navegadors.
 	let columns: 1 | 2 = 2;
-	const MAX_ROWS_PER_COL = 40;
+	// Paginem per ALÇADA REAL estimada (mm) en lloc de comptar files, perquè les
+	// files varien d'alçada: les buides (slots futurs) i les de repesca ocupen 1
+	// línia, mentre que les de guanyadors mostren destí ↗G i ↘P (2 línies). Així
+	// cada columna s'omple fins a baix i no queda franja blanca al peu del full.
+	// Àrea útil de taula a A3 portrait ≈ 420 − 16 marges − 21 capçalera − 6 thead.
+	const COL_BUDGET_MM = 366;
+	function rowMm(r: CalRow): number {
+		if (r.festiu) return 10.5;
+		return r.winnerDest && r.loserDest ? 8.8 : 7.0;
+	}
+	function dayMm(gd: GroupDay): number {
+		let mm = 0;
+		for (const gh of gd.hours) for (const it of gh.items) mm += rowMm(it);
+		return mm;
+	}
 	$: pages = (() => {
 		const result: GroupDay[][][] = [];
 		const cols = columns;
 		let currentPage: GroupDay[][] = Array.from({ length: cols }, () => []);
 		let currentColIdx = 0;
-		let accRows = 0;
+		let accMm = 0;
 		for (const day of groupedDays) {
-			// Si afegir aquest dia desbordaria la columna, passa a la següent.
-			if (accRows > 0 && accRows + day.total > MAX_ROWS_PER_COL) {
+			const dMm = dayMm(day);
+			// Si afegir aquest dia desbordaria l'alçada de la columna, passa a la següent.
+			if (accMm > 0 && accMm + dMm > COL_BUDGET_MM) {
 				currentColIdx++;
-				accRows = 0;
+				accMm = 0;
 				if (currentColIdx >= cols) {
 					result.push(currentPage);
 					currentPage = Array.from({ length: cols }, () => []);
@@ -401,7 +416,7 @@
 				}
 			}
 			currentPage[currentColIdx].push(day);
-			accRows += day.total;
+			accMm += dMm;
 		}
 		// Tanca l'últim full si té contingut.
 		if (currentPage.some((c) => c.length > 0)) result.push(currentPage);
