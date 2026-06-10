@@ -152,13 +152,26 @@
 	// ── Càrrega de dades ──────────────────────────────────────────────────────
 
 	onMount(async () => {
-		const { data: ev } = await supabase
+		const { data: activeEv } = await supabase
 			.from('events')
 			.select('id')
 			.eq('tipus_competicio', 'handicap')
 			.eq('actiu', true)
 			.limit(1)
-			.single();
+			.maybeSingle();
+
+		let ev = activeEv;
+		if (!ev) {
+			// Fallback: event hàndicap més recent (pot estar finalitzat)
+			const { data: recentEv } = await supabase
+				.from('events')
+				.select('id')
+				.eq('tipus_competicio', 'handicap')
+				.order('data_inici', { ascending: false })
+				.limit(1)
+				.maybeSingle();
+			ev = recentEv ?? null;
+		}
 
 		if (!ev) {
 			error = 'No hi ha cap event hàndicap actiu.';

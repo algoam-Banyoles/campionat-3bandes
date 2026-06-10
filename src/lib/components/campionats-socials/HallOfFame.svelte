@@ -173,7 +173,7 @@
           cognoms,
           numero_soci
         ),
-        events (
+        events!inner (
           id,
           temporada,
           modalitat

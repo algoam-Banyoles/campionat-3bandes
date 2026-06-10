@@ -215,12 +215,16 @@
 			}
 			upcomingMatches = programades.filter((m) => m.data && distinctDays.includes(m.data));
 
-			// Campió: si totes les partides estan jugades i hi ha una GF jugada
+			// Campió: si totes les partides estan jugades i hi ha una GF jugada.
+			// Prendre la GF jugada amb ronda més alta (GF-R2 si existeix, si no GF-R1).
 			if (pending === 0 && scheduled === 0 && played > 0) {
-				const gfMatch = (matchStats as any[]).find((m) => {
-					const s1 = slotMap.get(m.slot1_id);
-					return s1?.bracket_type === 'grand_final' && (m.estat === 'jugada' || m.estat === 'walkover') && m.guanyador_participant_id;
-				});
+				const gfPlayed = (matchStats as any[])
+					.filter((m) => {
+						const s1 = slotMap.get(m.slot1_id);
+						return s1?.bracket_type === 'grand_final' && (m.estat === 'jugada' || m.estat === 'walkover') && m.guanyador_participant_id;
+					})
+					.sort((a, b) => ((slotMap.get(b.slot1_id)?.ronda ?? 0) as number) - ((slotMap.get(a.slot1_id)?.ronda ?? 0) as number));
+				const gfMatch = gfPlayed[0] ?? null;
 				if (gfMatch) {
 					champion = nameMap.get(gfMatch.guanyador_participant_id) ?? null;
 				}
@@ -246,25 +250,27 @@
 					.eq('event_id', fe.id)
 					.in('estat', ['jugada', 'walkover']);
 
-				// Trobar campió (guanyador de la GF)
+				// Trobar campió (guanyador de la GF amb ronda més alta: GF-R2 > GF-R1)
 				const { data: gfSlots } = await supabase
 					.from('handicap_bracket_slots')
-					.select('id')
+					.select('id, ronda')
 					.eq('event_id', fe.id)
-					.eq('bracket_type', 'grand_final');
+					.eq('bracket_type', 'grand_final')
+					.order('ronda', { ascending: false });
 
 				let champName: string | null = null;
 				if (gfSlots && gfSlots.length > 0) {
+					const gfSlotMap = new Map((gfSlots as any[]).map((s: any) => [s.id as string, s.ronda as number]));
 					const gfSlotIds = gfSlots.map((s: any) => s.id as string);
-					const { data: gfMatch } = await supabase
+					const { data: gfMatchesRaw } = await supabase
 						.from('handicap_matches')
-						.select('guanyador_participant_id')
+						.select('guanyador_participant_id, slot1_id')
 						.eq('event_id', fe.id)
 						.in('slot1_id', gfSlotIds)
-						.in('estat', ['jugada', 'walkover'])
-						.order('id', { ascending: false })
-						.limit(1)
-						.maybeSingle();
+						.in('estat', ['jugada', 'walkover']);
+					// Prendre la GF jugada amb ronda més alta
+					const gfMatch = (gfMatchesRaw ?? [])
+						.sort((a: any, b: any) => (gfSlotMap.get(b.slot1_id) ?? 0) - (gfSlotMap.get(a.slot1_id) ?? 0))[0] ?? null;
 
 					if (gfMatch?.guanyador_participant_id) {
 						const { data: champ } = await supabase

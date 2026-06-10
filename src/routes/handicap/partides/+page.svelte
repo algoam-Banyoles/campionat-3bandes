@@ -676,14 +676,31 @@
 
 	onMount(async () => {
 		// data_inici / data_fi estan a events, no a handicap_config
-		const { data: ev, error: evErr } = await supabase
+		let evData: any = null;
+		const { data: activeEv, error: activeEvErr } = await supabase
 			.from('events')
 			.select('id, data_inici, data_fi, estat_competicio')
 			.eq('tipus_competicio', 'handicap')
 			.eq('actiu', true)
-			.order('creat_el', { ascending: false })
 			.limit(1)
-			.single();
+			.maybeSingle();
+
+		if (activeEv) {
+			evData = activeEv;
+		} else {
+			// Fallback: event hàndicap més recent (pot estar finalitzat)
+			const { data: recentEv } = await supabase
+				.from('events')
+				.select('id, data_inici, data_fi, estat_competicio')
+				.eq('tipus_competicio', 'handicap')
+				.order('data_inici', { ascending: false })
+				.limit(1)
+				.maybeSingle();
+			evData = recentEv ?? null;
+		}
+
+		const ev = evData;
+		const evErr = !ev ? new Error('No hi ha cap event hàndicap.') : null;
 
 		if (evErr || !ev) {
 			error = 'No hi ha cap event hàndicap actiu.';
@@ -951,8 +968,8 @@
 			</div>
 		</div>
 
-		<!-- Badge: noves partides llestes per programar -->
-		{#if schedulableNow.length > 0 && !showAutoSchedule}
+		<!-- Badge: noves partides llestes per programar — només admins -->
+		{#if $effectiveIsAdmin && schedulableNow.length > 0 && !showAutoSchedule}
 			<div class="mb-4 flex items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
 				<span class="text-lg">📋</span>
 				<div class="flex-1">
@@ -989,7 +1006,8 @@
 			</div>
 		{/if}
 
-		<!-- Auto-programació -->
+		<!-- Auto-programació — només admins -->
+		{#if $effectiveIsAdmin}
 		{#if !showAutoSchedule && !isFinalitzat}
 			<div class="mb-4 flex items-center justify-between rounded-lg border border-purple-200 bg-purple-50 p-4">
 				<div>
@@ -1010,7 +1028,7 @@
 					Programar {schedulableNow.length} llesta{schedulableNow.length !== 1 ? 'es' : ''}
 				</button>
 			</div>
-		{:else}
+		{:else if showAutoSchedule}
 			<!-- Previsualització auto-programació -->
 			<div class="mb-4 rounded-lg border border-purple-300 bg-white shadow-sm">
 				<div class="border-b border-purple-100 bg-purple-50 px-4 py-3">
@@ -1068,6 +1086,7 @@
 				</div>
 			</div>
 		{/if}
+		{/if}<!-- end $effectiveIsAdmin auto-programació -->
 
 		<!-- Indicador d'equilibri de branques -->
 		{#if branchMatches.length > 0}
@@ -1333,7 +1352,7 @@
 							<!-- Slot Picker inline -->
 							{#if schedulingMatchId === match.id && config}
 								<tr>
-									<td colspan="7" class="bg-gray-50 px-4 py-3">
+									<td colspan="8" class="bg-gray-50 px-4 py-3">
 										<div class="mb-2 text-xs font-semibold text-gray-600">
 											Selecciona slot per a: {match.player1_name} vs {match.player2_name}
 										</div>

@@ -49,7 +49,10 @@
     if (selectedCategory && match.categoria_id !== selectedCategory) return false;
     if (selectedEstat && match.estat !== selectedEstat) return false;
     if (selectedDate) {
-      const matchDate = new Date(match.data_programada).toISOString().split('T')[0];
+      if (!match.data_programada) return false;
+      const date = new Date(match.data_programada);
+      if (isNaN(date.getTime())) return false;
+      const matchDate = date.toISOString().split('T')[0];
       if (matchDate !== selectedDate) return false;
     }
     return true;

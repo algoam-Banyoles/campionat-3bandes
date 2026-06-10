@@ -118,9 +118,13 @@ export async function sendPaymentReminders(): Promise<void> {
     const { data: pendingPayments, error } = await supabase
       .from('inscripcions')
       .select(`
-        *,
+        id,
+        confirmat,
+        pagat,
+        soci_numero,
+        categoria_assignada_id,
         socis (nom, cognoms, email),
-        events (nom, modalitat, temporada, quota_inscripcio),
+        events!inner (nom, tipus_competicio, modalitat, temporada, quota_inscripcio),
         categoria_assignada:categories (nom)
       `)
       .eq('confirmat', false)
@@ -129,8 +133,12 @@ export async function sendPaymentReminders(): Promise<void> {
 
     if (error) throw error;
 
-    for (const inscription of pendingPayments || []) {
+    // Cast: supabase-js infereix els embeds com a arrays amb select explícit,
+    // però amb FK única PostgREST retorna objectes.
+    for (const inscription of (pendingPayments || []) as any[]) {
       if (!inscription.socis?.email) continue;
+      // Defensive: skip rows where events embed is null (non-matching join)
+      if (!inscription.events) continue;
 
       await sendInscriptionNotification({
         playerEmail: inscription.socis.email,

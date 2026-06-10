@@ -39,6 +39,8 @@
 	let loadingJourney = false;
 	let searchTerm = '';
 	let eventNom = '';
+	/** ID de l'event resolt a onMount; reutilitzat per toggleJourney. */
+	let resolvedEventId: string | null = null;
 
 	$: filtered = participants.filter((p) => {
 		if (!searchTerm.trim()) return true;
@@ -78,6 +80,7 @@
 		}
 		eventNom = (ev as any).nom ?? '';
 		const eventId = (ev as any).id as string;
+		resolvedEventId = eventId;
 
 		// Participants (Fase 5c-S2b: FK directe via soci_numero)
 		const { data: parts, error: pErr } = await supabase
@@ -105,14 +108,18 @@
 			: { data: [] };
 		const slotMap = new Map((slots ?? []).map((s: any) => [s.id as string, s]));
 
-		// Detectar campió i subcampió (darrera GF jugada)
+		// Detectar campió i subcampió (GF jugada amb ronda més alta: GF-R2 > GF-R1)
 		const { data: gfSlots } = await supabase
 			.from('handicap_bracket_slots')
-			.select('id')
+			.select('id, ronda')
 			.eq('event_id', eventId)
 			.eq('bracket_type', 'grand_final');
+		const gfSlotMap = new Map((gfSlots ?? []).map((s: any) => [s.id as string, s.ronda as number]));
 		const gfSlotIds = new Set((gfSlots ?? []).map((s: any) => s.id as string));
-		const gfMatch = (matches ?? []).find((m: any) => gfSlotIds.has(m.slot1_id));
+		const gfPlayed = (matches ?? [])
+			.filter((m: any) => gfSlotIds.has(m.slot1_id))
+			.sort((a: any, b: any) => (gfSlotMap.get(b.slot1_id) ?? 0) - (gfSlotMap.get(a.slot1_id) ?? 0));
+		const gfMatch = gfPlayed[0] ?? null;
 		const championId: string | null = gfMatch?.guanyador_participant_id ?? null;
 		const subchampionId: string | null = gfMatch
 			? (slotMap.get(gfMatch.slot1_id)?.participant_id === championId
@@ -177,14 +184,9 @@
 		if (journeyMap.has(participantId)) return;
 
 		loadingJourney = true;
-		const { data: ev } = await supabase
-			.from('events')
-			.select('id')
-			.eq('tipus_competicio', 'handicap')
-			.eq('actiu', true)
-			.limit(1)
-			.maybeSingle();
-		const eventId = ev?.id;
+		// Reutilitzar l'event ja resolt per onMount (actiu o el més recent) en
+		// lloc de fer una nova consulta que tornaria null per torneigs finalitzats.
+		const eventId = resolvedEventId;
 		if (!eventId) { loadingJourney = false; return; }
 
 		// Slots del participant

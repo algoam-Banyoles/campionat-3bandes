@@ -12,7 +12,8 @@
 	let accessLevel: AccessLevel = 'loading';
 
 	onMount(async () => {
-		const { data: ev } = await supabase
+		// 1. Buscar event actiu
+		const { data: activeEv } = await supabase
 			.from('events')
 			.select('estat_competicio')
 			.eq('tipus_competicio', 'handicap')
@@ -20,23 +21,40 @@
 			.limit(1)
 			.maybeSingle();
 
-		if (!ev) {
-			accessLevel = 'dev';
-		} else if (ev.estat_competicio === 'en_curs' || ev.estat_competicio === 'finalitzat') {
-			accessLevel = 'public';
+		if (activeEv) {
+			if (activeEv.estat_competicio === 'en_curs' || activeEv.estat_competicio === 'finalitzat') {
+				accessLevel = 'public';
+			} else {
+				// planificacio, inscripcions → admin only
+				accessLevel = 'admin';
+			}
 		} else {
-			// planificacio, inscripcions → admin only
-			accessLevel = 'admin';
+			// Sense event actiu: buscar el més recent per si el torneig s'ha tancat
+			const { data: recentEv } = await supabase
+				.from('events')
+				.select('estat_competicio')
+				.eq('tipus_competicio', 'handicap')
+				.order('data_inici', { ascending: false })
+				.limit(1)
+				.maybeSingle();
+
+			if (recentEv && (recentEv.estat_competicio === 'en_curs' || recentEv.estat_competicio === 'finalitzat')) {
+				// Torneig finalitzat (actiu=false) → accés públic per consultar historial
+				accessLevel = 'public';
+			} else {
+				// Cap event o estat inicial → mode dev (admins only)
+				accessLevel = 'dev';
+			}
 		}
 	});
 
 	$: loading = !$adminChecked || accessLevel === 'loading';
 
-	// Calendari, quadre, jugadors, partides, historial… són sempre públics
-	// (no cal login). Només cal bloquejar el mòdul sencer si no hi ha cap event
-	// hàndicap creat. Les pàgines admin (configuracio, inscripcions, sorteig,
-	// simulacio) ja tenen els seus propis guards.
-	$: canAccess = !loading && ($effectiveIsAdmin || accessLevel !== 'dev');
+	// Guard de 3 nivells:
+	//   'dev'    → cap event o estat inicial → només admins
+	//   'admin'  → planificacio/inscripcions → només admins
+	//   'public' → en_curs/finalitzat → tots (socis autenticats)
+	$: canAccess = !loading && ($effectiveIsAdmin || accessLevel === 'public');
 
 	$: showDevBanner = canAccess && accessLevel === 'dev' && $effectiveIsAdmin;
 	$: showAdminBanner = canAccess && accessLevel === 'admin' && $effectiveIsAdmin;

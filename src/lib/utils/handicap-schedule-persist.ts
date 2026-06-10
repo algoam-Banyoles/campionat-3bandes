@@ -146,9 +146,9 @@ export async function persistFullSchedule(
 
 	const slots = slotsData as Array<PreSchedulerSlot & { participant_id: string | null }>;
 	const matchesAll = matchesData as Array<PreSchedulerMatch & { calendari_partida_id: string | null; calendari_fixat?: boolean }>;
-	// Saltem byes, jugats i matches marcats com a fixats (data forçada per l'admin).
+	// Saltem byes, jugats, walkovers i matches marcats com a fixats (data forçada per l'admin).
 	const playables = matchesAll.filter(
-		m => m.estat !== 'bye' && m.estat !== 'jugada' && !m.calendari_fixat
+		m => m.estat !== 'bye' && m.estat !== 'jugada' && m.estat !== 'walkover' && !m.calendari_fixat
 	);
 
 	const { data: participants } = await supabase
@@ -228,13 +228,15 @@ export async function persistFullSchedule(
 		? toLocalIsoNoon(optResult.dataFiEfectiva)
 		: null;
 
-	// PASSADA 1: alliberar tots els slots actuals (taula_assignada = NULL) per
-	// evitar conflictes amb l'índex únic 'idx_unique_billar_slot' durant els
-	// updates posteriors. L'índex és parcial: només actua amb tots els camps
-	// no-null, així posant taula a NULL sortim de l'índex i podem reorganitzar.
+	// PASSADA 1: alliberar els slots dels matches que el nou horari tornarà a
+	// escriure, per evitar conflictes amb l'índex únic 'idx_unique_billar_slot'
+	// durant els updates posteriors. Només NUL·LIFIQUEM les files dels matches
+	// que efectivament s'han pogut programar (optResult.scheduled); els que
+	// l'optimitzador no ha inclòs conserven les seves dates originals.
+	const scheduledMatchIds = new Set(optResult.scheduled.keys());
 	const existingCalendariIds = playables
-		.map(m => m.calendari_partida_id)
-		.filter((id): id is string => !!id);
+		.filter(m => m.calendari_partida_id && scheduledMatchIds.has(m.id))
+		.map(m => m.calendari_partida_id as string);
 	if (existingCalendariIds.length > 0) {
 		const { error: clearErr } = await supabase
 			.from('calendari_partides')

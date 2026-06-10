@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { createEventDispatcher } from 'svelte';
 
   export let sociNumero: number;
@@ -37,23 +37,26 @@
       const rows = (data ?? []) as { setmana: number; posicio: number }[];
       rows.sort((a, b) => a.setmana - b.setmana);
       if (rows.length > 0) {
+        const built: { week: number; pos: number }[] = [];
         let lastWeek = rows[0].setmana;
         let lastPos = rows[0].posicio;
-        points.push({ week: lastWeek, pos: lastPos });
+        built.push({ week: lastWeek, pos: lastPos });
         for (let i = 1; i < rows.length; i++) {
           const row = rows[i];
           for (let w = lastWeek + 1; w < row.setmana; w++) {
-            points.push({ week: w, pos: lastPos });
+            built.push({ week: w, pos: lastPos });
           }
           lastWeek = row.setmana;
           lastPos = row.posicio;
-          points.push({ week: lastWeek, pos: lastPos });
+          built.push({ week: lastWeek, pos: lastPos });
         }
+        points = built;
       }
     } catch (e: any) {
       error = e?.message ?? 'Error desconegut';
     } finally {
       loading = false;
+      await tick();
       await drawChart();
     }
   });

@@ -165,13 +165,15 @@
 
 	// ── Línies de connector SVG (bracket guanyadors) ──────────────────────────
 
-	$: wConnectors = buildWinnersConnectors();
+	$: wConnectors = buildWinnersConnectors(wRounds, hiddenW, hiddenGF, wRoundX, gfRoundX, matchViews, gfRounds, totalWH);
 
 	// ── Línies de connector SVG (bracket perdedors) ───────────────────────────
 
-	$: lConnectors = buildLosersConnectors();
+	$: lConnectors = buildLosersConnectors(lRounds, hiddenL, lRoundX, matchViews);
 
-	function buildLosersConnectors(): Array<{ x1: number; y1: number; x2: number; y2: number; won: boolean }> {
+	function buildLosersConnectors(
+		_lRounds: number[], _hiddenL: Set<number>, _lRoundX: Map<number, { x: number; w: number; hidden: boolean }>, _matchViews: MatchView[]
+	): Array<{ x1: number; y1: number; x2: number; y2: number; won: boolean }> {
 		const lines: Array<{ x1: number; y1: number; x2: number; y2: number; won: boolean }> = [];
 		if (lRounds.length < 2) return lines;
 
@@ -247,7 +249,12 @@
 		return lines;
 	}
 
-	function buildWinnersConnectors(): Array<{ x1: number; y1: number; x2: number; y2: number; won: boolean }> {
+	function buildWinnersConnectors(
+		_wRounds: number[], _hiddenW: Set<number>, _hiddenGF: Set<number>,
+		_wRoundX: Map<number, { x: number; w: number; hidden: boolean }>,
+		_gfRoundX: Map<number, { x: number; w: number; hidden: boolean }>,
+		_matchViews: MatchView[], _gfRounds: number[], _totalWH: number
+	): Array<{ x1: number; y1: number; x2: number; y2: number; won: boolean }> {
 		const lines: Array<{ x1: number; y1: number; x2: number; y2: number; won: boolean }> = [];
 		if (wRounds.length === 0) return lines;
 

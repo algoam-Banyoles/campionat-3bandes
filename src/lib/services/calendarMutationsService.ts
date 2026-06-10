@@ -300,7 +300,7 @@ export async function saveMatchEdit(
   // Comprovar conflicte de billar abans de desar (només si està programada)
   if (!isUnprogrammed) {
     const dia = (updates.data_programada as string).split('T')[0];
-    const { data: conflict } = await supabase
+    const { data: conflict, error: conflictError } = await supabase
       .from('calendari_partides')
       .select('id')
       .eq('hora_inici', updates.hora_inici as string)
@@ -315,7 +315,8 @@ export async function saveMatchEdit(
       .filter('data_programada::date', 'eq', dia)
       .maybeSingle();
 
-    if (conflict) {
+    // Treat any error (including multiple-row PGRST116) or a returned row as a conflict
+    if (conflictError || conflict) {
       throw new Error(
         `El billar ${updates.taula_assignada} ja té una partida programada el ${dia} a les ${updates.hora_inici}. Tria un altre billar o una altra hora.`
       );
@@ -372,15 +373,13 @@ export async function swapMatchSchedule(
     taula_assignada: number | null;
   }
 ): Promise<void> {
-  const { error: e1 } = await supabase
+  // 3-step swap to avoid unique billar-slot index collision:
+  // 1) Clear match1's slot, 2) move match2 onto match1's old slot, 3) set match1 onto match2's old slot.
+  const { error: eClear } = await supabase
     .from('calendari_partides')
-    .update({
-      data_programada: match2.data_programada,
-      hora_inici: match2.hora_inici,
-      taula_assignada: match2.taula_assignada
-    })
+    .update({ data_programada: null, hora_inici: null, taula_assignada: null })
     .eq('id', match1.id);
-  if (e1) throw e1;
+  if (eClear) throw eClear;
 
   const { error: e2 } = await supabase
     .from('calendari_partides')
@@ -390,5 +389,45 @@ export async function swapMatchSchedule(
       taula_assignada: match1.taula_assignada
     })
     .eq('id', match2.id);
-  if (e2) throw e2;
+  if (e2) {
+    // Attempt to restore match1's slot before throwing
+    await supabase
+      .from('calendari_partides')
+      .update({
+        data_programada: match1.data_programada,
+        hora_inici: match1.hora_inici,
+        taula_assignada: match1.taula_assignada
+      })
+      .eq('id', match1.id);
+    throw e2;
+  }
+
+  const { error: e1 } = await supabase
+    .from('calendari_partides')
+    .update({
+      data_programada: match2.data_programada,
+      hora_inici: match2.hora_inici,
+      taula_assignada: match2.taula_assignada
+    })
+    .eq('id', match1.id);
+  if (e1) {
+    // Attempt to restore both slots before throwing
+    await supabase
+      .from('calendari_partides')
+      .update({
+        data_programada: match2.data_programada,
+        hora_inici: match2.hora_inici,
+        taula_assignada: match2.taula_assignada
+      })
+      .eq('id', match2.id);
+    await supabase
+      .from('calendari_partides')
+      .update({
+        data_programada: match1.data_programada,
+        hora_inici: match1.hora_inici,
+        taula_assignada: match1.taula_assignada
+      })
+      .eq('id', match1.id);
+    throw e1;
+  }
 }

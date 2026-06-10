@@ -117,13 +117,22 @@ export async function saveMatchResult(
 	}
 
 	// ── 3. Actualitzar handicap_match ────────────────────────────────────────
+	// Precondició: la partida ha d'estar en estat 'programada' o 'pendent'
+	// (estats on no s'ha enregistrat cap resultat previ). Si la query no
+	// actualitza cap fila, la partida ja tenia resultat → abortar sense
+	// executar la propagació per evitar corrupció del bracket.
 
 	const newEstat = isWalkover ? 'walkover' : 'jugada';
-	const { error: hmErr } = await supabase
+	const { data: hmRows, error: hmErr } = await supabase
 		.from('handicap_matches')
 		.update({ estat: newEstat, guanyador_participant_id: winnerParticipantId })
-		.eq('id', matchId);
+		.in('estat', ['programada', 'pendent'])
+		.eq('id', matchId)
+		.select('id');
 	if (hmErr) return { ok: false, error: `Error actualitzant partida: ${hmErr.message}` };
+	if (!hmRows || hmRows.length === 0) {
+		return { ok: false, error: 'La partida ja té resultat o no es troba en un estat vàlid per enregistrar-lo.' };
+	}
 
 	// ── 4. Propagació condicionada ────────────────────────────────────────────
 
@@ -279,11 +288,15 @@ export async function closeTournamentManual(
 	eventId: string
 ): Promise<{ ok: boolean; error?: string; pendingCount?: number }> {
 	// Verificar que no queden partides pendents o programades
-	const { data: pending } = await supabase
+	const { data: pending, error: pendingErr } = await supabase
 		.from('handicap_matches')
 		.select('id')
 		.eq('event_id', eventId)
 		.in('estat', ['pendent', 'programada']);
+
+	if (pendingErr) {
+		return { ok: false, error: `Error verificant partides pendents: ${pendingErr.message}` };
+	}
 
 	const pendingCount = pending?.length ?? 0;
 	if (pendingCount > 0) {

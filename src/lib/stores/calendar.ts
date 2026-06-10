@@ -284,6 +284,7 @@ export async function loadReptesProgramats(setLoading: boolean = true): Promise<
         reptat_soci_numero
       `)
       .not('data_programada', 'is', null)
+      .in('estat', ['programat', 'acceptat'])
       .order('data_programada', { ascending: true });
 
     if (error) {

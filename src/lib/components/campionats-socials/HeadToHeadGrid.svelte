@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { getHeadToHeadResults } from '$lib/api/socialLeagues';
 
   export let eventId: string;
@@ -21,23 +20,25 @@
     mitjana: number;
   }> = new Map();
 
-  onMount(() => {
-    loadHeadToHeadData();
-  });
+  // Inicialització gestionada per l'efecte reactiu $: if (categoriaId) més avall.
 
   // Recarregar dades quan canviï la categoria
   $: if (categoriaId) {
     loadHeadToHeadData();
   }
 
+  let loadHeadToHeadCounter = 0;
+
   async function loadHeadToHeadData() {
     if (!eventId || !categoriaId) return;
 
+    const myReq = ++loadHeadToHeadCounter;
     loading = true;
     error = null;
 
     try {
       const data = await getHeadToHeadResults(eventId, categoriaId);
+      if (myReq !== loadHeadToHeadCounter) return; // stale response
       players = data.players;
       matches = data.matches;
     } catch (err) {

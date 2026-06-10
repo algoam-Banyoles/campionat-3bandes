@@ -717,14 +717,21 @@ export function preSchedulingForBracketDetailed(
 	}
 
 	for (const m of playables) {
+		// Les partides de Gran Final (R1 i R2) fan de tancament del torneig:
+		// la seva deadline és data_fi (ja inicialitzat a la passada anterior).
+		// Si usàssim la data del successor (GF-R2 per a GF-R1) quedaria la
+		// deadline de GF-R1 anterior a la seva pròpia data programada (incoherent).
+		const s = slotById.get(m.slot1_id);
+		if (s?.bracket_type === 'grand_final') continue;
+
 		const succs = successorsOf.get(m.id) ?? [];
 		if (succs.length === 0) continue;
 		const succFirstDates: Date[] = [];
 		for (const sid of succs) {
 			const succMatch = playablesById.get(sid);
 			if (!succMatch) continue;
-			const s = slotById.get(succMatch.slot1_id);
-			const key = `${s?.bracket_type}-${s?.ronda}`;
+			const ss = slotById.get(succMatch.slot1_id);
+			const key = `${ss?.bracket_type}-${ss?.ronda}`;
 			const d = firstDateInRound.get(key);
 			if (d) succFirstDates.push(d);
 		}

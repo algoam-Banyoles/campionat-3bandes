@@ -54,7 +54,7 @@
 
 	onMount(async () => {
 		try {
-			const { data: ev, error: evErr } = await supabase
+			const { data: activeEv } = await supabase
 				.from('events')
 				.select('id, nom, temporada, data_inici, data_fi')
 				.eq('tipus_competicio', 'handicap')
@@ -62,7 +62,20 @@
 				.limit(1)
 				.maybeSingle();
 
-			if (evErr || !ev) {
+			let ev = activeEv;
+			if (!ev) {
+				// Fallback: event hàndicap més recent (pot estar finalitzat)
+				const { data: recentEv } = await supabase
+					.from('events')
+					.select('id, nom, temporada, data_inici, data_fi')
+					.eq('tipus_competicio', 'handicap')
+					.order('data_inici', { ascending: false })
+					.limit(1)
+					.maybeSingle();
+				ev = recentEv ?? null;
+			}
+
+			if (!ev) {
 				error = 'No hi ha cap torneig hàndicap actiu.';
 				loading = false;
 				return;

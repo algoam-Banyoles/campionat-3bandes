@@ -224,17 +224,21 @@
 			championParticipantId = notElim[0][0];
 			championName = notElim[0][1].name;
 		} else if (notElim.length > 1) {
-			// Trobar qui va guanyar la gran final
-			const gfMatch = rawMatches.find((m: any) => {
-				const s1 = slotMap.get(m.slot1_id);
-				return s1?.bracket_type === 'grand_final';
-			});
+			// Trobar qui va guanyar la gran final: prendre la GF amb ronda més alta
+			// (GF-R2 si s'ha jugat, GF-R1 si el guanyador del winners va guanyar directe)
+			const gfPlayed = rawMatches
+				.filter((m: any) => {
+					const s1 = slotMap.get(m.slot1_id);
+					return s1?.bracket_type === 'grand_final';
+				})
+				.sort((a: any, b: any) => ((slotMap.get(b.slot1_id)?.ronda ?? 0) as number) - ((slotMap.get(a.slot1_id)?.ronda ?? 0) as number));
+			const gfMatch = gfPlayed[0] ?? null;
 			if (gfMatch) {
 				const winnerId = gfMatch.guanyador_participant_id as string | null;
 				if (winnerId) {
 					championParticipantId = winnerId;
 					championName = partMap.get(winnerId)?.name ?? null;
-					// Subcampió = l'altre participant de la última GF
+					// Subcampió = l'altre participant de la GF definitiva
 					const s1 = slotMap.get(gfMatch.slot1_id);
 					const s2 = slotMap.get(gfMatch.slot2_id);
 					const loserId = s1?.participant_id === winnerId ? s2?.participant_id : s1?.participant_id;
