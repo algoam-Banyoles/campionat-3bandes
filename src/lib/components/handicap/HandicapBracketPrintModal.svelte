@@ -90,6 +90,7 @@
 	const V_CELL_H = 38;
 	const V_SLOT = 46;
 	const V_COL_GAP = 13;
+	const V_COL_GAP_WIN = 28; // gap horitzontal mes ample per als fulls de guanyadors
 	const V_HEADER_H = 7;
 	// Àrea útil (mm) d'un full A3 APAÏSAT (capçalera i marges descomptats).
 	const V_LAND_W = 388;
@@ -646,17 +647,20 @@
 		const baseCount = Math.max(1, main.filter((v) => v.ronda === mainRounds[0]).length);
 		const cellsAreaH = baseCount * V_SLOT;
 
+		// Guanyadors mes esponjats horitzontalment (aprofiten l'amplada sobrant
+		// del full, ja que l'escala la limita l'alcada).
+		const colGap = kind === 'winners' ? V_COL_GAP_WIN : V_COL_GAP;
 		const columns: TreeCol[] = [];
 		const colXByKey = new Map<string, number>();
 		let ci = 0;
 		for (const r of mainRounds) {
-			const x = ci * (V_CELL_W + V_COL_GAP);
+			const x = ci * (V_CELL_W + colGap);
 			columns.push({ x, label: treeRoundLabel(kind, r, mainRounds) });
 			colXByKey.set(`m${r}`, x);
 			ci++;
 		}
 		for (const r of gfRounds) {
-			const x = ci * (V_CELL_W + V_COL_GAP);
+			const x = ci * (V_CELL_W + colGap);
 			columns.push({ x, label: treeRoundLabel(kind, 0, [], true, r) });
 			colXByKey.set(`gf${r}`, x);
 			ci++;
@@ -986,7 +990,7 @@ ${printScript}
 														<span class="line"></span>
 													{/if}
 													{#if mv.result}
-														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia1 ?? ''}</span>
+														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia1 ?? mv.slot1Dist ?? ''}</span>
 														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles1 ?? '')}</span>
 													{:else}
 														{#if mv.slot1Dist != null}<span class="kv">Dist</span><span class="box small filled-box">{mv.slot1Dist}</span>{:else}<span class="kv">Dist</span><span class="box small"></span>{/if}
@@ -1008,7 +1012,7 @@ ${printScript}
 														<span class="line"></span>
 													{/if}
 													{#if mv.result}
-														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia2 ?? ''}</span>
+														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia2 ?? mv.slot2Dist ?? ''}</span>
 														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles2 ?? '')}</span>
 													{:else}
 														{#if mv.slot2Dist != null}<span class="kv">Dist</span><span class="box small filled-box">{mv.slot2Dist}</span>{:else}<span class="kv">Dist</span><span class="box small"></span>{/if}
@@ -1082,7 +1086,7 @@ ${printScript}
 														<span class="line"></span>
 													{/if}
 													{#if mv.result}
-														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia1 ?? ''}</span>
+														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia1 ?? mv.slot1Dist ?? ''}</span>
 														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles1 ?? '')}</span>
 													{:else}
 														{#if mv.slot1Dist != null}<span class="kv">Dist</span><span class="box small filled-box">{mv.slot1Dist}</span>{:else}<span class="kv">Dist</span><span class="box small"></span>{/if}
@@ -1104,7 +1108,7 @@ ${printScript}
 														<span class="line"></span>
 													{/if}
 													{#if mv.result}
-														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia2 ?? ''}</span>
+														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia2 ?? mv.slot2Dist ?? ''}</span>
 														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles2 ?? '')}</span>
 													{:else}
 														{#if mv.slot2Dist != null}<span class="kv">Dist</span><span class="box small filled-box">{mv.slot2Dist}</span>{:else}<span class="kv">Dist</span><span class="box small"></span>{/if}
@@ -1175,12 +1179,12 @@ ${printScript}
 											<div class="player-row" class:winner-row={cell.mv.result?.winnerSlot === 1} class:loser-row={!!cell.mv.result && cell.mv.result.winnerSlot === 2}>
 												<span class="label">{#if cell.mv.result?.winnerSlot === 1}<span class="winner-mark">▶</span>{/if}{cell.mv.bracket === 'winners' && cell.mv.ronda === 1 ? `#${cell.mv.slot1Pos}` : 'J1'}</span>
 												{#if cell.mv.slot1Name}<span class="line filled">{cell.mv.slot1Name}</span>{:else}<span class="line"></span>{/if}
-												{#if cell.mv.result}<span class="kv">D</span><span class="box small filled-box">{cell.mv.result.distancia1 ?? ''}</span><span class="kv">C</span><span class="box small filled-box">{cell.mv.result.isWalkover ? 'WO' : (cell.mv.result.caramboles1 ?? '')}</span>{:else}<span class="kv">D</span>{#if cell.mv.slot1Dist != null}<span class="box small filled-box">{cell.mv.slot1Dist}</span>{:else}<span class="box small"></span>{/if}<span class="kv">C</span><span class="box small"></span>{/if}
+												{#if cell.mv.result}<span class="kv">D</span><span class="box small filled-box">{cell.mv.result.distancia1 ?? cell.mv.slot1Dist ?? ''}</span><span class="kv">C</span><span class="box small filled-box">{cell.mv.result.isWalkover ? 'WO' : (cell.mv.result.caramboles1 ?? '')}</span>{:else}<span class="kv">D</span>{#if cell.mv.slot1Dist != null}<span class="box small filled-box">{cell.mv.slot1Dist}</span>{:else}<span class="box small"></span>{/if}<span class="kv">C</span><span class="box small"></span>{/if}
 											</div>
 											<div class="player-row" class:winner-row={cell.mv.result?.winnerSlot === 2} class:loser-row={!!cell.mv.result && cell.mv.result.winnerSlot === 1}>
 												<span class="label">{#if cell.mv.result?.winnerSlot === 2}<span class="winner-mark">▶</span>{/if}{cell.mv.bracket === 'winners' && cell.mv.ronda === 1 ? `#${cell.mv.slot2Pos}` : 'J2'}</span>
 												{#if cell.mv.slot2Name}<span class="line filled">{cell.mv.slot2Name}</span>{:else}<span class="line"></span>{/if}
-												{#if cell.mv.result}<span class="kv">D</span><span class="box small filled-box">{cell.mv.result.distancia2 ?? ''}</span><span class="kv">C</span><span class="box small filled-box">{cell.mv.result.isWalkover ? 'WO' : (cell.mv.result.caramboles2 ?? '')}</span>{:else}<span class="kv">D</span>{#if cell.mv.slot2Dist != null}<span class="box small filled-box">{cell.mv.slot2Dist}</span>{:else}<span class="box small"></span>{/if}<span class="kv">C</span><span class="box small"></span>{/if}
+												{#if cell.mv.result}<span class="kv">D</span><span class="box small filled-box">{cell.mv.result.distancia2 ?? cell.mv.slot2Dist ?? ''}</span><span class="kv">C</span><span class="box small filled-box">{cell.mv.result.isWalkover ? 'WO' : (cell.mv.result.caramboles2 ?? '')}</span>{:else}<span class="kv">D</span>{#if cell.mv.slot2Dist != null}<span class="box small filled-box">{cell.mv.slot2Dist}</span>{:else}<span class="box small"></span>{/if}<span class="kv">C</span><span class="box small"></span>{/if}
 											</div>
 											<div class="entries-row"><span class="kv">Ent</span>{#if cell.mv.result}<span class="box filled-box">{cell.mv.result.isWalkover ? 'WO' : (cell.mv.result.entrades ?? '')}</span>{:else}<span class="box"></span>{/if}</div>
 											{#if cell.mv.schedule}<div class="schedule-row"><span class="sched-slot">{fmtDate(cell.mv.schedule.dataProgramada)} · {cell.mv.schedule.horaInici} · B{cell.mv.schedule.taulaAssignada}</span><span class="sched-deadline">màx: {fmtDate(cell.mv.schedule.dataMaximaDisputa)}</span></div>{/if}

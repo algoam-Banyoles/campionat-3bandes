@@ -69,6 +69,15 @@ export function computeDeadlines(
 	const fallback = toIsoDay(dataFi);
 	const result = new Map<string, string | null>();
 	for (const m of matches) {
+		// La Gran Final (i el seu reset GF2) tanquen el torneig: la seva data
+		// màxima és la data_fi, NO la derivada del successor. El reset GF2 es
+		// programa just després de GF1 (sovint el mateix dia o l'endemà), així
+		// que usar la data de GF2 − 1 deixaria la màx de GF1 abans de la seva
+		// pròpia data programada (incoherent).
+		if (m.bracket_type === 'grand_final') {
+			result.set(m.id, fallback);
+			continue;
+		}
 		const succDates: string[] = [];
 		for (const slotId of [m.winner_slot_dest_id, m.loser_slot_dest_id]) {
 			if (!slotId) continue;
