@@ -444,7 +444,7 @@
         </div>
 
         <!-- Reset complet del campionat -->
-        <a href="/admin/reset-campionat?email={$user?.email || ''}" class="ad-card ad-card-danger">
+        <a href="/admin/reset-campionat" class="ad-card ad-card-danger">
           <div class="ad-card-eyebrow ad-card-eyebrow-danger">Operació destructiva</div>
           <h3 class="ad-card-title">Reset complet del campionat</h3>
           <p class="ad-card-body">

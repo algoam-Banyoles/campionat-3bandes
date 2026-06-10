@@ -252,10 +252,13 @@
   async function removeCategory(index: number) {
     const category = categories[index];
 
+    if (!confirm(`Segur que vols eliminar la categoria "${category.nom}"? Aquesta acció no es pot desfer.`)) {
+      return;
+    }
+
     if (!category.isNew && category.id) {
       try {
         // Check if category has any classifications
-    
         const { data: classifications } = await supabase
           .from('classificacions')
           .select('id')
@@ -263,7 +266,31 @@
           .limit(1);
 
         if (classifications && classifications.length > 0) {
-          error = 'No es pot eliminar una categoria amb jugadors assignats';
+          error = 'No es pot eliminar una categoria amb jugadors assignats a la classificació';
+          return;
+        }
+
+        // Check if category has any inscripcions
+        const { data: inscripcionsRef } = await supabase
+          .from('inscripcions')
+          .select('id')
+          .eq('categoria_assignada_id', category.id)
+          .limit(1);
+
+        if (inscripcionsRef && inscripcionsRef.length > 0) {
+          error = 'No es pot eliminar una categoria amb inscripcions associades';
+          return;
+        }
+
+        // Check if category has any partides
+        const { data: partides } = await supabase
+          .from('calendari_partides')
+          .select('id')
+          .eq('categoria_id', category.id)
+          .limit(1);
+
+        if (partides && partides.length > 0) {
+          error = 'No es pot eliminar una categoria amb partides programades';
           return;
         }
 
