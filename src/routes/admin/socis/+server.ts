@@ -1,13 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { serverSupabase } from '$lib/server/adminGuard';
+import { requireAdmin } from '$lib/server/adminGuard';
 import { supabaseAdmin } from '$lib/supabaseServiceClient';
-
-const ADMIN_EMAILS = [
-  'admin@campionat3bandes.com',
-  'junta@campionat3bandes.com',
-  'algoam@gmail.com'
-];
 
 function normalizeEmail(email: string | null | undefined): string | null {
   const cleaned = email?.trim().toLowerCase() ?? '';
@@ -17,11 +11,6 @@ function normalizeEmail(email: string | null | undefined): string | null {
 function toNullableString(value: unknown): string | null {
   const cleaned = String(value ?? '').trim();
   return cleaned.length > 0 ? cleaned : null;
-}
-
-function isMissingRelationError(error: any): boolean {
-  const code = String(error?.code ?? '');
-  return code === '42P01' || code === '42703';
 }
 
 function parseSociPayload(body: any) {
@@ -44,47 +33,10 @@ function parseSociPayload(body: any) {
   };
 }
 
-async function hasAdminAccess(email: string): Promise<boolean> {
-  const normalized = normalizeEmail(email);
-  if (!normalized) return false;
-
-  if (ADMIN_EMAILS.includes(normalized)) {
-    return true;
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from('admins')
-    .select('email')
-    .eq('email', normalized)
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error('Error checking admin access for socis POST:', error);
-    return false;
-  }
-
-  return Boolean(data);
-}
-
 export const POST: RequestHandler = async (event) => {
   try {
-    const supabase = serverSupabase(event);
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-
-    if (userError) {
-      return json({ error: userError.message }, { status: 500 });
-    }
-
-    const email = userData?.user?.email ?? null;
-    if (!email) {
-      return json({ error: 'No autenticat' }, { status: 401 });
-    }
-
-    const isAdmin = await hasAdminAccess(email);
-    if (!isAdmin) {
-      return json({ error: 'Nomes els administradors poden crear socis' }, { status: 403 });
-    }
+    const guard = await requireAdmin(event);
+    if (guard) return guard;
 
     const body = await event.request.json();
     const { numeroSoci, nom, cognoms, emailSoci, telefon, dataNaixement } = parseSociPayload(body);
@@ -138,22 +90,8 @@ export const POST: RequestHandler = async (event) => {
 
 export const PUT: RequestHandler = async (event) => {
   try {
-    const supabase = serverSupabase(event);
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-
-    if (userError) {
-      return json({ error: userError.message }, { status: 500 });
-    }
-
-    const email = userData?.user?.email ?? null;
-    if (!email) {
-      return json({ error: 'No autenticat' }, { status: 401 });
-    }
-
-    const isAdmin = await hasAdminAccess(email);
-    if (!isAdmin) {
-      return json({ error: 'Nomes els administradors poden editar socis' }, { status: 403 });
-    }
+    const guard = await requireAdmin(event);
+    if (guard) return guard;
 
     const body = await event.request.json();
     const numeroSociOriginal = Number.parseInt(String(body?.numero_soci_original ?? ''), 10);
@@ -209,92 +147,35 @@ export const PUT: RequestHandler = async (event) => {
       return json({ ok: true, numero_soci: numeroSoci, renumbered: false });
     }
 
-    const { data: targetSoci, error: targetError } = await supabaseAdmin
+    // Renumeració atòmica via funció PostgreSQL (tota l'operació en una sola transacció)
+    const { error: rpcError } = await supabaseAdmin.rpc('renumber_soci', {
+      old_numero: numeroSociOriginal,
+      new_numero: numeroSoci
+    });
+
+    if (rpcError) {
+      const msg = rpcError.message ?? '';
+      if (msg.includes('ja existeix') || msg.includes('duplicate') || rpcError.code === '23505') {
+        return json({ error: 'Ja existeix un soci amb aquest numero' }, { status: 409 });
+      }
+      return json({ error: msg || 'No s\'ha pogut renumerar el soci' }, { status: 500 });
+    }
+
+    // Actualitzar les dades del soci (nom, cognoms, etc.) al nou número
+    const { error: updateError } = await supabaseAdmin
       .from('socis')
-      .select('numero_soci')
-      .eq('numero_soci', numeroSoci)
-      .maybeSingle();
+      .update({
+        nom,
+        cognoms,
+        email: emailSoci,
+        telefon,
+        data_naixement: dataNaixement,
+        de_baixa: deBaixa
+      })
+      .eq('numero_soci', numeroSoci);
 
-    if (targetError) {
-      return json({ error: targetError.message }, { status: 500 });
-    }
-
-    if (targetSoci) {
-      return json({ error: 'Ja existeix un soci amb aquest numero' }, { status: 409 });
-    }
-
-    const { error: insertNewError } = await supabaseAdmin
-      .from('socis')
-      .insert([
-        {
-          numero_soci: numeroSoci,
-          nom,
-          cognoms,
-          email: emailSoci,
-          telefon,
-          data_naixement: dataNaixement,
-          de_baixa: deBaixa
-        }
-      ]);
-
-    if (insertNewError) {
-      return json({ error: insertNewError.message }, { status: 500 });
-    }
-
-    const propagatedRefs: Array<{ table: string; column: string }> = [];
-    const referenceMap = [
-      { table: 'players', column: 'numero_soci' },
-      { table: 'inscripcions', column: 'soci_numero' },
-      { table: 'mitjanes_historiques', column: 'soci_id' },
-      { table: 'calendari_partides', column: 'jugador1_soci_numero' },
-      { table: 'calendari_partides', column: 'jugador2_soci_numero' },
-      { table: 'calendari_partides', column: 'validat_per' },
-      { table: 'calendari_partides', column: 'aprovat_canvi_per' }
-    ];
-
-    try {
-      for (const ref of referenceMap) {
-        const { error: refUpdateError } = await supabaseAdmin
-          .from(ref.table)
-          .update({ [ref.column]: numeroSoci })
-          .eq(ref.column, numeroSociOriginal);
-
-        if (refUpdateError) {
-          if (isMissingRelationError(refUpdateError)) {
-            continue;
-          }
-          throw refUpdateError;
-        }
-
-        propagatedRefs.push(ref);
-      }
-
-      const { error: deleteOriginalError } = await supabaseAdmin
-        .from('socis')
-        .delete()
-        .eq('numero_soci', numeroSociOriginal);
-
-      if (deleteOriginalError) {
-        throw deleteOriginalError;
-      }
-    } catch (propagationError: any) {
-      for (let i = propagatedRefs.length - 1; i >= 0; i--) {
-        const ref = propagatedRefs[i];
-        await supabaseAdmin
-          .from(ref.table)
-          .update({ [ref.column]: numeroSociOriginal })
-          .eq(ref.column, numeroSoci);
-      }
-
-      await supabaseAdmin
-        .from('socis')
-        .delete()
-        .eq('numero_soci', numeroSoci);
-
-      return json(
-        { error: propagationError?.message || 'No s\'ha pogut propagar el nou numero de soci' },
-        { status: 500 }
-      );
+    if (updateError) {
+      return json({ error: updateError.message }, { status: 500 });
     }
 
     return json({ ok: true, numero_soci: numeroSoci, renumbered: true });
@@ -305,22 +186,8 @@ export const PUT: RequestHandler = async (event) => {
 
 export const PATCH: RequestHandler = async (event) => {
   try {
-    const supabase = serverSupabase(event);
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-
-    if (userError) {
-      return json({ error: userError.message }, { status: 500 });
-    }
-
-    const email = userData?.user?.email ?? null;
-    if (!email) {
-      return json({ error: 'No autenticat' }, { status: 401 });
-    }
-
-    const isAdmin = await hasAdminAccess(email);
-    if (!isAdmin) {
-      return json({ error: 'Nomes els administradors poden processar CSV de socis' }, { status: 403 });
-    }
+    const guard = await requireAdmin(event);
+    if (guard) return guard;
 
     const body = await event.request.json();
     const toAdd = Array.isArray(body?.toAdd) ? body.toAdd : [];

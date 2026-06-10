@@ -14,20 +14,34 @@ export function isParticipant(
   return meSociNumero === repte.reptador_soci_numero || meSociNumero === repte.reptat_soci_numero;
 }
 
-export async function acceptChallenge(supabase: SupabaseClient, id: string): Promise<void> {
-  const { error } = await supabase
-    .from('challenges')
-    .update({ estat: 'acceptat', data_acceptacio: new Date().toISOString() })
-    .eq('id', id);
-  if (error) throw new Error(error.message);
+/**
+ * Accepta un repte a través de l'endpoint servidor guardat.
+ * L'endpoint valida que l'estat sigui 'proposat' i que l'usuari sigui el reptat (o admin).
+ */
+export async function acceptChallenge(id: string): Promise<void> {
+  const res = await authFetch('/campionat-continu/reptes/accepta', {
+    method: 'POST',
+    body: JSON.stringify({ id, data_iso: null })
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || body?.ok === false) {
+    throw new Error(body?.error || 'Error acceptant el repte');
+  }
 }
 
-export async function refuseChallenge(supabase: SupabaseClient, id: string): Promise<void> {
-  const { error } = await supabase
-    .from('challenges')
-    .update({ estat: 'refusat' })
-    .eq('id', id);
-  if (error) throw new Error(error.message);
+/**
+ * Refusa un repte a través de l'endpoint servidor guardat.
+ * L'endpoint valida que l'estat sigui 'proposat' i que l'usuari sigui el reptat (o admin).
+ */
+export async function refuseChallenge(id: string): Promise<void> {
+  const res = await authFetch('/campionat-continu/reptes/refusa', {
+    method: 'POST',
+    body: JSON.stringify({ id })
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || body?.ok === false) {
+    throw new Error(body?.error || 'Error refusant el repte');
+  }
 }
 
 export async function scheduleChallenge(

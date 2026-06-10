@@ -50,18 +50,6 @@
   let data_joc_local = '';
 
 
-  function resultEnum():
-    | 'guanya_reptador'
-    | 'guanya_reptat'
-    | 'empat_tiebreak_reptador'
-    | 'empat_tiebreak_reptat' {
-    if (tipusResultat === 'incompareixenca_reptador') return 'guanya_reptat';
-    if (tipusResultat === 'incompareixenca_reptat') return 'guanya_reptador';
-    if (Number(carR) === Number(carT))
-      return Number(tbR) > Number(tbT) ? 'empat_tiebreak_reptador' : 'empat_tiebreak_reptat';
-    return Number(carR) > Number(carT) ? 'guanya_reptador' : 'guanya_reptat';
-  }
-
   const id = $page.params.id;
 
   onMount(load);
@@ -172,6 +160,15 @@
 
   $: valMsg = loading ? null : validate(parsedIso, tipusResultat);
 
+  // Mapa del tipus UI → vocabulari canònic que accepta el servidor
+  function tipusToEndpointValue(
+    tipus: 'normal' | 'incompareixenca_reptador' | 'incompareixenca_reptat'
+  ): 'normal' | 'walkover_reptador' | 'walkover_reptat' {
+    if (tipus === 'incompareixenca_reptador') return 'walkover_reptador';
+    if (tipus === 'incompareixenca_reptat') return 'walkover_reptat';
+    return 'normal';
+  }
+
   async function save() {
     error = null; okMsg = null; rpcMsg = null;
     if (valMsg) { error = valMsg; return; }
@@ -183,51 +180,31 @@
 
     try {
       saving = true;
-      const { supabase } = await import('$lib/supabaseClient');
+      const { authFetch } = await import('$lib/utils/http');
 
-      const isWalkover = tipusResultat !== 'normal';
       const isTie = tipusResultat === 'normal' && Number(carR) === Number(carT);
-      const resEnum = resultEnum();
-
-      const insertRow: any = {
-        challenge_id: id,
-        data_joc: parsedIso,
-        caramboles_reptador: isWalkover ? 0 : Number(carR),
-        caramboles_reptat:   isWalkover ? 0 : Number(carT),
-        entrades:            isWalkover ? 0 : Number(entrades),
-        serie_max_reptador: isWalkover ? 0 : Number(serieR),
-        serie_max_reptat:   isWalkover ? 0 : Number(serieT),
-        resultat: resEnum,
-        tiebreak: isTie,
-        tiebreak_reptador: isTie ? Number(tbR) : null,
-        tiebreak_reptat:   isTie ? Number(tbT) : null
+      const payload: Record<string, unknown> = {
+        data_iso: parsedIso,
+        tipusResultat: tipusToEndpointValue(tipusResultat),
+        carR: tipusResultat === 'normal' ? Number(carR) : 0,
+        carT: tipusResultat === 'normal' ? Number(carT) : 0,
+        entrades: tipusResultat === 'normal' ? Number(entrades) : 0,
+        serieR: tipusResultat === 'normal' ? Number(serieR) : 0,
+        serieT: tipusResultat === 'normal' ? Number(serieT) : 0,
+        tbR: isTie ? Number(tbR) : null,
+        tbT: isTie ? Number(tbT) : null,
       };
 
-      const { error: e1 } = await supabase
-        .from('matches')
-        .insert(insertRow)
-        .select('id')
-        .single();
-      if (e1) throw e1;
-
-      const { data: upd, error: e2 } = await supabase
-        .from('challenges')
-        .update({ estat: 'jugat' })
-        .eq('id', id)
-        .in('estat', ['acceptat', 'programat'])
-        .select('id');
-      if (e2) throw e2;
-      if (!upd || upd.length === 0) throw new Error('Estat no permet posar resultat');
-
-      // Aplicar resultat al rànquing (si tens la RPC creada)
-      const { data: d3, error: e3 } = await supabase.rpc('apply_match_result', { p_challenge: id });
-      if (e3) {
-        rpcMsg = `Rànquing NO actualitzat (RPC): ${e3.message}`;
-      } else {
-        const r = Array.isArray(d3) && d3[0] ? d3[0] : null;
-        if (r?.swapped) rpcMsg = 'Rànquing actualitzat: intercanvi de posicions fet.';
-        else rpcMsg = `Rànquing sense canvis${r?.reason ? ' (' + r.reason + ')' : ''}.`;
+      const res = await authFetch(
+        `/campionat-continu/gestio-reptes/${id}/resultat`,
+        { method: 'POST', body: JSON.stringify(payload) }
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body?.ok === false) {
+        throw new Error(body?.error ?? `Error ${res.status}`);
       }
+
+      rpcMsg = body.rpcMsg ?? null;
       okMsg = `Resultat desat correctament. Repte marcat com a "${CHALLENGE_STATE_LABEL.jugat.toLowerCase()}".`;
       await refreshRanking();
     } catch (e:any) {
@@ -303,7 +280,7 @@
           required
         />
         <p class="text-xs text-slate-500 mt-1">
-          Debug data: <code>{data_joc_local}</code> → <code>{parsedIso ?? 'INVALID'}</code>
+          Data seleccionada: <code>{data_joc_local || '—'}</code>
         </p>
       </div>
 
