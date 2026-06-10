@@ -804,7 +804,7 @@
 			}
 			.sched-slot { font-weight: 700; color: #1f1f1f; }
 			.sched-deadline { color: #a30b1e; font-weight: 600; }
-			.tree-wrap { position: relative; overflow: hidden; margin: 0 auto; }
+			.tree-wrap { position: relative; overflow: hidden; margin: 0; }
 			.tree-canvas { position: relative; transform-origin: 0 0; }
 			.tree-svg { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
 			.col-head { position: absolute; top: 0; height: 6mm; display: flex; align-items: center; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1f1f1f; border-left: 3px solid #1f1f1f; padding-left: 1.5mm; }
@@ -958,7 +958,7 @@ ${printScript}
 														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia1 ?? ''}</span>
 														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles1 ?? '')}</span>
 													{:else}
-														<span class="kv">Dist</span><span class="box small"></span>
+														{#if mv.slot1Dist != null}<span class="kv">Dist</span><span class="box small filled-box">{mv.slot1Dist}</span>{:else}<span class="kv">Dist</span><span class="box small"></span>{/if}
 														<span class="kv">Car</span><span class="box small"></span>
 													{/if}
 												</div>
@@ -980,7 +980,7 @@ ${printScript}
 														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia2 ?? ''}</span>
 														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles2 ?? '')}</span>
 													{:else}
-														<span class="kv">Dist</span><span class="box small"></span>
+														{#if mv.slot2Dist != null}<span class="kv">Dist</span><span class="box small filled-box">{mv.slot2Dist}</span>{:else}<span class="kv">Dist</span><span class="box small"></span>{/if}
 														<span class="kv">Car</span><span class="box small"></span>
 													{/if}
 												</div>
@@ -1054,7 +1054,7 @@ ${printScript}
 														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia1 ?? ''}</span>
 														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles1 ?? '')}</span>
 													{:else}
-														<span class="kv">Dist</span><span class="box small"></span>
+														{#if mv.slot1Dist != null}<span class="kv">Dist</span><span class="box small filled-box">{mv.slot1Dist}</span>{:else}<span class="kv">Dist</span><span class="box small"></span>{/if}
 														<span class="kv">Car</span><span class="box small"></span>
 													{/if}
 												</div>
@@ -1076,7 +1076,7 @@ ${printScript}
 														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia2 ?? ''}</span>
 														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles2 ?? '')}</span>
 													{:else}
-														<span class="kv">Dist</span><span class="box small"></span>
+														{#if mv.slot2Dist != null}<span class="kv">Dist</span><span class="box small filled-box">{mv.slot2Dist}</span>{:else}<span class="kv">Dist</span><span class="box small"></span>{/if}
 														<span class="kv">Car</span><span class="box small"></span>
 													{/if}
 												</div>
@@ -1342,7 +1342,7 @@ ${printScript}
 	.winner-row :global(.line.filled) { font-weight: 800; }
 	.winner-mark { color: #1d6e3a; font-weight: 800; margin-right: 0.6mm; }
 	.loser-row { opacity: 0.55; }
-	.tree-wrap { position: relative; overflow: hidden; margin: 0 auto; }
+	.tree-wrap { position: relative; overflow: hidden; margin: 0; }
 	.tree-canvas { position: relative; transform-origin: 0 0; }
 	.tree-svg { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
 	.col-head { position: absolute; top: 0; height: 6mm; display: flex; align-items: center; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #1f1f1f; border-left: 3px solid #1f1f1f; padding-left: 1.5mm; }
