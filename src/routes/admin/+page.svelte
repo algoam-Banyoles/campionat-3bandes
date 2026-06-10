@@ -90,7 +90,7 @@
       penaltyBusy = true;
       penaltyOk = null;
       penaltyErr = null;
-      const res = await authFetch('/reptes/penalitzacions', {
+      const res = await authFetch('/campionat-continu/reptes/penalitzacions', {
         method: 'POST',
         body: JSON.stringify({ challenge_id, tipus })
       });

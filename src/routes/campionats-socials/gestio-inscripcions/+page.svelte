@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
-  import { user } from '$lib/stores/auth';
+  import { user, isLoading } from '$lib/stores/auth';
   import { supabase } from '$lib/supabaseClient';
   import { adminChecked } from '$lib/stores/adminAuth';
   import { effectiveIsAdmin } from '$lib/stores/viewMode';
@@ -214,13 +214,12 @@
     if (unsubscribeRealtime) unsubscribeRealtime();
   });
 
-  onMount(async () => {
-    const u = $user;
-    if (!u?.email) {
-      goto('/login');
-      return;
-    }
+  // Redirigir a login només quan auth ha resolt (no durant 'loading').
+  $: if (!$isLoading && !$user) {
+    goto('/login');
+  }
 
+  onMount(async () => {
     try {
       loading = true;
       await Promise.all([loadEvents(), loadSocis()]);
@@ -619,7 +618,7 @@
   }
 
   function selectAllInscriptions() {
-    selectedInscriptions = inscriptions.map(i => i.id);
+    selectedInscriptions = filteredAndSortedInscriptions.map(i => i.id);
   }
 
   function clearSelection() {
@@ -1185,7 +1184,7 @@
                     <th class="px-6 py-3 text-left">
                       <input
                         type="checkbox"
-                        checked={selectedInscriptions.length === inscriptions.length && inscriptions.length > 0}
+                        checked={selectedInscriptions.length === filteredAndSortedInscriptions.length && filteredAndSortedInscriptions.length > 0}
                         on:change={(e) => e.target.checked ? selectAllInscriptions() : clearSelection()}
                         class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
                       />

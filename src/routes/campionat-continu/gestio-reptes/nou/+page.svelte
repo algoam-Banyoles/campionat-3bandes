@@ -70,13 +70,15 @@ import { CHALLENGE_STATE_LABEL } from '$lib/ui/challengeState';
     try {
       loading = true; error = null; okMsg = null;
 
-      isAdmin = true;
+      isAdmin = $effectiveIsAdmin;
 
       // 2) Event actiu
       const { data: ev, error: eEvent } = await supabase
         .from('events')
         .select('id, nom')
         .eq('actiu', true)
+        .eq('tipus_competicio', 'ranking_continu')
+        .order('data_inici', { ascending: false })
         .limit(1)
         .maybeSingle();
       if (eEvent) throw eEvent;

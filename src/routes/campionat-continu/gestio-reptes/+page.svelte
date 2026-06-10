@@ -154,7 +154,7 @@
       busy = r.id;
       error = null;
       okMsg = null;
-        const res = await authFetch('/reptes/accepta', {
+        const res = await authFetch('/campionat-continu/reptes/accepta', {
           method: 'POST',
           body: JSON.stringify({ id: r.id, data_iso: null })
         });

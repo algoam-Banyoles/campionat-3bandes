@@ -149,6 +149,23 @@
       return;
     }
 
+    if (entrades <= 0) {
+      error = 'Les entrades han de ser majors que 0';
+      return;
+    }
+
+    const distancia = selectedCategory?.distancia_caramboles;
+    if (distancia != null) {
+      if (caramboles_jugador1 > distancia) {
+        error = `Les caramboles del jugador 1 (${caramboles_jugador1}) superen la distància de la categoria (${distancia})`;
+        return;
+      }
+      if (caramboles_jugador2 > distancia) {
+        error = `Les caramboles del jugador 2 (${caramboles_jugador2}) superen la distància de la categoria (${distancia})`;
+        return;
+      }
+    }
+
     // Snapshot del que s'està guardant: així alliberem el formulari abans
     // d'esperar la xarxa i l'usuari pot començar el següent resultat.
     const matchToSave = selectedMatch;
@@ -333,7 +350,7 @@
     <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
       <div class="mb-4">
         <h2 class="text-xl font-semibold text-gray-900 mb-1">
-          {selectedEvent.modalitat?.toUpperCase()} {selectedEvent.temporada}
+          {({'tres_bandes': '3 Bandes', 'lliure': 'Lliure', 'banda': 'Banda'}[selectedEvent.modalitat] ?? selectedEvent.modalitat)} {selectedEvent.temporada}
         </h2>
         <p class="text-sm text-gray-600">{selectedEvent.nom}</p>
       </div>

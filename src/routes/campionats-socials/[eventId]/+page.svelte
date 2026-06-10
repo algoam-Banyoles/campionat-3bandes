@@ -1,15 +1,16 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { page } from '$app/stores';
+  import { browser } from '$app/environment';
   import { supabase } from '$lib/supabaseClient';
   import type { SocialLeagueEvent } from '$lib/types';
+  import { formatarNomJugador } from '$lib/utils/playerUtils';
 
   let event: SocialLeagueEvent | null = null;
   let loading = true;
   let error: string | null = null;
   let pageTitle = 'Event - Campionats Socials';
 
-  const eventId = $page.params.eventId;
+  $: eventId = $page.params.eventId;
 
   const modalityNames = {
     'tres_bandes': '3 Bandes',
@@ -17,17 +18,21 @@
     'banda': 'Banda'
   };
 
-  onMount(async () => {
-    if (!eventId) {
+  async function loadEvent(id: string) {
+    if (!id) {
       error = 'ID de l\'event no trobat';
       loading = false;
       return;
     }
 
+    loading = true;
+    error = null;
+    event = null;
+
     try {
       // Get basic event data using RPC for anonymous access
       const { data: eventResult, error: eventError } = await supabase
-        .rpc('get_event_public', { p_event_id: eventId });
+        .rpc('get_event_public', { p_event_id: id });
 
       const eventData = eventResult?.[0];
 
@@ -41,15 +46,15 @@
 
       // Get categories using RPC
       const { data: categoriesData, error: categoriesError } = await supabase
-        .rpc('get_categories_for_event', { p_event_id: eventId });
+        .rpc('get_categories_for_event', { p_event_id: id });
 
       if (categoriesError) throw categoriesError;
 
       // Get classifications using RPC
       const { data: classificationsData, error: classificationsError } = await supabase
-        .rpc('get_classifications_public', { 
-          event_id_param: eventId,
-          category_ids: null 
+        .rpc('get_classifications_public', {
+          event_id_param: id,
+          category_ids: null
         });
 
       if (classificationsError) throw classificationsError;
@@ -95,7 +100,9 @@
     } finally {
       loading = false;
     }
-  });
+  }
+
+  $: if (browser && eventId) loadEvent(eventId);
 </script>
 
 <svelte:head>
@@ -210,10 +217,10 @@
                         {#each category.classificacions as player, index}
                           <tr class="hover:bg-gray-50">
                             <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
-                              {index + 1}
+                              {player.posicio ?? (index + 1)}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                              <div class="text-sm font-medium text-gray-900">{player.player_nom}</div>
+                              <div class="text-sm font-medium text-gray-900">{formatarNomJugador(`${player.player_nom ?? ''} ${player.player_cognom ?? ''}`.trim())}</div>
                             </td>
                             <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                               {player.partides_jugades || 0}

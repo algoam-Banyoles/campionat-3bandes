@@ -62,6 +62,7 @@
 
   async function loadPlayerHistory() {
     if (!selectedPlayer) return;
+    lastLoadedModalitat = selectedModalitat;
 
     loadingHistory = true;
     try {
@@ -82,13 +83,12 @@
 
     loadingClassifications = true;
     try {
-      // Busquem per "nom cognoms" exacte i filtrem per numero_soci si cal.
-      const fullName = `${selectedPlayer.nom} ${selectedPlayer.cognoms}`.trim();
-      const matches = await searchPlayerInClassifications(fullName);
-      // L'API agrupa per nom; agafem el primer que coincideix amb l'expected
+      // Busquem per nom o cognom del jugador seleccionat i filtrem per coincidència exacta.
+      // No fem servir fallback a matches[0] per evitar mostrar dades d'un altre jugador homònim.
+      const matches = await searchPlayerInClassifications(selectedPlayer.nom);
       const found = matches.find(
         m => m.player.nom === selectedPlayer?.nom && m.player.cognom === selectedPlayer?.cognoms
-      ) ?? matches[0];
+      );
       playerClassifications = found?.classifications ?? [];
     } catch (e) {
       console.error('Error loading player classifications:', e);
@@ -98,7 +98,10 @@
     }
   }
 
-  $: if (selectedPlayer && selectedModalitat !== undefined) {
+  // Recarregar historial quan canvia la modalitat (inclòs tornar a "Totes"),
+  // sense duplicar la càrrega inicial feta a selectPlayer.
+  let lastLoadedModalitat: string | null = null;
+  $: if (selectedPlayer && selectedModalitat !== lastLoadedModalitat) {
     loadPlayerHistory();
   }
 

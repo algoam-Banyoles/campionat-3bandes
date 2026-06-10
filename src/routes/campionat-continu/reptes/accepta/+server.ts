@@ -90,22 +90,32 @@ export const POST: RequestHandler = async ({ request }) => {
       if (!dates.includes(data_iso)) {
         return json({ ok: false, error: 'Data no és a la llista proposada' }, { status: 400 });
       }
-      const { error: upErr } = await supabase
+      const { data: upData, error: upErr } = await supabase
         .from('challenges')
         .update({ estat: 'programat', data_acceptacio: now, data_programada: data_iso })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('estat', 'proposat')
+        .select('id');
       if (upErr) {
         if (isRlsError(upErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
         return json({ ok: false, error: upErr.message }, { status: 400 });
       }
+      if (!upData || upData.length === 0) {
+        return json({ ok: false, error: 'El repte ja no està en estat proposat' }, { status: 409 });
+      }
     } else {
-      const { error: upErr } = await supabase
+      const { data: upData, error: upErr } = await supabase
         .from('challenges')
         .update({ estat: 'acceptat', data_acceptacio: now, data_programada: null })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('estat', 'proposat')
+        .select('id');
       if (upErr) {
         if (isRlsError(upErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
         return json({ ok: false, error: upErr.message }, { status: 400 });
+      }
+      if (!upData || upData.length === 0) {
+        return json({ ok: false, error: 'El repte ja no està en estat proposat' }, { status: 409 });
       }
     }
 

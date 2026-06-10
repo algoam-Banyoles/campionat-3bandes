@@ -59,7 +59,8 @@
       .from('events')
       .select('id')
       .eq('actiu', true)
-      .order('creat_el', { ascending: false })
+      .eq('tipus_competicio', 'ranking_continu')
+      .order('data_inici', { ascending: false })
       .limit(1)
       .maybeSingle();
     if (error) throw error;
@@ -269,11 +270,7 @@
               <td class="p-2">{r.motiu ?? '—'}</td>
               <td class="p-2">
                 {#if r.ref_challenge}
-                  <a
-                    href={`/reptes/${r.ref_challenge}`}
-                    class="text-blue-600 underline"
-                    >{r.ref_challenge}</a
-                  >
+                  <span class="text-slate-700">{r.ref_challenge}</span>
                 {:else}
                   —
                 {/if}

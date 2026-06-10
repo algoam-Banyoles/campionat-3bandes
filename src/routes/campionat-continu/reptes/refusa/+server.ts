@@ -73,13 +73,18 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ ok: false, error: 'El repte no està en estat proposat' }, { status: 400 });
     }
 
-    const { error: upErr } = await supabase
+    const { data: upData, error: upErr } = await supabase
       .from('challenges')
       .update({ estat: 'refusat' })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('estat', 'proposat')
+      .select('id');
     if (upErr) {
       if (isRlsError(upErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
       return json({ ok: false, error: upErr.message }, { status: 400 });
+    }
+    if (!upData || upData.length === 0) {
+      return json({ ok: false, error: 'El repte ja no està en estat proposat' }, { status: 409 });
     }
 
     return json({ ok: true });

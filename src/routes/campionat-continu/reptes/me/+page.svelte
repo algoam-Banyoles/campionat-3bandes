@@ -17,6 +17,7 @@ type Challenge = {
   estat: 'proposat' | 'acceptat' | 'programat' | 'refusat' | 'caducat' | 'jugat' | 'anullat';
   dates_proposades: string[];
   data_proposta: string;
+  data_acceptacio: string | null;
   data_programada: string | null;
   reprogram_count: number;
   pos_reptador: number | null;
@@ -82,7 +83,7 @@ async function load() {
 
     const { data: ch, error: e2 } = await supabase
       .from('challenges')
-      .select('id,event_id,tipus,reptador_soci_numero,reptat_soci_numero,estat,dates_proposades,data_proposta,data_programada,reprogram_count,pos_reptador,pos_reptat')
+      .select('id,event_id,tipus,reptador_soci_numero,reptat_soci_numero,estat,dates_proposades,data_proposta,data_acceptacio,data_programada,reprogram_count,pos_reptador,pos_reptat')
       .or(`reptador_soci_numero.eq.${mySociNumero},reptat_soci_numero.eq.${mySociNumero}`)
       .order('data_proposta', { ascending: false });
     if (e2) throw e2;
@@ -236,7 +237,7 @@ async function accept(r: Challenge) {
   }
   try {
     busy = r.id;
-    const res = await authFetch('/reptes/accepta', {
+    const res = await authFetch('/campionat-continu/reptes/accepta', {
       method: 'POST',
       body: JSON.stringify({ id: r.id, data_iso: sel })
     });
@@ -257,7 +258,7 @@ async function refuse(r: Challenge) {
   try {
     const motiu = (refuseReason.get(r.id) ?? '').trim() || null;
     busy = r.id;
-    const res = await authFetch('/reptes/refusa', {
+    const res = await authFetch('/campionat-continu/reptes/refusa', {
       method: 'POST',
       body: JSON.stringify({ id: r.id, motiu })
     });
@@ -283,7 +284,7 @@ async function counter(r: Challenge) {
   }
   try {
     busy = r.id;
-    const res = await authFetch('/reptes/contraproposta', {
+    const res = await authFetch('/campionat-continu/reptes/contraproposta', {
       method: 'POST',
       body: JSON.stringify({ id: r.id, dates_iso: dates })
     });
@@ -307,9 +308,11 @@ async function saveSchedule(r: Challenge) {
     error = 'Cal indicar una data v\u00e0lida.';
     return;
   }
-  const maxDate = addDays(new Date(), settings.dies_jugar_despres_acceptar);
+  // La data límit es calcula des de data_acceptacio (si existeix) o des d'ara com a fallback
+  const baseDate = r.data_acceptacio ? new Date(r.data_acceptacio) : new Date();
+  const maxDate = addDays(baseDate, settings.dies_jugar_despres_acceptar);
   if (new Date(parsedIso) > maxDate) {
-    error = `La data ha d'estar dins de ${settings.dies_jugar_despres_acceptar} dies.`;
+    error = `La data ha d'estar dins de ${settings.dies_jugar_despres_acceptar} dies des de l'acceptació.`;
     return;
   }
   try {
@@ -420,12 +423,12 @@ async function saveSchedule(r: Challenge) {
           {#if r.estat === 'proposat'}
             <div class="text-xs text-red-600">Acceptar abans de: {deadlineAccept(r)}</div>
               {#if isExpiredAccept(r)}
-                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Repte caducat per no acceptar a temps. Penalització automàtica aplicada.</div>
+                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Termini d'acceptació vençut — pendent de penalització.</div>
               {/if}
           {:else if ['acceptat', 'programat'].includes(r.estat)}
             <div class="text-xs text-red-600">Jugar abans de: {deadlinePlay(r)}</div>
               {#if isExpiredPlay(r)}
-                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Repte caducat per no jugar a temps. Penalització automàtica aplicada.</div>
+                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Termini de joc vençut — pendent de penalització.</div>
               {/if}
           {/if}
 

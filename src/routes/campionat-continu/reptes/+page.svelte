@@ -306,10 +306,10 @@
             </div>
             <div class="text-sm text-slate-600">Reprogramacions: {r.reprogramacions ?? 0} / {reproLimit}</div>
               {#if isExpiredAccept(r)}
-                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Repte caducat per no acceptar a temps. Penalització automàtica aplicada.</div>
+                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Termini d'acceptació vençut — pendent de penalització.</div>
               {/if}
               {#if isExpiredPlay(r)}
-                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Repte caducat per no jugar a temps. Penalització automàtica aplicada.</div>
+                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Termini de joc vençut — pendent de penalització.</div>
               {/if}
             {#if mySociNumero === r.reptat_soci_numero && r.estat === 'proposat'}
               <div class="mt-2 flex gap-2">

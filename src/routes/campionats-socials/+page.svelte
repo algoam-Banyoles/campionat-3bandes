@@ -208,45 +208,6 @@
     }, 250);
   }
 
-  // Funció manual per recalcular filtres i fer debug
-  function recalculateFilters() {
-    // Test manual dels filtres
-    const prep = events.filter(e => e.actiu && (
-      e.estat_competicio === 'preparacio' ||
-      e.estat_competicio === 'planificacio' ||
-      e.estat_competicio === 'inscripcions_obertes' ||
-      e.estat_competicio === 'pendent' ||
-      e.estat_competicio === 'pendent_validacio' ||
-      e.estat_competicio === 'inscripcions' ||
-      e.estat_competicio === 'configuracio' ||
-      e.estat_competicio === 'programacio' ||
-      !e.estat_competicio ||
-      e.estat_competicio === ''
-    ));
-    
-    const active = events.filter(e => e.actiu && (
-      e.estat_competicio === 'en_curs' ||
-      e.estat_competicio === 'en_progres' ||
-      e.estat_competicio === 'actiu' ||
-      e.estat_competicio === 'ongoing'
-    ));
-    
-    // També escriu l'info en el document
-    if (typeof document !== 'undefined') {
-      const debugDiv = document.createElement('div');
-      debugDiv.style.cssText = 'position:fixed;top:50px;left:0;background:lightblue;padding:10px;z-index:9999;font-size:12px;';
-      debugDiv.innerHTML = `🔧 Manual recompute: prep = ${prep.length}, active = ${active.length}`;
-      document.body.appendChild(debugDiv);
-      
-      // Eliminar després de 5 segons
-      setTimeout(() => debugDiv.remove(), 5000);
-    }
-    
-    // Forçar reassignació per triggerejar reactius
-    preparationEvents = prep;
-    activeEvents = active;
-  }
-
   // Events amb inscripcions obertes
   $: openRegistrations = events.filter(e => e.actiu && (
     e.estat_competicio === 'inscripcions_obertes' ||
