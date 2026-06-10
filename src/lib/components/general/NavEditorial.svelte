@@ -62,10 +62,13 @@
       ],
       userLinks: [
         { href: '/campionat-continu/reptes/nou', label: 'Crear nou repte' },
-        { href: '/campionat-continu/reptes/me', label: 'Els meus reptes actius' }
+        { href: '/campionat-continu/reptes/me', label: 'Els meus reptes actius' },
+        { href: '/campionat-continu/inscripcio', label: "Inscriure's al rànquing" }
       ],
       adminLinks: [
         { href: '/campionat-continu/gestio-inscripcions', label: 'Gestió d\'inscripcions' },
+        { href: '/campionat-continu/gestio-reptes', label: 'Gestió de reptes' },
+        { href: '/campionat-continu/gestio-llista-espera', label: "Gestió de llista d'espera" },
         { href: '/campionat-continu/ranking-inicial', label: 'Crear rànquing inicial' },
         { href: '/campionat-continu/historial-canvis-ranking', label: 'Canvis de posició' }
       ]
