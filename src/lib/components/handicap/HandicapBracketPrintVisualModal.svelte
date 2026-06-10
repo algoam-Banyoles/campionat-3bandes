@@ -552,33 +552,33 @@
 				letter-spacing: 0.06em; color: #1f1f1f;
 				border-bottom: 1.5px solid #1f1f1f; padding-bottom: 1.5mm; text-align: center;
 			}
-			.round-matches { display: flex; flex-direction: column; gap: 4mm; }
+			.round-matches { display: flex; flex-direction: column; gap: 3.5mm; }
 			.match-cell {
 				border: 1.5px solid #1f1f1f;
 				padding: 2mm;
 				display: flex; flex-direction: column; gap: 1mm;
-				font-size: 8pt;
+				font-size: 8.5pt;
 				min-height: 32mm; height: 32mm;
 				box-sizing: border-box;
 			}
 			.cell-head {
 				display: flex; justify-content: space-between; align-items: baseline;
-				font-size: 7.5pt; border-bottom: 1px solid #999;
+				font-size: 8pt; border-bottom: 1px solid #999;
 				padding-bottom: 0.5mm; gap: 1.5mm;
 			}
-			.match-code { font-weight: 800; font-size: 9.5pt; letter-spacing: 0.04em; }
-			.arrows { display: flex; gap: 1.5mm; flex-wrap: wrap; font-size: 7pt; color: #333; }
+			.match-code { font-weight: 800; font-size: 10pt; letter-spacing: 0.04em; }
+			.arrows { display: flex; gap: 1.5mm; flex-wrap: wrap; font-size: 7.5pt; color: #333; }
 			.arrows strong { font-weight: 700; }
 	.arrow-win { color: #1d6e3a; }
 	.arrow-lose { color: #a30b1e; }
 	.arrow-win strong, .arrow-lose strong { color: inherit; }
-			.player-row, .entries-row { display: flex; align-items: center; gap: 1mm; font-size: 7.5pt; }
-			.label { font-weight: 700; font-size: 7pt; color: #555; min-width: 4mm; }
-			.kv { font-size: 7pt; color: #555; font-weight: 600; }
+			.player-row, .entries-row { display: flex; align-items: center; gap: 1mm; font-size: 8pt; }
+			.label { font-weight: 700; font-size: 7.25pt; color: #555; min-width: 4mm; }
+			.kv { font-size: 7.25pt; color: #555; font-weight: 600; }
 			.line { flex: 1; border-bottom: 1px solid #1f1f1f; height: 4.5mm; }
 			.line.filled {
 				display: flex; align-items: center;
-				font-size: 7.5pt; font-weight: 700; color: #1f1f1f;
+				font-size: 8pt; font-weight: 700; color: #1f1f1f;
 				padding: 0 1mm; line-height: 4.5mm; height: 4.5mm;
 				white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 				min-width: 0;
@@ -587,7 +587,7 @@
 			.box.small { width: 7mm; }
 			.box.filled-box {
 				display: inline-flex; align-items: center; justify-content: center;
-				font-size: 7pt; font-weight: 700; color: #1f1f1f; background: #f5f5f5;
+				font-size: 7.5pt; font-weight: 700; color: #1f1f1f; background: #f5f5f5;
 			}
 			.winner-row { font-weight: 800; }
 			.winner-row .line.filled { font-weight: 800; }
@@ -885,30 +885,30 @@ ${printScript}
 	}
 	.round-matches {
 		display: flex; flex-direction: column;
-		gap: 3mm;
+		gap: 3.5mm;
 	}
 	.match-cell {
 		border: 1.5px solid #1f1f1f;
 		padding: 1.75mm 2mm 1.5mm;
 		display: flex; flex-direction: column; gap: 0.85mm;
-		font-size: 8.25pt;
+		font-size: 8.5pt;
 		min-height: 33.5mm; height: 33.5mm;
 		box-sizing: border-box;
 	}
 	.cell-head {
 		display: flex; justify-content: space-between; align-items: baseline;
-		font-size: 8pt;
+		font-size: 8.25pt;
 		border-bottom: 1px solid #999;
 		padding-bottom: 0.75mm;
 		gap: 1.5mm;
 	}
-	.match-code { font-weight: 800; font-size: 10pt; letter-spacing: 0.04em; }
-	.arrows { display: flex; gap: 1.2mm; flex-wrap: wrap; font-size: 7.5pt; color: #333; }
+	.match-code { font-weight: 800; font-size: 10.5pt; letter-spacing: 0.04em; }
+	.arrows { display: flex; gap: 1.2mm; flex-wrap: wrap; font-size: 7.75pt; color: #333; }
 	.arrows strong { font-weight: 700; }
 	.arrow-win { color: #1d6e3a; }
 	.arrow-lose { color: #a30b1e; }
 	.arrow-win strong, .arrow-lose strong { color: inherit; }
-	.player-row, .entries-row { display: flex; align-items: center; gap: 1mm; font-size: 8pt; }
+	.player-row, .entries-row { display: flex; align-items: center; gap: 1mm; font-size: 8.25pt; }
 	.schedule-row {
 		display: flex; justify-content: space-between; align-items: baseline;
 		gap: 1.5mm; margin-top: 0.5mm; padding-top: 0.5mm;
@@ -917,12 +917,12 @@ ${printScript}
 	}
 	.sched-slot { font-weight: 700; color: #1f1f1f; }
 	.sched-deadline { color: #a30b1e; font-weight: 600; }
-	.label { font-weight: 700; font-size: 7.25pt; color: #555; min-width: 4mm; }
-	.kv { font-size: 7.25pt; color: #555; font-weight: 600; }
+	.label { font-weight: 700; font-size: 7.5pt; color: #555; min-width: 4mm; }
+	.kv { font-size: 7.5pt; color: #555; font-weight: 600; }
 	.line { flex: 1; border-bottom: 1px solid #1f1f1f; height: 4.75mm; }
 	.line.filled {
 		display: flex; align-items: center;
-		font-size: 8pt; font-weight: 700; color: #1f1f1f;
+		font-size: 8.5pt; font-weight: 700; color: #1f1f1f;
 		padding: 0 1mm; line-height: 4.75mm; height: 4.75mm;
 		white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 		min-width: 0;
@@ -931,7 +931,7 @@ ${printScript}
 	.box.small { width: 7.5mm; }
 	.box.filled-box {
 		display: inline-flex; align-items: center; justify-content: center;
-		font-size: 7.5pt; font-weight: 700; color: #1f1f1f; background: #f5f5f5;
+		font-size: 8pt; font-weight: 700; color: #1f1f1f; background: #f5f5f5;
 	}
 	.winner-row { font-weight: 800; }
 	.winner-row :global(.line.filled) { font-weight: 800; }
