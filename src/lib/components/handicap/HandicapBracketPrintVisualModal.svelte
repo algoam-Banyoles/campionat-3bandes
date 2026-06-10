@@ -6,7 +6,6 @@
 	import { preSchedulingForBracket, type ScheduledMatch } from '$lib/utils/handicap-pre-scheduler';
 	import { computeDeadlines } from '$lib/utils/handicap-deadlines';
 	import { printPortal } from '$lib/utils/print-portal';
-	import { loadLogoDataUrl } from '$lib/utils/load-logo';
 	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 
 	let logoDataUrl = '';
@@ -17,8 +16,6 @@
 	export let eventTemporada: string = '';
 	export let onClose: () => void = () => {};
 
-	$: temporadaPretty = (eventTemporada || '').replace('-', '/');
-
 	type Bracket = 'winners' | 'losers' | 'grand_final';
 	type Slot = {
 		id: string;
@@ -28,22 +25,26 @@
 		participant_id?: string | null;
 		is_bye?: boolean;
 	};
+
 	type MatchRaw = {
 		id: string;
 		slot1_id: string;
 		slot2_id: string;
 		winner_slot_dest_id: string | null;
 		loser_slot_dest_id: string | null;
-		estat?: string;
+		estat: string;
 		guanyador_participant_id?: string | null;
 		distancia_jugador1?: number | null;
 		distancia_jugador2?: number | null;
 		caramboles1?: number | null;
 		caramboles2?: number | null;
 		entrades?: number | null;
+		calendari_partida_id?: string | null;
+		[key: string]: any;
 	};
+
 	type MatchResult = {
-		estat: 'jugada' | 'walkover';
+		estat: string;
 		isWalkover: boolean;
 		caramboles1: number | null;
 		caramboles2: number | null;
@@ -52,37 +53,41 @@
 		distancia2: number | null;
 		winnerSlot: 1 | 2 | null;
 	};
+
 	type MatchView = {
 		id: string;
 		code: string;
 		bracket: Bracket;
 		ronda: number;
-		posicioMin: number;
-		slot1Pos: number;
-		slot2Pos: number;
 		slot1Name: string | null;
 		slot2Name: string | null;
 		winnerDest: string;
 		loserDest: string;
-		schedule?: ScheduledMatch | null;
+		slot1Pos?: number;
+		slot2Pos?: number;
+		slot1Dist?: number | null;
+		slot2Dist?: number | null;
 		result?: MatchResult | null;
+		schedule?: ScheduledMatch;
+		[key: string]: any;
 	};
 
-	type PageDef = {
+	type PrintPage = {
 		title: string;
 		sectionLabel: string;
 		columns: Array<{ rondaLabel: string; matches: MatchView[] }>;
 	};
 
+	type PageDef = PrintPage;
+
 	let loading = true;
 	let error: string | null = null;
-	let pages: PageDef[] = [];
 	let hasRealBracket = false;
+	let pages: PrintPage[] = [];
+	const temporadaPretty = eventTemporada.trim();
 
 	let inputCount = participantCount ?? 32;
-
 	onMount(async () => {
-		logoDataUrl = await loadLogoDataUrl();
 		await loadAll();
 	});
 
@@ -830,8 +835,8 @@ ${printScript}
 
 	.print-page {
 		background: white;
-		width: 420mm; height: 287mm; /* buffer 10mm */
-		padding: 8mm 10mm;
+		width: 410mm; height: 287mm; /* buffer 10mm */
+		padding: 5mm 4mm 3mm;
 		margin: 0 auto 1rem auto;
 		box-sizing: border-box;
 		display: flex; flex-direction: column;
@@ -842,13 +847,13 @@ ${printScript}
 
 	.page-head {
 		display: flex; justify-content: space-between; align-items: center;
-		border-bottom: 2px solid #1f1f1f; padding-bottom: 3mm; margin-bottom: 3mm;
-		gap: 6mm; flex: none;
+		border-bottom: 2px solid #1f1f1f; padding-bottom: 2mm; margin-bottom: 2.5mm;
+		gap: 5mm; flex: none;
 	}
 	.page-head-left { display: flex; align-items: center; gap: 5mm; min-width: 0; }
 	.page-logo {
 		/* viewBox 1024×1536 → ratio 2:3 */
-		height: 16mm; width: 11mm; flex: none;
+		height: 17mm; width: 11.5mm; flex: none;
 		object-fit: contain;
 		display: inline-flex; align-items: center; justify-content: center;
 	}
@@ -856,81 +861,81 @@ ${printScript}
 		width: 100%; height: 100%; display: block;
 	}
 	.page-head-titles { display: flex; flex-direction: column; gap: 1mm; min-width: 0; }
-	.page-title-main { font-weight: 800; font-size: 14pt; letter-spacing: 0.02em; line-height: 1.1; text-transform: uppercase; }
-	.page-section { font-size: 10pt; color: #444; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+	.page-title-main { font-weight: 800; font-size: 15pt; letter-spacing: 0.02em; line-height: 1.1; text-transform: uppercase; }
+	.page-section { font-size: 10.5pt; color: #444; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
 	.page-sub { font-size: 9pt; color: #555; text-align: right; }
 
 	.bracket-flow {
 		display: flex;
 		flex: 1;
-		gap: 4mm;
+		gap: 3mm;
 		min-height: 0;
 	}
 	.round-col {
 		display: flex; flex-direction: column;
 		flex: 1; min-width: 0;
-		gap: 3mm;
+		gap: 2.5mm;
 	}
 	.round-label {
-		font-size: 9pt; font-weight: 700; text-transform: uppercase;
+		font-size: 9.5pt; font-weight: 700; text-transform: uppercase;
 		letter-spacing: 0.06em; color: #1f1f1f;
 		border-bottom: 1.5px solid #1f1f1f;
-		padding-bottom: 1.5mm;
+		padding-bottom: 1mm;
 		text-align: center;
 	}
 	.round-matches {
 		display: flex; flex-direction: column;
-		gap: 4mm;
+		gap: 3mm;
 	}
 	.match-cell {
 		border: 1.5px solid #1f1f1f;
-		padding: 2mm;
-		display: flex; flex-direction: column; gap: 1mm;
-		font-size: 8pt;
-		min-height: 32mm; height: 32mm;
+		padding: 1.75mm 2mm 1.5mm;
+		display: flex; flex-direction: column; gap: 0.85mm;
+		font-size: 8.25pt;
+		min-height: 33.5mm; height: 33.5mm;
 		box-sizing: border-box;
 	}
 	.cell-head {
 		display: flex; justify-content: space-between; align-items: baseline;
-		font-size: 7.5pt;
+		font-size: 8pt;
 		border-bottom: 1px solid #999;
-		padding-bottom: 0.5mm;
+		padding-bottom: 0.75mm;
 		gap: 1.5mm;
 	}
-	.match-code { font-weight: 800; font-size: 9.5pt; letter-spacing: 0.04em; }
-	.arrows { display: flex; gap: 1.5mm; flex-wrap: wrap; font-size: 7pt; color: #333; }
+	.match-code { font-weight: 800; font-size: 10pt; letter-spacing: 0.04em; }
+	.arrows { display: flex; gap: 1.2mm; flex-wrap: wrap; font-size: 7.5pt; color: #333; }
 	.arrows strong { font-weight: 700; }
 	.arrow-win { color: #1d6e3a; }
 	.arrow-lose { color: #a30b1e; }
 	.arrow-win strong, .arrow-lose strong { color: inherit; }
-	.player-row, .entries-row { display: flex; align-items: center; gap: 1mm; font-size: 7.5pt; }
+	.player-row, .entries-row { display: flex; align-items: center; gap: 1mm; font-size: 8pt; }
 	.schedule-row {
 		display: flex; justify-content: space-between; align-items: baseline;
-		gap: 1.5mm; margin-top: 0.6mm; padding-top: 0.6mm;
+		gap: 1.5mm; margin-top: 0.5mm; padding-top: 0.5mm;
 		border-top: 1px dashed #999;
-		font-size: 6.5pt;
+		font-size: 6.75pt;
 	}
 	.sched-slot { font-weight: 700; color: #1f1f1f; }
 	.sched-deadline { color: #a30b1e; font-weight: 600; }
-	.label { font-weight: 700; font-size: 7pt; color: #555; min-width: 4mm; }
-	.kv { font-size: 7pt; color: #555; font-weight: 600; }
-	.line { flex: 1; border-bottom: 1px solid #1f1f1f; height: 4.5mm; }
+	.label { font-weight: 700; font-size: 7.25pt; color: #555; min-width: 4mm; }
+	.kv { font-size: 7.25pt; color: #555; font-weight: 600; }
+	.line { flex: 1; border-bottom: 1px solid #1f1f1f; height: 4.75mm; }
 	.line.filled {
 		display: flex; align-items: center;
-		font-size: 7.5pt; font-weight: 700; color: #1f1f1f;
-		padding: 0 1mm; line-height: 4.5mm; height: 4.5mm;
+		font-size: 8pt; font-weight: 700; color: #1f1f1f;
+		padding: 0 1mm; line-height: 4.75mm; height: 4.75mm;
 		white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 		min-width: 0;
 	}
-	.box { display: inline-block; border: 1px solid #1f1f1f; height: 4.5mm; width: 10mm; }
-	.box.small { width: 7mm; }
+	.box { display: inline-block; border: 1px solid #1f1f1f; height: 4.75mm; width: 10.5mm; }
+	.box.small { width: 7.5mm; }
 	.box.filled-box {
 		display: inline-flex; align-items: center; justify-content: center;
-		font-size: 7pt; font-weight: 700; color: #1f1f1f; background: #f5f5f5;
+		font-size: 7.5pt; font-weight: 700; color: #1f1f1f; background: #f5f5f5;
 	}
 	.winner-row { font-weight: 800; }
 	.winner-row :global(.line.filled) { font-weight: 800; }
-	.winner-mark { color: #1d6e3a; font-weight: 800; margin-right: 0.4mm; }
+	.winner-mark { color: #1d6e3a; font-weight: 800; margin-right: 0.5mm; }
 	.loser-row { opacity: 0.55; }
 
 	@media print {
