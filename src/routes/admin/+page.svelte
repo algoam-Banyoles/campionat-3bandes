@@ -312,6 +312,12 @@
           <h3 class="ad-card-title">Editor de pàgina principal</h3>
           <p class="ad-card-body">Horaris d'obertura, normativa i serveis al soci.</p>
         </a>
+
+        <a href="/admin/partides" class="ad-card">
+          <div class="ad-card-eyebrow">Partides</div>
+          <h3 class="ad-card-title">Gestió de partides</h3>
+          <p class="ad-card-body">Resultats i programació de totes les competicions.</p>
+        </a>
       </div>
     </section>
 
