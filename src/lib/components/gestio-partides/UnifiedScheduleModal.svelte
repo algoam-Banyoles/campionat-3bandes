@@ -55,6 +55,26 @@
   $: continuMeta = match?.source === 'continu'  ? (match.meta as ContinuMeta)  : null;
   $: handicapMeta = match?.source === 'handicap' ? (match.meta as HandicapMeta) : null;
 
+  // ── Pista de disponibilitat (hàndicap) ───────────────────────────────────
+
+  function formatPref(pref: { dies: string[]; hores: string[] } | null | undefined): string {
+    if (!pref) return 'sense restriccions';
+    const dies = pref.dies?.length ? pref.dies.join(', ') : null;
+    const hores = pref.hores?.length ? pref.hores.join(', ') : null;
+    if (!dies && !hores) return 'sense restriccions';
+    const parts: string[] = [];
+    if (dies) parts.push(`dies ${dies}`);
+    if (hores) parts.push(`hores ${hores}`);
+    return parts.join(' · ');
+  }
+
+  $: availabilityHint = (() => {
+    if (match?.source !== 'handicap' || !handicapMeta) return null;
+    const p1 = formatPref(handicapMeta.player1Preferencies);
+    const p2 = formatPref(handicapMeta.player2Preferencies);
+    return `Preferències: ${match.player1.displayName} ${p1} — ${match.player2.displayName} ${p2}`;
+  })();
+
   // ── Billar visible (ocult per al continu) ─────────────────────────────────────
 
   $: showBillar = match?.source !== 'continu';
@@ -196,6 +216,10 @@
               Obrir el planificador complet →
             </a>
           </div>
+        {/if}
+
+        {#if availabilityHint}
+          <div class="avail-hint">{availabilityHint}</div>
         {/if}
 
         <form on:submit|preventDefault={handleSubmit}>
@@ -423,6 +447,13 @@
     text-decoration: underline;
   }
   .info-link:hover { opacity: 0.75; }
+
+  /* Pista de disponibilitat (hàndicap) */
+  .avail-hint {
+    font-size: 0.8125rem;
+    color: var(--ink-3);
+    line-height: 1.45;
+  }
 
   /* Formulari */
   .form-grid {

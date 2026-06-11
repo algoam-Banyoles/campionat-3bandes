@@ -117,7 +117,7 @@ export const handicapAdapter: MatchAdapter = {
       const { data: parts } = await supabase
         .from('handicap_participants')
         .select(
-          'id, distancia, seed, soci_numero, socis!handicap_participants_soci_numero_fkey(nom, cognoms)'
+          'id, distancia, seed, soci_numero, preferencies_dies, preferencies_hores, socis!handicap_participants_soci_numero_fkey(nom, cognoms)'
         )
         .in('id', participantIds);
 
@@ -214,6 +214,13 @@ export const handicapAdapter: MatchAdapter = {
         const status = mapEstat(m.estat as string);
         const bothResolved = !!(slot1?.participant_id && slot2?.participant_id);
 
+        const buildPref = (p: any | null): { dies: string[]; hores: string[] } | null => {
+          if (!p) return null;
+          const dies: string[] = Array.isArray(p.preferencies_dies) ? (p.preferencies_dies as string[]) : [];
+          const hores: string[] = Array.isArray(p.preferencies_hores) ? (p.preferencies_hores as string[]) : [];
+          return { dies, hores };
+        };
+
         const meta: HandicapMeta = {
           source: 'handicap',
           eventId,
@@ -228,7 +235,9 @@ export const handicapAdapter: MatchAdapter = {
           player1Distancia: p1?.distancia ?? (m.distancia_jugador1 as number | null) ?? null,
           player2Distancia: p2?.distancia ?? (m.distancia_jugador2 as number | null) ?? null,
           sistemaPuntuacio,
-          limitEntrades
+          limitEntrades,
+          player1Preferencies: buildPref(p1),
+          player2Preferencies: buildPref(p2)
         };
 
         // Capabilities: no podem entrar resultat si un jugador no és determinat

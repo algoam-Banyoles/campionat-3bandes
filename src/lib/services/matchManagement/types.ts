@@ -89,6 +89,10 @@ export interface HandicapMeta {
   player2Distancia: number | null;
   sistemaPuntuacio: string;
   limitEntrades: number | null;
+  /** Preferències de disponibilitat del jugador 1 (null = no determinat) */
+  player1Preferencies: { dies: string[]; hores: string[] } | null;
+  /** Preferències de disponibilitat del jugador 2 (null = no determinat) */
+  player2Preferencies: { dies: string[]; hores: string[] } | null;
 }
 
 export type UnifiedMeta = SocialMeta | ContinuMeta | HandicapMeta;

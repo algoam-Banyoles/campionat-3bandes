@@ -321,6 +321,7 @@ describe('handicap-pre-scheduler', () => {
 		const participants = fakeParticipants(16);
 		const bracket = generateDoublEliminationBracket('evX', participants);
 		const matches = bracket.matches.filter(m => m.estat !== 'bye');
+		const slotsById = new Map(bracket.slots.map(s => [s.id, s]));
 
 		const scheduled = preSchedulingForBracket(
 			bracket.slots,
@@ -336,6 +337,9 @@ describe('handicap-pre-scheduler', () => {
 		for (const m of matches) {
 			const sm = scheduled.get(m.id);
 			if (!sm) continue;
+			// La gran final té dataMaximaDisputa = dataFi per disseny (el reset
+			// es juga típicament el mateix dia), així que queda exempta.
+			if (slotsById.get(m.slot1_id)?.bracket_type === 'grand_final') continue;
 			// Successors: matches que reben winner/loser des de m
 			const succsIds: string[] = [];
 			for (const other of matches) {
