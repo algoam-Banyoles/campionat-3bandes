@@ -3,17 +3,21 @@
 
 import { serve } from 'std/server';
 
-// Substitueix per la teva API key si l'endpoint la requereix
-const API_KEY = process.env.API_KEY || '<API_KEY>'; // Posa la clau aquí si cal
 const ENDPOINT = 'https://campionat-3bandes.vercel.app/campionat-continu/reptes/check-expired';
 
-serve(async (req) => {
+serve(async (_req) => {
+  const cronSecret = Deno.env.get('CRON_SECRET');
+  if (!cronSecret) {
+    console.error('[aplica-penalitzacions] CRON_SECRET no està configurat. Abortant.');
+    return new Response('Error: CRON_SECRET no configurat', { status: 500 });
+  }
+
   try {
     const res = await fetch(ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(API_KEY ? { 'Authorization': `Bearer ${API_KEY}` } : {})
+        'x-cron-secret': cronSecret
       }
     });
     if (!res.ok) {
@@ -29,5 +33,7 @@ serve(async (req) => {
 // Instruccions:
 // 1. Desa aquest fitxer a supabase/functions/aplica-penalitzacions.ts
 // 2. Desplega la funció amb supabase CLI: supabase functions deploy aplica-penalitzacions
-// 3. Programa la funció des del panell de Supabase (Scheduled Functions) perquè s'executi cada dia o cada hora
-// 4. Si cal API key, afegeix-la a les variables d'entorn del projecte
+// 3. Afegeix CRON_SECRET a les variables d'entorn de la funció al panell de Supabase
+//    (i la mateixa variable al projecte Vercel com a variable d'entorn de servidor)
+// 4. Programa la funció des del panell de Supabase (Scheduled Functions) perquè
+//    s'executi cada dia o cada hora

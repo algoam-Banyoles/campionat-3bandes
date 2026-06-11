@@ -1,6 +1,6 @@
 // src/lib/supabaseClient.ts
 import { createClient } from '@supabase/supabase-js';
-import { wrapRpc } from './errors';
+import { wrapRpc } from './rpc-errors';
 import { resilientAuthStorage } from './utils/auth-storage';
 
 const url = import.meta.env.PUBLIC_SUPABASE_URL;

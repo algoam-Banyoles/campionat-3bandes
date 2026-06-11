@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher, onDestroy } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
   import SociFoto from '$lib/components/admin/SociFoto.svelte';
   import { formatarNomJugador } from '$lib/utils/playerUtils';
@@ -43,7 +43,15 @@
     loadPlayerMatches();
   }
 
+  onDestroy(() => {
+    // Ensure scroll lock is always released when the component is destroyed
+    document.body.style.overflow = '';
+  });
+
   $: if (isOpen) {
+    // Capture the currently focused element before the modal opens so we can restore it
+    previousActiveElement = document.activeElement as HTMLElement;
+
     // Focus the modal when it opens
     setTimeout(() => {
       if (modalElement) {

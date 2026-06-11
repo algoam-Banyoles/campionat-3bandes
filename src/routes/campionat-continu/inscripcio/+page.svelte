@@ -26,6 +26,8 @@
         .from('events')
         .select('id')
         .eq('actiu', true)
+        .eq('tipus_competicio', 'ranking_continu')
+        .order('data_inici', { ascending: false })
         .limit(1)
         .maybeSingle();
 
@@ -71,6 +73,8 @@
         .from('events')
         .select('id')
         .eq('actiu', true)
+        .eq('tipus_competicio', 'ranking_continu')
+        .order('data_inici', { ascending: false })
         .limit(1)
         .maybeSingle();
       if (eEv) throw eEv;
@@ -127,6 +131,8 @@
         .from('events')
         .select('id')
         .eq('actiu', true)
+        .eq('tipus_competicio', 'ranking_continu')
+        .order('data_inici', { ascending: false })
         .limit(1)
         .maybeSingle();
       if (eEv) throw eEv;
@@ -262,7 +268,7 @@
 
       await Promise.all([
         invalidate('/campionat-continu/ranking'),
-        invalidate('/llista-espera')
+        invalidate('/campionat-continu/llista-espera')
       ]);
     } catch (e: any) {
       error = e?.message ?? 'Error desconegut';

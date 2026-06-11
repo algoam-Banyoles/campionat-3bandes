@@ -145,10 +145,13 @@
 
 			// Actualitzar seeds als participants
 			for (const p of participantInputs) {
-				await supabase
+				const { error: seedErr } = await supabase
 					.from('handicap_participants')
 					.update({ seed: p.seed })
 					.eq('id', p.id);
+				if (seedErr) {
+					throw new Error(`Error desant el seed del participant ${p.id}: ${seedErr.message}`);
+				}
 			}
 
 			// Calendaritzar automàticament les partides de R1 que quedin llestes

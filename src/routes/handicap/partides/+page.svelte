@@ -23,6 +23,7 @@
 	} from '$lib/utils/handicap-scheduler';
 	import { executeScheduling } from '$lib/utils/handicap-scheduler-db';
 	import { persistFullSchedule } from '$lib/utils/handicap-schedule-persist';
+	import { loadBlockedDates } from '$lib/utils/handicap-blocked-dates';
 	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 	import { checkCompatibility, type CompatibilityIssue, type CompatibilityMatchInput, type AlternativeSlot } from '$lib/utils/handicap-compatibility';
 	import HandicapCompatibilityCheckModal from '$lib/components/handicap/HandicapCompatibilityCheckModal.svelte';
@@ -62,6 +63,7 @@
 
 	let eventId: string | null = null;
 	let config: TournamentConfig | null = null;
+	let blockedDatesSet = new Set<string>();
 	let sistemaPuntuacio: string = 'distancia';
 	let limitEntrades: number | null = null;
 	let matches: MatchDisplay[] = [];
@@ -676,14 +678,31 @@
 
 	onMount(async () => {
 		// data_inici / data_fi estan a events, no a handicap_config
-		const { data: ev, error: evErr } = await supabase
+		let evData: any = null;
+		const { data: activeEv, error: activeEvErr } = await supabase
 			.from('events')
 			.select('id, data_inici, data_fi, estat_competicio')
 			.eq('tipus_competicio', 'handicap')
 			.eq('actiu', true)
-			.order('creat_el', { ascending: false })
 			.limit(1)
-			.single();
+			.maybeSingle();
+
+		if (activeEv) {
+			evData = activeEv;
+		} else {
+			// Fallback: event hàndicap més recent (pot estar finalitzat)
+			const { data: recentEv } = await supabase
+				.from('events')
+				.select('id, data_inici, data_fi, estat_competicio')
+				.eq('tipus_competicio', 'handicap')
+				.order('data_inici', { ascending: false })
+				.limit(1)
+				.maybeSingle();
+			evData = recentEv ?? null;
+		}
+
+		const ev = evData;
+		const evErr = !ev ? new Error('No hi ha cap event hàndicap.') : null;
 
 		if (evErr || !ev) {
 			error = 'No hi ha cap event hàndicap actiu.';
@@ -721,6 +740,9 @@
 			horaris_extra: cfg.horaris_extra ?? undefined
 		} as TournamentConfig;
 
+		// Carregar dates bloquejades des de handicap_config.blocked_periods
+		blockedDatesSet = await loadBlockedDates(supabase, ev.id as string);
+
 		await loadData();
 		loading = false;
 
@@ -756,7 +778,7 @@
 		regenerantHorari = true;
 		try {
 			const r = await persistFullSchedule(supabase, eventId, {
-				diesBloquejats: [new Date('2026-06-24')]
+				diesBloquejats: [...blockedDatesSet].map(d => { const [y, m, day] = d.split('-').map(Number); return new Date(y, m - 1, day); })
 			});
 			const hardCount = r.warnings.filter(w => w.type === 'hard_conflict_assigned').length;
 			const hourCount = r.warnings.filter(w => w.type === 'reachable_hour_risk').length;
@@ -814,7 +836,7 @@
 				horarisExtra: config.horaris_extra ?? null,
 				billars: 3,
 				diesActius: ['dl', 'dt', 'dc', 'dj', 'dv'],
-				diesBloquejats: ['2026-06-24'],
+				diesBloquejats: [...blockedDatesSet],
 				occupiedSlots: allOccupiedSlots,
 				maxAlternatives: 3
 			});
@@ -951,8 +973,8 @@
 			</div>
 		</div>
 
-		<!-- Badge: noves partides llestes per programar -->
-		{#if schedulableNow.length > 0 && !showAutoSchedule}
+		<!-- Badge: noves partides llestes per programar — només admins -->
+		{#if $effectiveIsAdmin && schedulableNow.length > 0 && !showAutoSchedule}
 			<div class="mb-4 flex items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
 				<span class="text-lg">📋</span>
 				<div class="flex-1">
@@ -989,7 +1011,8 @@
 			</div>
 		{/if}
 
-		<!-- Auto-programació -->
+		<!-- Auto-programació — només admins -->
+		{#if $effectiveIsAdmin}
 		{#if !showAutoSchedule && !isFinalitzat}
 			<div class="mb-4 flex items-center justify-between rounded-lg border border-purple-200 bg-purple-50 p-4">
 				<div>
@@ -1010,7 +1033,7 @@
 					Programar {schedulableNow.length} llesta{schedulableNow.length !== 1 ? 'es' : ''}
 				</button>
 			</div>
-		{:else}
+		{:else if showAutoSchedule}
 			<!-- Previsualització auto-programació -->
 			<div class="mb-4 rounded-lg border border-purple-300 bg-white shadow-sm">
 				<div class="border-b border-purple-100 bg-purple-50 px-4 py-3">
@@ -1068,6 +1091,7 @@
 				</div>
 			</div>
 		{/if}
+		{/if}<!-- end $effectiveIsAdmin auto-programació -->
 
 		<!-- Indicador d'equilibri de branques -->
 		{#if branchMatches.length > 0}
@@ -1146,7 +1170,7 @@
 				<HandicapCalendarGridView
 					entries={calendarEntries}
 					{config}
-					diesBloquejats={[new Date('2026-06-24')]}
+					diesBloquejats={[...blockedDatesSet].map(d => { const [y, m, day] = d.split('-').map(Number); return new Date(y, m - 1, day); })}
 					on:matchclick={(e) => {
 						const m = matches.find((x) => x.id === e.detail);
 						if (m) {
@@ -1333,7 +1357,7 @@
 							<!-- Slot Picker inline -->
 							{#if schedulingMatchId === match.id && config}
 								<tr>
-									<td colspan="7" class="bg-gray-50 px-4 py-3">
+									<td colspan="8" class="bg-gray-50 px-4 py-3">
 										<div class="mb-2 text-xs font-semibold text-gray-600">
 											Selecciona slot per a: {match.player1_name} vs {match.player2_name}
 										</div>

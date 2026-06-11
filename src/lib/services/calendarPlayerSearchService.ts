@@ -58,9 +58,10 @@ function shortName(nom: string, cognoms: string): string {
  * Comprova si una partida implica un jugador concret pel seu `soci_numero`.
  */
 export function matchPlayerById(match: any, playerId: string | number): boolean {
+  const id = Number(playerId);
   return (
-    match?.jugador1_soci_numero === playerId ||
-    match?.jugador2_soci_numero === playerId
+    match?.jugador1_soci_numero === id ||
+    match?.jugador2_soci_numero === id
   );
 }
 

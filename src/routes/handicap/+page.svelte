@@ -215,12 +215,16 @@
 			}
 			upcomingMatches = programades.filter((m) => m.data && distinctDays.includes(m.data));
 
-			// Campió: si totes les partides estan jugades i hi ha una GF jugada
+			// Campió: si totes les partides estan jugades i hi ha una GF jugada.
+			// Prendre la GF jugada amb ronda més alta (GF-R2 si existeix, si no GF-R1).
 			if (pending === 0 && scheduled === 0 && played > 0) {
-				const gfMatch = (matchStats as any[]).find((m) => {
-					const s1 = slotMap.get(m.slot1_id);
-					return s1?.bracket_type === 'grand_final' && (m.estat === 'jugada' || m.estat === 'walkover') && m.guanyador_participant_id;
-				});
+				const gfPlayed = (matchStats as any[])
+					.filter((m) => {
+						const s1 = slotMap.get(m.slot1_id);
+						return s1?.bracket_type === 'grand_final' && (m.estat === 'jugada' || m.estat === 'walkover') && m.guanyador_participant_id;
+					})
+					.sort((a, b) => ((slotMap.get(b.slot1_id)?.ronda ?? 0) as number) - ((slotMap.get(a.slot1_id)?.ronda ?? 0) as number));
+				const gfMatch = gfPlayed[0] ?? null;
 				if (gfMatch) {
 					champion = nameMap.get(gfMatch.guanyador_participant_id) ?? null;
 				}
@@ -237,52 +241,88 @@
 			.limit(10);
 
 		if (finishedEvents && finishedEvents.length > 0) {
-			const histItems: HistoricalTournament[] = [];
-			for (const fe of finishedEvents) {
-				// Comptar partides jugades
-				const { count: mc } = await supabase
-					.from('handicap_matches')
-					.select('*', { count: 'exact', head: true })
-					.eq('event_id', fe.id)
-					.in('estat', ['jugada', 'walkover']);
+			const feIds = finishedEvents.map((fe: any) => fe.id as string);
 
-				// Trobar campió (guanyador de la GF)
-				const { data: gfSlots } = await supabase
-					.from('handicap_bracket_slots')
-					.select('id')
-					.eq('event_id', fe.id)
-					.eq('bracket_type', 'grand_final');
-
-				let champName: string | null = null;
-				if (gfSlots && gfSlots.length > 0) {
-					const gfSlotIds = gfSlots.map((s: any) => s.id as string);
-					const { data: gfMatch } = await supabase
-						.from('handicap_matches')
-						.select('guanyador_participant_id')
-						.eq('event_id', fe.id)
-						.in('slot1_id', gfSlotIds)
-						.in('estat', ['jugada', 'walkover'])
-						.order('id', { ascending: false })
-						.limit(1)
-						.maybeSingle();
-
-					if (gfMatch?.guanyador_participant_id) {
-						const { data: champ } = await supabase
-							.from('handicap_participants')
-							.select('socis!handicap_participants_soci_numero_fkey(nom, cognoms)')
-							.eq('id', gfMatch.guanyador_participant_id)
-							.single();
-						if (champ) {
-							const s = (champ as any).socis;
-							const sociObj = Array.isArray(s) ? s[0] : s;
-							if (sociObj) champName = formatarNomJugadorParts(sociObj.nom, sociObj.cognoms);
-						}
-					}
-				}
-
-				histItems.push({ id: fe.id, nom: fe.nom, championName: champName, totalMatches: mc ?? 0 });
+			// Batched: comptar partides jugades per event en una sola query.
+			const { data: playedMatchRows } = await supabase
+				.from('handicap_matches')
+				.select('event_id')
+				.in('event_id', feIds)
+				.in('estat', ['jugada', 'walkover']);
+			const playedCountByEvent = new Map<string, number>();
+			for (const row of playedMatchRows ?? []) {
+				const eid = (row as any).event_id as string;
+				playedCountByEvent.set(eid, (playedCountByEvent.get(eid) ?? 0) + 1);
 			}
-			historicalTournaments = histItems;
+
+			// Batched: tots els slots GF de tots els events finalitzats.
+			const { data: allGfSlots } = await supabase
+				.from('handicap_bracket_slots')
+				.select('id, event_id, ronda')
+				.in('event_id', feIds)
+				.eq('bracket_type', 'grand_final');
+			// Mapa slot_id → { event_id, ronda }
+			const gfSlotInfoMap = new Map<string, { event_id: string; ronda: number }>();
+			for (const s of allGfSlots ?? []) {
+				gfSlotInfoMap.set((s as any).id as string, {
+					event_id: (s as any).event_id as string,
+					ronda: (s as any).ronda as number
+				});
+			}
+			const allGfSlotIds = [...gfSlotInfoMap.keys()];
+
+			// Batched: matches GF jugats de tots els events.
+			const { data: allGfMatches } = allGfSlotIds.length > 0
+				? await supabase
+					.from('handicap_matches')
+					.select('event_id, guanyador_participant_id, slot1_id')
+					.in('slot1_id', allGfSlotIds)
+					.in('estat', ['jugada', 'walkover'])
+				: { data: [] as any[] };
+
+			// Per cada event, trobar el guanyador de la GF amb ronda més alta.
+			const champPidByEvent = new Map<string, string>();
+			const gfByEvent = new Map<string, any[]>();
+			for (const m of allGfMatches ?? []) {
+				const eid = (m as any).event_id as string;
+				if (!gfByEvent.has(eid)) gfByEvent.set(eid, []);
+				gfByEvent.get(eid)!.push(m);
+			}
+			for (const [eid, gfMs] of gfByEvent) {
+				// Prendre la GF amb ronda més alta (GF-R2 > GF-R1)
+				const best = gfMs.sort((a: any, b: any) =>
+					(gfSlotInfoMap.get(b.slot1_id as string)?.ronda ?? 0) -
+					(gfSlotInfoMap.get(a.slot1_id as string)?.ronda ?? 0)
+				)[0];
+				if (best?.guanyador_participant_id) {
+					champPidByEvent.set(eid, best.guanyador_participant_id as string);
+				}
+			}
+
+			// Batched: noms dels campions.
+			const champPids = [...new Set(champPidByEvent.values())];
+			const champNameMap = new Map<string, string>();
+			if (champPids.length > 0) {
+				const { data: champParts } = await supabase
+					.from('handicap_participants')
+					.select('id, socis!handicap_participants_soci_numero_fkey(nom, cognoms)')
+					.in('id', champPids);
+				for (const p of champParts ?? []) {
+					const s = (p as any).socis;
+					const sociObj = Array.isArray(s) ? s[0] : s;
+					if (sociObj) champNameMap.set((p as any).id as string, formatarNomJugadorParts(sociObj.nom, sociObj.cognoms) || '?');
+				}
+			}
+
+			historicalTournaments = finishedEvents.map((fe: any) => {
+				const champPid = champPidByEvent.get(fe.id as string) ?? null;
+				return {
+					id: fe.id as string,
+					nom: fe.nom as string,
+					championName: champPid ? (champNameMap.get(champPid) ?? null) : null,
+					totalMatches: playedCountByEvent.get(fe.id as string) ?? 0
+				};
+			});
 		}
 	});
 </script>

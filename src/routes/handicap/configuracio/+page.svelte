@@ -270,10 +270,8 @@
 				configData.horaris_extra = null;
 			}
 
-			// Store blocked periods in config (no separate table needed)
-			if (blockedPeriods.length > 0) {
-				configData.blocked_periods = blockedPeriods;
-			}
+			// Desar sempre blocked_periods (inclou array buit per esborrar la llista).
+			configData.blocked_periods = blockedPeriods;
 
 			// Save config
 			if (config) {

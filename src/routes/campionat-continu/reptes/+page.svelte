@@ -14,7 +14,7 @@
     data_proposta: string;
     data_acceptacio: string | null;
     data_programada: string | null;
-    reprogramacions: number | null;
+    reprogram_count: number | null;
     reptador_nom?: string;
     reptat_nom?: string;
   };
@@ -35,53 +35,7 @@
   let mySociNumero: number | null = null;
   let supabase: SupabaseClient;
   let dateDrafts: Record<string, string> = {};
-  let resultDrafts: Record<string, {
-    data_joc: string;
-    caramboles_reptador: number | '';
-    caramboles_reptat: number | '';
-    entrades?: number | '';
-    tiebreak_reptador?: number | '';
-    tiebreak_reptat?: number | '';
-  }> = {};
-  async function submitResult(ch: Challenge) {
-    try {
-      error = null;
-      const draft = resultDrafts[ch.id];
-      if (!draft || !draft.data_joc || draft.caramboles_reptador === '' || draft.caramboles_reptat === '') {
-        error = 'Cal omplir tots els camps.';
-        return;
-      }
-      const mod = await import('$lib/supabaseClient');
-      const supabase = mod.supabase;
-      // Desa el resultat com a provisional (pendent de validació)
-      const { error: err } = await supabase.from('matches').insert({
-        challenge_id: ch.id,
-        data_joc: draft.data_joc,
-        caramboles_reptador: draft.caramboles_reptador,
-        caramboles_reptat: draft.caramboles_reptat,
-        entrades: draft.entrades ?? null,
-        tiebreak_reptador: draft.tiebreak_reptador ?? null,
-        tiebreak_reptat: draft.tiebreak_reptat ?? null,
-        validat: false // camp que indica si la Junta ha validat
-      });
-      if (err) {
-        error = err.message;
-        return;
-      }
-      resultDrafts[ch.id] = {
-        data_joc: '',
-        caramboles_reptador: '',
-        caramboles_reptat: '',
-        entrades: '',
-        tiebreak_reptador: '',
-        tiebreak_reptat: ''
-      };
-      await load();
-    } catch (e: any) {
-      error = e?.message ?? 'Error enviant resultat';
-    }
-  }
-  const REPRO_LIMIT = 3;
+  const REPRO_LIMIT = 1;
   let reproLimit = REPRO_LIMIT;
   const DEFAULT_ACCEPT_DAYS = 7;
   const DEFAULT_PLAY_DAYS = 7;
@@ -144,12 +98,25 @@
         mySociNumero = soci?.numero_soci ?? null;
       }
 
-      // Reptes actius
-      const { data: ch, error: cErr } = await supabase
+      // Resolem l'event actiu de rànquing continu per filtrar les queries
+      const { data: ev } = await supabase
+        .from('events')
+        .select('id')
+        .eq('actiu', true)
+        .eq('tipus_competicio', 'ranking_continu')
+        .order('data_inici', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const eventId: string | null = (ev as any)?.id ?? null;
+
+      // Reptes actius (exclou 'refusat'; filtra per event actiu si disponible)
+      let challengeQuery = supabase
         .from('challenges')
-        .select('id,reptador_soci_numero,reptat_soci_numero,estat,data_proposta,data_acceptacio,data_programada,reprogramacions')
-        .in('estat', ['proposat', 'acceptat', 'programat', 'refusat'])
+        .select('id,reptador_soci_numero,reptat_soci_numero,estat,data_proposta,data_acceptacio,data_programada,reprogram_count')
+        .in('estat', ['proposat', 'acceptat', 'programat'])
         .order('data_proposta', { ascending: true });
+      if (eventId) challengeQuery = challengeQuery.eq('event_id', eventId);
+      const { data: ch, error: cErr } = await challengeQuery;
       if (cErr) throw cErr;
       actius = (ch ?? []) as any[];
 
@@ -175,12 +142,26 @@
         reptat_nom: nameBySoci.get(c.reptat_soci_numero) ?? '—'
       }));
 
-      // Darrers resultats
-      const { data: m, error: mErr } = await supabase
+      // Darrers resultats — filtrem per challenges de l'event actiu
+      let recentChalIds: string[] = [];
+      if (eventId) {
+        const { data: eventChalls } = await supabase
+          .from('challenges')
+          .select('id')
+          .eq('event_id', eventId)
+          .eq('estat', 'jugat')
+          .order('data_proposta', { ascending: false })
+          .limit(20);
+        recentChalIds = (eventChalls ?? []).map((c: any) => c.id);
+      }
+
+      let matchQuery = supabase
         .from('matches')
         .select('id,challenge_id,data_joc,caramboles_reptador,caramboles_reptat')
         .order('data_joc', { ascending: false })
         .limit(5);
+      if (recentChalIds.length > 0) matchQuery = matchQuery.in('challenge_id', recentChalIds);
+      const { data: m, error: mErr } = await matchQuery;
       if (mErr) throw mErr;
       const matches = m ?? [];
       const chalIds = matches.map((mm: any) => mm.challenge_id);
@@ -234,7 +215,7 @@
   async function accept(ch: Challenge) {
     try {
       error = null;
-      await acceptChallenge(supabase, ch.id);
+      await acceptChallenge(ch.id);
       ch.estat = 'acceptat';
       ch.data_acceptacio = new Date().toISOString();
     } catch (e: any) {
@@ -245,7 +226,7 @@
   async function refuse(ch: Challenge) {
     try {
       error = null;
-      await refuseChallenge(supabase, ch.id);
+      await refuseChallenge(ch.id);
       ch.estat = 'refusat';
     } catch (e: any) {
       error = e?.message ?? 'Error refusant repte';
@@ -262,7 +243,7 @@
       error = null;
       await scheduleChallenge(supabase, ch.id, iso);
       if (ch.data_programada) {
-        ch.reprogramacions = (ch.reprogramacions ?? 0) + 1;
+        ch.reprogram_count = (ch.reprogram_count ?? 0) + 1;
       }
       ch.data_programada = iso;
       dateDrafts[ch.id] = '';
@@ -304,12 +285,12 @@
                 • {CHALLENGE_STATE_LABEL.programat}: {fmtDate(r.data_programada)}
               {/if}
             </div>
-            <div class="text-sm text-slate-600">Reprogramacions: {r.reprogramacions ?? 0} / {reproLimit}</div>
+            <div class="text-sm text-slate-600">Reprogramacions: {r.reprogram_count ?? 0} / {reproLimit}</div>
               {#if isExpiredAccept(r)}
-                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Repte caducat per no acceptar a temps. Penalització automàtica aplicada.</div>
+                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Termini d'acceptació vençut — pendent de penalització.</div>
               {/if}
               {#if isExpiredPlay(r)}
-                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Repte caducat per no jugar a temps. Penalització automàtica aplicada.</div>
+                <div class="text-xs text-red-600 font-bold">ATENCIÓ: Termini de joc vençut — pendent de penalització.</div>
               {/if}
             {#if mySociNumero === r.reptat_soci_numero && r.estat === 'proposat'}
               <div class="mt-2 flex gap-2">
@@ -328,7 +309,7 @@
               </div>
             {/if}
             {#if r.estat !== 'refusat' && mySociNumero && (mySociNumero === r.reptador_soci_numero || mySociNumero === r.reptat_soci_numero)}
-              {#if !(r.reprogramacions != null && r.reprogramacions >= reproLimit)}
+              {#if !(r.reprogram_count != null && r.reprogram_count >= reproLimit)}
                 <div class="mt-2 flex gap-2 items-center">
                   <input
                     type="datetime-local"
@@ -345,62 +326,9 @@
                 </div>
               {/if}
               {#if r.estat === 'programat'}
-                {#if !resultDrafts[r.id]}
-                  {@html (() => { resultDrafts[r.id] = { data_joc: '', caramboles_reptador: '', caramboles_reptat: '', entrades: '', tiebreak_reptador: '', tiebreak_reptat: '' }; return ''; })()}
-                {/if}
-                <form class="mt-2 flex flex-col gap-2 p-3 border rounded bg-slate-50" on:submit|preventDefault={() => submitResult(r)}>
-                  <div class="font-semibold mb-2">Data Partida</div>
-                  <div class="mb-2">
-                    <label class="block text-sm mb-1" for={`data_joc_${r.id}`}>Data</label>
-                    <input id={`data_joc_${r.id}`} type="date" class="border rounded px-2 py-1 w-40" bind:value={resultDrafts[r.id].data_joc} required />
-                  </div>
-                  <div class="mb-2">
-                    <label class="block text-sm mb-1" for={`caramboles_reptador_${r.id}`}>Caramboles</label>
-                    <div class="flex gap-2">
-                      <div class="flex flex-col">
-                        <span class="text-xs text-slate-600">{r.reptador_nom}</span>
-                        <input id={`caramboles_reptador_${r.id}`} type="number" min="0" class="border rounded px-2 py-1 w-24" bind:value={resultDrafts[r.id].caramboles_reptador} required />
-                      </div>
-                      <div class="flex flex-col">
-                        <span class="text-xs text-slate-600">{r.reptat_nom}</span>
-                        <input id={`caramboles_reptat_${r.id}`} type="number" min="0" class="border rounded px-2 py-1 w-24" bind:value={resultDrafts[r.id].caramboles_reptat} required />
-                      </div>
-                    </div>
-                  </div>
-                  <div class="mb-2">
-                    <label class="block text-sm mb-1" for={`entrades_${r.id}`}>Entrades</label>
-                    <input id={`entrades_${r.id}`} type="number" min="0" class="border rounded px-2 py-1 w-24" bind:value={resultDrafts[r.id].entrades} />
-                  </div>
-                  {#if Number(resultDrafts[r.id].caramboles_reptador) === Number(resultDrafts[r.id].caramboles_reptat) && resultDrafts[r.id].caramboles_reptador !== ''}
-                    <div class="mb-2">
-                      <label class="block text-sm mb-1" for={`tiebreak_reptador_${r.id}`}>Tiebreak</label>
-                      <div class="flex gap-2">
-                        <div class="flex flex-col">
-                          <span class="text-xs text-slate-600">{r.reptador_nom}</span>
-                          <input id={`tiebreak_reptador_${r.id}`} type="number" min="0" class="border rounded px-2 py-1 w-24" bind:value={resultDrafts[r.id].tiebreak_reptador} />
-                        </div>
-                        <div class="flex flex-col">
-                          <span class="text-xs text-slate-600">{r.reptat_nom}</span>
-                          <input id={`tiebreak_reptat_${r.id}`} type="number" min="0" class="border rounded px-2 py-1 w-24" bind:value={resultDrafts[r.id].tiebreak_reptat} />
-                        </div>
-                      </div>
-                    </div>
-                  {/if}
-                  {#if error}
-                    <div class="text-red-600 text-sm mb-2">{error}</div>
-                  {/if}
-                  <button
-                    class="rounded bg-blue-600 text-white px-3 py-1 self-start mt-2"
-                    type="submit"
-                    disabled={
-                      !resultDrafts[r.id].data_joc ||
-                      resultDrafts[r.id].caramboles_reptador === '' ||
-                      resultDrafts[r.id].caramboles_reptat === ''
-                    }
-                  >
-                    Envia resultat
-                  </button>
-                </form>
+                <p class="mt-2 text-sm text-slate-600 italic">
+                  El resultat l'introdueix la Junta un cop validat.
+                </p>
               {/if}
             {/if}
           </li>
@@ -580,13 +508,6 @@
     border-radius: 0 !important;
     font-weight: 600 !important;
   }
-  /* Form contenidor dins resultat */
-  .reptes-section :global(form.bg-slate-50) {
-    background: var(--paper) !important;
-    border: 1px solid var(--rule) !important;
-    border-radius: 0 !important;
-  }
-
   /* Actions bar (Nou repte / Els meus reptes) */
   .actions-bar {
     display: flex;

@@ -44,6 +44,17 @@ export const POST: RequestHandler = async (event) => {
 
   const supabase = serverSupabase(event);
 
+  // Guard: el repte ha d'estar en estat acceptat o programat ABANS d'inserir cap match.
+  // Sense aquest check, un doble enviament pot crear dues files a matches.
+  const { data: chalCheck, error: chalCheckErr } = await supabase
+    .from('challenges')
+    .select('id,estat')
+    .eq('id', id)
+    .in('estat', ['acceptat', 'programat'])
+    .maybeSingle();
+  if (chalCheckErr) return json({ ok: false, error: chalCheckErr.message }, { status: 400 });
+  if (!chalCheck) return json({ ok: false, error: 'Estat no permet posar resultat (ja jugat o no trobat)' }, { status: 409 });
+
   const { data: cfg } = await supabase
     .from('app_settings')
     .select('caramboles_objectiu,max_entrades,allow_tiebreak')
@@ -114,11 +125,16 @@ export const POST: RequestHandler = async (event) => {
     .single();
   if (e1) return json({ ok: false, error: e1.message }, { status: 400 });
 
-  const { error: e2 } = await supabase
+  const { data: updatedChal, error: e2 } = await supabase
     .from('challenges')
     .update({ estat: 'jugat' })
-    .eq('id', id);
+    .eq('id', id)
+    .in('estat', ['acceptat', 'programat'])
+    .select('id');
   if (e2) return json({ ok: false, error: e2.message }, { status: 400 });
+  if (!updatedChal || updatedChal.length === 0) {
+    return json({ ok: false, error: 'Estat del repte ha canviat durant la operació' }, { status: 409 });
+  }
 
   const { data: d3, error: e3 } = await supabase.rpc('apply_match_result', { p_challenge: id });
   let rpcMsg: string | null = null;

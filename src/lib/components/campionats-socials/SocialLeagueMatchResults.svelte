@@ -2,7 +2,6 @@
   import { supabase } from '$lib/supabaseClient';
   import { user } from '$lib/stores/auth';
   import { effectiveIsAdmin } from '$lib/stores/viewMode';
-  import { onMount } from 'svelte';
   import SociFoto from '$lib/components/admin/SociFoto.svelte';
 
   export let eventId: string = '';
@@ -39,12 +38,7 @@
     editingMatch && (editingMatch.incompareixenca_jugador1 || editingMatch.incompareixenca_jugador2)
   );
 
-  onMount(() => {
-    if (eventId) {
-      loadMatches();
-      loadCategories();
-    }
-  });
+  // Inicialització gestionada per l'efecte reactiu $: if (eventId) més avall.
 
   $: if (eventId) {
     loadMatches();
@@ -110,7 +104,10 @@
     }
   }
 
+  let loadMatchesCounter = 0;
+
   async function loadMatches() {
+    const myReq = ++loadMatchesCounter;
     loading = true;
     error = null;
 
@@ -121,6 +118,7 @@
         });
 
       if (inscriptionsError) throw inscriptionsError;
+      if (myReq !== loadMatchesCounter) return; // stale response
 
       const withdrawnNumbers = new Set(
         (inscriptionsData || [])
@@ -318,7 +316,7 @@
   $: finalCategories = loadedCategories.length > 0 ? loadedCategories : categories;
 
   // Sort categories by order
-  $: sortedCategories = finalCategories.sort((a, b) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0));
+  $: sortedCategories = [...finalCategories].sort((a, b) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0));
 
   // Admin functions
   function startEditingMatch(match: any) {

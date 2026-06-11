@@ -69,7 +69,8 @@
         .from('events')
         .select('id')
         .eq('actiu', true)
-        .order('creat_el', { ascending: false })
+        .eq('tipus_competicio', 'ranking_continu')
+        .order('data_inici', { ascending: false })
         .limit(1)
         .maybeSingle();
       if (eErr || !ev) {

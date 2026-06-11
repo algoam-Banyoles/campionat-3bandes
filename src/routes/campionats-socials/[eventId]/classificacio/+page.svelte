@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { page } from '$app/stores';
+  import { browser } from '$app/environment';
   import { formatSupabaseError } from '$lib/ui/alerts';
   import { formatarNomJugador } from '$lib/utils/playerUtils';
   import PlayerResultsModal from '$lib/components/campionats-socials/PlayerResultsModal.svelte';
 
-  const eventId = $page.params.eventId;
-  const fromHistory = $page.url.searchParams.get('from') === 'history';
+  $: eventId = $page.params.eventId;
+  $: fromHistory = $page.url.searchParams.get('from') === 'history';
 
   let loading = true;
   let error: string | null = null;
@@ -43,23 +43,29 @@
     'eliminatories': 'Eliminatòries'
   };
 
-  onMount(async () => {
+  async function loadClassificacio(id: string) {
+    loading = true;
+    error = null;
+    classificacio = [];
+    event = null;
+
     try {
-      loading = true;
-      await loadEvent();
+      await loadEvent(id);
     } catch (e) {
       error = formatSupabaseError(e);
     } finally {
       loading = false;
     }
-  });
+  }
 
-  async function loadEvent() {
+  $: if (browser && eventId) loadClassificacio(eventId);
+
+  async function loadEvent(id: string) {
     // Now we load everything through the API
-    console.log('🔍 Loading event and classifications via API for event:', eventId);
+    console.log('🔍 Loading event and classifications via API for event:', id);
 
     try {
-      const response = await fetch(`/api/events/${eventId}/classifications`);
+      const response = await fetch(`/api/events/${id}/classifications`);
       const data = await response.json();
 
       if (!response.ok) {

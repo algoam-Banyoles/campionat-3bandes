@@ -1,6 +1,5 @@
 <script lang="ts">
   import { supabase } from '$lib/supabaseClient';
-  import { onMount } from 'svelte';
   import { formatarNomJugador } from '$lib/utils/playerUtils';
   import { showSuccess, showError } from '$lib/stores/toastStore';
 
@@ -75,11 +74,7 @@
     }
   }
 
-  onMount(() => {
-    if (eventId && eventId.trim() !== '') {
-      loadInscriptions();
-    }
-  });
+  // Inicialització gestionada per l'efecte reactiu $: if (eventId) més avall.
 
   $: if (eventId && eventId.trim() !== '') {
     loadInscriptions();
@@ -89,7 +84,10 @@
 
 
 
+  let loadInscriptionsCounter = 0;
+
   async function loadInscriptions() {
+    const myReq = ++loadInscriptionsCounter;
     loading = true;
     error = null;
 
@@ -127,6 +125,7 @@
         console.error('❌ Error loading inscriptions with RPC:', inscriptionsError);
         throw inscriptionsError;
       }
+      if (myReq !== loadInscriptionsCounter) return; // stale response
 
       console.log('✅ Loaded inscriptions via RPC:', inscriptionsData?.length || 0);
 
@@ -205,7 +204,7 @@
 
   // Utilitzar les categories carregades o les rebudes per prop
   $: finalCategories = loadedCategories.length > 0 ? loadedCategories : categories;
-  $: sortedCategories = finalCategories.sort((a, b) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0));
+  $: sortedCategories = [...finalCategories].sort((a, b) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0));
   $: playersWithoutCategory = getPlayersWithoutCategory();
   
   // Debug per veure què està passant

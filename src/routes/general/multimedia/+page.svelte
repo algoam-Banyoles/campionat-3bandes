@@ -2,7 +2,7 @@
   import { slide } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
-  import { user } from '$lib/stores/auth';
+  import { effectiveIsAdmin } from '$lib/stores/viewMode';
   import { showError, showWarning } from '$lib/stores/toastStore';
   import { showConfirm } from '$lib/stores/confirmDialogStore';
 
@@ -203,6 +203,11 @@
       return;
     }
 
+    if (!validarUrl(formEnllac)) {
+      showWarning(MISSATGE_URL_INVALIDA);
+      return;
+    }
+
     loading = true;
 
     try {
@@ -380,6 +385,26 @@
     if (tipus.includes('Tutorials')) return 'indigo';
     return 'gray';
   }
+
+  /**
+   * Valida que l'URL sigui http:// o https://.
+   * Retorna l'URL si és vàlida, o null si no ho és.
+   */
+  function validarUrl(url: string): string | null {
+    if (!url) return null;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        return url;
+      }
+    } catch {
+      // URL malformada
+    }
+    return null;
+  }
+
+  const MISSATGE_URL_INVALIDA =
+    "L'URL ha de començar per http:// o https://. Cap altre protocol és permès.";
 </script>
 
 <svelte:head>
@@ -397,7 +422,7 @@
         </p>
       </div>
       <div class="flex gap-2">
-        {#if $user}
+        {#if $effectiveIsAdmin}
           <button
             on:click={openAddForm}
             class="px-4 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors font-medium"
@@ -549,7 +574,7 @@
                               <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                                 Enllaç
                               </th>
-                              {#if $user}
+                              {#if $effectiveIsAdmin}
                                 <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                                   Accions
                                 </th>
@@ -565,8 +590,9 @@
                                   </td>
                                 {/if}
                                 <td class="px-3 py-2 text-sm">
+                                  {#if validarUrl(item.enllaç)}
                                   <a
-                                    href={item.enllaç}
+                                    href={validarUrl(item.enllaç)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     class="hover:underline flex items-center gap-2"
@@ -590,8 +616,11 @@
                                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                                     </svg>
                                   </a>
+                                  {:else}
+                                  <span class="break-all text-gray-500">{item.enllaç}</span>
+                                  {/if}
                                 </td>
-                                {#if $user}
+                                {#if $effectiveIsAdmin}
                                   <td class="px-3 py-2 text-sm">
                                     <div class="flex gap-2">
                                       <button

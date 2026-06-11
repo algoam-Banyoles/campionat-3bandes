@@ -1,6 +1,5 @@
 import { writable, get } from 'svelte/store';
 import { connectionManager } from './connectionManager';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface QueuedOperation {
   id: string;
@@ -34,7 +33,6 @@ class OfflineQueue {
   private failedOperations = writable<string[]>([]);
 
   private processingInterval: number | null = null;
-  private storageKey = 'campionat_offline_queue';
 
   // Priority weights for sorting
   private priorityWeights = {
@@ -58,7 +56,11 @@ class OfflineQueue {
   };
 
   constructor() {
-    this.loadFromStorage();
+    // NOTE: localStorage persistence intentionally removed.
+    // QueuedOperation.operation is a closure — it cannot survive JSON serialisation
+    // (JSON.stringify drops it silently), so any queue revived from storage would
+    // have operation=undefined and would crash on execution. The in-memory queue
+    // is sufficient: the SW and tab stay alive while the user is online.
     this.startProcessing();
     
     // Subscribe to connection changes
@@ -67,36 +69,6 @@ class OfflineQueue {
         this.processQueue();
       }
     });
-  }
-
-  private loadFromStorage() {
-    try {
-      const stored = localStorage.getItem(this.storageKey);
-      if (stored) {
-        const operations: QueuedOperation[] = JSON.parse(stored);
-        
-        // Filter out expired operations
-        const validOperations = operations.filter(op => {
-          if (op.expiresAt) {
-            return new Date(op.expiresAt) > new Date();
-          }
-          return true;
-        });
-
-        this.queue.set(validOperations);
-      }
-    } catch (error) {
-      console.error('Error loading offline queue from storage:', error);
-    }
-  }
-
-  private saveToStorage() {
-    try {
-      const currentQueue = get(this.queue);
-      localStorage.setItem(this.storageKey, JSON.stringify(currentQueue));
-    } catch (error) {
-      console.error('Error saving offline queue to storage:', error);
-    }
   }
 
   private startProcessing() {
@@ -164,8 +136,6 @@ class OfflineQueue {
       const newQueue = [...queue, queuedOperation];
       return this.sortQueue(newQueue);
     });
-
-    this.saveToStorage();
 
     // Try to process immediately if connected
     const connected = get(connectionManager.isConnected());
@@ -235,7 +205,6 @@ class OfflineQueue {
     } finally {
       this.isProcessing.set(false);
       this.processingOperation.set(null);
-      this.saveToStorage();
 
       // Continue processing if there are more operations
       const remainingQueue = get(this.queue) as QueuedOperation[];
@@ -294,7 +263,6 @@ class OfflineQueue {
     
     if (operationExists) {
       this.queue.update(q => q.filter(op => op.id !== id));
-      this.saveToStorage();
       return true;
     }
     
@@ -303,7 +271,6 @@ class OfflineQueue {
 
   clearQueue() {
     this.queue.set([]);
-    this.saveToStorage();
   }
 
   clearProcessedOperations() {

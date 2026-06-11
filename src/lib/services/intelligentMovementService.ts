@@ -46,10 +46,10 @@ export async function loadPreviousChampions(
     .select(`
       soci_numero,
       posicio,
-      categories (
+      categories!inner (
         nom,
         ordre_categoria,
-        events (
+        events!inner (
           modalitat,
           temporada
         )
@@ -74,6 +74,8 @@ export async function loadPreviousChampions(
     const soci: any = fkOne(row.socis);
     const cat: any = fkOne(row.categories);
     const evt: any = fkOne(cat?.events);
+    // Defensive: skip rows where the embedded event is missing or mismatched
+    if (!evt || evt.modalitat !== modalitat || evt.temporada !== previousSeason) continue;
     const numeroSoci = soci?.numero_soci ?? row.soci_numero;
     if (!numeroSoci) continue;
 

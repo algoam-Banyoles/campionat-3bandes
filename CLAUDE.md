@@ -8,8 +8,9 @@ PWA de gestió de la secció de billar 3 bandes del Foment Martinenc.
 - **Backend**: Supabase (PostgreSQL + Auth + RLS)
 - **Gràfics**: ECharts
 - **Error tracking**: Sentry
-- **Deploy**: Adaptador estàtic (GitHub Pages)
-- **PWA**: Service Worker propi (NO vite-pwa)
+- **Deploy**: Vercel (`campionat-3bandes.vercel.app`) — `svelte.config.js` usa `adapter-vercel` quan `VERCEL=1` i adaptador estàtic altrament. Els `+server.ts` NOMÉS funcionen al deploy de Vercel.
+- **PWA**: Service Worker propi a `static/sw.js`, registrat des d'`app.html` (NO vite-pwa, NO `src/service-worker.js`)
+- **Secrets de servidor**: `CRON_SECRET` (capçalera `x-cron-secret` del endpoint `check-expired`; l'envia l'edge function `aplica-penalitzacions`). Cal definir-lo a Vercel i als secrets de Supabase Functions.
 
 ## Estructura de mòduls (`src/routes/`)
 
@@ -207,8 +208,6 @@ Resol el `numero_soci` de l'usuari loggat a partir de `socis.email`. Es subscriu
 - **`Nav.svelte`** (legacy): Navegació antiga, encara referenciada per algunes rutes.
 - **`NavEditorial.svelte`**: Navegació editorial actual. Topbar + section nav per modalitat (general/socials/continu/handicap/admin) amb dropdowns admin contextuals i panell mòbil amb hamburger. Bloqueja el scroll del body via classe `nav-mobile-open`.
 - `Banner.svelte`, `Loader.svelte`, `ErrorBoundary.svelte`, `ErrorToast.svelte`
-- `ConnectionStatus.svelte`, `OfflineIndicator.svelte`
-- `MobileNavigation.svelte`, `BottomTabBar.svelte`, `HamburgerMenu.svelte`
 - `SwipeHandler.svelte`, `PullToRefresh.svelte`
 - `NotificationSettings.svelte`, `NotificationPermissions.svelte`
 - **`MyUpcomingMatchesWidget.svelte`**: Llista properes partides programades d'un soci. Sense props mostra les de l'usuari loggat (via `mySociNumero`). Amb `sociNumero={X}` mostra les d'aquell soci (s'usa al perfil). Si no hi ha partides futures, no es renderitza. Usat a `/+page.svelte` (home) i `/jugador/[numero_soci]/+page.svelte`.
@@ -333,7 +332,7 @@ admins (email PK)
 events (
   id UUID PK,
   nom TEXT,
-  tipus_competicio TEXT,  -- 'social' | 'continu' | 'handicap'
+  tipus_competicio TEXT,  -- 'lliga_social' | 'ranking_continu' | 'handicap'
   temporada TEXT,          -- format 'YYYY-YYYY' (ex: '2025-2026')
   estat_competicio TEXT,   -- 'planificacio'|'inscripcions'|'en_curs'|'finalitzat'
   actiu BOOLEAN,
@@ -493,7 +492,7 @@ La classe `is-mine` aplica només els estils de personalització (background tin
 ## Errors coneguts (ignorar)
 
 - **`connectionManager.ts`**: `handleOfflineEvent` hauria de ser `handleOnlineEvent`. Error pre-existent, no tocar.
-- `npm run check` reporta ~80 warnings CSS i 1 warning Svelte ("element implicitly closed" a `handicap/quadre`). Tots són pre-existents o cosmètics. Errors esperats: **0**.
+- `npm run check` esperat: **0 errors i 0 warnings** (des de la revisió integral de juny 2026).
 
 ## Migració automàtica de mitjanes
 

@@ -7,7 +7,20 @@ const DEFAULT_ACCEPT_DAYS = 7;
 const DEFAULT_PLAY_DAYS = 7;
 
 // Aquest endpoint revisa reptes fora de termini i aplica la sanció corresponent.
+// Requereix la capçalera 'x-cron-secret' amb el valor de la variable CRON_SECRET.
 export const POST: RequestHandler = async ({ request }) => {
+  // ── Autenticació per secret compartit ──────────────────────────────────────
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    console.error('[check-expired] CRON_SECRET no està configurat al servidor.');
+    return json({ ok: false, error: 'Configuració del servidor incorrecta' }, { status: 500 });
+  }
+
+  const incomingSecret = request.headers.get('x-cron-secret');
+  if (!incomingSecret || incomingSecret !== cronSecret) {
+    return json({ ok: false, error: 'No autoritzat' }, { status: 401 });
+  }
+
   try {
     const supabase = serverSupabase(request);
 
@@ -28,9 +41,19 @@ export const POST: RequestHandler = async ({ request }) => {
     const acceptDays = config?.dies_acceptar_repte ?? DEFAULT_ACCEPT_DAYS;
     const playDays = config?.dies_jugar_despres_acceptar ?? DEFAULT_PLAY_DAYS;
 
+    // Deadline per acceptar: reptes en estat 'proposat' amb data_proposta antiga
     const acceptDeadline = new Date(Date.now() - acceptDays * DAY_MS).toISOString();
-    const playDeadline = new Date(Date.now() - playDays * DAY_MS).toISOString();
 
+    // Deadline per jugar: reptes en estat 'acceptat' o 'programat' amb
+    // data_acceptacio antiga. Usem data_acceptacio perquè:
+    //   - 'acceptat': data_programada és NULL (el jugador no ha proposat data),
+    //     de manera que la comparació contra data_programada mai donaria resultats.
+    //   - 'programat': el termini ha de comptar des de l'acceptació, no des de
+    //     la data de la partida (que podria estar força en el futur però igualment
+    //     caducada si l'acceptació va ser fa massa temps).
+    const playDeadlineISO = new Date(Date.now() - playDays * DAY_MS).toISOString();
+
+    // ── Reptes sense acceptar ──────────────────────────────────────────────
     const { data: expiredAccept, error: acceptError } = await supabase
       .from('challenges')
       .select('id')
@@ -44,11 +67,12 @@ export const POST: RequestHandler = async ({ request }) => {
       );
     }
 
+    // ── Reptes acceptats/programats però no jugats dins el termini ─────────
     const { data: expiredPlay, error: playError } = await supabase
       .from('challenges')
       .select('id')
       .in('estat', ['acceptat', 'programat'])
-      .lt('data_programada', playDeadline);
+      .lt('data_acceptacio', playDeadlineISO);
 
     if (playError) {
       return json(

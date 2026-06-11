@@ -25,13 +25,9 @@
   // Realtime: unsubscribe function de la subscripció a canvis de partides.
   // Es re-creem cada cop que canvia l'event (veure efecte reactiu més avall).
   let unsubscribeRealtime: (() => void) | null = null;
+  let loadClassificationsCounter = 0;
 
-  onMount(() => {
-    if (event?.id) {
-      loadCategories();
-      loadClassifications();
-    }
-  });
+  // Inicialització gestionada per l'efecte reactiu $: if (event?.id) més avall.
 
   onDestroy(() => {
     if (unsubscribeRealtime) {
@@ -63,8 +59,14 @@
     }
   }
 
-  // Expand all categories by default when classifications first load
+  // Expand all categories by default when classifications first load.
+  // Reset hasInitialized when the event changes so a new event starts expanded.
   let hasInitialized = false;
+  let _lastEventId: string | null = null;
+  $: if (event?.id !== _lastEventId) {
+    _lastEventId = event?.id ?? null;
+    hasInitialized = false;
+  }
   $: if (classifications.length > 0 && !hasInitialized) {
     expandedCategories = new Set(
       Array.from(new Set(classifications.map(c => c.categoria_id)))
@@ -135,6 +137,7 @@
       return;
     }
 
+    const myReq = ++loadClassificationsCounter;
     loading = true;
     error = null;
 
@@ -144,6 +147,8 @@
         .rpc('get_social_league_classifications', {
           p_event_id: event.id
         });
+
+      if (myReq !== loadClassificationsCounter) return; // stale response
 
       if (classificationsError) throw classificationsError;
 
@@ -260,7 +265,7 @@
   $: sortedCategories = loadedCategories.length > 0
     ? loadedCategories
     : (event?.categories && event.categories.length > 0)
-    ? event.categories.sort((a: any, b: any) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0))
+    ? [...event.categories].sort((a: any, b: any) => (a.ordre_categoria || 0) - (b.ordre_categoria || 0))
     : categoriesFromClassifications;
 
   $: console.log('📊 SocialLeagueClassifications - Categories:', sortedCategories.length, 'Classifications:', classifications.length, 'Loaded categories:', loadedCategories.length);

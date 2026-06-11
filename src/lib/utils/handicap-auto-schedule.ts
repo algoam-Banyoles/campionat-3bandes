@@ -103,19 +103,58 @@ export async function autoScheduleReadyMatches(
 	const partMap = new Map((parts ?? []).map((p: any) => [p.id as string, p]));
 
 	// ── 6. Obtenir slots ocupats dins el període ──────────────────────────────
+	// Incloem l'`id` de cada partida per poder mapar-la als participants
+	// hàndicap corresponents (necessari per al seeding de playerDayBusy
+	// inter-batch al scheduler).
 
 	const { data: allPartides } = await supabase
 		.from('calendari_partides')
-		.select('data_programada, hora_inici, taula_assignada')
+		.select('id, data_programada, hora_inici, taula_assignada')
 		.gte('data_programada', `${config.data_inici}T00:00:00`)
 		.lte('data_programada', `${config.data_fi}T23:59:59`)
 		.not('data_programada', 'is', null)
 		.not('taula_assignada', 'is', null);
 
+	// Construir mapa calendari_partida_id → [participant_id] per als matches
+	// hàndicap ja programats (les partides socials no en tindran).
+	const { data: existingMatches } = await supabase
+		.from('handicap_matches')
+		.select('calendari_partida_id, slot1_id, slot2_id')
+		.eq('event_id', eventId)
+		.not('calendari_partida_id', 'is', null);
+
+	// Necessitem els participant_id de tots els slots ja programats.
+	const existingSlotIds = (existingMatches ?? []).flatMap((m: any) => [
+		m.slot1_id as string,
+		m.slot2_id as string
+	]);
+	let existingSlotPidMap = new Map<string, string | null>();
+	if (existingSlotIds.length > 0) {
+		const { data: existingSlots } = await supabase
+			.from('handicap_bracket_slots')
+			.select('id, participant_id')
+			.in('id', existingSlotIds);
+		existingSlotPidMap = new Map(
+			(existingSlots ?? []).map((s: any) => [s.id as string, s.participant_id as string | null])
+		);
+	}
+
+	const participantsByPartidaId = new Map<string, string[]>();
+	for (const m of existingMatches ?? []) {
+		if (!m.calendari_partida_id) continue;
+		const pid1 = existingSlotPidMap.get(m.slot1_id as string);
+		const pid2 = existingSlotPidMap.get(m.slot2_id as string);
+		const ids: string[] = [];
+		if (pid1) ids.push(pid1);
+		if (pid2) ids.push(pid2);
+		if (ids.length > 0) participantsByPartidaId.set(m.calendari_partida_id as string, ids);
+	}
+
 	const occupiedSlots = (allPartides ?? []).map((p: any) => ({
 		data: (p.data_programada as string).substring(0, 10),
 		hora: (p.hora_inici as string).substring(0, 5),
-		taula: p.taula_assignada as number
+		taula: p.taula_assignada as number,
+		participantIds: participantsByPartidaId.get(p.id as string) ?? []
 	}));
 
 	// ── 7. Construir MatchToSchedule[] ───────────────────────────────────────

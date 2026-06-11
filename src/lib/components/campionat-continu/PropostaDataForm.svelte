@@ -37,7 +37,7 @@
 
   // Permís al CLIENT: mostrar només si logat i és reptador/reptat
   let canShow = false;
-  async function computeCanShow() {
+  async function computeCanShow(_cid?: string, _r?: number | null, _t?: number | null) {
     err = null; ok = null;
     const { data: auth } = await supabase.auth.getUser();
     const email = auth?.user?.email ?? null;
@@ -58,7 +58,7 @@
     });
   }
 
-  $: computeCanShow(); // re-calcula si canvien props
+  $: computeCanShow(challengeId, reptadorSociNumero, reptatSociNumero); // re-calcula si canvien props
 
   async function proposa() {
     err = null; ok = null;
@@ -67,7 +67,7 @@
 
     submitting = true;
     try {
-      const res = await authFetch('/reptes/proposa-data', {
+      const res = await authFetch('/campionat-continu/reptes/proposa-data', {
         method: 'POST',
         body: JSON.stringify({ challenge_id: challengeId, data_programada: iso })
       });

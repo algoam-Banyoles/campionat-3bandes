@@ -4,6 +4,7 @@
 	import { buildMatchCodeMap, buildSlotSourceMap } from '$lib/utils/handicap-types';
 	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 	import { effectiveIsAdmin } from '$lib/stores/viewMode';
+	import { loadBlockedDates } from '$lib/utils/handicap-blocked-dates';
 
 	let loading = true;
 	let error: string | null = null;
@@ -33,9 +34,9 @@
 	let rows: CalRow[] = [];
 	let columns: 1 | 2 = 2;
 
-	// Dies marcats com a festius (no programables). Coherent amb el
-	// pre-scheduler i els modals d'impressió.
-	const FESTIUS = new Set(['2026-06-24']);
+	// Dies marcats com a festius/bloquejats (no programables). Carregats des
+	// de handicap_config.blocked_periods per a l'event actiu.
+	let FESTIUS = new Set<string>();
 
 	function ymd(d: Date): string {
 		const y = d.getFullYear();
@@ -54,7 +55,7 @@
 
 	onMount(async () => {
 		try {
-			const { data: ev, error: evErr } = await supabase
+			const { data: activeEv } = await supabase
 				.from('events')
 				.select('id, nom, temporada, data_inici, data_fi')
 				.eq('tipus_competicio', 'handicap')
@@ -62,7 +63,20 @@
 				.limit(1)
 				.maybeSingle();
 
-			if (evErr || !ev) {
+			let ev = activeEv;
+			if (!ev) {
+				// Fallback: event hàndicap més recent (pot estar finalitzat)
+				const { data: recentEv } = await supabase
+					.from('events')
+					.select('id, nom, temporada, data_inici, data_fi')
+					.eq('tipus_competicio', 'handicap')
+					.order('data_inici', { ascending: false })
+					.limit(1)
+					.maybeSingle();
+				ev = recentEv ?? null;
+			}
+
+			if (!ev) {
 				error = 'No hi ha cap torneig hàndicap actiu.';
 				loading = false;
 				return;
@@ -70,6 +84,9 @@
 
 			eventNom = ev.nom ?? '';
 			eventTemporada = ev.temporada ?? '';
+
+			// Carregar dates bloquejades des de handicap_config.blocked_periods
+			FESTIUS = await loadBlockedDates(supabase, ev.id as string);
 
 			const { data: cfg } = await supabase
 				.from('handicap_config')
@@ -221,9 +238,6 @@
 			// (estat pendent/programada). Aquests dies SÍ es mantenen al
 			// calendari perquè cal seguir poden gestionar-los.
 			const pastDaysWithPending = new Set<string>();
-			for (const mi of matchAtSlot.values()) {
-				// matchAtSlot ja és només de partides amb data programada
-			}
 			for (const [key, mi] of matchAtSlot) {
 				const dKey = key.split('|')[0]; // 'YYYY-MM-DD'
 				if (dKey >= todayYmd) continue; // futur o avui: gestionat pel filtre general

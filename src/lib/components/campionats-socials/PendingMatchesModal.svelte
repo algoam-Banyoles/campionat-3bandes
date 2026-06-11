@@ -122,9 +122,9 @@
         const categoriaA = a.categoria;
         const categoriaB = b.categoria;
 
-        // Si ambdues categories tenen camp 'ordre', ordenar per ordre
-        if (categoriaA?.ordre !== undefined && categoriaB?.ordre !== undefined) {
-          return categoriaA.ordre - categoriaB.ordre;
+        // Si ambdues categories tenen camp 'ordre_categoria', ordenar per ordre
+        if (categoriaA?.ordre_categoria !== undefined && categoriaB?.ordre_categoria !== undefined) {
+          return categoriaA.ordre_categoria - categoriaB.ordre_categoria;
         }
 
         // Si no, ordenar per nom de categoria

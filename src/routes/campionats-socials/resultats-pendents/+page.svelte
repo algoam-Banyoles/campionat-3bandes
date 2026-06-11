@@ -19,6 +19,8 @@
     goto('/campionats-socials');
   }
 
+  // Tots els events socials actius (pot haver-n'hi fins a 3, un per modalitat)
+  let activeEvents: any[] = [];
   let selectedEvent: any = null;
   let categories: any[] = [];
   let selectedCategory: any = null;
@@ -46,26 +48,41 @@
 
   async function loadActiveEvent() {
     try {
-      // Load the single active social league event
-      const { data: eventData, error: eventError } = await supabase
+      // Carreguem TOTS els events socials actius (pot haver-n'hi fins a 3, un per modalitat)
+      const { data: eventsData, error: eventsError } = await supabase
         .from('events')
         .select('*')
         .eq('actiu', true)
         .eq('tipus_competicio', 'lliga_social')
         .order('temporada', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order('modalitat');
 
-      if (eventError) throw eventError;
+      if (eventsError) throw eventsError;
 
-      if (!eventData) {
+      if (!eventsData || eventsData.length === 0) {
         error = 'No hi ha cap campionat social actiu';
         return;
       }
 
-      selectedEvent = eventData;
+      activeEvents = eventsData;
+      // Per defecte, seleccionem el primer
+      await selectEvent(activeEvents[0]);
 
-      // Load categories for the active event
+    } catch (e) {
+      console.error('Error loading active events:', e);
+      error = 'Error carregant els campionats actius';
+    }
+  }
+
+  async function selectEvent(event: any) {
+    selectedEvent = event;
+    // Reset de seleccions dependents
+    selectedCategory = null;
+    calendarMatches = [];
+    error = '';
+
+    // Carregar categories del campionat seleccionat
+    try {
       const { data: categoriesData, error: categoriesError } = await supabase
         .from('categories')
         .select('*')
@@ -74,10 +91,9 @@
 
       if (categoriesError) throw categoriesError;
       categories = categoriesData || [];
-
     } catch (e) {
-      console.error('Error loading active event:', e);
-      error = 'Error carregant el campionat actiu';
+      console.error('Error loading categories:', e);
+      error = 'Error carregant les categories';
     }
   }
 
@@ -147,6 +163,23 @@
     if (caramboles_jugador1 === 0 && caramboles_jugador2 === 0) {
       error = 'Introdueix les caramboles per ambdós jugadors';
       return;
+    }
+
+    if (entrades <= 0) {
+      error = 'Les entrades han de ser majors que 0';
+      return;
+    }
+
+    const distancia = selectedCategory?.distancia_caramboles;
+    if (distancia != null) {
+      if (caramboles_jugador1 > distancia) {
+        error = `Les caramboles del jugador 1 (${caramboles_jugador1}) superen la distància de la categoria (${distancia})`;
+        return;
+      }
+      if (caramboles_jugador2 > distancia) {
+        error = `Les caramboles del jugador 2 (${caramboles_jugador2}) superen la distància de la categoria (${distancia})`;
+        return;
+      }
     }
 
     // Snapshot del que s'està guardant: així alliberem el formulari abans
@@ -332,8 +365,28 @@
   {#if selectedEvent}
     <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
       <div class="mb-4">
+        {#if activeEvents.length > 1}
+          <div class="mb-3">
+            <label for="event-selector" class="block text-sm font-medium text-gray-700 mb-1">Campionat</label>
+            <select
+              id="event-selector"
+              class="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              on:change={(e) => {
+                const ev = activeEvents.find(ae => ae.id === (e.target as HTMLSelectElement).value);
+                if (ev) selectEvent(ev);
+              }}
+              value={selectedEvent.id}
+            >
+              {#each activeEvents as ae}
+                <option value={ae.id}>
+                  {({'tres_bandes': '3 Bandes', 'lliure': 'Lliure', 'banda': 'Banda'}[ae.modalitat] ?? ae.modalitat)} {ae.temporada}
+                </option>
+              {/each}
+            </select>
+          </div>
+        {/if}
         <h2 class="text-xl font-semibold text-gray-900 mb-1">
-          {selectedEvent.modalitat?.toUpperCase()} {selectedEvent.temporada}
+          {({'tres_bandes': '3 Bandes', 'lliure': 'Lliure', 'banda': 'Banda'}[selectedEvent.modalitat] ?? selectedEvent.modalitat)} {selectedEvent.temporada}
         </h2>
         <p class="text-sm text-gray-600">{selectedEvent.nom}</p>
       </div>

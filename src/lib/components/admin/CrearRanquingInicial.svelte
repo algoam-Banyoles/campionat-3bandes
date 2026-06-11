@@ -5,7 +5,6 @@
 	import { ERROR_CODES } from '$lib/errors/types';
 	import { toastStore } from '$lib/stores/toastStore';
 	import { logAction, logSuccess } from '$lib/errors/sentry';
-	import ToastContainer from '$lib/components/general/ToastContainer.svelte';
 
 	type Soci = {
 		id?: string;
@@ -498,5 +497,3 @@
 	{/if}
 </div>
 
-<!-- Contenidor de toasts per mostrar errors i notificacions -->
-<ToastContainer />

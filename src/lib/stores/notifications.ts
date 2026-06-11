@@ -284,7 +284,7 @@ export async function unsubscribeFromPush(): Promise<boolean> {
 // Carregar preferències de notificacions
 export async function loadNotificationPreferences(): Promise<void> {
   const currentUser = get(user);
-  if (!user) return;
+  if (!currentUser) return;
 
   try {
     notificationsLoading.set(true);
@@ -312,7 +312,7 @@ export async function loadNotificationPreferences(): Promise<void> {
 // Actualitzar preferències de notificacions
 export async function updateNotificationPreferences(preferences: Partial<NotificationPreferences>): Promise<boolean> {
   const currentUser = get(user);
-  if (!user) return false;
+  if (!currentUser) return false;
 
   try {
     notificationsLoading.set(true);
@@ -345,7 +345,7 @@ export async function updateNotificationPreferences(preferences: Partial<Notific
 // Carregar historial de notificacions
 export async function loadNotificationHistory(): Promise<void> {
   const currentUser = get(user);
-  if (!user) return;
+  if (!currentUser) return;
 
   try {
     notificationsLoading.set(true);

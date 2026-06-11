@@ -34,7 +34,7 @@
   let manualAssignments = new Set();
 
   $: unassignedInscriptions = inscriptions.filter(i => !i.categoria_assignada_id);
-  $: sortedCategories = categories.sort((a, b) => a.ordre_categoria - b.ordre_categoria);
+  $: sortedCategories = [...categories].sort((a, b) => a.ordre_categoria - b.ordre_categoria);
 
   // Inicialitzar rangs automàticament quan canvien les categories
   $: if (categories.length > 0 && Object.keys(averageRanges).length === 0) {
@@ -43,7 +43,7 @@
 
   function initializeAverageRanges() {
     // Calcular rangs automàtics basats en les distàncies de caramboles
-    const sortedCats = categories.sort((a, b) => b.distancia_caramboles - a.distancia_caramboles);
+    const sortedCats = [...categories].sort((a, b) => b.distancia_caramboles - a.distancia_caramboles);
 
     averageRanges = {};
     sortedCats.forEach((cat, index) => {
@@ -349,6 +349,37 @@
       // Ordenar categories actuals per ordre
       const sortedCurrentCats = [...categories].sort((a, b) => a.ordre_categoria - b.ordre_categoria);
 
+      // Recollir tots els soci_numero dels top-2 per categoria d'una vegada (evitar N+1)
+      const candidateSociNumeros: number[] = [];
+      for (let i = 1; i < sortedPrevCats.length; i++) {
+        const cat = sortedPrevCats[i];
+        const top2 = (classifications || [])
+          .filter(c => c.categoria_id === cat.id)
+          .sort((a, b) => {
+            if (b.punts !== a.punts) return b.punts - a.punts;
+            return (b.victories || 0) - (a.victories || 0);
+          })
+          .slice(0, 2);
+        for (const p of top2) {
+          const n = (p as any).soci_numero;
+          if (n) candidateSociNumeros.push(n);
+        }
+      }
+
+      // Fetch tots els socis candidats en una sola query
+      const socisMap = new Map<number, { numero_soci: number; nom: string; cognoms: string }>();
+      if (candidateSociNumeros.length > 0) {
+        const { data: socisData, error: socisError } = await supabase
+          .from('socis')
+          .select('numero_soci, nom, cognoms')
+          .in('numero_soci', candidateSociNumeros);
+        if (socisError) {
+          console.warn('Error obtenint dades de socis candidats:', socisError);
+        } else {
+          (socisData || []).forEach((s: any) => socisMap.set(s.numero_soci, s));
+        }
+      }
+
       for (let i = 1; i < sortedPrevCats.length; i++) {
         const category = sortedPrevCats[i];
         const categoryClassifications = (classifications || [])
@@ -382,20 +413,16 @@
             continue;
           }
 
-          // Obtenir informació del jugador des de socis
+          // Obtenir informació del jugador des del map precalculat
           const sociNumero = (player as any).soci_numero;
           if (!sociNumero) {
             console.warn(`Classificació sense soci_numero`);
             continue;
           }
-          const { data: sociData, error: sociError } = await supabase
-            .from('socis')
-            .select('numero_soci, nom, cognoms')
-            .eq('numero_soci', sociNumero)
-            .single();
+          const sociData = socisMap.get(sociNumero);
 
-          if (sociError || !sociData) {
-            console.warn(`Error obtenint dades del soci ${sociNumero}:`, sociError);
+          if (!sociData) {
+            console.warn(`No s'han trobat dades del soci ${sociNumero}`);
             continue;
           }
 

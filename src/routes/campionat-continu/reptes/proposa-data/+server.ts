@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 import { createClient } from '@supabase/supabase-js';
 import { getSupabaseEnv } from '$lib/server/env';
-import { wrapRpc } from '$lib/errors';
+import { wrapRpc } from '$lib/rpc-errors';
 
 function isIsoString(s: string): boolean {
   const d = new Date(s);

@@ -75,7 +75,8 @@
           .from('events')
           .select('id')
           .eq('actiu', true)
-          .order('creat_el', { ascending: false })
+          .eq('tipus_competicio', 'ranking_continu')
+          .order('data_inici', { ascending: false })
           .limit(1)
           .maybeSingle();
 
@@ -110,7 +111,7 @@
       .from('mitjanes_historiques')
       .select('soci_id, mitjana')
       .in('soci_id', sociIds)
-      .eq('modalitat', '3 Bandes')
+      .eq('modalitat', '3 BANDES')
       .in('year', [2024, 2025])
       .not('mitjana', 'is', null)
       .order('mitjana', { ascending: false });
@@ -154,7 +155,7 @@
       .from('challenges')
       .select('reptador_soci_numero, reptat_soci_numero')
       .eq('event_id', eventId)
-      .in('estat', ['proposat', 'acceptat']);
+      .in('estat', ['proposat', 'acceptat', 'programat']);
     const activeSociNums = new Set<number>();
     (active as any[] ?? []).forEach((c: any) => {
       if (c.reptador_soci_numero != null) activeSociNums.add(c.reptador_soci_numero);
@@ -166,11 +167,11 @@
     });
 
     // Last challenge info - simplified approach using matches table
-    const { data: allMatches } = await supabase
+    const { data: allMatches, error: matchesErr } = await supabase
       .from('matches')
       .select(`
         challenge_id,
-        data_partida,
+        data_joc,
         challenges!inner(
           event_id,
           reptador_soci_numero,
@@ -182,12 +183,16 @@
       `)
       .eq('challenges.event_id', eventId);
 
+    if (matchesErr) {
+      console.warn('Error carregant partides per cooldown:', matchesErr.message);
+    }
+
     const lastMap = new Map<number, any>();
 
     // Process matches to find last challenge for each player
     (allMatches as any[] ?? []).forEach((match: any) => {
       const c = match.challenges;
-      const matchDate = match.data_partida || c.data_acceptacio || c.data_proposta;
+      const matchDate = match.data_joc || c.data_acceptacio || c.data_proposta;
 
       // For challenger
       if (c.reptador_soci_numero != null) {
@@ -287,18 +292,15 @@
     }
 
     if (mySociNumero && eventId && canIChallenge) {
-      for (const r of rows) {
-        if (r.reptable) {
-          const chk = await canCreateChallenge(
-            supabase,
-            eventId,
-            mySociNumero,
-            r.soci_numero
-          );
-          r.canChallenge = chk.ok;
-          r.reason = chk.ok ? chk.warning : chk.reason;
-        }
-      }
+      await Promise.all(
+        rows
+          .filter((r) => r.reptable)
+          .map(async (r) => {
+            const chk = await canCreateChallenge(supabase, eventId!, mySociNumero!, r.soci_numero);
+            r.canChallenge = chk.ok;
+            r.reason = chk.ok ? chk.warning : chk.reason;
+          })
+      );
     }
   }
 

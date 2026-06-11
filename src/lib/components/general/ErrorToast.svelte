@@ -74,7 +74,8 @@
 	function showToast() {
 		visible = true;
 		
-		if (autoClose && severity !== 'error') {
+		const effectiveSeverity = currentError?.severity ?? severity;
+		if (autoClose && effectiveSeverity !== 'error') {
 			clearTimeout(timeoutId);
 			timeoutId = setTimeout(closeToast, duration);
 		}
@@ -202,7 +203,7 @@
 			{/if}
 			
 			<!-- Barra de progrés per auto-close -->
-			{#if autoClose && severity !== 'error' && visible}
+			{#if autoClose && (currentError?.severity ?? severity) !== 'error' && visible}
 				<div class="absolute bottom-0 left-0 h-1 bg-gray-200 w-full rounded-b-lg overflow-hidden">
 					<div 
 						class="h-full bg-gray-400 transition-all ease-linear"

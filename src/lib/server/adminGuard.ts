@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { wrapRpc } from '../errors';
+import { wrapRpc } from '../rpc-errors';
 
 function tokenFromEvent(event: Parameters<import('@sveltejs/kit').RequestHandler>[0]) {
   return (

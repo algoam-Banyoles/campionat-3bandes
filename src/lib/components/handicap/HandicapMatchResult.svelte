@@ -105,6 +105,7 @@
 		caramboles1 = null;
 		caramboles2 = null;
 		entrades = null;
+		manualWinner = null;
 	}
 
 	// Percentatge per mostrar

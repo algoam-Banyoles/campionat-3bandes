@@ -21,6 +21,7 @@ import {
 	optimizeSchedule,
 	type ParticipantAvailability
 } from './handicap-schedule-optimizer';
+import { expandBlockedPeriods } from './handicap-blocked-dates';
 
 export interface PersistOptions {
 	/** Dies festius o vetats (no es programen partides). */
@@ -122,7 +123,7 @@ export async function persistFullSchedule(
 
 	const { data: cfg } = await supabase
 		.from('handicap_config')
-		.select('horaris_extra')
+		.select('horaris_extra, blocked_periods')
 		.eq('event_id', eventId)
 		.maybeSingle();
 
@@ -146,9 +147,9 @@ export async function persistFullSchedule(
 
 	const slots = slotsData as Array<PreSchedulerSlot & { participant_id: string | null }>;
 	const matchesAll = matchesData as Array<PreSchedulerMatch & { calendari_partida_id: string | null; calendari_fixat?: boolean }>;
-	// Saltem byes, jugats i matches marcats com a fixats (data forçada per l'admin).
+	// Saltem byes, jugats, walkovers i matches marcats com a fixats (data forçada per l'admin).
 	const playables = matchesAll.filter(
-		m => m.estat !== 'bye' && m.estat !== 'jugada' && !m.calendari_fixat
+		m => m.estat !== 'bye' && m.estat !== 'jugada' && m.estat !== 'walkover' && !m.calendari_fixat
 	);
 
 	const { data: participants } = await supabase
@@ -192,6 +193,20 @@ export async function persistFullSchedule(
 		});
 	}
 
+	// Combinar les dates bloquejades de la configuració (BD) amb les que
+	// el caller pugui passar com a opció (dies festius puntuals o tests).
+	// La BD té prioritat semàntica però tots dos es fusionen.
+	const dbBlockedDates: Date[] = Array.isArray((cfg as any)?.blocked_periods)
+		? [...expandBlockedPeriods((cfg as any).blocked_periods)].map(s => {
+				const [y, m, d] = s.split('-').map(Number);
+				return new Date(y, m - 1, d);
+			})
+		: [];
+	const mergedDiesBloquejats: Date[] = [
+		...dbBlockedDates,
+		...(options.diesBloquejats ?? [])
+	];
+
 	let scheduled;
 	try {
 		const detailed = preSchedulingForBracketDetailed(slots, playables, {
@@ -200,7 +215,7 @@ export async function persistFullSchedule(
 			horesEstandard: ['18:00', '19:00'],
 			horarisExtra: cfg?.horaris_extra ?? null,
 			billars: 3,
-			diesBloquejats: options.diesBloquejats,
+			diesBloquejats: mergedDiesBloquejats.length > 0 ? mergedDiesBloquejats : undefined,
 			availabilities: availForPre
 		});
 		scheduled = detailed.scheduled;
@@ -228,13 +243,15 @@ export async function persistFullSchedule(
 		? toLocalIsoNoon(optResult.dataFiEfectiva)
 		: null;
 
-	// PASSADA 1: alliberar tots els slots actuals (taula_assignada = NULL) per
-	// evitar conflictes amb l'índex únic 'idx_unique_billar_slot' durant els
-	// updates posteriors. L'índex és parcial: només actua amb tots els camps
-	// no-null, així posant taula a NULL sortim de l'índex i podem reorganitzar.
+	// PASSADA 1: alliberar els slots dels matches que el nou horari tornarà a
+	// escriure, per evitar conflictes amb l'índex únic 'idx_unique_billar_slot'
+	// durant els updates posteriors. Només NUL·LIFIQUEM les files dels matches
+	// que efectivament s'han pogut programar (optResult.scheduled); els que
+	// l'optimitzador no ha inclòs conserven les seves dates originals.
+	const scheduledMatchIds = new Set(optResult.scheduled.keys());
 	const existingCalendariIds = playables
-		.map(m => m.calendari_partida_id)
-		.filter((id): id is string => !!id);
+		.filter(m => m.calendari_partida_id && scheduledMatchIds.has(m.id))
+		.map(m => m.calendari_partida_id as string);
 	if (existingCalendariIds.length > 0) {
 		const { error: clearErr } = await supabase
 			.from('calendari_partides')

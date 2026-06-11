@@ -189,7 +189,9 @@ export async function ensureFreshToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   if (!data.session) return null;
   await hydrateSession();
-  return data.session.access_token;
+  // Re-fetch after hydrate so the returned token reflects any refresh
+  const { data: refreshed } = await supabase.auth.getSession();
+  return refreshed.session?.access_token ?? null;
 }
 
 export async function signOut() {

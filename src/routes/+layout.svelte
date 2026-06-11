@@ -8,6 +8,7 @@
   import '$lib/config/pwa-config'; // Importar configuració PWA per suprimir errors
   import { setupFocusManagement } from "$lib/utils/focus-management";
   import Toasts from '$lib/components/general/Toasts.svelte';
+  import ToastContainer from '$lib/components/general/ToastContainer.svelte';
   import ConfirmDialog from '$lib/components/general/ConfirmDialog.svelte';
   import Nav from '$lib/components/general/NavEditorial.svelte';
   import AccessibilityButton from "$lib/components/accessibility/AccessibilityButton.svelte";
@@ -191,5 +192,6 @@
   </main>
 
   <Toasts />
+  <ToastContainer />
   <ConfirmDialog />
 {/if}

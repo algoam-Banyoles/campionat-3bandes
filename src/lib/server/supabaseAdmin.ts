@@ -1,7 +1,7 @@
 // src/lib/server/supabaseAdmin.ts
 import { createClient } from '@supabase/supabase-js';
 import { getSupabaseEnv } from './env';
-import { wrapRpc } from '../errors';
+import { wrapRpc } from '../rpc-errors';
 
 export function serverSupabase(req?: Request, useServiceRole = false) {
   const { url, key } = getSupabaseEnv(useServiceRole);

@@ -40,7 +40,7 @@
   let okMsg: string | null = null;
   let rows: ChallengeRow[] = [];
   let busy: string | null = null; // id en acció
-  const REPRO_LIMIT = 3;
+  const REPRO_LIMIT = 1;
   let reproLimit = REPRO_LIMIT;
 
   const challengeStateLabel = (state: string): string =>
@@ -154,7 +154,7 @@
       busy = r.id;
       error = null;
       okMsg = null;
-        const res = await authFetch('/reptes/accepta', {
+        const res = await authFetch('/campionat-continu/reptes/accepta', {
           method: 'POST',
           body: JSON.stringify({ id: r.id, data_iso: null })
         });

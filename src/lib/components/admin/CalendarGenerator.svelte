@@ -2492,21 +2492,35 @@
         }));
 
       if (slotsToCheck.length > 0) {
-        const dates = [...new Set(slotsToCheck.map(s => s.dia))];
-        const { data: existing } = await supabase
+        const dates = [...new Set(slotsToCheck.map(s => s.dia))].sort();
+        const minDate = dates[0] + 'T00:00:00';
+        const maxDate = dates[dates.length - 1] + 'T23:59:59';
+        const { data: existing, error: conflictError } = await supabase
           .from('calendari_partides')
           .select('data_programada, hora_inici, taula_assignada')
           .neq('event_id', eventId)
-          .in('data_programada::date', dates)
+          .gte('data_programada', minDate)
+          .lte('data_programada', maxDate)
           .not('data_programada', 'is', null)
           .not('hora_inici', 'is', null)
           .not('taula_assignada', 'is', null)
           .or('partida_anullada.is.null,partida_anullada.eq.false')
           .not('estat', 'in', '("jugada","cancel·lada_per_retirada","pendent_programar","postposada","reprogramada")');
 
+        if (conflictError) {
+          console.error('Error comprovant conflictes entre campionats:', conflictError);
+          throw new Error(`Error en la comprovació de conflictes: ${conflictError.message}`);
+        }
+
         if (existing && existing.length > 0) {
+          const datesSet = new Set(dates);
           const occupiedSet = new Set(
-            existing.map((e: any) => `${String(e.data_programada).split('T')[0]}|${e.hora_inici}|${e.taula_assignada}`)
+            existing
+              .filter((e: any) => {
+                const d = String(e.data_programada).split('T')[0];
+                return datesSet.has(d);
+              })
+              .map((e: any) => `${String(e.data_programada).split('T')[0]}|${e.hora_inici}|${e.taula_assignada}`)
           );
           const conflicts = slotsToCheck.filter(s => occupiedSet.has(`${s.dia}|${s.hora}|${s.billar}`));
           if (conflicts.length > 0) {
@@ -2522,10 +2536,14 @@
       }
 
       // Eliminar calendari existent
-      await supabase
+      const { error: deleteExistingError } = await supabase
         .from('calendari_partides')
         .delete()
         .eq('event_id', eventId);
+
+      if (deleteExistingError) {
+        throw new Error(`No s'ha pogut eliminar el calendari existent: ${deleteExistingError.message}`);
+      }
 
       // Inserir nous partits
       const partidesToInsert = proposedCalendar.map(match => ({
@@ -2575,10 +2593,14 @@
       generatingCalendar = true;
 
       // Eliminar calendari existent
-      await supabase
+      const { error: deleteRegenerateError } = await supabase
         .from('calendari_partides')
         .delete()
         .eq('event_id', eventId);
+
+      if (deleteRegenerateError) {
+        throw new Error(`No s'ha pogut eliminar el calendari existent: ${deleteRegenerateError.message}`);
+      }
 
       // Generar nou calendari
       await generateCalendar();
@@ -2598,7 +2620,7 @@
 
       // 1. Despublicar l'esdeveniment
       const { error: updateError } = await supabase
-        .from('esdeveniments_club')
+        .from('events')
         .update({ calendari_publicat: false })
         .eq('id', eventId);
 

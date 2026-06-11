@@ -47,16 +47,11 @@ export const GET: RequestHandler = async ({ request }) => {
     }
     const eventId = event.id as string;
 
-    console.log('🎯 Esdeveniment actiu:', { id: eventId, nom: (event as any).nom });
-
     const { data: rank, error: rErr } = await supabase
       .from('ranking_positions')
       .select('posicio, soci_numero')
       .eq('event_id', eventId)
       .order('posicio', { ascending: true });
-    
-    console.log('📊 Consulta rànquing:', { eventId, error: rErr, resultsCount: rank?.length ?? 0 });
-    
     if (rErr) {
       if (isRlsError(rErr)) return json({ ok: false, error: 'Permisos insuficients' }, { status: 403 });
       return json({ ok: false, error: rErr.message }, { status: 400 });
@@ -104,13 +99,20 @@ export const GET: RequestHandler = async ({ request }) => {
     const reptables: { posicio: number; soci_numero: number; nom: string }[] = [];
     const noReptables: { posicio: number; soci_numero: number; nom: string; motiu: string }[] = [];
 
-    for (const r of allRank) {
-      if (r.soci_numero === mySociNumero) continue;
-      const { data: chk, error: eChk } = await supabase.rpc('can_create_challenge_v2', {
-        p_event: eventId,
-        p_reptador_soci: mySociNumero,
-        p_reptat_soci: r.soci_numero
-      });
+    const candidates = allRank.filter((r) => r.soci_numero !== mySociNumero);
+
+    const results = await Promise.all(
+      candidates.map(async (r) => {
+        const { data: chk, error: eChk } = await supabase.rpc('can_create_challenge_v2', {
+          p_event: eventId,
+          p_reptador_soci: mySociNumero,
+          p_reptat_soci: r.soci_numero
+        });
+        return { r, chk, eChk };
+      })
+    );
+
+    for (const { r, chk, eChk } of results) {
       if (eChk) {
         noReptables.push({ ...r, motiu: 'no disponible' });
         continue;

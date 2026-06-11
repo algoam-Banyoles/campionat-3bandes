@@ -169,7 +169,7 @@ export async function refreshActiveChallenges(): Promise<void> {
                 // Guardar en storage offline per ús futur
                 if (processedData.length > 0) {
                   const offlineFormat = processedData.map(challenge => ({
-                    id: parseInt(challenge.id),
+                    id: challenge.id as unknown as number, // UUID string used as key; cast satisfies StorageSchema type
                     soci_retador_id: challenge.reptador_soci_numero,
                     soci_retat_id: challenge.reptat_soci_numero,
                     estat: challenge.estat as any,
@@ -374,7 +374,8 @@ export async function acceptChallenge(challengeId: string, sociNumero?: number):
 
     // Actualitzar localment si és possible
     try {
-      const localChallenge = await offlineStorage.get('reptes', parseInt(challengeId));
+      // UUID string used directly as key (parseInt on a UUID gives NaN)
+      const localChallenge = await offlineStorage.get('reptes', challengeId);
       if (localChallenge) {
         const updatedChallenge = {
           ...localChallenge,
@@ -458,7 +459,8 @@ export async function refuseChallenge(challengeId: string, sociNumero?: number):
 
     // Actualitzar localment si és possible
     try {
-      const localChallenge = await offlineStorage.get('reptes', parseInt(challengeId));
+      // UUID string used directly as key (parseInt on a UUID gives NaN)
+      const localChallenge = await offlineStorage.get('reptes', challengeId);
       if (localChallenge) {
         const updatedChallenge = {
           ...localChallenge,

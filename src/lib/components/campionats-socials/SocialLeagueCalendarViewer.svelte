@@ -206,19 +206,26 @@
   }
 
   // Subscripció Realtime: refresc automàtic quan altres clients toquen partides.
-  // Es re-crea cada cop que canvia eventId i s'allibera al destruir el component.
+  // Es re-crea NOMÉS quan canvia eventId — no quan canvia `matches`.
+  // La funció findMatch accedeix a `matches` en temps d'execució (no és una dep reactiva).
+  function findMatchById(id: string) {
+    return matches.find(m => m.id === id);
+  }
+
   let unsubscribeRealtime: (() => void) | null = null;
-  $: {
+  $: resubscribeRealtime(eventId);
+
+  function resubscribeRealtime(eid: string) {
     if (unsubscribeRealtime) {
       unsubscribeRealtime();
       unsubscribeRealtime = null;
     }
-    if (eventId) {
-      unsubscribeRealtime = subscribeToMatchUpdates(supabase, eventId, async (e) => {
+    if (eid) {
+      unsubscribeRealtime = subscribeToMatchUpdates(supabase, eid, async (e) => {
         // Si el canvi ve de l'usuari local, suprimim el toast (la lògica
         // de mutació ja recarrega les dades) per evitar feedback duplicat.
         if (e.type === 'result_recorded' && !e.isLocalEcho) {
-          const localMatch = matches.find(m => m.id === e.matchId);
+          const localMatch = findMatchById(e.matchId);
           const players = localMatch
             ? `${formatPlayerName(localMatch.jugador1)} vs ${formatPlayerName(localMatch.jugador2)}`
             : 'una partida';

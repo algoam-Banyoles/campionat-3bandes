@@ -74,7 +74,7 @@
       const { supabase } = await import('$lib/supabaseClient');
       await resolveAccessChallenge(supabase, r.id, winner);
       okMsg = 'Repte resolt';
-      await Promise.all([load(), refreshRanking(), invalidate('/llista-espera')]);
+      await Promise.all([load(), refreshRanking(), invalidate('/campionat-continu/llista-espera')]);
     } catch (e: any) {
       error = e?.message ?? 'Error resolent repte';
     } finally {

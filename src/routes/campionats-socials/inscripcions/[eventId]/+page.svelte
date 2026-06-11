@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { user } from '$lib/stores/auth';
+  import { user, isLoading } from '$lib/stores/auth';
   import { supabase } from '$lib/supabaseClient';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
@@ -17,7 +17,7 @@
   let player: any = null;
   let existingInscription: any = null;
 
-  const eventId = $page.params.eventId;
+  $: eventId = $page.params.eventId;
 
   // Form data
   let formData = {
@@ -67,13 +67,12 @@
     return [currentYear - 1, currentYear - 2];
   }
 
-  onMount(async () => {
-    const u = $user;
-    if (!u?.email) {
-      goto('/login');
-      return;
-    }
+  // Redirigir a login només quan auth ha resolt (no durant 'loading').
+  $: if (!$isLoading && !$user) {
+    goto('/login');
+  }
 
+  onMount(async () => {
     try {
       loading = true;
       await loadEvent();
@@ -209,29 +208,35 @@
         return;
       }
 
-      const inscriptionData = {
-        event_id: eventId,
-        soci_numero: player.id,
-        preferencies_dies: formData.preferencies_dies,
-        preferencies_hores: formData.preferencies_hores,
-        restriccions_especials: formData.restriccions_especials.trim() || null,
-        observacions: formData.observacions.trim() || null,
-        pagat: false, // Will be updated by admin
-        confirmat: false, // Will be confirmed by admin
-        data_inscripcio: new Date().toISOString()
-      };
-
       if (existingInscription) {
-        // Update existing inscription
+        // Update existing inscription — only send user-editable fields to avoid
+        // overwriting admin-set confirmat/pagat/data_inscripcio values.
+        const updateData = {
+          preferencies_dies: formData.preferencies_dies,
+          preferencies_hores: formData.preferencies_hores,
+          restriccions_especials: formData.restriccions_especials.trim() || null,
+          observacions: formData.observacions.trim() || null
+        };
         const { error: updateError } = await supabase
           .from('inscripcions')
-          .update(inscriptionData)
+          .update(updateData)
           .eq('id', existingInscription.id);
 
         if (updateError) throw updateError;
         successMessage = 'Inscripció actualitzada correctament';
       } else {
         // Create new inscription
+        const inscriptionData = {
+          event_id: eventId,
+          soci_numero: player.id,
+          preferencies_dies: formData.preferencies_dies,
+          preferencies_hores: formData.preferencies_hores,
+          restriccions_especials: formData.restriccions_especials.trim() || null,
+          observacions: formData.observacions.trim() || null,
+          pagat: false, // Will be updated by admin
+          confirmat: false, // Will be confirmed by admin
+          data_inscripcio: new Date().toISOString()
+        };
         const { error: insertError } = await supabase
           .from('inscripcions')
           .insert([inscriptionData]);
@@ -242,7 +247,7 @@
 
       // Redirect after 2 seconds
       setTimeout(() => {
-        goto('/inscripcions');
+        goto('/campionats-socials/inscripcions');
       }, 2000);
 
     } catch (e) {
@@ -287,7 +292,7 @@
 
 <div class="max-w-3xl mx-auto p-4">
   <div class="mb-6">
-    <a href="/inscripcions" class="text-gray-600 hover:text-gray-900 text-sm">
+    <a href="/campionats-socials/inscripcions" class="text-gray-600 hover:text-gray-900 text-sm">
       ← Tornar a inscripcions
     </a>
     <h1 class="text-2xl font-semibold text-gray-900 mt-4">
@@ -304,7 +309,7 @@
   {:else if error}
     <Banner type="error" message={error} class="mb-6" />
     <div class="text-center">
-      <a href="/inscripcions" class="text-blue-600 hover:text-blue-800">
+      <a href="/campionats-socials/inscripcions" class="text-blue-600 hover:text-blue-800">
         ← Tornar a inscripcions
       </a>
     </div>
@@ -542,7 +547,7 @@
       <!-- Submit Button -->
       <div class="flex justify-end space-x-3">
         <a
-          href="/inscripcions"
+          href="/campionats-socials/inscripcions"
           class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           Cancel·lar

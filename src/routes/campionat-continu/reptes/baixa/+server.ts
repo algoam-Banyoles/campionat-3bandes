@@ -33,6 +33,8 @@ export const POST: RequestHandler = async ({ request }) => {
       .from('events')
       .select('id')
       .eq('actiu', true)
+      .eq('tipus_competicio', 'ranking_continu')
+      .order('data_inici', { ascending: false })
       .limit(1)
       .maybeSingle();
     if (eErr) {

@@ -206,20 +206,20 @@ export async function getSocialLeagueStats(): Promise<{
   events_per_modality: { [modalitat: string]: number };
 }> {
   // Comptar events
-  const { data: eventsCount } = await supabase
+  const { count: eventsCount } = await supabase
     .from('events')
-    .select('id', { count: 'exact' })
+    .select('id', { count: 'exact', head: true })
     .eq('tipus_competicio', 'lliga_social');
 
   // Comptar categories
-  const { data: categoriesCount } = await supabase
+  const { count: categoriesCount } = await supabase
     .from('categories')
-    .select('id', { count: 'exact' });
+    .select('id', { count: 'exact', head: true });
 
   // Comptar classificacions
-  const { data: classificationsCount } = await supabase
+  const { count: classificationsCount } = await supabase
     .from('classificacions')
-    .select('id', { count: 'exact' });
+    .select('id', { count: 'exact', head: true });
 
   // Events per temporada
   const { data: eventsBySeasonData } = await supabase
@@ -246,9 +246,9 @@ export async function getSocialLeagueStats(): Promise<{
   });
 
   return {
-    total_events: eventsCount?.length || 0,
-    total_categories: categoriesCount?.length || 0,
-    total_classifications: classificationsCount?.length || 0,
+    total_events: eventsCount ?? 0,
+    total_categories: categoriesCount ?? 0,
+    total_classifications: classificationsCount ?? 0,
     events_per_season,
     events_per_modality
   };
@@ -345,7 +345,8 @@ export async function searchPlayerInClassifications(playerName: string): Promise
           modalitat
         )
       )
-    `);
+    `)
+    .limit(1000);
 
   if (error) {
     console.error('Error searching player classifications:', error);
@@ -501,11 +502,12 @@ export async function searchActivePlayers(playerName: string): Promise<{
   const searchTermNormalized = normalizeText(playerName);
 
   // Buscar socis actius - cerca en nom o cognoms (insensible a accents i majúscules)
-  // Obtenim tots els socis actius i filtrem en el client per poder buscar sense accents
+  // Apliquem un filtre server-side per limitar la descàrrega i refinem al client (accents).
   const { data: socis, error } = await supabase
     .from('socis')
     .select('numero_soci, nom, cognoms')
     .eq('de_baixa', false)
+    .or(`nom.ilike.%${playerName}%,cognoms.ilike.%${playerName}%`)
     .order('nom');
 
   if (error) {

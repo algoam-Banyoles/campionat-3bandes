@@ -3,7 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 import { getSupabaseEnv } from '$lib/server/env';
 import type { RequestHandler } from './$types';
 
-const { url, key } = getSupabaseEnv(true);
+// NOTA: getSupabaseEnv es crida dins del handler (no en mòdul scope)
+// per evitar que el service-role key s'inicialitzi a module load time
+// i per poder usar la clau anon (RLS actiu) en lloc del service role.
 
 export const GET: RequestHandler = async ({ params }) => {
   const { eventId } = params;
@@ -13,12 +15,16 @@ export const GET: RequestHandler = async ({ params }) => {
   }
 
   try {
-    const supabaseAdmin = createClient(url, key, {
+    // Usar la clau anon perquè RLS s'apliqui. Les taules públiques
+    // (events, categories, classificacions, inscripcions, socis) tenen
+    // SELECT obert a anon per disseny (o via RLS permissiu per SELECT).
+    const { url, key } = getSupabaseEnv(false);
+    const supabase = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false }
     });
 
     // Carreguem l'event i les categories
-    const { data: event, error: eventError } = await supabaseAdmin
+    const { data: event, error: eventError } = await supabase
       .from('events')
       .select(`
         id,
@@ -56,7 +62,7 @@ export const GET: RequestHandler = async ({ params }) => {
     // ─── Estratègia 1 ───────────────────────────────────────────────
     // Per a events amb partides actuals, fem servir la RPC en temps real
     // (llegeix de calendari_partides + inscripcions).
-    const { data: rpcRows, error: rpcError } = await supabaseAdmin.rpc(
+    const { data: rpcRows, error: rpcError } = await supabase.rpc(
       'get_social_league_classifications',
       { p_event_id: eventId }
     );
@@ -112,7 +118,7 @@ export const GET: RequestHandler = async ({ params }) => {
     // ─── Estratègia 2 ───────────────────────────────────────────────
     // Events històrics: llegim directament de la taula `classificacions`
     // (guardada) i enriquim amb dades de socis (nom/cognoms) via JOIN.
-    const { data: histRows, error: histError } = await supabaseAdmin
+    const { data: histRows, error: histError } = await supabase
       .from('classificacions')
       .select(`
         id,
@@ -188,10 +194,13 @@ export const GET: RequestHandler = async ({ params }) => {
     // ─── Estratègia 3 ───────────────────────────────────────────────
     // Fallback final: inscripcions (per events en preparació / en curs
     // que encara no tenen ni classificacions guardades).
-    const { data: inscriptionsData, error: inscriptionsError } = await supabaseAdmin
+    // Selecció explícita: exclou PII (preferencies_dies, preferencies_hores,
+    // restriccions_especials, observacions, pagat, confirmat).
+    const { data: inscriptionsData, error: inscriptionsError } = await supabase
       .from('inscripcions')
       .select(`
-        *,
+        soci_numero,
+        categoria_assignada_id,
         socis (numero_soci, nom, cognoms),
         categoria_assignada:categories (id, nom, ordre_categoria, distancia_caramboles)
       `)

@@ -71,6 +71,7 @@
       .from('events')
       .select('*')
       .eq('actiu', true)
+      .eq('tipus_competicio', 'ranking_continu')
       .order('creat_el', { ascending: false });
 
     if (eventsError) throw eventsError;
@@ -215,21 +216,21 @@
       addingInscription = true;
       const { supabase } = await import('$lib/supabaseClient');
 
-      // Get player's best average from the last two seasons
+      // Get player's best average from the last two years (mitjanes_historiques uses soci_id/year/modalitat)
       const currentYear = new Date().getFullYear();
-      const lastTwoSeasons = [
-        `${currentYear-1}-${currentYear}`,
-        `${currentYear-2}-${currentYear-1}`
-      ];
+      const lastTwoYears = [currentYear, currentYear - 1];
 
-      const { data: mitjanesList } = await supabase
+      const { data: mitjanesList, error: mitjanesErr } = await supabase
         .from('mitjanes_historiques')
-        .select('mitjana, temporada')
-        .eq('numero_soci', selectedPlayer.numero_soci)
-        .in('temporada', lastTwoSeasons);
+        .select('mitjana, year')
+        .eq('soci_id', selectedPlayer.numero_soci)
+        .eq('modalitat', '3 BANDES')
+        .in('year', lastTwoYears);
 
-      const bestMitjana = mitjanesList?.length > 0
-        ? Math.max(...mitjanesList.map(m => m.mitjana))
+      if (mitjanesErr) console.warn('Error carregant mitjanes:', mitjanesErr.message);
+
+      const bestMitjana = (mitjanesList?.length ?? 0) > 0
+        ? Math.max(...(mitjanesList ?? []).map(m => m.mitjana))
         : null;
 
       const inscriptionData = {

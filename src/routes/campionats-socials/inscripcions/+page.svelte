@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { user } from '$lib/stores/auth';
+  import { user, isLoading } from '$lib/stores/auth';
   import Banner from '$lib/components/general/Banner.svelte';
   import Loader from '$lib/components/general/Loader.svelte';
   import InscriptionStatus from '$lib/components/general/InscriptionStatus.svelte';
@@ -36,13 +36,12 @@
     'validat': 'bg-blue-100 text-blue-800'
   };
 
-  onMount(async () => {
-    const u = $user;
-    if (!u?.email) {
-      goto('/login');
-      return;
-    }
+  // Redirigir a login només quan auth ha resolt (no durant 'loading').
+  $: if (!$isLoading && !$user) {
+    goto('/login');
+  }
 
+  onMount(async () => {
     try {
       loading = true;
       await Promise.all([loadOpenEvents(), loadMyInscriptions()]);
@@ -277,7 +276,7 @@
                     </div>
                   {:else if canInscribe(event)}
                     <a
-                      href="/inscripcions/{event.id}"
+                      href="/campionats-socials/inscripcions/{event.id}"
                       class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     >
                       Inscriure's

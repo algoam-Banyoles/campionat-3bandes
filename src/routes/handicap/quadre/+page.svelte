@@ -94,12 +94,31 @@
 		regenerating = true;
 		error = null;
 		try {
+			// 0. Recollir calendari_partida_ids orfes abans d'esborrar matches
+			const { data: matchesWithCal } = await supabase
+				.from('handicap_matches')
+				.select('calendari_partida_id')
+				.eq('event_id', event.id)
+				.not('calendari_partida_id', 'is', null);
+			const calIds = (matchesWithCal ?? [])
+				.map((m: any) => m.calendari_partida_id as string)
+				.filter(Boolean);
+
 			// 1. Esborrar matches primer (FK: slot1_id, slot2_id → slots)
 			const { error: delMatchErr } = await supabase
 				.from('handicap_matches')
 				.delete()
 				.eq('event_id', event.id);
 			if (delMatchErr) throw delMatchErr;
+
+			// 1b. Esborrar les files orfes de calendari_partides
+			if (calIds.length > 0) {
+				const { error: delCalErr } = await supabase
+					.from('calendari_partides')
+					.delete()
+					.in('id', calIds);
+				if (delCalErr) throw delCalErr;
+			}
 
 			// 2. Esborrar slots
 			const { error: delSlotErr } = await supabase
@@ -126,8 +145,8 @@
 				throw new Error('Cal mínim 4 participants amb seed per regenerar el bracket.');
 			}
 
-			// 4. Generar bracket
-			const result = generateDoublEliminationBracket(event.id, participantInputs);
+			// 4. Generar bracket (seeds explícits: mateixa lògica que el sorteig inicial)
+			const result = generateDoublEliminationBracket(event.id, participantInputs, { useExplicitR1Positions: true });
 
 			// 5. Validar
 			const validation = validateBracket(result.slots as any, result.matches as any, participantInputs.length);
@@ -159,7 +178,7 @@
 			let ev: any = null;
 			const { data: activeEv } = await supabase
 				.from('events')
-				.select('id, nom, estat_competicio')
+				.select('id, nom, estat_competicio, data_inici, data_fi')
 				.eq('tipus_competicio', 'handicap')
 				.eq('actiu', true)
 				.limit(1)
@@ -171,7 +190,7 @@
 			} else {
 				const { data: recentEv } = await supabase
 					.from('events')
-					.select('id, nom, estat_competicio')
+					.select('id, nom, estat_competicio, data_inici, data_fi')
 					.eq('tipus_competicio', 'handicap')
 					.order('creat_el', { ascending: false })
 					.limit(1)
@@ -598,7 +617,7 @@
 		<div class="mb-4 flex flex-wrap gap-3 print:hidden">
 			<!-- Filtres de bracket -->
 			<div class="flex rounded border border-gray-200 bg-white shadow-sm overflow-hidden text-sm">
-				{#each [['all','Tot'],['winners','Guanyadors'],['losers','Perdedors']] as [val, label]}
+				{#each [['all','Tot'],['winners','Guanyadors'],['losers','Perdedors'],['grand_final','Gran Final']] as [val, label]}
 					<button
 						type="button"
 						on:click={() => filter = val as typeof filter}
@@ -792,8 +811,8 @@
 				{/if}
 			</div>
 
-		<!-- Formulari de resultat (inline) -->
-		{#if showResultForm && selectedMatch.estat === 'programada' && selectedMatch.slot1.participant_id && selectedMatch.slot2.participant_id}
+		<!-- Formulari de resultat (inline) — només admins -->
+		{#if $effectiveIsAdmin && showResultForm && selectedMatch.estat === 'programada' && selectedMatch.slot1.participant_id && selectedMatch.slot2.participant_id}
 			<div class="border-t border-gray-200 px-5 py-4">
 				<HandicapMatchResult
 					player1Name={selectedMatch.player1?.shortName ?? 'Jugador 1'}
@@ -818,7 +837,7 @@
 				>
 					Programar
 				</a>
-				{#if selectedMatch.estat === 'programada' && selectedMatch.slot1.participant_id && selectedMatch.slot2.participant_id && !isFinalitzat}
+				{#if $effectiveIsAdmin && selectedMatch.estat === 'programada' && selectedMatch.slot1.participant_id && selectedMatch.slot2.participant_id && !isFinalitzat}
 					<button
 						type="button"
 						on:click={() => (showResultForm = true)}
