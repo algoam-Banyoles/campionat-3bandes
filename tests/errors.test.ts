@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { mapError, wrapRpc } from '../src/lib/errors';
+import { mapError, wrapRpc } from '../src/lib/rpc-errors';
 
 describe('error mapping', () => {
   const cases: [string, string][] = [

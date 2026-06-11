@@ -1,37 +1,37 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('$lib/utils/http', () => ({ authFetch: vi.fn() }));
 import { authFetch } from '$lib/utils/http';
 import { acceptChallenge, refuseChallenge, scheduleChallenge } from '../src/lib/challenges';
 
+function mockResponse(ok: boolean, body: unknown) {
+  return { ok, json: async () => body } as any;
+}
+
 describe('challenge helpers', () => {
-  it('acceptChallenge updates status', async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
-    const eq = vi.fn().mockResolvedValue({ error: null });
-    const update = vi.fn().mockReturnValue({ eq });
-    const from = vi.fn().mockReturnValue({ update });
-    const client = { from } as any;
-    await acceptChallenge(client, 'abc');
-    expect(from).toHaveBeenCalledWith('challenges');
-    expect(update).toHaveBeenCalledWith({ estat: 'acceptat', data_acceptacio: new Date().toISOString() });
-    expect(eq).toHaveBeenCalledWith('id', 'abc');
-    vi.useRealTimers();
+  beforeEach(() => {
+    (authFetch as any).mockReset();
   });
 
-  it('refuseChallenge updates status', async () => {
-    const eq = vi.fn().mockResolvedValue({ error: null });
-    const update = vi.fn().mockReturnValue({ eq });
-    const from = vi.fn().mockReturnValue({ update });
-    const client = { from } as any;
-    await refuseChallenge(client, 'abc');
-    expect(update).toHaveBeenCalledWith({ estat: 'refusat' });
+  it('acceptChallenge posts to the guarded endpoint', async () => {
+    (authFetch as any).mockResolvedValue(mockResponse(true, { ok: true }));
+    await acceptChallenge('abc');
+    expect(authFetch).toHaveBeenCalledWith('/campionat-continu/reptes/accepta', {
+      method: 'POST',
+      body: JSON.stringify({ id: 'abc', data_iso: null })
+    });
+  });
+
+  it('refuseChallenge posts to the guarded endpoint', async () => {
+    (authFetch as any).mockResolvedValue(mockResponse(true, { ok: true }));
+    await refuseChallenge('abc');
+    expect(authFetch).toHaveBeenCalledWith('/campionat-continu/reptes/refusa', {
+      method: 'POST',
+      body: JSON.stringify({ id: 'abc' })
+    });
   });
 
   it('scheduleChallenge posts to backend', async () => {
-    (authFetch as any).mockResolvedValue({
-      ok: true,
-      json: async () => ({ ok: true })
-    });
+    (authFetch as any).mockResolvedValue(mockResponse(true, { ok: true }));
     await scheduleChallenge({} as any, 'abc', '2024-01-02T00:00:00.000Z');
     expect(authFetch).toHaveBeenCalledWith('/campionat-continu/reptes/programar', {
       method: 'POST',
@@ -39,11 +39,18 @@ describe('challenge helpers', () => {
     });
   });
 
-  it('throws on supabase error', async () => {
-    const eq = vi.fn().mockResolvedValue({ error: { message: 'boom' } });
-    const update = vi.fn().mockReturnValue({ eq });
-    const from = vi.fn().mockReturnValue({ update });
-    const client = { from } as any;
-    await expect(acceptChallenge(client, 'abc')).rejects.toThrow('boom');
+  it('throws with the server error message on failure', async () => {
+    (authFetch as any).mockResolvedValue(mockResponse(false, { ok: false, error: 'boom' }));
+    await expect(acceptChallenge('abc')).rejects.toThrow('boom');
+  });
+
+  it('throws a generic Catalan message when the body is not JSON', async () => {
+    (authFetch as any).mockResolvedValue({
+      ok: false,
+      json: async () => {
+        throw new Error('not json');
+      }
+    } as any);
+    await expect(refuseChallenge('abc')).rejects.toThrow('Error refusant el repte');
   });
 });

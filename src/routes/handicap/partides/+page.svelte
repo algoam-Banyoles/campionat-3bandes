@@ -25,6 +25,7 @@
 	import { persistFullSchedule } from '$lib/utils/handicap-schedule-persist';
 	import { loadBlockedDates } from '$lib/utils/handicap-blocked-dates';
 	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
+	import { scheduleHandicapMatch, unscheduleHandicapMatch } from '$lib/utils/handicap-manual-schedule';
 	import { checkCompatibility, type CompatibilityIssue, type CompatibilityMatchInput, type AlternativeSlot } from '$lib/utils/handicap-compatibility';
 	import HandicapCompatibilityCheckModal from '$lib/components/handicap/HandicapCompatibilityCheckModal.svelte';
 
@@ -455,47 +456,17 @@
 		error = null;
 
 		try {
-			// Si ja tenia una partida programada, esborrar-la primer
-			if (match.calendari_partida_id) {
-				const { error: delErr } = await supabase
-					.from('calendari_partides')
-					.delete()
-					.eq('id', match.calendari_partida_id);
-				if (delErr) throw new Error(`Error esborrant slot anterior: ${delErr.message}`);
-			}
-
-			// Inserir nova partida a calendari
-			const { data: newPartida, error: insertErr } = await supabase
-				.from('calendari_partides')
-				.insert({
-					event_id: eventId,
-					categoria_id: null,
-					jugador1_soci_numero: match.player1_soci_numero,
-					jugador2_soci_numero: match.player2_soci_numero,
-					data_programada: `${slot.data}T${slot.hora}:00`,
-					hora_inici: slot.hora,
-					taula_assignada: slot.taula,
-					estat: 'generat'
-				})
-				.select('id')
-				.single();
-
-			if (insertErr || !newPartida) {
-				throw new Error(insertErr?.message ?? 'Error creant la partida al calendari');
-			}
-
-			// Actualitzar handicap_match. Les pre-reserves (algun rival per
-			// determinar) conserven 'pendent' amb data orientativa; només passen
-			// a 'programada' quan els dos jugadors estan definits.
 			const bothResolved =
 				match.player1_participant_id !== null && match.player2_participant_id !== null;
-			const { error: updateErr } = await supabase
-				.from('handicap_matches')
-				.update({ calendari_partida_id: newPartida.id, estat: bothResolved ? 'programada' : 'pendent' })
-				.eq('id', match.id);
-
-			if (updateErr) throw new Error(updateErr.message);
-
+			await scheduleHandicapMatch(supabase, {
+				eventId: eventId!,
+				matchId: match.id,
+				calendariPartidaId: match.calendari_partida_id,
+				player1SociNumero: match.player1_soci_numero,
+				player2SociNumero: match.player2_soci_numero,
+				bothResolved,
+				slot
+			});
 			schedulingMatchId = null;
 			await loadData();
 		} catch (e: any) {
@@ -518,18 +489,10 @@
 		error = null;
 
 		try {
-			const { error: delErr } = await supabase
-				.from('calendari_partides')
-				.delete()
-				.eq('id', match.calendari_partida_id);
-			if (delErr) throw new Error(delErr.message);
-
-			const { error: updateErr } = await supabase
-				.from('handicap_matches')
-				.update({ calendari_partida_id: null, estat: 'pendent' })
-				.eq('id', match.id);
-			if (updateErr) throw new Error(updateErr.message);
-
+			await unscheduleHandicapMatch(supabase, {
+				matchId: match.id,
+				calendariPartidaId: match.calendari_partida_id
+			});
 			await loadData();
 		} catch (e: any) {
 			error = e.message;

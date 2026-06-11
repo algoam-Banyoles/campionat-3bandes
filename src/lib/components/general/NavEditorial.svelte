@@ -96,6 +96,7 @@
       sectionToken: 'admin',
       links: [
         { href: '/admin', label: 'Dashboard' },
+        { href: '/admin/partides', label: 'Gestió de partides' },
         { href: '/admin/socis', label: 'Gestió de socis' },
         { href: '/admin/events', label: 'Events' },
         { href: '/admin/categories', label: 'Categories' },

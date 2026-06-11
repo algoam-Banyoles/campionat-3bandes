@@ -6,8 +6,8 @@
   import { showConfirm } from '$lib/stores/confirmDialogStore';
   import { adminChecked } from '$lib/stores/adminAuth';
   import { effectiveIsAdmin } from '$lib/stores/viewMode';
-  import { userId } from '$lib/stores/auth';
   import { formatarNomJugador } from '$lib/utils/playerUtils';
+  import { saveMatchResult, registerNoShow } from '$lib/services/calendarMutationsService';
 
   function nomComplet(nom: string | null | undefined, cognoms: string | null | undefined): string {
     const raw = `${nom ?? ''} ${cognoms ?? ''}`.trim();
@@ -189,19 +189,6 @@
     const c2 = caramboles_jugador2;
     const ent = entrades;
     const obs = observacions;
-    const uid = $userId;
-
-    // Punts segons resultat
-    let punts_j1 = 0;
-    let punts_j2 = 0;
-    if (c1 > c2) {
-      punts_j1 = 2;
-    } else if (c2 > c1) {
-      punts_j2 = 2;
-    } else {
-      punts_j1 = 1;
-      punts_j2 = 1;
-    }
 
     // UI optimista: traiem la partida de la llista i resetejem el formulari
     // immediatament. Si la xarxa falla, fem rollback més avall.
@@ -215,26 +202,12 @@
     error = '';
 
     try {
-      const now = new Date().toISOString();
-      const { error: updateError } = await supabase
-        .from('calendari_partides')
-        .update({
-          caramboles_jugador1: c1,
-          caramboles_jugador2: c2,
-          entrades: ent,
-          entrades_jugador1: ent,
-          entrades_jugador2: ent,
-          punts_jugador1: punts_j1,
-          punts_jugador2: punts_j2,
-          data_joc: now,
-          estat: 'jugada',
-          validat_per: uid,
-          data_validacio: now,
-          observacions_junta: obs
-        })
-        .eq('id', matchToSave.id);
-
-      if (updateError) throw updateError;
+      await saveMatchResult(supabase, matchToSave.id, {
+        caramboles_jugador1: c1,
+        caramboles_jugador2: c2,
+        entrades: ent,
+        observacions: obs
+      });
 
       showSuccess('Resultat guardat correctament');
     } catch (e) {
@@ -309,13 +282,7 @@
       error = '';
       success = false;
 
-      const { data, error: rpcError } = await supabase
-        .rpc('registrar_incompareixenca', {
-          p_partida_id: incompareixencaMatch.id,
-          p_jugador_que_falta: jugadorQueFalta
-        });
-
-      if (rpcError) throw rpcError;
+      const result = await registerNoShow(supabase, incompareixencaMatch.id, jugadorQueFalta);
 
       closeIncompareixencaModal();
 
@@ -326,13 +293,13 @@
       }
 
       // Show different messages based on result
-      if (data.jugador_eliminat) {
+      if (result.jugador_eliminat) {
         showError(
-          `${jugadorNom} ha estat desqualificat (${data.incompareixences} incompareixences). Les partides pendents han estat anul·lades.`
+          `${jugadorNom} ha estat desqualificat (${result.incompareixences} incompareixences). Les partides pendents han estat anul·lades.`
         );
       } else {
         showSuccess(
-          `Incompareixença registrada — ${jugadorNom} té ${data.incompareixences} incompareixença(es)`
+          `Incompareixença registrada — ${jugadorNom} té ${result.incompareixences} incompareixença(es)`
         );
       }
 

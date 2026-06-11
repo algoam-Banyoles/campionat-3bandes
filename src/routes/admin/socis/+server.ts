@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireAdmin } from '$lib/server/adminGuard';
-import { supabaseAdmin } from '$lib/supabaseServiceClient';
+import { getSupabaseAdmin } from '$lib/supabaseServiceClient';
 
 function normalizeEmail(email: string | null | undefined): string | null {
   const cleaned = email?.trim().toLowerCase() ?? '';
@@ -37,6 +37,7 @@ export const POST: RequestHandler = async (event) => {
   try {
     const guard = await requireAdmin(event);
     if (guard) return guard;
+    const supabaseAdmin = getSupabaseAdmin();
 
     const body = await event.request.json();
     const { numeroSoci, nom, cognoms, emailSoci, telefon, dataNaixement } = parseSociPayload(body);
@@ -92,6 +93,7 @@ export const PUT: RequestHandler = async (event) => {
   try {
     const guard = await requireAdmin(event);
     if (guard) return guard;
+    const supabaseAdmin = getSupabaseAdmin();
 
     const body = await event.request.json();
     const numeroSociOriginal = Number.parseInt(String(body?.numero_soci_original ?? ''), 10);
@@ -188,6 +190,7 @@ export const PATCH: RequestHandler = async (event) => {
   try {
     const guard = await requireAdmin(event);
     if (guard) return guard;
+    const supabaseAdmin = getSupabaseAdmin();
 
     const body = await event.request.json();
     const toAdd = Array.isArray(body?.toAdd) ? body.toAdd : [];
