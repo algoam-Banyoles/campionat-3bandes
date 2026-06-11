@@ -67,6 +67,10 @@ export interface ContinuMeta {
   posReptador: number | null;
   /** Posició del reptat al rànquing */
   posReptat: number | null;
+  /** Límits de validació (d'app_settings; el servidor revalida) */
+  carambolesObjectiu: number;
+  maxEntrades: number;
+  allowTiebreak: boolean;
 }
 
 export interface HandicapMeta {

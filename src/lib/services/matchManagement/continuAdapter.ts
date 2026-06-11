@@ -113,10 +113,11 @@ export const continuAdapter: MatchAdapter = {
 
       let slot = null;
       if (c.data_programada) {
-        const dp = c.data_programada as string;
-        // data_programada és ISO complet; extreure data i hora
-        const dataIso = dp.substring(0, 10);
-        const hora = dp.length >= 16 ? dp.substring(11, 16) : '00:00';
+        // data_programada és timestamptz: convertir a data/hora LOCAL per a la UI
+        const d = new Date(c.data_programada as string);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const dataIso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        const hora = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
         slot = { dataIso, hora, billar: null };
       }
 
@@ -125,7 +126,10 @@ export const continuAdapter: MatchAdapter = {
         eventId,
         reprogramCount: (c.reprogram_count as number) ?? 0,
         posReptador: c.pos_reptador as number | null,
-        posReptat: c.pos_reptat as number | null
+        posReptat: c.pos_reptat as number | null,
+        carambolesObjectiu: (settings.caramboles_objectiu as number) ?? 20,
+        maxEntrades: (settings.max_entrades as number) ?? 50,
+        allowTiebreak: (settings.allow_tiebreak as boolean) ?? true
       };
 
       return {
@@ -137,17 +141,14 @@ export const continuAdapter: MatchAdapter = {
         status,
         rawEstat: c.estat as string,
         capabilities: {
-          canEnterResult: status === 'programada' || status === 'pendent',
+          // Mirall del guard del servidor: només acceptat/programat admeten resultat
+          canEnterResult: c.estat === 'acceptat' || c.estat === 'programat',
           canSchedule: status === 'pendent' || status === 'programada',
           canUnschedule: false
         },
         meta
       } satisfies UnifiedMatch;
     });
-
-    // Exposem settings al caller via un camp no-op a meta; el modal els
-    // llegirà a través de l'adaptador si cal. Per ara guardades localment.
-    void settings;
 
     return matches;
   },
