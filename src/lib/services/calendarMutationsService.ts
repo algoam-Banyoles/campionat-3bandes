@@ -181,6 +181,10 @@ export async function saveMatchResult(
       caramboles_jugador1: input.caramboles_jugador1,
       caramboles_jugador2: input.caramboles_jugador2,
       entrades: input.entrades,
+      // Additu: escrivim entrades_jugador1/2 (mateix valor) per coherència
+      // amb el path de resultats-pendents (és inofensiu si la columna existeix).
+      entrades_jugador1: input.entrades,
+      entrades_jugador2: input.entrades,
       punts_jugador1,
       punts_jugador2,
       data_joc: now,
@@ -249,6 +253,63 @@ export interface MatchEditInput {
 }
 
 /**
+ * Comprova si hi ha un conflicte de billar per a un slot concret.
+ *
+ * Retorna `true` si hi ha col·lisió (o si la query retorna un error
+ * PGRST116 de múltiples files, que tractem com a conflicte). Retorna
+ * `false` si el slot està lliure.
+ *
+ * Els estats exclosos de la comprovació (ja no ocupen slot) són:
+ * `jugada`, `cancel·lada_per_retirada`, `pendent_programar`,
+ * `postposada`, `reprogramada`.
+ *
+ * @param opts.dia - Data en format 'YYYY-MM-DD'
+ * @param opts.hora - Hora en format 'HH:MM'
+ * @param opts.billar - Número de billar (1, 2 o 3)
+ * @param opts.excludeMatchId - ID de la partida a excloure de la comprovació
+ *   (per no detectar com a conflicte la pròpia partida que s'edita)
+ */
+export async function findBillarConflict(
+  supabase: SupabaseClient,
+  opts: { dia: string; hora: string; billar: number; excludeMatchId?: string }
+): Promise<boolean> {
+  let query = supabase
+    .from('calendari_partides')
+    .select('id')
+    .eq('hora_inici', opts.hora)
+    .eq('taula_assignada', opts.billar)
+    .or('partida_anullada.is.null,partida_anullada.eq.false')
+    .not(
+      'estat',
+      'in',
+      '("jugada","cancel·lada_per_retirada","pendent_programar","postposada","reprogramada")'
+    )
+    .filter('data_programada::date', 'eq', opts.dia)
+    .maybeSingle();
+
+  if (opts.excludeMatchId) {
+    query = (supabase
+      .from('calendari_partides')
+      .select('id')
+      .eq('hora_inici', opts.hora)
+      .eq('taula_assignada', opts.billar)
+      .neq('id', opts.excludeMatchId)
+      .or('partida_anullada.is.null,partida_anullada.eq.false')
+      .not(
+        'estat',
+        'in',
+        '("jugada","cancel·lada_per_retirada","pendent_programar","postposada","reprogramada")'
+      )
+      .filter('data_programada::date', 'eq', opts.dia)
+      .maybeSingle()) as typeof query;
+  }
+
+  const { data: conflict, error: conflictError } = await query;
+  // Qualsevol error (inclòs PGRST116 de múltiples files) o fila retornada → conflicte
+  return !!(conflictError || conflict);
+}
+
+/**
  * Guarda l'edició d'una partida fent abans una comprovació de conflicte
  * (mateix billar, mateixa data i hora). Si hi ha col·lisió llança error.
  *
@@ -300,23 +361,14 @@ export async function saveMatchEdit(
   // Comprovar conflicte de billar abans de desar (només si està programada)
   if (!isUnprogrammed) {
     const dia = (updates.data_programada as string).split('T')[0];
-    const { data: conflict, error: conflictError } = await supabase
-      .from('calendari_partides')
-      .select('id')
-      .eq('hora_inici', updates.hora_inici as string)
-      .eq('taula_assignada', updates.taula_assignada as number)
-      .neq('id', matchId)
-      .or('partida_anullada.is.null,partida_anullada.eq.false')
-      .not(
-        'estat',
-        'in',
-        '("jugada","cancel·lada_per_retirada","pendent_programar","postposada","reprogramada")'
-      )
-      .filter('data_programada::date', 'eq', dia)
-      .maybeSingle();
+    const hasConflict = await findBillarConflict(supabase, {
+      dia,
+      hora: updates.hora_inici as string,
+      billar: updates.taula_assignada as number,
+      excludeMatchId: matchId
+    });
 
-    // Treat any error (including multiple-row PGRST116) or a returned row as a conflict
-    if (conflictError || conflict) {
+    if (hasConflict) {
       throw new Error(
         `El billar ${updates.taula_assignada} ja té una partida programada el ${dia} a les ${updates.hora_inici}. Tria un altre billar o una altra hora.`
       );
