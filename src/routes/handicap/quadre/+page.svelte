@@ -7,12 +7,15 @@
 	import HandicapBracketView from '$lib/components/handicap/HandicapBracketView.svelte';
 	import HandicapBracketViewCompact from '$lib/components/handicap/HandicapBracketViewCompact.svelte';
 	import HandicapBracketPrintModal from '$lib/components/handicap/HandicapBracketPrintModal.svelte';
-	import HandicapMatchResult from '$lib/components/handicap/HandicapMatchResult.svelte';
+	import UnifiedResultModal from '$lib/components/gestio-partides/UnifiedResultModal.svelte';
 	import type { MatchView, PlayerInfo, BranchMatchInput } from '$lib/utils/handicap-types';
 	import { buildMatchCodeMap, buildLoserDestCodeMap, buildSlotSourceMap } from '$lib/utils/handicap-types';
 	import { computeDeadlines } from '$lib/utils/handicap-deadlines';
 	import { saveMatchResult, closeTournamentManual } from '$lib/utils/handicap-propagation';
 	import type { SaveResultError } from '$lib/utils/handicap-propagation';
+	import { buildHandicapUnifiedMatch } from '$lib/services/matchManagement';
+	import type { UnifiedMatch, ResultInput } from '$lib/services/matchManagement';
+	import { showSuccess, showError } from '$lib/stores/toastStore';
 	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
 	import { generateDoublEliminationBracket } from '$lib/utils/handicap-bracket-generator';
 	import { validateBracket } from '$lib/utils/handicap-bracket-validator';
@@ -54,9 +57,6 @@
 	let closingTournament = false;
 	let showPrintBracketModal = false;
 
-	// Resultat modal
-	let showResultForm = false;
-
 	// ── Numeració de partides ────────────────────────────────────────────────
 
 	$: matchCodeMap = buildMatchCodeMap(matchViews);
@@ -71,8 +71,11 @@
 	}
 
 	let resultSaving = false;
-	let resultConfirmation: string | null = null;
-	let quadreError: string | null = null;
+
+	// Modal de resultat unificat (separat del modal de detall)
+	let resultMatchId: string | null = null;
+	$: resultMatchView = resultMatchId ? (matchViews.find((m) => m.id === resultMatchId) ?? null) : null;
+	$: resultUnified = resultMatchView ? toUnified(resultMatchView) : null;
 
 	// ── Admin ─────────────────────────────────────────────────────────────────
 
@@ -396,28 +399,58 @@
 
 	function openMatch(match: MatchView) {
 		selectedMatchId = match.id;
-		showResultForm = false;
 	}
 
 	function closeModal() {
 		selectedMatchId = null;
-		showResultForm = false;
 	}
 
-	async function handleResultConfirm(
-		e: CustomEvent<{
-			isWalkover: boolean;
-			caramboles1: number | null;
-			caramboles2: number | null;
-			entrades: number | null;
-			winnerParticipantId: string;
-			loserParticipantId: string;
-		}>
-	) {
-		const match = selectedMatch;
+	// ── toUnified: converteix un MatchView a UnifiedMatch per al modal ────────
+
+	function toUnified(m: MatchView): UnifiedMatch {
+		const slot = m.data_hora
+			? (() => {
+					const [d, h] = m.data_hora!.split(' ');
+					return { dataIso: d, hora: h, billar: m.taula ? Number(m.taula) : null };
+				})()
+			: null;
+		return buildHandicapUnifiedMatch({
+			id: m.id,
+			estat: m.estat,
+			bracketType: m.bracket_type,
+			ronda: m.ronda,
+			matchPos: m.matchPos,
+			matchCode: matchCodeMap.get(m.id) ?? '',
+			calendariPartidaId: m.calendari_partida_id,
+			eventId: event?.id ?? '',
+			eventNom: '',
+			sistemaPuntuacio,
+			limitEntrades,
+			player1: {
+				displayName: m.player1?.shortName ?? m.player1?.name ?? 'Jugador 1',
+				rawName: m.player1?.name ?? 'Jugador 1',
+				sociNumero: (m.player1 as any)?.soci_numero ?? null,
+				participantId: m.slot1.participant_id,
+				distancia: m.distancia_jugador1 ?? m.player1?.distancia ?? null,
+				preferencies: null
+			},
+			player2: {
+				displayName: m.player2?.shortName ?? m.player2?.name ?? 'Jugador 2',
+				rawName: m.player2?.name ?? 'Jugador 2',
+				sociNumero: (m.player2 as any)?.soci_numero ?? null,
+				participantId: m.slot2.participant_id,
+				distancia: m.distancia_jugador2 ?? m.player2?.distancia ?? null,
+				preferencies: null
+			},
+			slot
+		});
+	}
+
+	async function handleResultSave(e: CustomEvent<ResultInput>) {
+		if (e.detail.kind !== 'handicap') return;
+		const match = resultMatchView;
 		if (!match || !event) return;
 		resultSaving = true;
-		quadreError = null;
 
 		const result = await saveMatchResult(supabase, {
 			matchId: match.id,
@@ -431,10 +464,9 @@
 		});
 
 		resultSaving = false;
-		closeModal();
 
 		if (!result.ok) {
-			quadreError = (result as SaveResultError).error;
+			showError((result as SaveResultError).error);
 			return;
 		}
 
@@ -450,21 +482,21 @@
 			estatCompeticio = 'finalitzat';
 			championName = winnerName;
 			subchampionName = loserName;
-			resultConfirmation = `🏆 ${winnerName} és el CAMPIÓ del torneig! El torneig s'ha tancat.`;
+			showSuccess(`${winnerName} és el CAMPIÓ del torneig! El torneig s'ha tancat.`);
 		} else if (result.needsResetMatch) {
-			resultConfirmation = `⚡ ${winnerName} guanya la Gran Final! Cal jugar el Reset Match (GF-R2) perquè queden igualats.`;
+			showSuccess(`${winnerName} guanya la Gran Final! Cal jugar el Reset Match (GF-R2) perquè queden igualats.`);
 		} else {
-			let msg = `✅ ${winnerName} guanya i avança a ${result.winnerDestDesc}.`;
+			let msg = `${winnerName} guanya i avança a ${result.winnerDestDesc}.`;
 			if (result.autoScheduled && result.autoScheduled.scheduled > 0) {
-				msg += ` 📅 ${result.autoScheduled.scheduled} partida${result.autoScheduled.scheduled !== 1 ? 's' : ''} programada${result.autoScheduled.scheduled !== 1 ? 'des' : ''} automàticament.`;
+				msg += ` ${result.autoScheduled.scheduled} partida${result.autoScheduled.scheduled !== 1 ? 's' : ''} programada${result.autoScheduled.scheduled !== 1 ? 'des' : ''} automàticament.`;
 			} else if (result.autoScheduled && result.autoScheduled.conflicts > 0) {
-				msg += ` ⚠️ ${result.autoScheduled.conflicts} partida${result.autoScheduled.conflicts !== 1 ? 'des' : ''} amb conflicte de calendari — programa-les manualment.`;
+				msg += ` ${result.autoScheduled.conflicts} partida${result.autoScheduled.conflicts !== 1 ? 'des' : ''} amb conflicte de calendari — programa-les manualment.`;
 			}
-			resultConfirmation = msg;
+			showSuccess(msg);
 		}
 
+		resultMatchId = null;
 		await loadBracketData(event.id);
-		setTimeout(() => (resultConfirmation = null), result.isChampion ? 30000 : 8000);
 	}
 
 	async function handleCloseTournament() {
@@ -478,20 +510,18 @@
 		});
 		if (!confirmed) return;
 		closingTournament = true;
-		quadreError = null;
 		const result = await closeTournamentManual(supabase, event.id);
 		closingTournament = false;
 		if (!result.ok) {
 			if (result.pendingCount && result.pendingCount > 0) {
-				quadreError = `No es pot tancar: queden ${result.pendingCount} partides sense jugar.`;
+				showError(`No es pot tancar: queden ${result.pendingCount} partides sense jugar.`);
 			} else {
-				quadreError = result.error ?? 'Error tancant el torneig.';
+				showError(result.error ?? 'Error tancant el torneig.');
 			}
 			return;
 		}
 		estatCompeticio = 'finalitzat';
-		resultConfirmation = 'Torneig tancat correctament.';
-		setTimeout(() => (resultConfirmation = null), 5000);
+		showSuccess('Torneig tancat correctament.');
 	}
 
 	function matchBracketLabel(m: MatchView): string {
@@ -621,8 +651,8 @@
 					<button
 						type="button"
 						on:click={() => filter = val as typeof filter}
-						class="px-3 py-1.5 transition-colors
-							{filter === val ? 'bg-purple-600 text-white font-medium' : 'text-gray-600 hover:bg-gray-50'}"
+						class="px-3 py-1.5 transition-colors filter-chip
+							{filter === val ? 'filter-chip-active' : 'text-gray-600 hover:bg-gray-50'}"
 					>
 						{label}
 					</button>
@@ -635,7 +665,7 @@
 					type="text"
 					bind:value={searchTerm}
 					placeholder="Cerca jugador..."
-					class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400"
+					class="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-600"
 				/>
 				{#if searchTerm}
 					<button
@@ -811,67 +841,32 @@
 				{/if}
 			</div>
 
-		<!-- Formulari de resultat (inline) — només admins -->
-		{#if $effectiveIsAdmin && showResultForm && selectedMatch.estat === 'programada' && selectedMatch.slot1.participant_id && selectedMatch.slot2.participant_id}
-			<div class="border-t border-gray-200 px-5 py-4">
-				<HandicapMatchResult
-					player1Name={selectedMatch.player1?.shortName ?? 'Jugador 1'}
-					player2Name={selectedMatch.player2?.shortName ?? 'Jugador 2'}
-					player1Distancia={selectedMatch.distancia_jugador1 ?? selectedMatch.player1?.distancia ?? null}
-					player2Distancia={selectedMatch.distancia_jugador2 ?? selectedMatch.player2?.distancia ?? null}
-					player1ParticipantId={selectedMatch.slot1.participant_id}
-					player2ParticipantId={selectedMatch.slot2.participant_id}
-					{sistemaPuntuacio}
-					{limitEntrades}
-					saving={resultSaving}
-					on:confirm={handleResultConfirm}
-					on:cancel={() => (showResultForm = false)}
-				/>
-			</div>
-		{:else}
-			<!-- Botons d'acció -->
-			<div class="border-t border-gray-200 px-5 py-4 flex gap-2 justify-end">
-				<a
-					href="/handicap/partides"
-					class="rounded border border-purple-300 bg-purple-50 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-100"
-				>
+		<!-- Botons d'acció -->
+			<div class="modal-actions border-t border-gray-200 px-5 py-4 flex gap-2 justify-end">
+				<a href="/handicap/partides" class="btn-modal-secondary">
 					Programar
 				</a>
 				{#if $effectiveIsAdmin && selectedMatch.estat === 'programada' && selectedMatch.slot1.participant_id && selectedMatch.slot2.participant_id && !isFinalitzat}
 					<button
 						type="button"
-						on:click={() => (showResultForm = true)}
-						class="rounded border border-green-300 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100"
+						on:click={() => { const id = selectedMatch?.id; closeModal(); if (id) resultMatchId = id; }}
+						class="btn-modal-primary"
 					>
 						Introduir resultat
 					</button>
 				{/if}
-				<button
-					type="button"
-					on:click={closeModal}
-					class="rounded bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
-				>
+				<button type="button" on:click={closeModal} class="btn-modal-secondary">
 					Tancar
 				</button>
 			</div>
-		{/if}
 	</div>
 </div>
 {/if}
 
-<!-- ── Confirmació resultat ───────────────────────────────────────────── -->
-{#if resultConfirmation}
-	<div class="fixed bottom-4 right-4 z-40 max-w-sm rounded-lg border border-green-300 bg-green-50 px-4 py-3 shadow-lg">
-		<p class="text-sm font-medium text-green-800">{resultConfirmation}</p>
-	</div>
-{/if}
-{#if quadreError}
-	<div class="fixed bottom-4 right-4 z-40 max-w-sm rounded-lg border border-red-300 bg-red-50 px-4 py-3 shadow-lg">
-		<div class="flex items-start gap-2">
-			<p class="flex-1 text-sm text-red-800">{quadreError}</p>
-			<button type="button" on:click={() => (quadreError = null)} class="text-red-500">✕</button>
-		</div>
-	</div>
+<!-- ── Modal resultat unificat ────────────────────────────────────────────── -->
+{#if $effectiveIsAdmin && resultUnified}
+	<UnifiedResultModal match={resultUnified} saving={resultSaving} {supabase}
+		on:save={handleResultSave} on:close={() => (resultMatchId = null)} />
 {/if}
 
 {#if showPrintBracketModal && event}
@@ -939,6 +934,36 @@
 		cursor: pointer; min-height: 36px;
 	}
 	.btn-action:hover { border-color: var(--ink); }
+
+	/* Botons editorials del modal de detall */
+	.btn-modal-primary {
+		background: var(--ink); color: var(--paper);
+		border: 1px solid var(--ink);
+		padding: 0.4rem 0.9rem;
+		font-family: var(--font-sans);
+		font-weight: 600; font-size: 0.875rem;
+		cursor: pointer; min-height: 40px;
+	}
+	.btn-modal-primary:hover { opacity: 0.85; }
+
+	.btn-modal-secondary {
+		background: transparent; color: var(--ink);
+		border: 1px solid var(--rule-strong);
+		padding: 0.4rem 0.9rem;
+		font-family: var(--font-sans);
+		font-weight: 500; font-size: 0.875rem;
+		text-decoration: none; display: inline-flex; align-items: center;
+		cursor: pointer; min-height: 40px;
+	}
+	.btn-modal-secondary:hover { border-color: var(--ink); }
+
+	/* Filtre de bracket: estat actiu en tinta editorial */
+	.filter-chip { font-family: var(--font-sans); }
+	.filter-chip-active {
+		background: var(--ink) !important;
+		color: var(--paper) !important;
+		font-weight: 600;
+	}
 
 	.state-empty {
 		padding: 1.5rem 1.75rem;
