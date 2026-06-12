@@ -95,9 +95,10 @@
 	// Àrea útil (mm) d'un full A3 APAÏSAT (capçalera i marges descomptats).
 	const V_LAND_W = 388;
 	const V_LAND_H = 232;
-	// Guanyadors amb més de 4 rondes (~32 jugadors) es reparteixen en 2 fulls:
-	// rondes 1-4 partides per meitats (dalt/baix) i la ronda 5 i següents al full 1.
-	const V_SPLIT_ROUND = 4;
+	// Per mantenir els textos llegibles, cada full visual mostra un tram curt
+	// de rondes i un màxim de sis partides de la ronda més densa.
+	const V_MAX_ROUNDS_PER_SHEET = 4;
+	const V_MAX_CELLS_PER_SHEET = 6;
 	// Tram curt (mm) que surt cap a la dreta quan el guanyador avança a un
 	// match que es a l'altre full (p. ex. W4.2 -> W5.1 a la pagina 2).
 	const V_STUB_LEN = 7;
@@ -643,67 +644,59 @@
 
 		const mainRounds = [...new Set(main.map((v) => v.ronda))].sort((a, b) => a - b);
 		const gfRounds = [...new Set(gf.map((v) => v.ronda))].sort((a, b) => a - b);
-
-		const baseCount = Math.max(1, main.filter((v) => v.ronda === mainRounds[0]).length);
-		const cellsAreaH = baseCount * V_SLOT;
-
-		// Guanyadors mes esponjats horitzontalment (aprofiten l'amplada sobrant
-		// del full, ja que l'escala la limita l'alcada).
 		const colGap = kind === 'winners' ? V_COL_GAP_WIN : V_COL_GAP;
-		const columns: TreeCol[] = [];
-		const colXByKey = new Map<string, number>();
-		let ci = 0;
-		for (const r of mainRounds) {
-			const x = ci * (V_CELL_W + colGap);
-			columns.push({ x, label: treeRoundLabel(kind, r, mainRounds) });
-			colXByKey.set(`m${r}`, x);
-			ci++;
-		}
-		for (const r of gfRounds) {
-			const x = ci * (V_CELL_W + colGap);
-			columns.push({ x, label: treeRoundLabel(kind, 0, [], true, r) });
-			colXByKey.set(`gf${r}`, x);
-			ci++;
-		}
-
-		const allCells: Array<{ mv: MatchView; x: number; topFull: number }> = [];
-		for (const v of main) {
-			const x = colXByKey.get(`m${v.ronda}`) ?? 0;
-			const factor = kind === 'winners'
-				? Math.pow(2, v.ronda - 1)
-				: Math.pow(2, Math.ceil(v.ronda / 2) - 1);
-			const topFull = V_HEADER_H + (v.matchPos - 0.5) * factor * V_SLOT - V_CELL_H / 2;
-			allCells.push({ mv: v, x, topFull });
-		}
-		for (const v of gf) {
-			const x = colXByKey.get(`gf${v.ronda}`) ?? 0;
-			const topFull = V_HEADER_H + cellsAreaH / 2 - V_CELL_H / 2;
-			allCells.push({ mv: v, x, topFull });
-		}
-
-		// Partim nomes els guanyadors amb mes de 4 rondes (la resta cap en 1 full).
-		const maxRound = mainRounds[mainRounds.length - 1] ?? 0;
-		const needsSplit = kind === 'winners' && maxRound > V_SPLIT_ROUND;
-		if (!needsSplit) {
-			const sheet = packSheet(allCells, columns, 0, '');
-			return sheet ? [sheet] : [];
-		}
-
-		const splitMid = V_HEADER_H + cellsAreaH / 2;
-		const onSheet1 = (c: { mv: MatchView; topFull: number }) =>
-			c.mv.bracket !== 'winners' || c.mv.ronda > V_SPLIT_ROUND || (c.topFull + V_CELL_H / 2) < splitMid;
 		const sheets: TreeSheet[] = [];
-		const s1 = packSheet(allCells.filter(onSheet1), columns, 0, '· dalt + final (1/2)');
-		const s2 = packSheet(allCells.filter((c) => !onSheet1(c)), columns, cellsAreaH / 2, '· baix (2/2)');
-		// Mateixa escala als dos fulls perquè les rondes W1–W4 quedin alineades
-		// a la mateixa vertical (mateixa mida i posició de columna) en apilar-los.
-		if (s1 && s2) {
-			const common = Math.min(s1.scale, s2.scale);
-			s1.scale = common;
-			s2.scale = common;
+		const roundDefs = [
+			...mainRounds.map((r) => ({
+				label: treeRoundLabel(kind, r, mainRounds),
+				matches: main.filter((v) => v.ronda === r).sort((a, b) => a.matchPos - b.matchPos)
+			})),
+			...gfRounds.map((r) => ({
+				label: treeRoundLabel(kind, 0, [], true, r),
+				matches: gf.filter((v) => v.ronda === r).sort((a, b) => a.matchPos - b.matchPos)
+			}))
+		];
+		const roundChunks: typeof roundDefs[] = [];
+		for (let i = 0; i < roundDefs.length; i += V_MAX_ROUNDS_PER_SHEET) {
+			roundChunks.push(roundDefs.slice(i, i + V_MAX_ROUNDS_PER_SHEET));
 		}
-		if (s1) sheets.push(s1);
-		if (s2) sheets.push(s2);
+
+		for (let chunkIndex = 0; chunkIndex < roundChunks.length; chunkIndex++) {
+			const chunk = roundChunks[chunkIndex];
+			const densestRound = Math.max(...chunk.map((r) => r.matches.length));
+			const verticalPages = Math.max(1, Math.ceil(densestRound / V_MAX_CELLS_PER_SHEET));
+
+			for (let pageIndex = 0; pageIndex < verticalPages; pageIndex++) {
+				const columns: TreeCol[] = [];
+				const cells: Array<{ mv: MatchView; x: number; topFull: number }> = [];
+
+				for (let colIndex = 0; colIndex < chunk.length; colIndex++) {
+					const round = chunk[colIndex];
+					const x = colIndex * (V_CELL_W + colGap);
+					const perPage = Math.ceil(round.matches.length / verticalPages);
+					const pageMatches = round.matches.slice(pageIndex * perPage, (pageIndex + 1) * perPage);
+					if (pageMatches.length === 0) continue;
+
+					columns.push({ x, label: round.label });
+					for (let matchIndex = 0; matchIndex < pageMatches.length; matchIndex++) {
+						cells.push({
+							mv: pageMatches[matchIndex],
+							x,
+							topFull: V_HEADER_H + matchIndex * V_SLOT
+						});
+					}
+				}
+
+				const chunkSuffix = roundChunks.length > 1
+					? `· bloc ${chunkIndex + 1}/${roundChunks.length}`
+					: '';
+				const pageSuffix = verticalPages > 1
+					? ` · tram ${pageIndex + 1}/${verticalPages}`
+					: '';
+				const sheet = packSheet(cells, columns, 0, `${chunkSuffix}${pageSuffix}`);
+				if (sheet) sheets.push(sheet);
+			}
+		}
 		return sheets;
 	}
 
