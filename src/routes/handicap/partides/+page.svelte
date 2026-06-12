@@ -7,12 +7,16 @@
 	import HandicapBranchBalance from '$lib/components/handicap/HandicapBranchBalance.svelte';
 	import HandicapWeeklyCalendar from '$lib/components/handicap/HandicapWeeklyCalendar.svelte';
 	import HandicapCalendarGridView from '$lib/components/handicap/HandicapCalendarGridView.svelte';
-	import HandicapMatchResult from '$lib/components/handicap/HandicapMatchResult.svelte';
 	import type { CalendarEntry, BranchMatchInput } from '$lib/utils/handicap-types';
 	import { buildMatchCodeMap, buildSlotSourceMap } from '$lib/utils/handicap-types';
 	import { computeDeadlines } from '$lib/utils/handicap-deadlines';
-	import { saveMatchResult, type SaveResultError } from '$lib/utils/handicap-propagation';
+	import { saveMatchResult } from '$lib/utils/handicap-propagation';
 	import { showConfirm } from '$lib/stores/confirmDialogStore';
+	import UnifiedResultModal from '$lib/components/gestio-partides/UnifiedResultModal.svelte';
+	import UnifiedScheduleModal from '$lib/components/gestio-partides/UnifiedScheduleModal.svelte';
+	import { adapters, buildHandicapUnifiedMatch } from '$lib/services/matchManagement';
+	import type { UnifiedMatch, ResultInput, UnifiedSlot } from '$lib/services/matchManagement';
+	import { showSuccess, showError } from '$lib/stores/toastStore';
 	import {
 		scheduleMatches,
 		type MatchToSchedule,
@@ -25,7 +29,7 @@
 	import { persistFullSchedule } from '$lib/utils/handicap-schedule-persist';
 	import { loadBlockedDates } from '$lib/utils/handicap-blocked-dates';
 	import { formatarNomJugadorParts } from '$lib/utils/playerUtils';
-	import { scheduleHandicapMatch, unscheduleHandicapMatch } from '$lib/utils/handicap-manual-schedule';
+	import { scheduleHandicapMatch } from '$lib/utils/handicap-manual-schedule';
 	import { checkCompatibility, type CompatibilityIssue, type CompatibilityMatchInput, type AlternativeSlot } from '$lib/utils/handicap-compatibility';
 	import HandicapCompatibilityCheckModal from '$lib/components/handicap/HandicapCompatibilityCheckModal.svelte';
 
@@ -85,8 +89,15 @@
 
 	let resultMatchId: string | null = null;
 	$: resultMatch = resultMatchId ? matches.find((m) => m.id === resultMatchId) ?? null : null;
+	$: resultUnified = resultMatch ? toUnified(resultMatch) : null;
 	let resultSaving = false;
-	let resultConfirmation: string | null = null;
+
+	// ── Modal de programació ───────────────────────────────────────────────────
+
+	let scheduleMatchId: string | null = null;
+	$: scheduleMatch = scheduleMatchId ? matches.find((m) => m.id === scheduleMatchId) ?? null : null;
+	$: scheduleUnified = scheduleMatch ? toUnified(scheduleMatch) : null;
+	let scheduleSaving = false;
 
 	// ── Filtres ───────────────────────────────────────────────────────────────
 
@@ -476,29 +487,48 @@
 		}
 	}
 
-	async function unschedule(match: MatchDisplay) {
-		if (!match.calendari_partida_id || saving) return;
-		const ok = await showConfirm({
-			title: 'Desassignar partida',
-			message: `Desassignar la partida ${match.player1_name} vs ${match.player2_name}?`,
-			severity: 'warning',
-			confirmLabel: 'Desassignar'
-		});
-		if (!ok) return;
-		saving = true;
-		error = null;
+	// ── Helpers UnifiedMatch ──────────────────────────────────────────────────
 
-		try {
-			await unscheduleHandicapMatch(supabase, {
-				matchId: match.id,
-				calendariPartidaId: match.calendari_partida_id
-			});
-			await loadData();
-		} catch (e: any) {
-			error = e.message;
-		} finally {
-			saving = false;
-		}
+	function prefOf(participantId: string | null): { dies: string[]; hores: string[] } | null {
+		if (!participantId) return null;
+		const p = participantMap.get(participantId);
+		if (!p) return null;
+		return { dies: p.preferencies_dies ?? [], hores: p.preferencies_hores ?? [] };
+	}
+
+	function toUnified(m: MatchDisplay): UnifiedMatch {
+		return buildHandicapUnifiedMatch({
+			id: m.id,
+			estat: m.estat,
+			bracketType: m.bracket_type,
+			ronda: m.ronda,
+			matchPos: m.matchPos,
+			matchCode: m.matchCode,
+			calendariPartidaId: m.calendari_partida_id,
+			eventId: eventId ?? '',
+			eventNom: '',
+			sistemaPuntuacio,
+			limitEntrades,
+			player1: {
+				displayName: m.player1_name,
+				rawName: m.player1_name,
+				sociNumero: m.player1_soci_numero,
+				participantId: m.player1_participant_id,
+				distancia: m.player1_distancia,
+				preferencies: prefOf(m.player1_participant_id)
+			},
+			player2: {
+				displayName: m.player2_name,
+				rawName: m.player2_name,
+				sociNumero: m.player2_soci_numero,
+				participantId: m.player2_participant_id,
+				distancia: m.player2_distancia,
+				preferencies: prefOf(m.player2_participant_id)
+			},
+			slot: (m.data_programada && m.hora_inici)
+				? { dataIso: m.data_programada, hora: m.hora_inici, billar: m.taula_assignada }
+				: null
+		});
 	}
 
 	// ── Auto-programació ──────────────────────────────────────────────────────
@@ -582,20 +612,10 @@
 
 	// ── Introducció de resultats ────────────────────────────────────────────────
 
-	async function handleResultConfirm(
-		e: CustomEvent<{
-			isWalkover: boolean;
-			caramboles1: number | null;
-			caramboles2: number | null;
-			entrades: number | null;
-			winnerParticipantId: string;
-			loserParticipantId: string;
-		}>
-	) {
+	async function handleResultSave(e: CustomEvent<ResultInput>) {
 		const match = resultMatch;
-		if (!match) return;
+		if (!match || e.detail.kind !== 'handicap') return;
 		resultSaving = true;
-		error = null;
 
 		const result = await saveMatchResult(supabase, {
 			matchId: match.id,
@@ -612,7 +632,7 @@
 		resultMatchId = null;
 
 		if (!result.ok) {
-			error = (result as SaveResultError).error;
+			showError((result as import('$lib/utils/handicap-propagation').SaveResultError).error);
 			return;
 		}
 
@@ -622,19 +642,56 @@
 
 		if (result.isChampion) {
 			estatCompeticio = 'finalitzat';
-			resultConfirmation = `🏆 ${winnerName} és el CAMPIÓ del torneig! El torneig s'ha tancat.`;
+			showSuccess(`${winnerName} és el CAMPIÓ del torneig! El torneig s'ha tancat.`);
 		} else if (result.needsResetMatch) {
-			resultConfirmation = `⚡ ${winnerName} guanya la Gran Final! Cal jugar el Reset Match (GF-R2) — ambdós jugadors estan assignats a la nova partida.`;
+			showSuccess(`${winnerName} guanya la Gran Final! Cal jugar el Reset Match (GF-R2) — ambdós jugadors estan assignats a la nova partida.`);
 		} else {
-			resultConfirmation = `Resultat registrat. ${winnerName} guanya i avança a ${result.winnerDestDesc}.${
+			showSuccess(`Resultat registrat. ${winnerName} guanya i avança a ${result.winnerDestDesc}.${
 				result.newSchedulableCount > 0
 					? ` ${result.newSchedulableCount} nova${result.newSchedulableCount !== 1 ? 'es' : ''} partida${result.newSchedulableCount !== 1 ? 'des' : ''} llesta${result.newSchedulableCount !== 1 ? 'es' : ''} per programar.`
 					: ''
-			}`;
+			}`);
 		}
 
 		await loadData();
-		setTimeout(() => (resultConfirmation = null), result.isChampion ? 30000 : 8000);
+	}
+
+	// ── Programació via modal unificat ────────────────────────────────────────
+
+	async function handleScheduleSave(e: CustomEvent<UnifiedSlot>) {
+		if (!scheduleUnified) return;
+		scheduleSaving = true;
+		try {
+			await adapters.handicap.schedule!(supabase, scheduleUnified, e.detail);
+			showSuccess('Partida programada correctament.');
+			scheduleMatchId = null;
+			await loadData();
+		} catch (err) {
+			showError(err instanceof Error ? err.message : 'Error programant la partida.');
+		} finally {
+			scheduleSaving = false;
+		}
+	}
+
+	async function handleScheduleUnschedule() {
+		if (!scheduleUnified) return;
+		scheduleSaving = true;
+		try {
+			await adapters.handicap.unschedule!(supabase, scheduleUnified);
+			showSuccess('Partida desprogramada.');
+			scheduleMatchId = null;
+			await loadData();
+		} catch (err) {
+			showError(err instanceof Error ? err.message : 'Error desprogramant.');
+		} finally {
+			scheduleSaving = false;
+		}
+	}
+
+	function handleOpenPlanner() {
+		const id = scheduleMatchId;
+		scheduleMatchId = null;
+		if (id && !isFinalitzat) schedulingMatchId = id;
 	}
 
 	// ── onMount ───────────────────────────────────────────────────────────────
@@ -751,15 +808,15 @@
 				: `Conflictes detectats: ${hardCount} durs (assignats), ${hourCount} risc d'hora, ${dayCount} risc de dia.\n`
 					+ r.warnings.slice(0, 8).map(w => `  • ${w.bracket}-R${w.ronda} ${w.scheduledDate} ${w.scheduledHora}: ${w.message}`).join('\n')
 					+ (r.warnings.length > 8 ? `\n  … (${r.warnings.length - 8} més)` : '');
-			alert(
-				`Programats: ${r.programats} (${r.nous} nous, ${r.actualitzats} actualitzats)\n`
-				+ `Data fi efectiva: ${r.dataFiEfectiva ?? '—'}\n`
-				+ (r.errors.length > 0 ? `Errors:\n${r.errors.slice(0, 5).join('\n')}\n` : '')
+			showSuccess(
+				`Programats: ${r.programats} (${r.nous} nous, ${r.actualitzats} actualitzats). `
+				+ `Data fi efectiva: ${r.dataFiEfectiva ?? '—'}. `
+				+ (r.errors.length > 0 ? `Errors: ${r.errors.slice(0, 5).join('; ')}. ` : '')
 				+ warningSummary
 			);
 			location.reload();
 		} catch (e: any) {
-			alert(`Error: ${e?.message ?? e}`);
+			showError(`Error: ${e?.message ?? e}`);
 		} finally {
 			regenerantHorari = false;
 		}
@@ -805,7 +862,7 @@
 			});
 			showCompatModal = true;
 		} catch (e: any) {
-			alert(`Error revisant: ${e?.message ?? e}`);
+			showError(`Error revisant: ${e?.message ?? e}`);
 		} finally {
 			checkingCompat = false;
 		}
@@ -959,18 +1016,6 @@
 		{#if error}
 			<div class="mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800 whitespace-pre-wrap">
 				{error}
-			</div>
-		{/if}
-
-		{#if resultConfirmation}
-			<div class="mb-4 flex items-start gap-3 rounded-lg border border-green-300 bg-green-50 px-4 py-3">
-				<span class="text-lg">✅</span>
-				<p class="flex-1 text-sm font-medium text-green-800">{resultConfirmation}</p>
-				<button
-					type="button"
-					on:click={() => (resultConfirmation = null)}
-					class="text-green-600 hover:text-green-800"
-				>✕</button>
 			</div>
 		{/if}
 
@@ -1268,22 +1313,23 @@
 								</td>
 								<td class="px-3 py-2 text-right">
 									{#if $effectiveIsAdmin}
-									{#if !isFinalitzat && (match.estat === 'pendent' || match.estat === 'programada')}
-										{#if config}
-											{#if schedulingMatchId === match.id}
+										<div class="flex justify-end gap-1.5">
+											{#if !isFinalitzat && match.estat === 'programada' && match.player1_participant_id && match.player2_participant_id}
 												<button
 													type="button"
-													on:click={() => (schedulingMatchId = null)}
-													class="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
+													on:click={() => (resultMatchId = match.id)}
+													disabled={saving || scheduleSaving || resultSaving}
+													class="action-btn action-btn-primary"
 												>
-													Tancar
+													Resultat
 												</button>
-											{:else}
+											{/if}
+											{#if !isFinalitzat && (match.estat === 'pendent' || match.estat === 'programada')}
 												<button
 													type="button"
-													on:click={() => (schedulingMatchId = match.id)}
-													disabled={saving}
-													class="rounded border border-purple-300 bg-purple-50 px-2 py-1 text-xs text-purple-700 hover:bg-purple-100 disabled:opacity-50"
+													on:click={() => (scheduleMatchId = match.id)}
+													disabled={saving || scheduleSaving || resultSaving}
+													class="action-btn action-btn-secondary"
 													title={match.player1_participant_id && match.player2_participant_id
 														? ''
 														: 'Pre-reserva: data orientativa (rival per determinar)'}
@@ -1291,29 +1337,8 @@
 													{match.data_programada ? 'Reprogramar' : 'Programar'}
 												</button>
 											{/if}
-										{/if}
-										{#if match.calendari_partida_id}
-											<button
-												type="button"
-												on:click={() => unschedule(match)}
-												disabled={saving}
-												class="ml-1 rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-600 hover:bg-red-100 disabled:opacity-50"
-											>
-												Desassignar
-											</button>
-										{/if}
+										</div>
 									{/if}
-									{#if !isFinalitzat && match.estat === 'programada' && match.player1_participant_id && match.player2_participant_id}
-										<button
-											type="button"
-											on:click={() => (resultMatchId = match.id)}
-											disabled={saving || resultSaving}
-											class="ml-1 rounded border border-green-300 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-100 disabled:opacity-50"
-										>
-											Resultat
-										</button>
-									{/if}
-									{/if}<!-- end isAdmin -->
 								</td>
 							</tr>
 
@@ -1382,49 +1407,28 @@
 </div>
 
 <!-- ── Modal d'introducció de resultat ────────────────────────────────────── -->
-{#if $effectiveIsAdmin && resultMatch}
-	<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
-	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-		on:click|self={() => (resultMatchId = null)}
-	>
-		<div
-			class="w-full max-w-md rounded-lg bg-white shadow-xl flex flex-col max-h-[90vh]"
-			on:click|stopPropagation
-			role="dialog"
-			aria-modal="true"
-			tabindex="-1"
-		>
-			<div class="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-				<div>
-					<h2 class="font-semibold text-gray-900">Introduir resultat</h2>
-					<p class="text-xs text-gray-500">
-						{BRACKET_LABELS[resultMatch.bracket_type]} R{resultMatch.ronda} · Pos {resultMatch.matchPos}
-					</p>
-				</div>
-				<button
-					type="button"
-					on:click={() => (resultMatchId = null)}
-					class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-				>✕</button>
-			</div>
-			<div class="px-5 py-4">
-				<HandicapMatchResult
-					player1Name={resultMatch.player1_name}
-					player2Name={resultMatch.player2_name}
-					player1Distancia={resultMatch.player1_distancia}
-					player2Distancia={resultMatch.player2_distancia}
-					player1ParticipantId={resultMatch.player1_participant_id!}
-					player2ParticipantId={resultMatch.player2_participant_id!}
-					{sistemaPuntuacio}
-					{limitEntrades}
-					saving={resultSaving}
-					on:confirm={handleResultConfirm}
-					on:cancel={() => (resultMatchId = null)}
-				/>
-			</div>
-		</div>
-	</div>
+{#if $effectiveIsAdmin && resultUnified}
+	<UnifiedResultModal
+		match={resultUnified}
+		saving={resultSaving}
+		{supabase}
+		on:save={handleResultSave}
+		on:close={() => (resultMatchId = null)}
+	/>
+{/if}
+
+<!-- ── Modal de programació ────────────────────────────────────────────────── -->
+{#if $effectiveIsAdmin && scheduleUnified}
+	<UnifiedScheduleModal
+		match={scheduleUnified}
+		saving={scheduleSaving}
+		{supabase}
+		plannerHref={null}
+		on:save={handleScheduleSave}
+		on:unschedule={handleScheduleUnschedule}
+		on:openPlanner={handleOpenPlanner}
+		on:close={() => (scheduleMatchId = null)}
+	/>
 {/if}
 
 {#if showCompatModal && $effectiveIsAdmin}
@@ -1570,4 +1574,33 @@
 		box-shadow: inset 4px 0 0 0 #d97706;
 		transition: background 0.3s, box-shadow 0.3s;
 	}
+
+	/* Botons editorials d'acció per fila (mirall de /admin/partides) */
+	.action-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 44px;
+		padding: 0.35rem 0.75rem;
+		font-family: var(--font-sans);
+		font-size: 0.75rem;
+		font-weight: 600;
+		cursor: pointer;
+		border-radius: 0;
+		transition: opacity 0.1s;
+		white-space: nowrap;
+	}
+	.action-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+	.action-btn-primary {
+		background: var(--ink);
+		color: var(--paper);
+		border: 1px solid var(--ink);
+	}
+	.action-btn-primary:hover:not(:disabled) { opacity: 0.85; }
+	.action-btn-secondary {
+		background: transparent;
+		color: var(--ink);
+		border: 1px solid var(--rule-strong);
+	}
+	.action-btn-secondary:hover:not(:disabled) { border-color: var(--ink); }
 </style>
