@@ -48,6 +48,94 @@ function buildPlayer(
   };
 }
 
+// ── Mapatge a UnifiedMatch (font única) ──────────────────────────────────────
+
+/**
+ * Dades planes d'una partida hàndicap, suficients per construir un
+ * `UnifiedMatch`. Tant `listMatches` (que les llegeix de la BD) com les pàgines
+ * del mòdul hàndicap (que ja les tenen carregades en memòria) en construeixen
+ * una instància i criden `buildHandicapUnifiedMatch`, de manera que la lògica
+ * de `capabilities` i la forma de `meta` viuen en un sol lloc.
+ */
+export interface HandicapMatchViewInput {
+  id: string;
+  estat: string;
+  bracketType: 'winners' | 'losers' | 'grand_final';
+  ronda: number;
+  matchPos: number;
+  matchCode: string;
+  calendariPartidaId: string | null;
+  eventId: string;
+  eventNom: string;
+  sistemaPuntuacio: string;
+  limitEntrades: number | null;
+  player1: HandicapPlayerViewInput;
+  player2: HandicapPlayerViewInput;
+  /** null si la partida no té data/hora assignades */
+  slot: { dataIso: string; hora: string; billar: number | null } | null;
+}
+
+export interface HandicapPlayerViewInput {
+  displayName: string;
+  rawName: string;
+  sociNumero: number | null;
+  participantId: string | null;
+  distancia: number | null;
+  preferencies: { dies: string[]; hores: string[] } | null;
+}
+
+/**
+ * Construeix un `UnifiedMatch` hàndicap a partir de dades planes. Pur (sense
+ * Supabase). Centralitza la lògica de `mapEstat`, `capabilities` i `meta`.
+ */
+export function buildHandicapUnifiedMatch(input: HandicapMatchViewInput): UnifiedMatch {
+  const status = mapEstat(input.estat);
+  const bothResolved = !!(input.player1.participantId && input.player2.participantId);
+
+  const meta: HandicapMeta = {
+    source: 'handicap',
+    eventId: input.eventId,
+    eventNom: input.eventNom,
+    bracketType: input.bracketType,
+    ronda: input.ronda,
+    matchPos: input.matchPos,
+    matchCode: input.matchCode,
+    calendariPartidaId: input.calendariPartidaId,
+    player1ParticipantId: input.player1.participantId,
+    player2ParticipantId: input.player2.participantId,
+    player1Distancia: input.player1.distancia,
+    player2Distancia: input.player2.distancia,
+    sistemaPuntuacio: input.sistemaPuntuacio,
+    limitEntrades: input.limitEntrades,
+    player1Preferencies: input.player1.preferencies,
+    player2Preferencies: input.player2.preferencies
+  };
+
+  return {
+    source: 'handicap',
+    id: input.id,
+    player1: {
+      displayName: input.player1.displayName,
+      rawName: input.player1.rawName,
+      sociNumero: input.player1.sociNumero
+    },
+    player2: {
+      displayName: input.player2.displayName,
+      rawName: input.player2.rawName,
+      sociNumero: input.player2.sociNumero
+    },
+    slot: input.slot,
+    status,
+    rawEstat: input.estat,
+    capabilities: {
+      canEnterResult: status === 'programada' && bothResolved,
+      canSchedule: status === 'pendent' || status === 'programada',
+      canUnschedule: !!input.calendariPartidaId
+    },
+    meta
+  } satisfies UnifiedMatch;
+}
+
 // ── Adaptador ──────────────────────────────────────────────────────────────
 
 export const handicapAdapter: MatchAdapter = {
@@ -191,18 +279,14 @@ export const handicapAdapter: MatchAdapter = {
         const s1Data = getSociNom(p1);
         const s2Data = getSociNom(p2);
 
-        const player1: UnifiedPlayer = {
-          displayName: p1Name,
-          rawName: `${s1Data.nom ?? ''} ${s1Data.cognoms ?? ''}`.trim() || p1Name,
-          sociNumero: p1?.soci_numero ?? null
-        };
-        const player2: UnifiedPlayer = {
-          displayName: p2Name,
-          rawName: `${s2Data.nom ?? ''} ${s2Data.cognoms ?? ''}`.trim() || p2Name,
-          sociNumero: p2?.soci_numero ?? null
+        const buildPref = (p: any | null): { dies: string[]; hores: string[] } | null => {
+          if (!p) return null;
+          const dies: string[] = Array.isArray(p.preferencies_dies) ? (p.preferencies_dies as string[]) : [];
+          const hores: string[] = Array.isArray(p.preferencies_hores) ? (p.preferencies_hores as string[]) : [];
+          return { dies, hores };
         };
 
-        let slot = null;
+        let slot: { dataIso: string; hora: string; billar: number | null } | null = null;
         if (partida?.data_programada && partida?.hora_inici) {
           slot = {
             dataIso: (partida.data_programada as string).substring(0, 10),
@@ -211,51 +295,36 @@ export const handicapAdapter: MatchAdapter = {
           };
         }
 
-        const status = mapEstat(m.estat as string);
-        const bothResolved = !!(slot1?.participant_id && slot2?.participant_id);
-
-        const buildPref = (p: any | null): { dies: string[]; hores: string[] } | null => {
-          if (!p) return null;
-          const dies: string[] = Array.isArray(p.preferencies_dies) ? (p.preferencies_dies as string[]) : [];
-          const hores: string[] = Array.isArray(p.preferencies_hores) ? (p.preferencies_hores as string[]) : [];
-          return { dies, hores };
-        };
-
-        const meta: HandicapMeta = {
-          source: 'handicap',
-          eventId,
-          eventNom,
+        return buildHandicapUnifiedMatch({
+          id: m.id as string,
+          estat: m.estat as string,
           bracketType: (slot1?.bracket_type ?? 'winners') as HandicapMeta['bracketType'],
           ronda: (slot1?.ronda ?? 1) as number,
           matchPos,
           matchCode,
           calendariPartidaId: m.calendari_partida_id ?? null,
-          player1ParticipantId: slot1?.participant_id ?? null,
-          player2ParticipantId: slot2?.participant_id ?? null,
-          player1Distancia: p1?.distancia ?? (m.distancia_jugador1 as number | null) ?? null,
-          player2Distancia: p2?.distancia ?? (m.distancia_jugador2 as number | null) ?? null,
+          eventId,
+          eventNom,
           sistemaPuntuacio,
           limitEntrades,
-          player1Preferencies: buildPref(p1),
-          player2Preferencies: buildPref(p2)
-        };
-
-        // Capabilities: no podem entrar resultat si un jugador no és determinat
-        const canEnterResult = status === 'programada' && bothResolved;
-        const canSchedule = status === 'pendent' || status === 'programada';
-        const canUnschedule = !!(m.calendari_partida_id);
-
-        return {
-          source: 'handicap' as const,
-          id: m.id as string,
-          player1,
-          player2,
-          slot,
-          status,
-          rawEstat: m.estat as string,
-          capabilities: { canEnterResult, canSchedule, canUnschedule },
-          meta
-        } satisfies UnifiedMatch;
+          player1: {
+            displayName: p1Name,
+            rawName: `${s1Data.nom ?? ''} ${s1Data.cognoms ?? ''}`.trim() || p1Name,
+            sociNumero: p1?.soci_numero ?? null,
+            participantId: slot1?.participant_id ?? null,
+            distancia: p1?.distancia ?? (m.distancia_jugador1 as number | null) ?? null,
+            preferencies: buildPref(p1)
+          },
+          player2: {
+            displayName: p2Name,
+            rawName: `${s2Data.nom ?? ''} ${s2Data.cognoms ?? ''}`.trim() || p2Name,
+            sociNumero: p2?.soci_numero ?? null,
+            participantId: slot2?.participant_id ?? null,
+            distancia: p2?.distancia ?? (m.distancia_jugador2 as number | null) ?? null,
+            preferencies: buildPref(p2)
+          },
+          slot
+        });
       });
 
     return matches;
