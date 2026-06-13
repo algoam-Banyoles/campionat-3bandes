@@ -34,6 +34,10 @@ export type {
 // Re-exports d'adaptadors (per si algun caller vol cridar-los directament)
 export { socialAdapter, continuAdapter, handicapAdapter };
 
+// Helper de mapatge hàndicap (reutilitzat per les pàgines del mòdul hàndicap)
+export { buildHandicapUnifiedMatch } from './handicapAdapter';
+export type { HandicapMatchViewInput, HandicapPlayerViewInput } from './handicapAdapter';
+
 // ── Registre d'adaptadors ──────────────────────────────────────────────────
 
 export const adapters: Record<MatchSource, MatchAdapter> = {

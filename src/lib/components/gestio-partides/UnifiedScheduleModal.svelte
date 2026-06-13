@@ -16,12 +16,21 @@
   export let match: UnifiedMatch | null = null;
   export let saving: boolean = false;
   export let supabase: SupabaseClient;
+  /**
+   * Destí de l'enllaç "planificador complet" (només hàndicap). Si és null,
+   * l'enllaç es converteix en un botó que emet `openPlanner` en lloc de
+   * navegar — així la pàgina /handicap/partides pot expandir el slot-picker
+   * ric en línia. Per defecte navega a /handicap/partides (comportament de
+   * /admin/partides, intacte).
+   */
+  export let plannerHref: string | null = '/handicap/partides';
 
   // ── Dispatcher ────────────────────────────────────────────────────────────────
 
   const dispatch = createEventDispatcher<{
     save: UnifiedSlot;
     unschedule: void;
+    openPlanner: void;
     close: void;
   }>();
 
@@ -212,9 +221,15 @@
 
         {#if handicapMeta}
           <div class="info-box">
-            <a href="/handicap/partides" class="info-link">
-              Obrir el planificador complet →
-            </a>
+            {#if plannerHref}
+              <a href={plannerHref} class="info-link">
+                Obrir el planificador complet →
+              </a>
+            {:else}
+              <button type="button" class="info-link info-link-btn" on:click={() => dispatch('openPlanner')}>
+                Obrir el planificador complet →
+              </button>
+            {/if}
           </div>
         {/if}
 
@@ -447,6 +462,14 @@
     text-decoration: underline;
   }
   .info-link:hover { opacity: 0.75; }
+  .info-link-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    text-align: left;
+  }
 
   /* Pista de disponibilitat (hàndicap) */
   .avail-hint {
