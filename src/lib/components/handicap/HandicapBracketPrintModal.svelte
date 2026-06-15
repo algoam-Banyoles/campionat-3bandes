@@ -73,6 +73,9 @@
 		loserDest: string;
 		schedule?: ScheduledMatch | null;
 		result?: MatchResult | null;
+		/** Cel·la sintètica que representa una ronda completa col·lapsada. */
+		isMarker?: boolean;
+		markerCount?: number;
 	};
 
 	let loading = true;
@@ -84,6 +87,9 @@
 	let totalMatches = 0;
 	let allViews: MatchView[] = [];
 	let layoutMode: 'visual' | 'compact' = 'visual';
+	// Col·lapsa les rondes ja completes en una targeta-marcador ("✓ N jugades")
+	// per reduir targetes i connectors al full imprès.
+	let compactCompleted = false;
 
 	// Dimensions (mm) per a la disposicio VISUAL en arbre a A3 apaisat.
 	const V_CELL_W = 68;
@@ -636,7 +642,7 @@
 		return { columns: usedCols, cells, lines, stubs, notes, naturalW, naturalH, scale, suffix };
 	}
 
-	function buildSheets(views: MatchView[], kind: 'winners' | 'losers'): TreeSheet[] {
+	function buildSheets(views: MatchView[], kind: 'winners' | 'losers', compactRondes = false): TreeSheet[] {
 		if (!views || views.length === 0) return [];
 		const main = views.filter((v) => v.bracket === (kind === 'winners' ? 'winners' : 'losers'));
 		const gf = kind === 'winners' ? views.filter((v) => v.bracket === 'grand_final') : [];
@@ -656,9 +662,37 @@
 				matches: gf.filter((v) => v.ronda === r).sort((a, b) => a.matchPos - b.matchPos)
 			}))
 		];
+		// Si s'ha demanat, col·lapsa cada ronda completa (totes les partides
+		// jugades) en una única targeta-marcador. Així el full perd les targetes
+		// i els connectors d'aquelles rondes i només mostra el que queda viu.
+		const roundIsComplete = (ms: MatchView[]) => ms.length > 0 && ms.every((m) => !!m.result);
+		const effectiveRounds = compactRondes
+			? roundDefs.map((rd) =>
+					roundIsComplete(rd.matches)
+						? {
+								label: rd.label,
+								matches: [
+									{
+										...rd.matches[0],
+										code: '',
+										winnerDest: '—',
+										loserDest: '—',
+										schedule: null,
+										result: null,
+										slot1Name: null,
+										slot2Name: null,
+										isMarker: true,
+										markerCount: rd.matches.length
+									} as MatchView
+								]
+							}
+						: rd
+				)
+			: roundDefs;
+
 		const roundChunks: typeof roundDefs[] = [];
-		for (let i = 0; i < roundDefs.length; i += V_MAX_ROUNDS_PER_SHEET) {
-			roundChunks.push(roundDefs.slice(i, i + V_MAX_ROUNDS_PER_SHEET));
+		for (let i = 0; i < effectiveRounds.length; i += V_MAX_ROUNDS_PER_SHEET) {
+			roundChunks.push(effectiveRounds.slice(i, i + V_MAX_ROUNDS_PER_SHEET));
 		}
 
 		for (let chunkIndex = 0; chunkIndex < roundChunks.length; chunkIndex++) {
@@ -701,8 +735,8 @@
 	}
 
 	$: visualSheets = [
-		...buildSheets(allViews.filter((v) => v.bracket !== 'losers'), 'winners').map((sh) => ({ ...sh, section: 'Bracket Principal' })),
-		...buildSheets(allViews.filter((v) => v.bracket === 'losers'), 'losers').map((sh) => ({ ...sh, section: 'Bracket Repesca' }))
+		...buildSheets(allViews.filter((v) => v.bracket !== 'losers'), 'winners', compactCompleted).map((sh) => ({ ...sh, section: 'Bracket Principal' })),
+		...buildSheets(allViews.filter((v) => v.bracket === 'losers'), 'losers', compactCompleted).map((sh) => ({ ...sh, section: 'Bracket Repesca' }))
 	];
 	$: visualFulls = visualSheets.length;
 
@@ -837,6 +871,9 @@
 			.match-cell.vcell .line.filled { font-size: 11pt; }
 			.match-cell.vcell .box.filled-box { font-size: 10pt; }
 			.match-cell.vcell .schedule-row { font-size: 9pt; }
+			.vmarker { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1mm; border: 1.5px dashed #9ca3af; background: #f6f6f6; color: #6b7280; z-index: 1; box-sizing: border-box; }
+			.vmarker-check { font-size: 15pt; font-weight: 800; color: #1d6e3a; line-height: 1; }
+			.vmarker-text { font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; text-align: center; }
 		`;
 
 		// Concatenem `<script>` separat perquè el parser de Svelte
@@ -916,6 +953,10 @@ ${printScript}
 				<button type="button" class:active={layoutMode === 'visual'} on:click={() => (layoutMode = 'visual')}>Visual (arbre)</button>
 				<button type="button" class:active={layoutMode === 'compact'} on:click={() => (layoutMode = 'compact')}>Compacte</button>
 			</div>
+			<label class="compact-rondes-toggle no-print" class:disabled={layoutMode !== 'visual'} title="Col·lapsa les rondes ja jugades en un marcador (només vista Visual arbre)">
+				<input type="checkbox" bind:checked={compactCompleted} disabled={layoutMode !== 'visual'} />
+				Compactar rondes acabades
+			</label>
 			<div class="toolbar-actions">
 				<button type="button" class="btn-secondary" on:click={onClose}>Tancar</button>
 				<button
@@ -1161,7 +1202,10 @@ ${printScript}
 										<div class="cond-label" style="left:{nt.x + 1}mm; top:{nt.y - 4.5}mm;">{nt.label}</div>
 									{/each}
 									{#each sheet.cells as cell}
-										<div class="match-cell vcell" class:played={!!cell.mv.result} style="left:{cell.x}mm; top:{cell.top}mm; width:{V_CELL_W}mm; height:{V_CELL_H}mm;">
+										{#if cell.mv.isMarker}
+											<div class="vcell vmarker" style="left:{cell.x}mm; top:{cell.top}mm; width:{V_CELL_W}mm; height:{V_CELL_H}mm;"><span class="vmarker-check">✓</span><span class="vmarker-text">{cell.mv.markerCount} {cell.mv.markerCount === 1 ? 'jugada' : 'jugades'}</span></div>
+											{:else}
+											<div class="match-cell vcell" class:played={!!cell.mv.result} style="left:{cell.x}mm; top:{cell.top}mm; width:{V_CELL_W}mm; height:{V_CELL_H}mm;">
 											<div class="cell-head">
 												<span class="match-code">{cell.mv.code}</span>
 												<span class="arrows">
@@ -1182,6 +1226,7 @@ ${printScript}
 											<div class="entries-row"><span class="kv">Ent</span>{#if cell.mv.result}<span class="box filled-box">{cell.mv.result.isWalkover ? 'WO' : (cell.mv.result.entrades ?? '')}</span>{:else}<span class="box"></span>{/if}</div>
 											{#if cell.mv.schedule}<div class="schedule-row"><span class="sched-slot">{fmtDate(cell.mv.schedule.dataProgramada)} · {cell.mv.schedule.horaInici} · B{cell.mv.schedule.taulaAssignada}</span><span class="sched-deadline">màx: {fmtDate(cell.mv.schedule.dataMaximaDisputa)}</span></div>{/if}
 										</div>
+										{/if}
 									{/each}
 								</div>
 							</div>
@@ -1241,6 +1286,8 @@ ${printScript}
 	.layout-toggle button { padding: 0.35rem 0.7rem; font-size: 0.8125rem; font-weight: 600; background: white; color: #1f1f1f; border: none; border-right: 1px solid #333; cursor: pointer; }
 	.layout-toggle button:last-child { border-right: none; }
 	.layout-toggle button.active { background: #1f1f1f; color: white; }
+	.compact-rondes-toggle { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8125rem; font-weight: 600; color: #1f1f1f; cursor: pointer; }
+	.compact-rondes-toggle.disabled { opacity: 0.45; cursor: not-allowed; }
 
 	.print-preview { overflow: auto; flex: 1; padding: 1rem; background: #ececec; }
 	.print-warning {
@@ -1391,6 +1438,9 @@ ${printScript}
 	.match-cell.vcell .line.filled { font-size: 11pt; }
 	.match-cell.vcell .box.filled-box { font-size: 10pt; }
 	.match-cell.vcell .schedule-row { font-size: 9pt; }
+	.vmarker { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1mm; border: 1.5px dashed #9ca3af; background: #f6f6f6; color: #6b7280; z-index: 1; box-sizing: border-box; }
+	.vmarker-check { font-size: 15pt; font-weight: 800; color: #1d6e3a; line-height: 1; }
+	.vmarker-text { font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; text-align: center; }
 
 	@media print {
 		:global(body > *:not(.print-portal)) { display: none !important; }
