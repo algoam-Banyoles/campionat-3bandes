@@ -36,6 +36,8 @@
 	let filter: 'all' | 'winners' | 'losers' | 'grand_final' = 'all';
 	let bracketMode: 'visual' | 'compact' = 'compact';
 	let searchTerm = '';
+	// Col·lapsa les rondes ja jugades al bracket visual (menys targetes i connectors)
+	let compactCompleted = false;
 
 	// Modal detall partida
 	let selectedMatchId: string | null = null;
@@ -697,6 +699,13 @@
 			>Compacte</button>
 		</div>
 
+		{#if bracketMode === 'visual'}
+			<label class="mb-3 inline-flex items-center gap-2 text-sm text-gray-600 print:hidden">
+				<input type="checkbox" bind:checked={compactCompleted} class="h-4 w-4" />
+				Compactar rondes acabades
+			</label>
+		{/if}
+
 		<!-- ── Visualització bracket ──────────────────────────────────────────── -->
 		{#if bracketMode === 'visual'}
 			<HandicapBracketView
@@ -705,6 +714,7 @@
 				{searchTerm}
 				{championParticipantId}
 				{sistemaPuntuacio}
+				{compactCompleted}
 				on:matchclick={(e) => openMatch(e.detail)}
 			/>
 		{:else}
