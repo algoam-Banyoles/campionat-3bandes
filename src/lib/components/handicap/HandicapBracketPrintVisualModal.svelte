@@ -552,7 +552,7 @@
 				letter-spacing: 0.06em; color: #1f1f1f;
 				border-bottom: 1.5px solid #1f1f1f; padding-bottom: 1.5mm; text-align: center;
 			}
-			.round-matches { display: flex; flex-direction: column; gap: 3.5mm; }
+			.round-matches { display: flex; flex-direction: column; flex: 1 1 auto; justify-content: space-around; min-height: 0; }
 			.match-cell {
 				border: 1.5px solid #1f1f1f;
 				padding: 2mm;
@@ -889,7 +889,9 @@ ${printScript}
 	}
 	.round-matches {
 		display: flex; flex-direction: column;
-		gap: 3.5mm;
+		flex: 1 1 auto;
+		justify-content: space-around;
+		min-height: 0;
 	}
 	.match-cell {
 		border: 1.5px solid #1f1f1f;
