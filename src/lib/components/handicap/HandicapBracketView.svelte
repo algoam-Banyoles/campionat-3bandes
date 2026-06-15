@@ -20,6 +20,9 @@
 	export let championParticipantId: string | null = null;
 	/** Sistema de puntuació: 'distancia' | 'percentatge' */
 	export let sistemaPuntuacio: string = 'distancia';
+	/** Si true, col·lapsa les rondes ja completes en "stubs" també a escriptori
+	 *  (a mòbil ja es col·lapsen sempre). Redueix targetes i connectors al quadre. */
+	export let compactCompleted: boolean = false;
 
 	/** Retorna el percentatge formatat (0 decimals) d'una puntuació sobre distància. */
 	function pct(caramboles: number | null, distancia: number | null): string {
@@ -83,17 +86,17 @@
 
 	// Rondes col·lapsades: només a mòbil, rondes completes que l'usuari NO ha expandit explícitament.
 	$: hiddenW = new Set(
-		isMobile
+		(isMobile || compactCompleted)
 			? wRounds.filter((r) => isRoundComplete(getMatchesBT('winners', r)) && !expandedW.has(r))
 			: []
 	);
 	$: hiddenL = new Set(
-		isMobile
+		(isMobile || compactCompleted)
 			? lRounds.filter((r) => isRoundComplete(getMatchesBT('losers', r)) && !expandedL.has(r))
 			: []
 	);
 	$: hiddenGF = new Set(
-		isMobile
+		(isMobile || compactCompleted)
 			? gfRounds.filter((r) => isRoundComplete(getMatchesBT('grand_final', r)) && !expandedGF.has(r))
 			: []
 	);
@@ -550,7 +553,7 @@
 						style="left: {colX}px; top: 0; width: {COL_W}px;"
 					>
 						{wRoundLabel(r)}
-						{#if isMobile && isRoundComplete(getMatchesBT('winners', r))}
+						{#if (isMobile || compactCompleted) && isRoundComplete(getMatchesBT('winners', r))}
 							<button
 								type="button"
 								class="hcap-collapse-btn"
@@ -688,7 +691,7 @@
 							style="left: {colX}px; top: 0; width: {COL_W}px;"
 						>
 							{gfR === 1 ? '🏆 Gran Final' : '🔁 Reset'}
-							{#if isMobile && isRoundComplete(getMatchesBT('grand_final', gfR))}
+							{#if (isMobile || compactCompleted) && isRoundComplete(getMatchesBT('grand_final', gfR))}
 								<button
 									type="button"
 									class="hcap-collapse-btn"
@@ -837,7 +840,7 @@
 						style="left: {colX}px; top: 0; width: {COL_W}px;"
 					>
 						{lRoundLabel(lr)}
-						{#if isMobile && isRoundComplete(getMatchesBT('losers', lr))}
+						{#if (isMobile || compactCompleted) && isRoundComplete(getMatchesBT('losers', lr))}
 							<button
 								type="button"
 								class="hcap-collapse-btn"
