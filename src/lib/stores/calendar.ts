@@ -43,7 +43,8 @@ export type PartidaCalendari = {
   taula_assignada: number;
   estat: string;
   event_nom: string;
-  categoria_nom: string;
+  event_tipus: string | null;
+  categoria_nom: string | null;
   observacions_junta: string | null;
 };
 
@@ -153,15 +154,19 @@ export const calendarEvents = derived(
         
         const jugador1Format = formatPlayerName(partida.jugador1);
         const jugador2Format = formatPlayerName(partida.jugador2);
-        
+
+        const isHandicap = partida.event_tipus === 'handicap';
+        // L'hàndicap no té categoria; només l'afegim a la descripció si n'hi ha.
+        const categoriaSuffix = partida.categoria_nom ? ` - ${partida.categoria_nom}` : '';
+
         events.push({
           id: `match-${partida.id}`,
           title: `${jugador1Format} vs ${jugador2Format}`,
           tableInfo: `B${partida.taula_assignada}`, // Informació de taula separada
-          description: `${partida.event_nom} - ${partida.categoria_nom}\nTaula: ${partida.taula_assignada}${partida.observacions_junta ? `\n${partida.observacions_junta}` : ''}`,
+          description: `${partida.event_nom}${categoriaSuffix}\nTaula: ${partida.taula_assignada}${partida.observacions_junta ? `\n${partida.observacions_junta}` : ''}`,
           start: dataHora,
           type: 'challenge',
-          subtype: `campionat-social-${partida.estat}`,
+          subtype: isHandicap ? `handicap-${partida.estat}` : `campionat-social-${partida.estat}`,
           data: partida
         });
         
@@ -345,21 +350,25 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
     
     console.log('👤 Loading calendar data - User authenticated:', isAuthenticated);
 
-    // Get published events first
+    // Events visibles al calendari general:
+    //   · Lligues socials amb el calendari publicat (`calendari_publicat = true`).
+    //   · TOTS els events d'hàndicap: les seves partides es programen pel mòdul
+    //     d'hàndicap i el quadre ja és públic, així que no usen el flag
+    //     `calendari_publicat` (que sempre és false per a hàndicap).
     const { data: publishedEvents, error: eventsError } = await supabase
       .from('events')
       .select('id')
-      .eq('calendari_publicat', true);
+      .or('calendari_publicat.eq.true,tipus_competicio.eq.handicap');
 
     if (eventsError) {
-      console.error('❌ Error getting published events:', eventsError);
-      throw new Error(`Error getting published events: ${eventsError.message}`);
+      console.error('❌ Error getting visible events:', eventsError);
+      throw new Error(`Error getting visible events: ${eventsError.message}`);
     }
 
-    console.log('📋 Published events found:', publishedEvents?.length || 0);
+    console.log('📋 Visible events found:', publishedEvents?.length || 0);
 
     if (!publishedEvents || publishedEvents.length === 0) {
-      console.log('⚠️ No published events found, calendar will be empty');
+      console.log('⚠️ No visible events found, calendar will be empty');
       partidesCalendari.set([]);
       return;
     }
@@ -395,7 +404,7 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
         jugador2_soci_numero,
         jugador1_soci:socis!calendari_partides_jugador1_soci_numero_fkey(numero_soci, nom, cognoms),
         jugador2_soci:socis!calendari_partides_jugador2_soci_numero_fkey(numero_soci, nom, cognoms),
-        events(id, nom),
+        events(id, nom, tipus_competicio),
         categories(id, nom)
       `)
       .in('estat', ['generat', 'validat', 'publicat', 'reprogramada'])
@@ -457,7 +466,8 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
         taula_assignada: item.taula_assignada,
         estat: item.estat,
         event_nom: (item.events as any)?.nom || 'Campionat',
-        categoria_nom: (item.categories as any)?.nom || 'Categoria',
+        event_tipus: (item.events as any)?.tipus_competicio ?? null,
+        categoria_nom: (item.categories as any)?.nom ?? null,
         observacions_junta: item.observacions_junta
       };
     });

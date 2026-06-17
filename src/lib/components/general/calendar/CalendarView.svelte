@@ -313,19 +313,21 @@
           <span class="ml-2 text-base sm:text-lg lg:text-xl xl:text-4xl font-bold capitalize">
             {#if selectedEvent.subtype?.includes('campionat-social')}
               Campionat Social
+            {:else if selectedEvent.subtype?.includes('handicap')}
+              Hàndicap
             {:else if selectedEvent.type === 'challenge'}
               Repte Ranking Continu
             {:else}
               Esdeveniment
             {/if}
           </span>
-          {#if selectedEvent.subtype && !selectedEvent.subtype.includes('campionat-social')}
+          {#if selectedEvent.subtype && !selectedEvent.subtype.includes('campionat-social') && !selectedEvent.subtype.includes('handicap')}
             <span class="ml-1 text-slate-500">({selectedEvent.subtype})</span>
           {/if}
         </div>
-        
-        <!-- Informació addicional per partides de campionats socials -->
-        {#if selectedEvent.subtype?.includes('campionat-social') && selectedEvent.data}
+
+        <!-- Informació addicional per partides (socials i hàndicap) -->
+        {#if (selectedEvent.subtype?.includes('campionat-social') || selectedEvent.subtype?.includes('handicap')) && selectedEvent.data}
           {#if 'taula_assignada' in selectedEvent.data && selectedEvent.data.taula_assignada}
             <div>
               <span class="text-sm font-medium text-slate-600">Taula:</span>

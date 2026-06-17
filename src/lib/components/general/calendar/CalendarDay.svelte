@@ -37,6 +37,10 @@
   }
 
   function getEventTone(event: CalendarEvent): EvtTone {
+    if (event.type === 'challenge' && event.subtype?.startsWith('handicap')) {
+      return 'purple';
+    }
+
     if (event.type === 'challenge' && event.subtype?.startsWith('campionat-social')) {
       const data = event.data as { categoria_nom?: unknown } | undefined;
       if (data && typeof data.categoria_nom === 'string') {
