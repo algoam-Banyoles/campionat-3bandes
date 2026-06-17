@@ -100,7 +100,8 @@
         { href: '/admin/socis', label: 'Gestió de socis' },
         { href: '/admin/events', label: 'Events' },
         { href: '/admin/categories', label: 'Categories' },
-        { href: '/admin/audit-log', label: "Registre d'auditoria" }
+        { href: '/admin/audit-log', label: "Registre d'auditoria" },
+        { href: '/admin/estadistiques-acces', label: "Estadístiques d'accés" }
       ],
       adminOnly: true
     }

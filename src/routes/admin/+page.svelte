@@ -348,6 +348,12 @@
           <p class="ad-card-body">Histori de canvis al rànquing, reptes i estats dels jugadors.</p>
         </a>
 
+        <a href="/admin/estadistiques-acces" class="ad-card">
+          <div class="ad-card-eyebrow">Informació</div>
+          <h3 class="ad-card-title">Estadístiques d'accés</h3>
+          <p class="ad-card-body">Visites per secció, evolució diària i pàgines més vistes. Dades agregades i anònimes.</p>
+        </a>
+
         <!-- Widget: penalitzacions -->
         <div class="ad-card ad-card-widget">
           <div class="ad-card-eyebrow">Acció puntual</div>
