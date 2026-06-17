@@ -7,6 +7,7 @@
   import { pwaManager } from '$lib/connection/pwa-integration';
   import '$lib/config/pwa-config'; // Importar configuració PWA per suprimir errors
   import { setupFocusManagement } from "$lib/utils/focus-management";
+  import { setupPageViewTracking } from "$lib/utils/page-view-tracking";
   import Toasts from '$lib/components/general/Toasts.svelte';
   import ToastContainer from '$lib/components/general/ToastContainer.svelte';
   import ConfirmDialog from '$lib/components/general/ConfirmDialog.svelte';
@@ -148,6 +149,9 @@
 
     // Configura gestió del focus per accessibilitat
     setupFocusManagement();
+
+    // Registre anònim de visites de pàgina (estadístiques d'ús per a admins)
+    setupPageViewTracking();
 
     // Escoltar actualitzacions de PWA
     window.addEventListener('pwa-update-available', (event) => {
