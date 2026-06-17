@@ -5,7 +5,6 @@
 	import { formatSupabaseError } from '$lib/ui/alerts';
 	import Banner from '$lib/components/general/Banner.svelte';
 	import HandicapAvailabilityGrid from '$lib/components/handicap/HandicapAvailabilityGrid.svelte';
-	import HandicapBracketPrintModal from '$lib/components/handicap/HandicapBracketPrintModal.svelte';
 	import HandicapBracketPrintVisualModal from '$lib/components/handicap/HandicapBracketPrintVisualModal.svelte';
 	import HandicapCalendarPrintModal from '$lib/components/handicap/HandicapCalendarPrintModal.svelte';
 	import HandicapInscritsPrintModal from '$lib/components/handicap/HandicapInscritsPrintModal.svelte';
@@ -87,7 +86,6 @@
 	let importSearch = '';
 
 	// Modal d'impressió del bracket en blanc (per a sorteig manual a la pissarra)
-	let showPrintBracketModal = false;
 	let showPrintBracketVisualModal = false;
 	let showPrintCalendarModal = false;
 	let printBracketCount = 0;
@@ -774,22 +772,12 @@
 				<button
 					on:click={() => {
 						printBracketCount = nextBracketSize(participants.length);
-						showPrintBracketModal = true;
-					}}
-					class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-					title="Bracket compacte en graella per ronda"
-				>
-					Bracket A3 compacte
-				</button>
-				<button
-					on:click={() => {
-						printBracketCount = nextBracketSize(participants.length);
 						showPrintBracketVisualModal = true;
 					}}
 					class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-					title="Bracket visual amb columnes per ronda (més fulls, més espai per casella)"
+					title="Bracket visual A3 per a la pissarra (columnes per ronda)"
 				>
-					Bracket A3 visual
+					Bracket A3
 				</button>
 				<button
 					on:click={() => {
@@ -1458,15 +1446,6 @@
 			</div>
 		</div>
 	</div>
-{/if}
-
-{#if showPrintBracketModal}
-	<HandicapBracketPrintModal
-		participantCount={printBracketCount}
-		eventNom={event?.nom ?? ''}
-		eventTemporada={event?.temporada ?? ''}
-		onClose={() => (showPrintBracketModal = false)}
-	/>
 {/if}
 
 {#if showPrintBracketVisualModal}

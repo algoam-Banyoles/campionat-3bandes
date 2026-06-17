@@ -1,52 +1,23 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { supabase } from '$lib/supabaseClient';
-	import HandicapBracketPrintModal from '$lib/components/handicap/HandicapBracketPrintModal.svelte';
+	import { base } from '$app/paths';
 
-	let eventId: string | null = null;
-	let eventNom = '';
-	let eventTemporada = '';
-	let loading = true;
-	let participantCount = 0;
-
-	onMount(async () => {
-		const { data: ev } = await supabase
-			.from('events')
-			.select('id, nom, temporada')
-			.eq('tipus_competicio', 'handicap')
-			.eq('actiu', true)
-			.limit(1)
-			.maybeSingle();
-		if (ev) {
-			eventId = ev.id;
-			eventNom = ev.nom ?? '';
-			eventTemporada = ev.temporada ?? '';
-			const { count } = await supabase
-				.from('handicap_participants')
-				.select('id', { count: 'exact', head: true })
-				.eq('event_id', ev.id);
-			participantCount = count ?? 0;
-		}
-		loading = false;
+	// El format "compacte" s'ha unificat amb el "visual": ara hi ha un sol
+	// format d'impressió de bracket per a la pissarra. Redirigim a la ruta
+	// canònica per evitar dues sortides diferents.
+	onMount(() => {
+		goto(`${base}/handicap/quadre/visual`, { replaceState: true });
 	});
 </script>
 
 <svelte:head>
-	<title>Bracket compacte — Hàndicap</title>
+	<title>Bracket — Hàndicap</title>
 </svelte:head>
 
-{#if !loading && eventId}
-	<HandicapBracketPrintModal
-		{eventId}
-		{eventNom}
-		{eventTemporada}
-		participantCount={participantCount || null}
-		onClose={() => goto('/handicap/quadre')}
-	/>
-{:else if !loading}
-	<div style="padding: 2rem; text-align: center;">
-		<p>No hi ha cap torneig hàndicap actiu.</p>
-		<a href="/handicap" style="color: #1f1f1f; text-decoration: underline;">Tornar a Hàndicap</a>
-	</div>
-{/if}
+<div style="padding: 2rem; text-align: center;">
+	<p>Redirigint al bracket visual…</p>
+	<a href="{base}/handicap/quadre/visual" style="color: #1f1f1f; text-decoration: underline;">
+		Obrir el bracket visual
+	</a>
+</div>

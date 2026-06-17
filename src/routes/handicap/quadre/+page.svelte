@@ -6,7 +6,7 @@
 	import { user } from '$lib/stores/auth';
 	import HandicapBracketView from '$lib/components/handicap/HandicapBracketView.svelte';
 	import HandicapBracketViewCompact from '$lib/components/handicap/HandicapBracketViewCompact.svelte';
-	import HandicapBracketPrintModal from '$lib/components/handicap/HandicapBracketPrintModal.svelte';
+	import HandicapBracketPrintVisualModal from '$lib/components/handicap/HandicapBracketPrintVisualModal.svelte';
 	import UnifiedResultModal from '$lib/components/gestio-partides/UnifiedResultModal.svelte';
 	import type { MatchView, PlayerInfo, BranchMatchInput } from '$lib/utils/handicap-types';
 	import { buildMatchCodeMap, buildLoserDestCodeMap, buildSlotSourceMap } from '$lib/utils/handicap-types';
@@ -181,7 +181,7 @@
 			let ev: any = null;
 			const { data: activeEv } = await supabase
 				.from('events')
-				.select('id, nom, estat_competicio, data_inici, data_fi')
+				.select('id, nom, temporada, estat_competicio, data_inici, data_fi')
 				.eq('tipus_competicio', 'handicap')
 				.eq('actiu', true)
 				.limit(1)
@@ -193,7 +193,7 @@
 			} else {
 				const { data: recentEv } = await supabase
 					.from('events')
-					.select('id, nom, estat_competicio, data_inici, data_fi')
+					.select('id, nom, temporada, estat_competicio, data_inici, data_fi')
 					.eq('tipus_competicio', 'handicap')
 					.order('creat_el', { ascending: false })
 					.limit(1)
@@ -870,9 +870,10 @@
 {/if}
 
 {#if showPrintBracketModal && event}
-	<HandicapBracketPrintModal
+	<HandicapBracketPrintVisualModal
 		eventId={event.id}
-		eventNom={event.nom}
+		eventNom={event.nom ?? ''}
+		eventTemporada={event.temporada ?? ''}
 		onClose={() => (showPrintBracketModal = false)}
 	/>
 {/if}
