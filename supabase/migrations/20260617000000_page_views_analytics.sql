@@ -14,14 +14,15 @@
 --     sense identificar ningú.
 --   * Es compten també les visites de visitants no loggats (anònims).
 --
--- Arquitectura:
+-- Arquitectura (la taula queda totalment tancada a l'API):
 --   * Escriptura: NOMÉS via la funció SECURITY DEFINER public.log_page_view().
 --     Els flags is_authenticated/is_admin es deriven al servidor (no es confia
 --     en el client). Es concedeix EXECUTE a anon i authenticated.
---   * Lectura: la taula té RLS amb SELECT només per a admins. L'agregació es fa
---     amb funcions SQL SECURITY INVOKER (respecten la RLS de qui les crida), de
---     manera que retornen poques files i no topen amb el límit max_rows=1000 de
---     PostgREST.
+--   * Lectura: NOMÉS via funcions d'agregació SECURITY DEFINER (propietari =
+--     postgres = propietari de la taula, force_rls=false → poden llegir-la) que
+--     s'auto-protegeixen amb `WHERE public.is_admin_by_email()`. Cap rol (anon
+--     ni authenticated) pot fer SELECT directe sobre la taula. Les funcions
+--     retornen poques files i no topen amb el límit max_rows=1000 de PostgREST.
 -- ============================================================================
 
 -- ─── Taula ───────────────────────────────────────────────────────────────────
@@ -44,18 +45,21 @@ CREATE INDEX IF NOT EXISTS idx_page_views_created_at
 CREATE INDEX IF NOT EXISTS idx_page_views_section_created_at
   ON public.page_views (section, created_at DESC);
 
--- ─── RLS: lectura només admins; escriptura directa bloquejada ─────────────────
+-- ─── Tancament total de l'accés directe a la taula ───────────────────────────
+-- RLS activada (defensa en profunditat) i tots els accessos directes revocats.
+-- Tota lectura passa per les funcions d'agregació SECURITY DEFINER d'avall.
 
 ALTER TABLE public.page_views ENABLE ROW LEVEL SECURITY;
 
+-- Política admin-only mantinguda com a xarxa de seguretat per si algun dia es
+-- torna a concedir SELECT sobre la taula (ara mateix està revocat).
 DROP POLICY IF EXISTS page_views_admin_select ON public.page_views;
 CREATE POLICY page_views_admin_select ON public.page_views
   FOR SELECT
   TO authenticated
   USING ((SELECT public.is_admin_by_email()));
 
--- Ningú escriu directament: només via log_page_view() (SECURITY DEFINER).
-REVOKE INSERT, UPDATE, DELETE ON public.page_views FROM anon, authenticated;
+REVOKE SELECT, INSERT, UPDATE, DELETE ON public.page_views FROM anon, authenticated;
 
 -- ─── Funció d'escriptura ──────────────────────────────────────────────────────
 
@@ -115,7 +119,10 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.log_page_view(TEXT, UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.log_page_view(TEXT, UUID) TO anon, authenticated;
 
--- ─── Funcions d'agregació (SECURITY INVOKER → respecten la RLS de la taula) ──
+-- ─── Funcions d'agregació (SECURITY DEFINER + guarda d'admin interna) ────────
+-- Propietari = postgres (propietari de la taula, force_rls=false) → poden llegir
+-- la taula sense topar amb la RLS. La guarda `WHERE public.is_admin_by_email()`
+-- assegura que un usuari no-admin que cridi l'RPC rep zero files.
 
 CREATE OR REPLACE FUNCTION public.get_page_view_totals(
   p_from timestamptz,
@@ -130,6 +137,8 @@ RETURNS TABLE (
 )
 LANGUAGE sql
 STABLE
+SECURITY DEFINER
+SET search_path = public, pg_catalog
 AS $$
   SELECT
     count(*)::bigint,
@@ -137,7 +146,8 @@ AS $$
     count(*) FILTER (WHERE pv.is_authenticated)::bigint,
     count(*) FILTER (WHERE NOT pv.is_authenticated)::bigint
   FROM public.page_views pv
-  WHERE pv.created_at >= p_from
+  WHERE public.is_admin_by_email()
+    AND pv.created_at >= p_from
     AND pv.created_at <  p_to
     AND (p_include_admin OR NOT pv.is_admin);
 $$;
@@ -155,6 +165,8 @@ RETURNS TABLE (
 )
 LANGUAGE sql
 STABLE
+SECURITY DEFINER
+SET search_path = public, pg_catalog
 AS $$
   SELECT
     pv.section,
@@ -162,7 +174,8 @@ AS $$
     count(DISTINCT pv.visitor_id)::bigint,
     count(*) FILTER (WHERE pv.is_authenticated)::bigint
   FROM public.page_views pv
-  WHERE pv.created_at >= p_from
+  WHERE public.is_admin_by_email()
+    AND pv.created_at >= p_from
     AND pv.created_at <  p_to
     AND (p_include_admin OR NOT pv.is_admin)
   GROUP BY pv.section
@@ -181,13 +194,16 @@ RETURNS TABLE (
 )
 LANGUAGE sql
 STABLE
+SECURITY DEFINER
+SET search_path = public, pg_catalog
 AS $$
   SELECT
     (pv.created_at AT TIME ZONE 'Europe/Madrid')::date AS day,
     count(*)::bigint,
     count(DISTINCT pv.visitor_id)::bigint
   FROM public.page_views pv
-  WHERE pv.created_at >= p_from
+  WHERE public.is_admin_by_email()
+    AND pv.created_at >= p_from
     AND pv.created_at <  p_to
     AND (p_include_admin OR NOT pv.is_admin)
   GROUP BY (pv.created_at AT TIME ZONE 'Europe/Madrid')::date
@@ -208,6 +224,8 @@ RETURNS TABLE (
 )
 LANGUAGE sql
 STABLE
+SECURITY DEFINER
+SET search_path = public, pg_catalog
 AS $$
   SELECT
     pv.path,
@@ -215,7 +233,8 @@ AS $$
     count(*)::bigint,
     count(DISTINCT pv.visitor_id)::bigint
   FROM public.page_views pv
-  WHERE pv.created_at >= p_from
+  WHERE public.is_admin_by_email()
+    AND pv.created_at >= p_from
     AND pv.created_at <  p_to
     AND (p_include_admin OR NOT pv.is_admin)
   GROUP BY pv.path, pv.section
