@@ -69,6 +69,134 @@ export function resetIdGenerator(): void {
 	_idGen = () => crypto.randomUUID();
 }
 
+// ── Creuament anti-revenja de les baixades al losers ──────────────────────────
+//
+// Problema clàssic del doble KO: si el perdedor d'una ronda del winners baixa al
+// losers en l'ordre "natural", pot retrobar molt aviat (sovint a la mateixa ronda
+// de baixada) un jugador a qui ja va guanyar/perdre al winners. La solució estàndard
+// és permutar les baixades perquè cada perdedor s'enfronti a un supervivent del
+// losers que prové d'una regió DISJUNTA del winners (mai s'han pogut creuar).
+//
+// `computeWbLoserDrops` calcula, per a cada partida del winners (ronda r, índex i),
+// a quin slot del losers (lr, pos) cau el seu perdedor, garantint la disjunció a
+// totes les rondes de baixada on és matemàticament possible. A l'última baixada
+// (final del winners, regió = tot el quadre) el solapament és inevitable.
+
+/**
+ * Matching bipartit (algoritme de Kuhn): assigna a cada element de `left` un de
+ * `right` tal que `ok(left[l], right[r])` sigui cert, maximitzant els aparellaments.
+ * Retorna `assign[l] = r`. Els `left` no aparellats (quan no hi ha matching perfecte,
+ * p. ex. rondes fondes amb solapament inevitable) reben un `right` lliure determinista.
+ */
+function matchDisjoint(
+	left: Set<number>[],
+	right: Set<number>[],
+	ok: (a: Set<number>, b: Set<number>) => boolean
+): number[] {
+	const n = left.length;
+	const matchRight = new Array<number>(n).fill(-1); // right index → left index
+	const assign = new Array<number>(n).fill(-1); // left index → right index
+
+	const tryAssign = (l: number, seen: boolean[]): boolean => {
+		for (let r = 0; r < n; r++) {
+			if (seen[r] || !ok(left[l], right[r])) continue;
+			seen[r] = true;
+			if (matchRight[r] === -1 || tryAssign(matchRight[r], seen)) {
+				matchRight[r] = l;
+				assign[l] = r;
+				return true;
+			}
+		}
+		return false;
+	};
+
+	for (let l = 0; l < n; l++) tryAssign(l, new Array<boolean>(n).fill(false));
+
+	// Completar els no aparellats de forma determinista (solapament inevitable).
+	const usedRight = new Set(assign.filter((r) => r !== -1));
+	let freeRight = 0;
+	for (let l = 0; l < n; l++) {
+		if (assign[l] === -1) {
+			while (usedRight.has(freeRight)) freeRight++;
+			assign[l] = freeRight;
+			usedRight.add(freeRight);
+		}
+	}
+	return assign;
+}
+
+/**
+ * Calcula el destí al losers del perdedor de cada partida del winners.
+ * @param size  Mida del quadre (potència de 2)
+ * @returns  Map amb clau `${r}:${i}` (ronda r del winners, partida i) → { lr, pos }
+ */
+export function computeWbLoserDrops(size: number): Map<string, { lr: number; pos: number }> {
+	const map = new Map<string, { lr: number; pos: number }>();
+	if (size < 2) return map;
+	const k = Math.log2(size);
+	const lRounds = 2 * (k - 1);
+
+	// Bloc de posicions R1 (1..size) que cobreix la partida (r,i) del winners.
+	const wbBlock = (r: number, i: number): Set<number> => {
+		const span = Math.pow(2, r);
+		const start = (i - 1) * span + 1;
+		const s = new Set<number>();
+		for (let p = start; p < start + span; p++) s.add(p);
+		return s;
+	};
+
+	// W-R1 → L-R1 (slot i): perdedors de partides R1 diferents, mai s'han creuat.
+	const m1 = size / 2;
+	for (let i = 1; i <= m1; i++) map.set(`1:${i}`, { lr: 1, pos: i });
+	if (lRounds === 0) return map;
+
+	const reach = new Map<string, Set<number>>();
+	const rkey = (lr: number, pos: number) => `${lr}:${pos}`;
+	for (let i = 1; i <= m1; i++) reach.set(rkey(1, i), wbBlock(1, i));
+
+	const disjoint = (a: Set<number>, b: Set<number>) => {
+		for (const x of a) if (b.has(x)) return false;
+		return true;
+	};
+
+	for (let lr = 1; lr <= lRounds; lr++) {
+		const phase = Math.ceil(lr / 2);
+		const numSlots = size / Math.pow(2, phase);
+		const numMatches = numSlots / 2;
+
+		// Rondes parelles = rondes de baixada del winners (r = lr/2 + 1).
+		if (lr % 2 === 0) {
+			const r = lr / 2 + 1;
+			const numBlocks = size / Math.pow(2, r); // == numMatches
+			const blocks: Set<number>[] = [];
+			for (let i = 1; i <= numBlocks; i++) blocks.push(wbBlock(r, i));
+			const survivor: Set<number>[] = [];
+			for (let j = 1; j <= numMatches; j++) {
+				survivor.push(reach.get(rkey(lr, 2 * j - 1)) ?? new Set<number>());
+			}
+			const assign = matchDisjoint(survivor, blocks, disjoint); // assign[j-1] = índex de bloc
+			for (let j = 1; j <= numMatches; j++) {
+				const bIdx = assign[j - 1];
+				map.set(`${r}:${bIdx + 1}`, { lr, pos: 2 * j });
+				reach.set(rkey(lr, 2 * j), blocks[bIdx]);
+			}
+		}
+
+		// Propagar el guanyador de cada partida a la ronda següent (mateix routing
+		// que el generador: lr senar → slot 2j-1, lr parell → slot j).
+		if (lr < lRounds) {
+			for (let j = 1; j <= numMatches; j++) {
+				const a = reach.get(rkey(lr, 2 * j - 1)) ?? new Set<number>();
+				const b = reach.get(rkey(lr, 2 * j)) ?? new Set<number>();
+				const u = new Set<number>([...a, ...b]);
+				const destPos = lr % 2 === 1 ? 2 * j - 1 : j;
+				reach.set(rkey(lr + 1, destPos), u);
+			}
+		}
+	}
+	return map;
+}
+
 // ── Funció principal ──────────────────────────────────────────────────────────
 
 export interface GenerateBracketOptions {
@@ -124,6 +252,10 @@ export function generateDoublEliminationBracket(
 
 	const k = Math.log2(size); // rondes del winners bracket
 	const lRounds = 2 * (k - 1); // rondes del losers bracket
+
+	// Destí al losers del perdedor de cada partida del winners, amb creuament
+	// anti-revenja (vegeu computeWbLoserDrops).
+	const dropMap = computeWbLoserDrops(size);
 
 	const slots: SlotInsert[] = [];
 	const matches: MatchInsert[] = [];
@@ -228,16 +360,9 @@ export function generateDoublEliminationBracket(
 			const s2 = getSlot('winners', r, 2 * i);
 			const winDest = getSlot('winners', r + 1, i);
 
-			// Destí del perdedor al losers bracket:
-			//   W-R1 match i → L-R1 slot i
-			//   W-R(j+1) match i → L-R(2j) slot 2i  (per j=1..k-2)
-			let loseDest: SlotInsert;
-			if (r === 1) {
-				loseDest = getSlot('losers', 1, i);
-			} else {
-				const lr = 2 * (r - 1);
-				loseDest = getSlot('losers', lr, 2 * i);
-			}
+			// Destí del perdedor al losers bracket (creuament anti-revenja).
+			const dd = dropMap.get(`${r}:${i}`)!;
+			const loseDest = getSlot('losers', dd.lr, dd.pos);
 
 			const match: MatchInsert = {
 				id: _idGen(),
@@ -267,9 +392,12 @@ export function generateDoublEliminationBracket(
 
 		// W-Final loser:
 		//   k=1 (2 jugadors): va directament a GF-R1-2
-		//   k>1: va a L-R(2k-2) slot 2 (darrer slot del darrer round losers)
+		//   k>1: baixa a l'última ronda del losers (dropMap; solapament inevitable aquí)
+		const wfDrop = dropMap.get(`${k}:1`);
 		const loseDest =
-			lRounds === 0 ? getSlot('grand_final', 1, 2) : getSlot('losers', lRounds, 2);
+			lRounds === 0 || !wfDrop
+				? getSlot('grand_final', 1, 2)
+				: getSlot('losers', wfDrop.lr, wfDrop.pos);
 
 		const match: MatchInsert = {
 			id: _idGen(),
