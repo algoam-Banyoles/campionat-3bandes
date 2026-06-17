@@ -83,6 +83,9 @@
 	let losersPages: Array<Array<[number, MatchView[]]>> = [];
 	let totalMatches = 0;
 	let allViews: MatchView[] = [];
+	// Quan és true, només s'imprimeixen les rondes amb partides pendents (s'ometen
+	// les rondes totalment jugades). Útil a mitja competició.
+	let onlyPending = false;
 
 	// Dimensions (mm) per a la disposicio VISUAL en arbre a A3 apaisat.
 	const V_CELL_W = 68;
@@ -782,10 +785,28 @@
 		return sheets;
 	}
 
+	// Treu les rondes ja acabades (totes les seves partides jugades), per bracket
+	// i ronda. Les partides que queden (pendents) conserven el seu codi i nom.
+	function dropCompletedRounds(views: MatchView[]): MatchView[] {
+		const byKey = new Map<string, MatchView[]>();
+		for (const v of views) {
+			const k = `${v.bracket}:${v.ronda}`;
+			let arr = byKey.get(k);
+			if (!arr) { arr = []; byKey.set(k, arr); }
+			arr.push(v);
+		}
+		const completeKeys = new Set<string>();
+		for (const [k, ms] of byKey) {
+			if (ms.length > 0 && ms.every((m) => m.result != null)) completeKeys.add(k);
+		}
+		return views.filter((v) => !completeKeys.has(`${v.bracket}:${v.ronda}`));
+	}
+
 	$: visualSheets = (() => {
+		const views = onlyPending ? dropCompletedRounds(allViews) : allViews;
 		const sheets = [
-			...buildSheets(allViews.filter((v) => v.bracket !== 'losers'), 'winners').map((sh) => ({ ...sh, section: 'Bracket Principal' })),
-			...buildSheets(allViews.filter((v) => v.bracket === 'losers'), 'losers').map((sh) => ({ ...sh, section: 'Bracket Repesca' }))
+			...buildSheets(views.filter((v) => v.bracket !== 'losers'), 'winners').map((sh) => ({ ...sh, section: 'Bracket Principal' })),
+			...buildSheets(views.filter((v) => v.bracket === 'losers'), 'losers').map((sh) => ({ ...sh, section: 'Bracket Repesca' }))
 		];
 		if (sheets.length === 0) return sheets;
 		// Escala GLOBAL: totes les pàgines comparteixen el mateix factor (el més
@@ -795,6 +816,8 @@
 		return sheets.map((s) => ({ ...s, scale: globalScale }));
 	})();
 	$: visualFulls = visualSheets.length;
+	$: visualPrincipalFulls = visualSheets.filter((s) => s.section === 'Bracket Principal').length;
+	$: visualRepescaFulls = visualSheets.filter((s) => s.section === 'Bracket Repesca').length;
 
 	function doPrint() {
 		// Obrir una finestra nova amb HTML i CSS independents. Així evitem que
@@ -979,12 +1002,18 @@ ${printScript}
 				{:else}
 					<span>
 						{totalMatches} partides · {visualFulls} fulls A3
-						({winnersPages.length} principal + {losersPages.length} repesca)
+						({visualPrincipalFulls} principal + {visualRepescaFulls} repesca)
 					</span>
 					<span class="hint">
 						Al diàleg d'imprimir tria <strong>A3</strong> i orientació <strong>Apaisat / Horitzontal</strong>.
 						Per a PDF: destinació <em>Guardar com a PDF</em>.
 					</span>
+				{/if}
+				{#if hasRealBracket && !loading && !error}
+					<label class="count-label" title="Omet les rondes amb totes les partides jugades">
+						<input type="checkbox" bind:checked={onlyPending} />
+						Només rondes pendents
+					</label>
 				{/if}
 				{#if !eventId && !hasRealBracket}
 					<label class="count-label">
