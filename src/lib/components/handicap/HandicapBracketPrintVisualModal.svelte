@@ -72,18 +72,32 @@
 		[key: string]: any;
 	};
 
+	// Pàgina "crua": columnes amb partides sense posicionar (construïda per buildPages).
+	type RawColumn = { rondaLabel: string; matches: MatchView[] };
+	type RawPage = {
+		title: string;
+		sectionLabel: string;
+		columns: RawColumn[];
+	};
+	type PageDef = RawPage;
+
+	// Pàgina ja posicionada: cada partida porta el seu top (mm) dins la columna,
+	// i la pàgina coneix l'alçada total de les columnes.
+	type PositionedMatch = { mv: MatchView; topMm: number };
 	type PrintPage = {
 		title: string;
 		sectionLabel: string;
-		columns: Array<{ rondaLabel: string; matches: MatchView[] }>;
+		columns: Array<{ rondaLabel: string; matches: PositionedMatch[] }>;
+		heightMm: number;
 	};
-
-	type PageDef = PrintPage;
 
 	let loading = true;
 	let error: string | null = null;
 	let hasRealBracket = false;
 	let pages: PrintPage[] = [];
+	// target match id → ids de les partides que hi aboquen (guanyador o perdedor).
+	// Permet alinear verticalment cada partida amb les seves partides d'origen.
+	let feedersByMatchId = new Map<string, string[]>();
 	const temporadaPretty = eventTemporada.trim();
 
 	let inputCount = participantCount ?? 32;
@@ -304,6 +318,20 @@
 				matchBySlot.set(m.slot2_id, m);
 			}
 
+			// Relació d'origen: per a cada partida destí, quines partides hi aboquen.
+			// X aboca a M si el seu winner_slot_dest o loser_slot_dest apunta a un slot de M.
+			feedersByMatchId = new Map<string, string[]>();
+			for (const x of matches) {
+				for (const dest of [x.winner_slot_dest_id, x.loser_slot_dest_id]) {
+					if (!dest) continue;
+					const target = matchBySlot.get(dest);
+					if (!target || target.id === x.id) continue;
+					const arr = feedersByMatchId.get(target.id) ?? [];
+					arr.push(x.id);
+					feedersByMatchId.set(target.id, arr);
+				}
+			}
+
 			const order: Record<Bracket, number> = { winners: 0, losers: 1, grand_final: 2 };
 			const enriched = matches.map(m => {
 				const s1 = slotById.get(m.slot1_id);
@@ -386,7 +414,7 @@
 				};
 			});
 
-			pages = buildPages(matchViews);
+			pages = buildPages(matchViews).map(layoutPage);
 			loading = false;
 		} catch (e: any) {
 			error = e.message || 'Error carregant el bracket';
@@ -421,6 +449,65 @@
 		}
 
 		return [...winnersPages, ...losersPages];
+	}
+
+	// ── Posicionament vertical (alineació de bracket) ─────────────────────────
+	// CELL_H_MM ha de coincidir amb l'alçada de .match-cell.
+	const CELL_H_MM = 33.5;
+	// Pitch de la primera columna (cel·la + separació). Reprodueix l'espaiat previ
+	// (6 cel·les × 33.5 + 5 × 3.5 = 218.5mm, que cap a l'A3 apaisat).
+	const FIRST_PITCH_MM = 37;
+	// Separació mínima centre-a-centre per evitar que dues caixes se solapin.
+	const MIN_SPACING_MM = 36;
+
+	// Assigna a cada partida un `top` (mm) dins la seva columna de manera que la
+	// partida de la ronda N quedi centrada respecte les seves partides d'origen
+	// de la ronda N-1. La primera columna s'espaia seqüencialment; les següents
+	// es col·loquen a la mitjana dels centres de les partides que hi aboquen
+	// (feeders), amb una passada que resol solapaments empenyent cap avall.
+	function layoutPage(page: RawPage): PrintPage {
+		const centerById = new Map<string, number>();
+		page.columns.forEach((col, j) => {
+			const ms = col.matches; // ja ordenats per posicioMin
+			if (j === 0) {
+				ms.forEach((mv, i) => centerById.set(mv.id, i * FIRST_PITCH_MM + CELL_H_MM / 2));
+				return;
+			}
+			let cursor = -Infinity;
+			for (const mv of ms) {
+				const feederCenters = (feedersByMatchId.get(mv.id) ?? [])
+					.map((fid) => centerById.get(fid))
+					.filter((v): v is number => v != null);
+				let center = feederCenters.length
+					? feederCenters.reduce((a, b) => a + b, 0) / feederCenters.length
+					: cursor === -Infinity
+						? CELL_H_MM / 2
+						: cursor + MIN_SPACING_MM;
+				if (cursor !== -Infinity && center < cursor + MIN_SPACING_MM) {
+					center = cursor + MIN_SPACING_MM;
+				}
+				centerById.set(mv.id, center);
+				cursor = center;
+			}
+		});
+
+		let maxBottom = 0;
+		const columns = page.columns.map((col) => ({
+			rondaLabel: col.rondaLabel,
+			matches: col.matches.map((mv) => {
+				const center = centerById.get(mv.id) ?? CELL_H_MM / 2;
+				const topMm = Math.max(0, center - CELL_H_MM / 2);
+				maxBottom = Math.max(maxBottom, topMm + CELL_H_MM);
+				return { mv, topMm };
+			})
+		}));
+
+		return {
+			title: page.title,
+			sectionLabel: page.sectionLabel,
+			columns,
+			heightMm: maxBottom
+		};
 	}
 
 	function groupByRonda(arr: MatchView[]): Array<[number, MatchView[]]> {
@@ -552,13 +639,15 @@
 				letter-spacing: 0.06em; color: #1f1f1f;
 				border-bottom: 1.5px solid #1f1f1f; padding-bottom: 1.5mm; text-align: center;
 			}
-			.round-matches { display: flex; flex-direction: column; gap: 3.5mm; }
+			.round-stack { position: relative; }
 			.match-cell {
+				position: absolute;
+				left: 0; right: 0;
 				border: 1.5px solid #1f1f1f;
 				padding: 2mm;
 				display: flex; flex-direction: column; gap: 1mm;
 				font-size: 8.5pt;
-				min-height: 32mm; height: 32mm;
+				min-height: 33.5mm; height: 33.5mm;
 				box-sizing: border-box;
 			}
 			.cell-head {
@@ -703,9 +792,10 @@ ${printScript}
 							{#each page.columns as col}
 								<div class="round-col">
 									<div class="round-label">{col.rondaLabel}</div>
-									<div class="round-matches">
-										{#each col.matches as mv}
-											<div class="match-cell" class:played={!!mv.result} class:bridge-boost={mv.code === 'W4.2'}>
+									<div class="round-stack" style="height: {page.heightMm}mm;">
+										{#each col.matches as pm}
+											{@const mv = pm.mv}
+											<div class="match-cell" class:played={!!mv.result} class:bridge-boost={mv.code === 'W4.2'} style="top: {pm.topMm}mm;">
 												<div class="cell-head">
 													<span class="match-code">{mv.code}</span>
 													<span class="arrows">
@@ -887,11 +977,14 @@ ${printScript}
 		padding-bottom: 1mm;
 		text-align: center;
 	}
-	.round-matches {
-		display: flex; flex-direction: column;
-		gap: 3.5mm;
+	.round-stack {
+		position: relative;
+		/* L'alçada s'estableix inline (page.heightMm) perquè totes les columnes
+		   comparteixin el mateix sistema de coordenades vertical. */
 	}
 	.match-cell {
+		position: absolute;
+		left: 0; right: 0;
 		border: 1.5px solid #1f1f1f;
 		padding: 1.75mm 2mm 1.5mm;
 		display: flex; flex-direction: column; gap: 0.85mm;
