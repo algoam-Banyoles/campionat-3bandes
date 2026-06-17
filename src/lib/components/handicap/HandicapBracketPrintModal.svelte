@@ -575,7 +575,7 @@
 				// GF1 -> GF2 (reset): nomes es juga si J1 (campio del quadre de
 				// guanyadors) perd; si J1 guanya, ja es campio.
 				if (c.mv.bracket === 'grand_final' && c.mv.ronda === 1) {
-					notes.push({ x: sp.right, y: sp.centerY, label: 'si J1 perd' });
+					notes.push({ x: sp.x, y: sp.centerY + V_CELL_H / 2 + 1, label: 'si J1 perd' });
 				}
 			} else {
 				// Desti en un altre full: tram curt + etiqueta cap a la dreta.
@@ -600,7 +600,14 @@
 				lines.push({ x1: midX, y1: tp.centerY, x2: tp.x, y2: tp.centerY });
 			} else {
 				const sp = sorted[0];
-				if (Math.abs(sp.centerY - tp.centerY) < 0.5) {
+				if (Math.abs(sp.x - tp.x) < 0.5) {
+					// Mateixa columna (GF1 → GF2 reset, apilats): connector vertical
+					// curt del centre de la targeta d'origen a la de destí.
+					const cx = sp.x + V_CELL_W / 2;
+					const yTop = Math.min(sp.centerY, tp.centerY) + V_CELL_H / 2;
+					const yBot = Math.max(sp.centerY, tp.centerY) - V_CELL_H / 2;
+					lines.push({ x1: cx, y1: yTop, x2: cx, y2: yBot });
+				} else if (Math.abs(sp.centerY - tp.centerY) < 0.5) {
 					lines.push({ x1: sp.right, y1: sp.centerY, x2: tp.x, y2: tp.centerY });
 				} else {
 					lines.push({ x1: sp.right, y1: sp.centerY, x2: midX, y2: sp.centerY });
@@ -680,7 +687,6 @@
 		if (main.length === 0 && gf.length === 0) return [];
 
 		const mainRounds = [...new Set(main.map((v) => v.ronda))].sort((a, b) => a - b);
-		const gfRounds = [...new Set(gf.map((v) => v.ronda))].sort((a, b) => a - b);
 		const colGap = kind === 'winners' ? V_COL_GAP_WIN : V_COL_GAP;
 		const sheets: TreeSheet[] = [];
 		const roundDefs: RoundDef[] = [
@@ -688,10 +694,13 @@
 				label: treeRoundLabel(kind, r, mainRounds),
 				matches: main.filter((v) => v.ronda === r).sort((a, b) => a.matchPos - b.matchPos)
 			})),
-			...gfRounds.map((r) => ({
-				label: treeRoundLabel(kind, 0, [], true, r),
-				matches: gf.filter((v) => v.ronda === r).sort((a, b) => a.matchPos - b.matchPos)
-			}))
+			// Gran Final i Reset (GF2) en una sola columna: GF2 queda apilat sota GF1.
+			...(gf.length > 0
+				? [{
+					label: 'Gran Final',
+					matches: gf.slice().sort((a, b) => a.ronda - b.ronda || a.matchPos - b.matchPos)
+				}]
+				: [])
 		];
 		if (roundDefs.length === 0) return [];
 
