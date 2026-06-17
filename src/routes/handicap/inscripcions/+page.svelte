@@ -5,7 +5,7 @@
 	import { formatSupabaseError } from '$lib/ui/alerts';
 	import Banner from '$lib/components/general/Banner.svelte';
 	import HandicapAvailabilityGrid from '$lib/components/handicap/HandicapAvailabilityGrid.svelte';
-	import HandicapBracketPrintVisualModal from '$lib/components/handicap/HandicapBracketPrintVisualModal.svelte';
+	import HandicapBracketPrintModal from '$lib/components/handicap/HandicapBracketPrintModal.svelte';
 	import HandicapCalendarPrintModal from '$lib/components/handicap/HandicapCalendarPrintModal.svelte';
 	import HandicapInscritsPrintModal from '$lib/components/handicap/HandicapInscritsPrintModal.svelte';
 	import { searchActivePlayers } from '$lib/api/socialLeagues';
@@ -1449,7 +1449,7 @@
 {/if}
 
 {#if showPrintBracketVisualModal}
-	<HandicapBracketPrintVisualModal
+	<HandicapBracketPrintModal
 		participantCount={printBracketCount}
 		eventNom={event?.nom ?? ''}
 		eventTemporada={event?.temporada ?? ''}

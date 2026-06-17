@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabaseClient';
-	import HandicapBracketPrintVisualModal from '$lib/components/handicap/HandicapBracketPrintVisualModal.svelte';
+	import HandicapBracketPrintModal from '$lib/components/handicap/HandicapBracketPrintModal.svelte';
 
 	let eventId: string | null = null;
 	let eventNom = '';
@@ -37,7 +37,7 @@
 </svelte:head>
 
 {#if !loading && eventId}
-	<HandicapBracketPrintVisualModal
+	<HandicapBracketPrintModal
 		{eventId}
 		{eventNom}
 		{eventTemporada}

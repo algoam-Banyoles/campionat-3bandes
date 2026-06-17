@@ -83,7 +83,6 @@
 	let losersPages: Array<Array<[number, MatchView[]]>> = [];
 	let totalMatches = 0;
 	let allViews: MatchView[] = [];
-	let layoutMode: 'visual' | 'compact' = 'visual';
 
 	// Dimensions (mm) per a la disposicio VISUAL en arbre a A3 apaisat.
 	const V_CELL_W = 68;
@@ -530,19 +529,12 @@
 		return pages;
 	}
 
-	$: totalFulls = winnersPages.length + losersPages.length;
-
 	function fmtDate(d: Date): string {
 		const dd = String(d.getDate()).padStart(2, '0');
 		const mm = String(d.getMonth() + 1).padStart(2, '0');
 		return `${dd}/${mm}`;
 	}
 
-	function rondaLabel(bracket: Bracket, num: number): string {
-		if (num === 99) return 'Gran Final';
-		const prefix = bracket === 'winners' ? 'Principal' : 'Repesca';
-		return `${prefix} — Ronda ${num}`;
-	}
 
 	// ── Disposició VISUAL en arbre (per a impressió A3) ──────────────────────
 	function treeRoundLabel(kind: 'winners' | 'losers', r: number, rounds: number[], isGf = false, gfR = 0): string {
@@ -636,6 +628,45 @@
 		return { columns: usedCols, cells, lines, stubs, notes, naturalW, naturalH, scale, suffix };
 	}
 
+	type RoundDef = { label: string; matches: MatchView[] };
+
+	// Col·loca verticalment les partides d'un full centrant cada partida respecte
+	// les seves partides d'origen (les que hi aboquen via winnerDest) presents al
+	// full, i empaqueta el resultat. La primera columna s'espaia seqüencialment;
+	// cap a la dreta es fa la mitjana dels centres dels orígens, amb una passada
+	// que empeny avall per evitar solapaments. Així les línies connectores quadren.
+	function packCentered(columns: TreeCol[], colMatches: MatchView[][], suffix: string): TreeSheet | null {
+		const cells: Array<{ mv: MatchView; x: number; topFull: number }> = [];
+		const MIN_SPACING = V_CELL_H + 4;
+		for (let ci = 0; ci < columns.length; ci++) {
+			const x = columns[ci].x;
+			const ms = colMatches[ci];
+			let cursor = -Infinity;
+			for (let mi = 0; mi < ms.length; mi++) {
+				const mv = ms[mi];
+				let center: number;
+				if (ci === 0) {
+					center = V_HEADER_H + V_CELL_H / 2 + mi * V_SLOT;
+				} else {
+					const srcCenters = cells
+						.filter((c) => c.mv.winnerDest === mv.code)
+						.map((c) => c.topFull + V_CELL_H / 2);
+					center = srcCenters.length
+						? srcCenters.reduce((a, b) => a + b, 0) / srcCenters.length
+						: cursor === -Infinity
+							? V_HEADER_H + V_CELL_H / 2
+							: cursor + MIN_SPACING;
+					if (cursor !== -Infinity && center < cursor + MIN_SPACING) {
+						center = cursor + MIN_SPACING;
+					}
+				}
+				cells.push({ mv, x, topFull: center - V_CELL_H / 2 });
+				cursor = center;
+			}
+		}
+		return packSheet(cells, columns, 0, suffix);
+	}
+
 	function buildSheets(views: MatchView[], kind: 'winners' | 'losers'): TreeSheet[] {
 		if (!views || views.length === 0) return [];
 		const main = views.filter((v) => v.bracket === (kind === 'winners' ? 'winners' : 'losers'));
@@ -646,7 +677,7 @@
 		const gfRounds = [...new Set(gf.map((v) => v.ronda))].sort((a, b) => a - b);
 		const colGap = kind === 'winners' ? V_COL_GAP_WIN : V_COL_GAP;
 		const sheets: TreeSheet[] = [];
-		const roundDefs = [
+		const roundDefs: RoundDef[] = [
 			...mainRounds.map((r) => ({
 				label: treeRoundLabel(kind, r, mainRounds),
 				matches: main.filter((v) => v.ronda === r).sort((a, b) => a.matchPos - b.matchPos)
@@ -656,11 +687,72 @@
 				matches: gf.filter((v) => v.ronda === r).sort((a, b) => a.matchPos - b.matchPos)
 			}))
 		];
-		const roundChunks: typeof roundDefs[] = [];
+		if (roundDefs.length === 0) return [];
+
+		const mkCols = (defs: RoundDef[]): TreeCol[] =>
+			defs.map((rd, ci) => ({ x: ci * (V_CELL_W + colGap), label: rd.label }));
+
+		// ── Winners: paginació PER BRANQUES (sub-arbres) ──────────────────────
+		// Cada full és una branca COMPLETA (de R1 fins on convergeix) i un full
+		// final recull les rondes de convergència (semis/final) + Gran Final.
+		// Així les dues partides d'origen de cada partida són SEMPRE al mateix
+		// full i les línies queden alineades, sense talls a mig arbre.
+		if (kind === 'winners') {
+			const r1Count = roundDefs[0].matches.length;
+			let groups = 1;
+			while (Math.ceil(r1Count / groups) > V_MAX_CELLS_PER_SHEET) groups *= 2;
+
+			if (groups > 1) {
+				// Rondes que es reparteixen netament entre branques (count % groups === 0)
+				// formen les branques; la resta (convergència) va al full final.
+				const branchDefs: RoundDef[] = [];
+				const convDefs: RoundDef[] = [];
+				let inConv = false;
+				for (const rd of roundDefs) {
+					if (!inConv && rd.matches.length >= groups && rd.matches.length % groups === 0) {
+						branchDefs.push(rd);
+					} else {
+						inConv = true;
+						convDefs.push(rd);
+					}
+				}
+				for (let g = 0; g < groups; g++) {
+					const cols = mkCols(branchDefs);
+					const colMatches = branchDefs.map((rd) => {
+						const per = rd.matches.length / groups;
+						return rd.matches.slice(g * per, (g + 1) * per);
+					});
+					const sheet = packCentered(cols, colMatches, `· branca ${g + 1}/${groups}`);
+					if (sheet) sheets.push(sheet);
+				}
+				for (let i = 0; i < convDefs.length; i += V_MAX_ROUNDS_PER_SHEET) {
+					const chunk = convDefs.slice(i, i + V_MAX_ROUNDS_PER_SHEET);
+					const suffix = convDefs.length > V_MAX_ROUNDS_PER_SHEET
+						? `· finals ${Math.floor(i / V_MAX_ROUNDS_PER_SHEET) + 1}`
+						: '· finals';
+					const sheet = packCentered(mkCols(chunk), chunk.map((rd) => rd.matches), suffix);
+					if (sheet) sheets.push(sheet);
+				}
+				return sheets;
+			}
+
+			// groups === 1: el bracket cap en un full (o partit per rondes si n'hi ha moltes).
+			for (let i = 0; i < roundDefs.length; i += V_MAX_ROUNDS_PER_SHEET) {
+				const chunk = roundDefs.slice(i, i + V_MAX_ROUNDS_PER_SHEET);
+				const suffix = roundDefs.length > V_MAX_ROUNDS_PER_SHEET
+					? `· bloc ${Math.floor(i / V_MAX_ROUNDS_PER_SHEET) + 1}`
+					: '';
+				const sheet = packCentered(mkCols(chunk), chunk.map((rd) => rd.matches), suffix);
+				if (sheet) sheets.push(sheet);
+			}
+			return sheets;
+		}
+
+		// ── Losers: blocs de rondes + bandes verticals (amb centrat per orígens) ──
+		const roundChunks: RoundDef[][] = [];
 		for (let i = 0; i < roundDefs.length; i += V_MAX_ROUNDS_PER_SHEET) {
 			roundChunks.push(roundDefs.slice(i, i + V_MAX_ROUNDS_PER_SHEET));
 		}
-
 		for (let chunkIndex = 0; chunkIndex < roundChunks.length; chunkIndex++) {
 			const chunk = roundChunks[chunkIndex];
 			const densestRound = Math.max(...chunk.map((r) => r.matches.length));
@@ -668,32 +760,19 @@
 
 			for (let pageIndex = 0; pageIndex < verticalPages; pageIndex++) {
 				const columns: TreeCol[] = [];
-				const cells: Array<{ mv: MatchView; x: number; topFull: number }> = [];
-
+				const colMatches: MatchView[][] = [];
 				for (let colIndex = 0; colIndex < chunk.length; colIndex++) {
 					const round = chunk[colIndex];
 					const x = colIndex * (V_CELL_W + colGap);
 					const perPage = Math.ceil(round.matches.length / verticalPages);
 					const pageMatches = round.matches.slice(pageIndex * perPage, (pageIndex + 1) * perPage);
 					if (pageMatches.length === 0) continue;
-
 					columns.push({ x, label: round.label });
-					for (let matchIndex = 0; matchIndex < pageMatches.length; matchIndex++) {
-						cells.push({
-							mv: pageMatches[matchIndex],
-							x,
-							topFull: V_HEADER_H + matchIndex * V_SLOT
-						});
-					}
+					colMatches.push(pageMatches);
 				}
-
-				const chunkSuffix = roundChunks.length > 1
-					? `· bloc ${chunkIndex + 1}/${roundChunks.length}`
-					: '';
-				const pageSuffix = verticalPages > 1
-					? ` · tram ${pageIndex + 1}/${verticalPages}`
-					: '';
-				const sheet = packSheet(cells, columns, 0, `${chunkSuffix}${pageSuffix}`);
+				const chunkSuffix = roundChunks.length > 1 ? `· bloc ${chunkIndex + 1}/${roundChunks.length}` : '';
+				const pageSuffix = verticalPages > 1 ? ` · tram ${pageIndex + 1}/${verticalPages}` : '';
+				const sheet = packCentered(columns, colMatches, `${chunkSuffix}${pageSuffix}`);
 				if (sheet) sheets.push(sheet);
 			}
 		}
@@ -888,7 +967,7 @@ ${printScript}
 					<span class="err">{error}</span>
 				{:else}
 					<span>
-						{totalMatches} partides · {layoutMode === 'visual' ? visualFulls : totalFulls} fulls A3
+						{totalMatches} partides · {visualFulls} fulls A3
 						({winnersPages.length} principal + {losersPages.length} repesca)
 					</span>
 					<span class="hint">
@@ -912,10 +991,6 @@ ${printScript}
 					</button>
 				{/if}
 			</div>
-			<div class="layout-toggle no-print">
-				<button type="button" class:active={layoutMode === 'visual'} on:click={() => (layoutMode = 'visual')}>Visual (arbre)</button>
-				<button type="button" class:active={layoutMode === 'compact'} on:click={() => (layoutMode = 'compact')}>Compacte</button>
-			</div>
 			<div class="toolbar-actions">
 				<button type="button" class="btn-secondary" on:click={onClose}>Tancar</button>
 				<button
@@ -935,202 +1010,6 @@ ${printScript}
 				⚠ <strong>Important:</strong> al diàleg d'imprimir, tria <strong>paper A3</strong> i orientació <strong>Apaisat / Horitzontal</strong>. Si el navegador imprimeix amb A4 vertical, el bracket sortirà tallat.
 			</div>
 			<div class="print-preview">
-			{#if layoutMode === 'compact'}
-				{#each winnersPages as page, pi}
-					<section class="print-page">
-						<header class="page-head">
-							<div class="page-head-left">
-								<img
-									src={logoDataUrl || `${base}/logo.png`}
-									alt=""
-									class="page-logo"
-								/>
-								<div class="page-head-titles">
-									<div class="page-title-main">CAMPIONAT SOCIAL HÀNDICAP{temporadaPretty ? ` ${temporadaPretty}` : ''}</div>
-									<div class="page-section">Bracket Principal {winnersPages.length > 1 ? `(${pi + 1}/${winnersPages.length})` : ''}</div>
-								</div>
-							</div>
-							{#if eventNom}<div class="page-sub">{eventNom}</div>{/if}
-						</header>
-						<div class="rounds">
-							{#each page as [ronda, items]}
-								<div class="round-section">
-									<h3 class="round-title">{rondaLabel(items[0].bracket, ronda)}</h3>
-									<div class="match-grid">
-										{#each items as mv}
-											<div class="match-cell" class:played={!!mv.result}>
-												<div class="cell-head">
-													<span class="match-code">{mv.code}</span>
-													<span class="arrows">
-														<span class="arrow-win">↗W: <strong>{mv.winnerDest}</strong></span>
-														{#if mv.loserDest !== '—'}
-															<span class="arrow-lose">↘L: <strong>{mv.loserDest}</strong></span>
-														{/if}
-													</span>
-												</div>
-												<div
-													class="player-row"
-													class:winner-row={mv.result?.winnerSlot === 1}
-													class:loser-row={!!mv.result && mv.result.winnerSlot === 2}
-												>
-													<span class="label">
-														{#if mv.result?.winnerSlot === 1}<span class="winner-mark">▶</span>{/if}
-														{mv.ronda === 1 ? `#${mv.slot1Pos}` : 'Jug 1'}
-													</span>
-													{#if mv.slot1Name}
-														<span class="line filled">{mv.slot1Name}</span>
-													{:else}
-														<span class="line"></span>
-													{/if}
-													{#if mv.result}
-														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia1 ?? mv.slot1Dist ?? ''}</span>
-														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles1 ?? '')}</span>
-													{:else}
-														{#if mv.slot1Dist != null}<span class="kv">Dist</span><span class="box small filled-box">{mv.slot1Dist}</span>{:else}<span class="kv">Dist</span><span class="box small"></span>{/if}
-														<span class="kv">Car</span><span class="box small"></span>
-													{/if}
-												</div>
-												<div
-													class="player-row"
-													class:winner-row={mv.result?.winnerSlot === 2}
-													class:loser-row={!!mv.result && mv.result.winnerSlot === 1}
-												>
-													<span class="label">
-														{#if mv.result?.winnerSlot === 2}<span class="winner-mark">▶</span>{/if}
-														{mv.ronda === 1 ? `#${mv.slot2Pos}` : 'Jug 2'}
-													</span>
-													{#if mv.slot2Name}
-														<span class="line filled">{mv.slot2Name}</span>
-													{:else}
-														<span class="line"></span>
-													{/if}
-													{#if mv.result}
-														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia2 ?? mv.slot2Dist ?? ''}</span>
-														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles2 ?? '')}</span>
-													{:else}
-														{#if mv.slot2Dist != null}<span class="kv">Dist</span><span class="box small filled-box">{mv.slot2Dist}</span>{:else}<span class="kv">Dist</span><span class="box small"></span>{/if}
-														<span class="kv">Car</span><span class="box small"></span>
-													{/if}
-												</div>
-												<div class="entries-row">
-													<span class="kv">Entrades</span>
-													{#if mv.result}
-														<span class="box filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.entrades ?? '')}</span>
-													{:else}
-														<span class="box"></span>
-													{/if}
-												</div>
-												{#if mv.schedule}
-													<div class="schedule-row">
-														<span class="sched-slot">{fmtDate(mv.schedule.dataProgramada)} · {mv.schedule.horaInici} · B{mv.schedule.taulaAssignada}</span>
-														<span class="sched-deadline">màx: {fmtDate(mv.schedule.dataMaximaDisputa)}</span>
-													</div>
-												{/if}
-											</div>
-										{/each}
-									</div>
-								</div>
-							{/each}
-						</div>
-					</section>
-				{/each}
-
-				{#each losersPages as page, pi}
-					<section class="print-page">
-						<header class="page-head">
-							<div class="page-head-left">
-								<img
-									src={logoDataUrl || `${base}/logo.png`}
-									alt=""
-									class="page-logo"
-								/>
-								<div class="page-head-titles">
-									<div class="page-title-main">CAMPIONAT SOCIAL HÀNDICAP{temporadaPretty ? ` ${temporadaPretty}` : ''}</div>
-									<div class="page-section">Bracket Repesca {losersPages.length > 1 ? `(${pi + 1}/${losersPages.length})` : ''}</div>
-								</div>
-							</div>
-							{#if eventNom}<div class="page-sub">{eventNom}</div>{/if}
-						</header>
-						<div class="rounds">
-							{#each page as [ronda, items]}
-								<div class="round-section">
-									<h3 class="round-title">{rondaLabel(items[0].bracket, ronda)}</h3>
-									<div class="match-grid">
-										{#each items as mv}
-											<div class="match-cell" class:played={!!mv.result}>
-												<div class="cell-head">
-													<span class="match-code">{mv.code}</span>
-													<span class="arrows">
-														<span class="arrow-win">↗W: <strong>{mv.winnerDest}</strong></span>
-													</span>
-												</div>
-												<div
-													class="player-row"
-													class:winner-row={mv.result?.winnerSlot === 1}
-													class:loser-row={!!mv.result && mv.result.winnerSlot === 2}
-												>
-													<span class="label">
-														{#if mv.result?.winnerSlot === 1}<span class="winner-mark">▶</span>{/if}
-														Jug 1
-													</span>
-													{#if mv.slot1Name}
-														<span class="line filled">{mv.slot1Name}</span>
-													{:else}
-														<span class="line"></span>
-													{/if}
-													{#if mv.result}
-														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia1 ?? mv.slot1Dist ?? ''}</span>
-														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles1 ?? '')}</span>
-													{:else}
-														{#if mv.slot1Dist != null}<span class="kv">Dist</span><span class="box small filled-box">{mv.slot1Dist}</span>{:else}<span class="kv">Dist</span><span class="box small"></span>{/if}
-														<span class="kv">Car</span><span class="box small"></span>
-													{/if}
-												</div>
-												<div
-													class="player-row"
-													class:winner-row={mv.result?.winnerSlot === 2}
-													class:loser-row={!!mv.result && mv.result.winnerSlot === 1}
-												>
-													<span class="label">
-														{#if mv.result?.winnerSlot === 2}<span class="winner-mark">▶</span>{/if}
-														Jug 2
-													</span>
-													{#if mv.slot2Name}
-														<span class="line filled">{mv.slot2Name}</span>
-													{:else}
-														<span class="line"></span>
-													{/if}
-													{#if mv.result}
-														<span class="kv">Dist</span><span class="box small filled-box">{mv.result.distancia2 ?? mv.slot2Dist ?? ''}</span>
-														<span class="kv">Car</span><span class="box small filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.caramboles2 ?? '')}</span>
-													{:else}
-														{#if mv.slot2Dist != null}<span class="kv">Dist</span><span class="box small filled-box">{mv.slot2Dist}</span>{:else}<span class="kv">Dist</span><span class="box small"></span>{/if}
-														<span class="kv">Car</span><span class="box small"></span>
-													{/if}
-												</div>
-												<div class="entries-row">
-													<span class="kv">Entrades</span>
-													{#if mv.result}
-														<span class="box filled-box">{mv.result.isWalkover ? 'WO' : (mv.result.entrades ?? '')}</span>
-													{:else}
-														<span class="box"></span>
-													{/if}
-												</div>
-												{#if mv.schedule}
-													<div class="schedule-row">
-														<span class="sched-slot">{fmtDate(mv.schedule.dataProgramada)} · {mv.schedule.horaInici} · B{mv.schedule.taulaAssignada}</span>
-														<span class="sched-deadline">màx: {fmtDate(mv.schedule.dataMaximaDisputa)}</span>
-													</div>
-												{/if}
-											</div>
-										{/each}
-									</div>
-								</div>
-							{/each}
-						</div>
-					</section>
-				{/each}
-			{:else}
 				{#each visualSheets as sheet}
 					{#if sheet}
 						<section class="print-page">
@@ -1188,7 +1067,6 @@ ${printScript}
 						</section>
 					{/if}
 				{/each}
-			{/if}
 			</div>
 		{/if}
 	</div>
@@ -1237,10 +1115,6 @@ ${printScript}
 	.btn-primary { background: #1f1f1f; color: white; }
 	.btn-secondary { background: white; color: #1f1f1f; }
 	.err { color: #a30b1e; font-weight: 600; }
-	.layout-toggle { display: inline-flex; border: 1px solid #333; }
-	.layout-toggle button { padding: 0.35rem 0.7rem; font-size: 0.8125rem; font-weight: 600; background: white; color: #1f1f1f; border: none; border-right: 1px solid #333; cursor: pointer; }
-	.layout-toggle button:last-child { border-right: none; }
-	.layout-toggle button.active { background: #1f1f1f; color: white; }
 
 	.print-preview { overflow: auto; flex: 1; padding: 1rem; background: #ececec; }
 	.print-warning {
@@ -1295,22 +1169,6 @@ ${printScript}
 	}
 	.page-sub { font-size: 10pt; color: #555; text-align: right; }
 
-	.rounds {
-		display: flex; flex-direction: column; gap: 4mm; flex: 1;
-		overflow: hidden;
-	}
-	.round-section { display: flex; flex-direction: column; gap: 2mm; page-break-inside: avoid; break-inside: avoid; }
-	.round-title {
-		font-size: 10pt; font-weight: 700; letter-spacing: 0.05em;
-		text-transform: uppercase; color: #1f1f1f;
-		border-left: 4px solid #1f1f1f; padding-left: 3mm;
-		margin: 0;
-	}
-	.match-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(70mm, 1fr));
-		gap: 3mm;
-	}
 	.match-cell {
 		border: 1.5px solid #1f1f1f;
 		padding: 2mm 2.5mm;
