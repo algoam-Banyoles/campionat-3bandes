@@ -368,7 +368,14 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
     console.log('🎯 Looking for matches in events:', eventIds);
 
     // Query matches with proper relations
-    // Only show matches that haven't been played yet (caramboles_jugador1 is null)
+    // Mostrem les partides PROGRAMADES i encara no jugades dels events amb
+    // calendari publicat. El gate real de visibilitat pública és
+    // `events.calendari_publicat = true` (filtrat més amunt), NO l'estat:
+    // les partides programades viuen en estat 'generat' (i històricament
+    // 'validat'/'publicat'/'reprogramada'). Filtrar només per 'validat'
+    // deixava el calendari buit perquè ja no se'n genera cap amb aquest estat.
+    // Excloem només les jugades/anul·lades via `caramboles_jugador1 is null`
+    // i el flag `partida_anullada`.
     // Fase 5c-S2c: nom dels jugadors via FK directe `*_soci_numero → socis`,
     // sense passar per la taula intermèdia `players`. Mantenim els camps
     // `jugador1_id`/`jugador2_id` al SELECT i a la sortida perquè altres
@@ -391,7 +398,7 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
         events(id, nom),
         categories(id, nom)
       `)
-      .eq('estat', 'validat')
+      .in('estat', ['generat', 'validat', 'publicat', 'reprogramada'])
       .in('event_id', eventIds)
       .not('data_programada', 'is', null)
       .not('hora_inici', 'is', null)
@@ -402,32 +409,22 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
     if (error) {
       console.error('❌ Supabase query error:', error);
       
-      // Check if error is related to RLS permissions
+      // Check if error is related to RLS permissions. El calendari és públic;
+      // si tot i així hi ha un error de permisos, el deixem buit silenciosament
+      // (sense demanar login) i ho registrem per diagnòstic.
       if (error.code === '42501' || error.message.includes('insufficient_privilege') || error.message.includes('permission denied')) {
-        console.warn('⚠️ No access to calendar matches (user not authenticated). This is expected for public users.');
-        console.log('💡 Calendar will show only events, not specific matches until user logs in.');
-        
-        // Set a user-friendly error message for non-authenticated users
-        if (!isAuthenticated) {
-          calendarError.set('Per veure les partides programades, cal iniciar sessió.');
-        }
-        
+        console.warn('⚠️ RLS va bloquejar la lectura de partides del calendari:', error.message);
         partidesCalendari.set([]);
         return;
       }
-      
+
       throw new Error(`Error getting partides: ${error.message} (Code: ${error.code})`);
     }
 
     console.log('🏆 Raw matches data received:', data?.length || 0);
 
     if (!data || data.length === 0) {
-      if (!isAuthenticated) {
-        console.log('ℹ️ No matches visible to anonymous users due to RLS policies');
-        calendarError.set('No hi ha partides públiques disponibles. Inicia sessió per veure el calendari complet.');
-      } else {
-        console.log('⚠️ No validated matches found for published events');
-      }
+      console.log('ℹ️ No hi ha partides programades pendents als events publicats');
       partidesCalendari.set([]);
       return;
     }
