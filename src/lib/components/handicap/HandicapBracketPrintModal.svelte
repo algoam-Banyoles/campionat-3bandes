@@ -86,8 +86,8 @@
 
 	// Dimensions (mm) per a la disposicio VISUAL en arbre a A3 apaisat.
 	const V_CELL_W = 68;
-	const V_CELL_H = 38;
-	const V_SLOT = 46;
+	const V_CELL_H = 28;
+	const V_SLOT = 32;
 	const V_COL_GAP = 13;
 	const V_COL_GAP_WIN = 28; // gap horitzontal mes ample per als fulls de guanyadors
 	const V_HEADER_H = 7;
@@ -97,7 +97,7 @@
 	// Per mantenir els textos llegibles, cada full visual mostra un tram curt
 	// de rondes i un màxim de sis partides de la ronda més densa.
 	const V_MAX_ROUNDS_PER_SHEET = 4;
-	const V_MAX_CELLS_PER_SHEET = 6;
+	const V_MAX_CELLS_PER_SHEET = 8;
 	// Tram curt (mm) que surt cap a la dreta quan el guanyador avança a un
 	// match que es a l'altre full (p. ex. W4.2 -> W5.1 a la pagina 2).
 	const V_STUB_LEN = 7;
