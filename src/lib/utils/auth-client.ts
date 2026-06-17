@@ -130,6 +130,24 @@ export async function hydrateSession() {
   return Promise.race([hydrationPromise, timeoutPromise]);
 }
 
+/**
+ * Programa una hidratació de sessió FORA del callback d'onAuthStateChange.
+ *
+ * supabase-js invoca el callback d'onAuthStateChange mentre té agafat el lock
+ * intern d'auth (navigator.locks). Si cridem `hydrateSession()` —que fa
+ * `getSession()`— síncronament dins del callback, `getSession()` intenta agafar
+ * el MATEIX lock i es produeix un deadlock que només es desbloqueja amb el
+ * timeout de 20s. Diferir-ho amb `setTimeout(0)` permet que el callback retorni
+ * i s'alliberi el lock abans de tornar-lo a agafar.
+ */
+function scheduleHydrate() {
+  setTimeout(() => {
+    hydrateSession().catch((e) =>
+      console.error('Deferred hydrateSession failed (keeping current state):', e)
+    );
+  }, 0);
+}
+
 export function initAuthClient() {
   if (initialized) return;
   initialized = true;
@@ -145,8 +163,10 @@ export function initAuthClient() {
 
     try {
       if (event === 'SIGNED_IN') {
-        // Només hidratar en SIGNED_IN, no en TOKEN_REFRESHED per evitar loops
-        await hydrateSession();
+        // Només hidratar en SIGNED_IN, no en TOKEN_REFRESHED per evitar loops.
+        // Diferit fora del callback per no fer deadlock amb el lock d'auth
+        // (vegeu scheduleHydrate).
+        scheduleHydrate();
       } else if (event === 'TOKEN_REFRESHED') {
         // Per TOKEN_REFRESHED, només actualitzar el token sense recarregar tot
         console.log('Token refreshed - updating token only');
@@ -166,7 +186,7 @@ export function initAuthClient() {
         console.log('Explicit sign out detected');
         authState.set({ status: 'anonymous', session: null, user: null });
       } else if (event === 'USER_UPDATED') {
-        await hydrateSession();
+        scheduleHydrate();
       }
       // Ignorar altres events per evitar logouts no desitjats
     } catch (error) {
