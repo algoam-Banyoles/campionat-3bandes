@@ -19,6 +19,15 @@
   let showInscripcio = false;
   let showAccessibilityModal = false;
 
+  // IMPORTANT: aquestes dues funcions registren `afterNavigate`, que SvelteKit
+  // implementa amb un `onMount` intern. Per això s'han de cridar durant la
+  // INICIALITZACIÓ del component, NO dins d'un altre `onMount`: si es criden des
+  // d'`onMount`, l'`onMount` intern d'`afterNavigate` ja no s'executa mai i el
+  // callback de navegació no es registra (el tracking de visites i la gestió de
+  // focus quedaven silenciosament inactius).
+  setupFocusManagement();
+  setupPageViewTracking();
+
   type SessionUser = { email: string | null } | null;
 
   async function refreshInscripcioVisibility(u: SessionUser) {
@@ -147,11 +156,8 @@
     // Inicialitza sistema de notificacions push
     initializeNotifications();
 
-    // Configura gestió del focus per accessibilitat
-    setupFocusManagement();
-
-    // Registre anònim de visites de pàgina (estadístiques d'ús per a admins)
-    setupPageViewTracking();
+    // (setupFocusManagement i setupPageViewTracking es criden durant la
+    //  inicialització del component, no aquí — vegeu el comentari de dalt.)
 
     // Escoltar actualitzacions de PWA
     window.addEventListener('pwa-update-available', (event) => {
