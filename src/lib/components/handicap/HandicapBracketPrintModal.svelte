@@ -87,21 +87,20 @@
 	// Dimensions (mm) per a la disposicio VISUAL en arbre a A3 apaisat.
 	const V_CELL_W = 68;
 	// El contingut de la targeta (codi + 2 jugadors + entrades + data) necessita
-	// ~34mm, així que NO es pot baixar V_CELL_H d'aquí sense que desbordi. Per
-	// encabir 8 targetes per full és l'auto-escalat (packSheet) qui encongeix tot
-	// el full proporcionalment, de manera que res no queda tallat.
+	// ~34mm, així que NO es pot baixar V_CELL_H d'aquí sense que desbordi.
 	const V_CELL_H = 38;
-	const V_SLOT = 42;
+	const V_SLOT = 46;
 	const V_COL_GAP = 13;
 	const V_COL_GAP_WIN = 28; // gap horitzontal mes ample per als fulls de guanyadors
 	const V_HEADER_H = 7;
 	// Àrea útil (mm) d'un full A3 APAÏSAT (capçalera i marges descomptats).
 	const V_LAND_W = 388;
 	const V_LAND_H = 232;
-	// Per mantenir els textos llegibles, cada full visual mostra un tram curt
-	// de rondes i un màxim de sis partides de la ronda més densa.
+	// Per mantenir les targetes grans, cada full visual mostra un tram curt de
+	// rondes i un màxim de sis partides de la ronda més densa (→ 4 branques al
+	// bracket principal, més fulls però targetes a mida completa).
 	const V_MAX_ROUNDS_PER_SHEET = 4;
-	const V_MAX_CELLS_PER_SHEET = 8;
+	const V_MAX_CELLS_PER_SHEET = 6;
 	// Tram curt (mm) que surt cap a la dreta quan el guanyador avança a un
 	// match que es a l'altre full (p. ex. W4.2 -> W5.1 a la pagina 2).
 	const V_STUB_LEN = 7;
