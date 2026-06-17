@@ -783,10 +783,18 @@
 		return sheets;
 	}
 
-	$: visualSheets = [
-		...buildSheets(allViews.filter((v) => v.bracket !== 'losers'), 'winners').map((sh) => ({ ...sh, section: 'Bracket Principal' })),
-		...buildSheets(allViews.filter((v) => v.bracket === 'losers'), 'losers').map((sh) => ({ ...sh, section: 'Bracket Repesca' }))
-	];
+	$: visualSheets = (() => {
+		const sheets = [
+			...buildSheets(allViews.filter((v) => v.bracket !== 'losers'), 'winners').map((sh) => ({ ...sh, section: 'Bracket Principal' })),
+			...buildSheets(allViews.filter((v) => v.bracket === 'losers'), 'losers').map((sh) => ({ ...sh, section: 'Bracket Repesca' }))
+		];
+		if (sheets.length === 0) return sheets;
+		// Escala GLOBAL: totes les pàgines comparteixen el mateix factor (el més
+		// petit, perquè la pàgina més densa hi càpiga) → totes les targetes tenen
+		// exactament la mateixa mida a tots els fulls.
+		const globalScale = Math.min(...sheets.map((s) => s.scale));
+		return sheets.map((s) => ({ ...s, scale: globalScale }));
+	})();
 	$: visualFulls = visualSheets.length;
 
 	function doPrint() {
