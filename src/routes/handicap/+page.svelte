@@ -178,9 +178,11 @@
 				return { name: src ? `${src.role} ${src.code}` : 'Per determinar', resolved: false };
 			};
 
-			// Pròximes 3 programades
+			// Pròximes partides: incloem també les 'pendent' que ja tenen data
+			// orientativa (calendari_partida_id), perquè es vegin amb l'origen del
+			// contrincant ("Guanyador W1.1") en comptes d'amagar-se fins a resoldre's.
 			const programades = (matchStats as any[])
-				.filter((m) => m.estat === 'programada' && m.calendari_partida_id)
+				.filter((m) => (m.estat === 'programada' || m.estat === 'pendent') && m.calendari_partida_id)
 				.map((m) => {
 					const s1 = slotMap.get(m.slot1_id);
 					const s2 = slotMap.get(m.slot2_id);
@@ -205,10 +207,14 @@
 				const db = (b.data ?? '') + (b.hora ?? '');
 				return da.localeCompare(db);
 			});
-			// Pròximes partides: tots els partits dels 2 propers dies amb partides programades
+			// Pròximes partides: tots els partits dels 2 propers dies amb partides
+			// programades (descartem dates passades, sobretot ara que incloem
+			// pre-reserves 'pendent' que podrien tenir dates orientatives velles).
+			const now = new Date();
+			const todayYmd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 			const distinctDays: string[] = [];
 			for (const m of programades) {
-				if (m.data && !distinctDays.includes(m.data)) {
+				if (m.data && m.data >= todayYmd && !distinctDays.includes(m.data)) {
 					distinctDays.push(m.data);
 					if (distinctDays.length === 2) break;
 				}

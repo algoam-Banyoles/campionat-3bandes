@@ -2,6 +2,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { supabase } from '$lib/supabaseClient';
 import { user } from '$lib/stores/auth';
+import { loadHandicapCalendarLabels } from '$lib/utils/handicap-calendar-labels';
 
 export type CalendarView = 'month' | 'week';
 
@@ -36,6 +37,10 @@ export type PartidaCalendari = {
   jugador2_nom: string;
   jugador1?: any; // Dades originals del jugador 1
   jugador2?: any; // Dades originals del jugador 2
+  // Etiqueta de visualització ja resolta (hàndicap): nom real o origen del
+  // slot pendent ("Guanyador W1.1"). Si és null, es formata des de jugadorN.
+  jugador1_label?: string | null;
+  jugador2_label?: string | null;
   jugador1_soci_numero: number | null;
   jugador2_soci_numero: number | null;
   data_programada: string;
@@ -152,8 +157,10 @@ export const calendarEvents = derived(
           return 'Jugador desconegut';
         };
         
-        const jugador1Format = formatPlayerName(partida.jugador1);
-        const jugador2Format = formatPlayerName(partida.jugador2);
+        // Hàndicap: si el slot encara no està resolt, `jugadorN_label` porta
+        // l'origen ("Guanyador W1.1") en comptes de quedar en blanc/Desconegut.
+        const jugador1Format = partida.jugador1_label ?? formatPlayerName(partida.jugador1);
+        const jugador2Format = partida.jugador2_label ?? formatPlayerName(partida.jugador2);
 
         const isHandicap = partida.event_tipus === 'handicap';
         // L'hàndicap no té categoria; només l'afegim a la descripció si n'hi ha.
@@ -471,6 +478,32 @@ export async function loadPartidesCalendari(setLoading: boolean = true): Promise
         observacions_junta: item.observacions_junta
       };
     });
+
+    // Hàndicap: resoldre l'origen dels slots pendents ("Guanyador W1.1", etc.)
+    // perquè les partides amb contrincants encara per determinar es vegin amb
+    // informació útil en comptes de "Jugador desconegut".
+    const hcapEventIds = [
+      ...new Set(
+        data
+          .filter((item: any) => (item.events as any)?.tipus_competicio === 'handicap')
+          .map((item: any) => item.event_id as string)
+          .filter(Boolean)
+      )
+    ] as string[];
+    if (hcapEventIds.length > 0) {
+      try {
+        const labelMap = await loadHandicapCalendarLabels(supabase, hcapEventIds);
+        for (const p of partides) {
+          if (p.event_tipus !== 'handicap') continue;
+          const lbl = labelMap.get(p.id);
+          if (!lbl) continue;
+          p.jugador1_label = lbl.player1;
+          p.jugador2_label = lbl.player2;
+        }
+      } catch (e) {
+        console.warn('⚠️ No s\'han pogut resoldre les etiquetes d\'hàndicap:', e);
+      }
+    }
 
     console.log('✅ Successfully processed matches:', partides.length);
     partidesCalendari.set(partides);

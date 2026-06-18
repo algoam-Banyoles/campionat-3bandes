@@ -13,6 +13,7 @@
   import { supabase } from '$lib/supabaseClient';
   import { mySociNumero } from '$lib/stores/mySoci';
   import { formatarNomJugador } from '$lib/utils/playerUtils';
+  import { loadHandicapCalendarLabels, type HandicapCalendarLabels } from '$lib/utils/handicap-calendar-labels';
 
   /** Nombre màxim de partides a mostrar. */
   export let limit = 5;
@@ -35,10 +36,13 @@
     j2_nom?: string | null;
     j2_cognoms?: string | null;
     event_nom?: string | null;
+    event_tipus?: string | null;
     categoria_nom?: string | null;
   };
 
   let matches: Match[] = [];
+  // Etiquetes d'hàndicap (origen dels slots pendents), per id de calendari_partida.
+  let handicapLabels = new Map<string, HandicapCalendarLabels>();
   let loading = false;
 
   // Resol el soci_numero efectiu: la prop si es passa, sinó l'usuari loggat
@@ -92,7 +96,7 @@
       const [{ data: socis }, { data: events }, { data: cats }] = await Promise.all([
         supabase.from('socis').select('numero_soci, nom, cognoms').in('numero_soci', Array.from(sociIds)),
         eventIds.size
-          ? supabase.from('events').select('id, nom').in('id', Array.from(eventIds))
+          ? supabase.from('events').select('id, nom, tipus_competicio').in('id', Array.from(eventIds))
           : Promise.resolve({ data: [] as any[] }),
         categoryIds.size
           ? supabase.from('categories').select('id, nom').in('id', Array.from(categoryIds))
@@ -102,9 +106,20 @@
       const sociMap = new Map<number, { nom: string; cognoms: string }>();
       (socis ?? []).forEach((s: any) => sociMap.set(s.numero_soci, { nom: s.nom, cognoms: s.cognoms }));
       const eventMap = new Map<string, string>();
-      (events ?? []).forEach((e: any) => eventMap.set(e.id, e.nom));
+      const eventTipusMap = new Map<string, string>();
+      (events ?? []).forEach((e: any) => {
+        eventMap.set(e.id, e.nom);
+        if (e.tipus_competicio) eventTipusMap.set(e.id, e.tipus_competicio);
+      });
       const catMap = new Map<string, string>();
       (cats ?? []).forEach((c: any) => catMap.set(c.id, c.nom));
+
+      // Hàndicap: resoldre l'origen dels contrincants encara per determinar
+      // ("Guanyador W1.1") en comptes de deixar el nom en blanc.
+      const hcapEventIds = Array.from(eventIds).filter((id) => eventTipusMap.get(id) === 'handicap');
+      handicapLabels = hcapEventIds.length > 0
+        ? await loadHandicapCalendarLabels(supabase, hcapEventIds)
+        : new Map();
 
       matches = rows.map((m) => ({
         ...m,
@@ -113,6 +128,7 @@
         j2_nom: sociMap.get(m.jugador2_soci_numero)?.nom ?? null,
         j2_cognoms: sociMap.get(m.jugador2_soci_numero)?.cognoms ?? null,
         event_nom: m.event_id ? eventMap.get(m.event_id) ?? null : null,
+        event_tipus: m.event_id ? eventTipusMap.get(m.event_id) ?? null : null,
         categoria_nom: m.categoria_id ? catMap.get(m.categoria_id) ?? null : null
       }));
     } finally {
@@ -131,11 +147,22 @@
     });
   }
 
-  function opponentName(m: Match, soci: number): string {
+  /**
+   * Nom del contrincant. Per a l'hàndicap, si el contrincant encara no està
+   * definit, retorna el seu origen ("Guanyador W1.1") i marca resolved=false.
+   */
+  function opponentInfo(m: Match, soci: number): { name: string; resolved: boolean } {
     const isPlayer1 = m.jugador1_soci_numero === soci;
+    const labels = handicapLabels.get(m.id);
+    if (labels) {
+      const op = isPlayer1
+        ? { name: labels.player2, resolved: labels.player2Resolved }
+        : { name: labels.player1, resolved: labels.player1Resolved };
+      if (op.name) return op;
+    }
     const opNom = isPlayer1 ? m.j2_nom : m.j1_nom;
     const opCog = isPlayer1 ? m.j2_cognoms : m.j1_cognoms;
-    return formatarNomJugador(`${opNom ?? ''} ${opCog ?? ''}`.trim());
+    return { name: formatarNomJugador(`${opNom ?? ''} ${opCog ?? ''}`.trim()), resolved: true };
   }
 </script>
 
@@ -147,6 +174,7 @@
     </header>
     <ol class="ump-list">
       {#each matches as m (m.id)}
+        {@const op = opponentInfo(m, effectiveSoci)}
         <li class="ump-row">
           <div class="ump-date">
             <div class="ump-date-day tabular-nums">{formatDate(m.data_programada)}</div>
@@ -156,7 +184,7 @@
           </div>
           <div class="ump-info">
             <div class="ump-opponent">
-              vs <strong>{opponentName(m, effectiveSoci)}</strong>
+              vs <strong class:pending={!op.resolved}>{op.name}</strong>
             </div>
             <div class="ump-meta">
               {#if m.event_nom}{m.event_nom}{/if}
@@ -227,6 +255,12 @@
     color: var(--ink-2, #4a443e);
   }
   .ump-opponent strong { color: var(--ink, #1a1814); }
+  /* Contrincant encara per determinar (hàndicap): origen en cursiva. */
+  .ump-opponent strong.pending {
+    font-style: italic;
+    font-weight: 600;
+    color: var(--ink-2, #4a443e);
+  }
   .ump-meta {
     margin-top: 0.2rem;
     font-size: 0.8125rem;
